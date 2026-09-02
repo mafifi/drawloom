@@ -1,0 +1,26 @@
+---
+type: index
+id: drawloom-knowledge-index
+title: Drawloom knowledge index
+status: active
+created: 2026-09-02
+updated: 2026-09-02
+---
+
+# Drawloom knowledge index
+
+## Sources
+
+- No source records yet.
+
+## Assumptions
+
+- No assumption records yet.
+
+## Evidence and computations
+
+- No evidence or computation records yet.
+
+## Related decisions
+
+- [ADR 0001: Establish repository foundations](../docs/adr/0001-repository-foundations.md)
