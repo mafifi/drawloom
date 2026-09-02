@@ -31,5 +31,14 @@ git commit --signoff
 The trailer certifies that you have the right to submit the contribution under
 the repository's Apache-2.0 licence. It is not a copyright assignment.
 
-Canonical development commands will be added after the initial toolchain is
-chosen.
+Install dependencies and run the current complete gate from the repository
+root:
+
+```sh
+bun install --frozen-lockfile
+bun run check:ci
+```
+
+External dependencies are versioned in the root Bun catalog and referenced from
+workspaces with `catalog:`. Internal packages use `workspace:*`. See the
+[dependency and package policy](docs/reference/dependency-policy.md).

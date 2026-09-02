@@ -20,6 +20,10 @@ area you change.
 - Parse and validate data at trust boundaries.
 - Keep one authoritative home for each fact; link instead of copying.
 - Update architecture, decisions, or knowledge records when their truth changes.
+- Keep external dependency versions in the root Bun catalog; workspaces use
+  `catalog:` for external packages and `workspace:*` for internal packages.
+- Keep portable packages free of Bun, Node.js, Cloudflare, and Tauri ambient
+  APIs. Cross host-specific behaviour through an explicit contract.
 
 ## Area guides
 
@@ -29,6 +33,14 @@ area you change.
 
 ## Verification
 
-The repository has no executable toolchain yet. Do not invent passing checks.
-When tooling is introduced, document canonical commands here and enforce them
-in CI.
+Install the pinned toolchain dependencies and run the canonical gate from the
+repository root:
+
+```sh
+bun install --frozen-lockfile
+bun run check:ci
+```
+
+`check:ci` validates dependency policy, runs strict TypeScript checking, and
+runs the Bun test suite. Add target-specific checks when a package first claims
+Node.js, Cloudflare, or Tauri compatibility; do not claim untested portability.

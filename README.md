@@ -24,6 +24,7 @@ strategy are documented.
 - [`docs/`](docs/): ADRs, plans, reference material, and security design.
 - [`knowledge/`](knowledge/): OKF-profiled knowledge and provenance records.
 - [`packages/`](packages/): contract-first product packages.
+- [`apps/`](apps/): private SvelteKit and Tauri composition roots.
 - [`.agents/skills/`](.agents/skills/): repository-specific Agent Skills.
 - [`scripts/`](scripts/): repository automation and mechanical checks.
 
@@ -33,6 +34,19 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) before proposing a change.
 
 No supported release exists yet. A private vulnerability reporting channel will
 be configured before the first public release.
+
+## Development
+
+Drawloom uses the Bun version pinned in `package.json`:
+
+```sh
+bun install --frozen-lockfile
+bun run check:ci
+```
+
+External dependency versions are owned by the root Bun catalog. See the
+[dependency and package policy](docs/reference/dependency-policy.md) before
+adding a workspace dependency.
 
 ## Licence
 

@@ -63,6 +63,25 @@ pre-created as empty packages.
 - `SECURITY.md` defines repository-wide security policy; deeper security design
   belongs under `docs/security/`.
 
+## Implementation baseline
+
+- TypeScript and ESM are the product implementation and publication baseline.
+- Bun is the canonical repository toolchain and owns the workspace lockfile.
+- The root Bun catalog is the only external dependency version authority;
+  workspaces use catalog references for external packages and workspace
+  references for internal packages.
+- Portable packages support Bun and the declared Node.js range. Cloudflare
+  compatibility is verified only for packages and compositions that claim it.
+- Host-specific APIs remain behind contracts and are selected in composition
+  roots.
+- Public packages release in lockstep until a later ADR changes the release
+  model.
+- SvelteKit is the default UI framework. Tauri may own a minimal Rust desktop
+  shell, but core product contracts and capabilities remain TypeScript.
+
+See [ADR 0003](docs/adr/0003-typescript-bun-and-portable-packages.md) for the
+toolchain, portability, dependency, and release decisions.
+
 Drawloom deliberately has no `CONTEXT.md`. Context that changes agent behaviour
 belongs in `AGENTS.md`; product intent belongs in `DESIGN.md`; architecture
 belongs here; provenance-bearing facts belong in `knowledge/`.
