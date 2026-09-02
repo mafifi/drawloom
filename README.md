@@ -33,3 +33,9 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) before proposing a change.
 
 No supported release exists yet. A private vulnerability reporting channel will
 be configured before the first public release.
+
+## Licence
+
+Drawloom is licensed under the [Apache License 2.0](LICENSE). Contributions are
+made under the same licence and certified under the [Developer Certificate of
+Origin 1.1](DCO).

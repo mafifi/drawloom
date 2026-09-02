@@ -19,5 +19,17 @@ intent clearer before expanding implementation surface.
 - State what was verified and what remains unverified.
 - Do not commit secrets, credentials, private prompts, or sensitive traces.
 
+## Developer Certificate of Origin
+
+Contributions must certify the [Developer Certificate of Origin 1.1](DCO).
+Add a `Signed-off-by` trailer using Git's sign-off option:
+
+```sh
+git commit --signoff
+```
+
+The trailer certifies that you have the right to submit the contribution under
+the repository's Apache-2.0 licence. It is not a copyright assignment.
+
 Canonical development commands will be added after the initial toolchain is
 chosen.

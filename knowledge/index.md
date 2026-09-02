@@ -24,3 +24,4 @@ updated: 2026-09-02
 ## Related decisions
 
 - [ADR 0001: Establish repository foundations](../docs/adr/0001-repository-foundations.md)
+- [ADR 0002: License the public core under Apache-2.0](../docs/adr/0002-open-core-licensing.md)

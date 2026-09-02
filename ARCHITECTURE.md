@@ -66,3 +66,16 @@ pre-created as empty packages.
 Drawloom deliberately has no `CONTEXT.md`. Context that changes agent behaviour
 belongs in `AGENTS.md`; product intent belongs in `DESIGN.md`; architecture
 belongs here; provenance-bearing facts belong in `knowledge/`.
+
+## Public and commercial boundary
+
+The public repository is the Apache-2.0-licensed core. Proprietary enterprise
+products may implement and compose its public contracts from separate,
+separately licensed repositories. Public Drawloom packages must never import or
+require proprietary packages.
+
+The open core owns runtime fundamentals, contracts, conformance suites, and
+basic security, evaluation, observability, and self-hosting capabilities.
+Commercial differentiation belongs primarily in organisational governance,
+fleet operation, compliance, enterprise integrations, hosted services, and
+support.
