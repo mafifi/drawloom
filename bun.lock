@@ -10,6 +10,9 @@
       },
     },
   },
+  "catalog": {
+    "zod": "^4.5.4",
+  },
   "packages": {
     "@types/bun": ["@types/bun@1.2.23", "", { "dependencies": { "bun-types": "1.2.23" } }, "sha512-le8ueOY5b6VKYf19xT3McVbXqLqmxzPXHsQT/q9JHgikJ2X22wyTW3g3ohz2ZMnp7dod6aduIiq8A14Xyimm0A=="],
 

@@ -4,7 +4,7 @@ id: drawloom-knowledge-index
 title: Drawloom knowledge index
 status: active
 created: 2026-09-02
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 
 # Drawloom knowledge index
@@ -26,3 +26,4 @@ updated: 2026-09-02
 - [ADR 0001: Establish repository foundations](../docs/adr/0001-repository-foundations.md)
 - [ADR 0002: License the public core under Apache-2.0](../docs/adr/0002-open-core-licensing.md)
 - [ADR 0003: Adopt TypeScript, Bun, and portable packages](../docs/adr/0003-typescript-bun-and-portable-packages.md)
+- [ADR 0004: Standardise capability contracts and conformance](../docs/adr/0004-standardise-capability-contracts.md)

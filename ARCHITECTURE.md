@@ -74,13 +74,19 @@ pre-created as empty packages.
   compatibility is verified only for packages and compositions that claim it.
 - Host-specific APIs remain behind contracts and are selected in composition
   roots.
+- Capability behaviour is expressed through TypeScript interfaces. Zod 4
+  schemas validate trust-boundary data and own its inferred TypeScript types.
+- Each contract package ships one provider-neutral conformance suite that every
+  implementation runs.
 - Public packages release in lockstep until a later ADR changes the release
   model.
 - SvelteKit is the default UI framework. Tauri may own a minimal Rust desktop
   shell, but core product contracts and capabilities remain TypeScript.
 
 See [ADR 0003](docs/adr/0003-typescript-bun-and-portable-packages.md) for the
-toolchain, portability, dependency, and release decisions.
+toolchain, portability, dependency, and release decisions, and
+[ADR 0004](docs/adr/0004-standardise-capability-contracts.md) for the contract,
+runtime-schema, and conformance standard.
 
 Drawloom deliberately has no `CONTEXT.md`. Context that changes agent behaviour
 belongs in `AGENTS.md`; product intent belongs in `DESIGN.md`; architecture

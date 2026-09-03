@@ -39,4 +39,18 @@ runtime exercised by its verification suite.
 New capability work begins with its contract and failing conformance examples,
 then adds providers and integration.
 
+## Contract standard
+
+- Express public capability behaviour with TypeScript interfaces; do not
+  require providers to inherit from an abstract base class.
+- Define trust-boundary data with Zod 4 schemas referenced through the root Bun
+  catalog, and infer the corresponding TypeScript types from those schemas.
+- Parse boundary values from `unknown`; a type assertion is not validation.
+- Export one provider-neutral conformance suite from each contract package and
+  run it against every implementation in a runtime that implementation claims
+  to support.
+
+See [ADR 0004](../docs/adr/0004-standardise-capability-contracts.md) for the
+complete contract and conformance standard.
+
 Run `bun run check:dependency-policy` after changing any package manifest.

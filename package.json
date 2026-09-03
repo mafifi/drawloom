@@ -18,7 +18,9 @@
       "apps/*",
       "packages/*/*"
     ],
-    "catalog": {}
+    "catalog": {
+      "zod": "^4.5.4"
+    }
   },
   "scripts": {
     "check": "bun run check:ci",
