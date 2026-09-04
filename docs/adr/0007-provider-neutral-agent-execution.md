@@ -1,6 +1,6 @@
 # ADR 0007: Define provider-neutral agent execution
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-04
 - **Decision owners:** Drawloom maintainers
 
@@ -73,8 +73,9 @@ its verification remain provider-specific.
 
 ### Keep the operation lifecycle small
 
-Version one permits one active operation per session. A second execute request
-while work is active is rejected.
+Version one permits one starting or active operation per session. A second
+execute request while provider acceptance is pending or work is active is
+rejected.
 
 An accepted operation emits zero or more safe signals and exactly one terminal
 outcome: completed, failed, or interrupted. The adapter absorbs connection
@@ -85,9 +86,11 @@ from completing coherently.
 Version-one input is text. Media input remains in scope for later compatible
 evolution when a provider and consumer demonstrate its required semantics.
 
-Closing and interrupting are idempotent. Steering and interruption are optional
-session methods; method presence is the capability declaration. The contract
-does not maintain a parallel boolean capability matrix.
+Closing and interrupting are idempotent. Concurrent interruption requests share
+one provider decision, and interruption becomes terminal only when the provider
+reports the outcome. Steering and interruption are optional session methods;
+method presence is the capability declaration. The contract does not maintain
+a parallel boolean capability matrix.
 
 Each session exposes one ordered, single-consumer signal stream. The consumer
 subscribes before the first operation. Signals are not replayed, and the stream
@@ -191,7 +194,7 @@ signal-to-event transformation.
 
 Content may carry stable message identity for stream assembly and an optional
 provider-supported phase. Absence of a phase is represented by absence rather
-than an invented `unknown` value. Reasoning summaries, usage, diagnostics, and
+than an invented `unknown` value. Reasoning summaries, usage, and
 provider-native delegation use the bounded provider-observation summary and
 protected-evidence path until evidence justifies a portable semantic. The
 portable signal contains no arbitrary provider JSON.
@@ -215,21 +218,23 @@ session methods.
 
 The shared conformance suite verifies the core session and operation invariants,
 safe signal validation, tool-authority isolation, and each optional control
-that an implementation exposes. Provider protocol mapping, connection
-recovery, diagnostics, and observational richness remain provider-specific
-tests rather than combinations in a portable capability matrix.
+that an implementation exposes. Provider protocol mapping, connection recovery,
+and observational richness remain provider-specific tests rather than
+combinations in a portable capability matrix.
 
-### Require provider evidence before acceptance
+### Retain provider evidence supporting acceptance
 
-Codex app-server is the first proposed provider, not the definition of the
-contract. Its protocol mapping, tool-exposure spike, and remaining evidence
-gates live in the
+Codex app-server is the first evidenced provider, not the definition of the
+contract. Its protocol mapping, tool-exposure spike, and evidence gates live in
+the
 [Codex app-server adapter design](../design/codex-app-server-adapter.md).
 
-This ADR remains Proposed until the working contract is complete and disposable
-Codex integration tests plus a manual Codex Desktop MCP smoke demonstrate the
-semantics claimed by the adapter. Passing those probes is evidence for an
-acceptance review, not acceptance by itself.
+Retained non-production Codex integration tests and a manual Codex Desktop MCP
+smoke demonstrated the semantics claimed by the adapter. Desktop discovered and
+invoked the same MCP boundary but declined MCP form elicitation without showing
+UI; that host behaviour does not constrain Drawloom's app-server client, which
+successfully round-tripped the interaction. The retained spike is evidence for
+this decision, not production adapter code.
 
 ## Consequences
 
@@ -247,8 +252,8 @@ acceptance review, not acceptance by itself.
   orchestration.
 - Provider-specific richness may remain a bounded observation until another
   provider or consumer earns a portable abstraction.
-- No production agent package or supported API exists while this ADR remains
-  Proposed.
+- Accepting this ADR does not create a production agent package or supported
+  API; those require separate implementation and conformance work.
 
 ## Alternatives considered
 

@@ -24,6 +24,8 @@ area you change.
   `catalog:` for external packages and `workspace:*` for internal packages.
 - Keep portable packages free of Bun, Node.js, Cloudflare, and Tauri ambient
   APIs. Cross host-specific behaviour through an explicit contract.
+- Keep retained spike code outside supported packages and applications. No
+  module outside `spikes/` may import a spike module.
 - Make complexity earn its place: apply the principles and decision test in
   `ARCHITECTURE.md` before adding material abstraction or lifecycle machinery.
 
@@ -32,6 +34,7 @@ area you change.
 - `packages/AGENTS.md`: package roles and dependency constraints.
 - `docs/AGENTS.md`: ADR, plan, and reference-document conventions.
 - `knowledge/AGENTS.md`: OKF profile and provenance requirements.
+- `spikes/AGENTS.md`: retained non-production experiment and evidence rules.
 
 ## Verification
 

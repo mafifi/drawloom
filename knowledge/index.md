@@ -19,7 +19,8 @@ updated: 2026-09-04
 
 ## Evidence and computations
 
-- No evidence or computation records yet.
+- [Codex session tool exposure and operation authority](evidence/adr-0005-tool-exposure.md)
+- [Codex app-server evidence for provider-neutral agent execution](evidence/adr-0007-codex-app-server.md)
 
 ## Related decisions
 

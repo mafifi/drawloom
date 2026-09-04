@@ -24,6 +24,7 @@ and decision test live in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 - [`knowledge/`](knowledge/): OKF-profiled knowledge and provenance records.
 - [`packages/`](packages/): contract-first product packages.
 - [`apps/`](apps/): private SvelteKit and Tauri composition roots.
+- [`spikes/`](spikes/): retained, non-production architecture evidence.
 - [`.agents/skills/`](.agents/skills/): repository-specific Agent Skills.
 - [`scripts/`](scripts/): repository automation and mechanical checks.
 

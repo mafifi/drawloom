@@ -8,7 +8,7 @@ principles are established by
 [ADR 0006](docs/adr/0006-evidence-led-architecture-principles.md), and its
 platform capability partition by
 [ADR 0005](docs/adr/0005-partition-agent-platform-capabilities.md). The first
-concrete capability, provider-neutral agent execution, is proposed in
+concrete capability, provider-neutral agent execution, is accepted in
 [ADR 0007](docs/adr/0007-provider-neutral-agent-execution.md).
 
 ## Architectural intent
@@ -97,8 +97,14 @@ pre-created as empty packages.
 │   └── security/       # threat models and security design
 ├── knowledge/          # OKF-profiled evidence and provenance
 ├── packages/           # contracts, providers, runtime, and composition
+├── spikes/             # retained non-production architecture evidence
 └── scripts/            # repository automation and structural checks
 ```
+
+Spike code is not a product layer. It remains outside workspace package globs
+and cannot be imported by production or repository automation; the architecture
+check enforces that one-way isolation. Durable conclusions belong in indexed
+knowledge records and ADRs rather than in spike implementation details.
 
 ## Foundation non-goals
 
@@ -152,7 +158,7 @@ runtime-schema, and conformance standard. See
 capability and ownership map,
 [ADR 0006](docs/adr/0006-evidence-led-architecture-principles.md) for the
 decision principles, and
-[ADR 0007](docs/adr/0007-provider-neutral-agent-execution.md) for the proposed
+[ADR 0007](docs/adr/0007-provider-neutral-agent-execution.md) for the accepted
 agent-execution capability.
 
 Drawloom deliberately has no `CONTEXT.md`. Context that changes agent behaviour

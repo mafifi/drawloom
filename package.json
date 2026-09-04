@@ -20,21 +20,29 @@
     ],
     "catalog": {
       "@google/design.md": "^0.4.0",
+      "@modelcontextprotocol/sdk": "^1.30.0",
+      "dependency-cruiser": "^18.2.0",
       "zod": "^4.5.4"
     }
   },
   "scripts": {
     "check": "bun run check:ci",
-    "check:ci": "bun run check:dependency-policy && bun run check:design && bun run check:types && bun run test",
+    "check:ci": "bun run check:dependency-policy && bun run check:architecture && bun run check:design && bun run check:types && bun run test",
+    "check:architecture": "depcruise --config .dependency-cruiser.mjs .",
     "check:dependency-policy": "bun run scripts/check-dependency-policy.ts",
     "check:design": "designmd lint DESIGN.md",
     "check:types": "tsc --noEmit -p tsconfig.json",
-    "test": "bun test"
+    "test": "bun test",
+    "spike:adr-0005": "bun run spikes/adr-0005-tool-exposure/run-live-spike.ts",
+    "spike:adr-0007": "bun run spikes/adr-0007-codex-app-server/run-live.ts"
   },
   "devDependencies": {
     "@google/design.md": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
     "@types/bun": "1.2.23",
     "@types/node": "20.19.19",
-    "typescript": "5.9.3"
+    "dependency-cruiser": "catalog:",
+    "typescript": "5.9.3",
+    "zod": "catalog:"
   }
 }

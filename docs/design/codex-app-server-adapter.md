@@ -1,13 +1,13 @@
 # Codex app-server adapter design
 
-- **Status:** Working design with partial spike evidence
+- **Status:** Accepted design with retained spike evidence
 - **Date:** 2026-09-04
 - **Capability:** [ADR 0007](../adr/0007-provider-neutral-agent-execution.md)
 - **Contract design:** [Agent execution contract](agent-execution-contract.md)
 
 ## Purpose
 
-This document records how Codex app-server may implement Drawloom's proposed
+This document records how Codex app-server may implement Drawloom's accepted
 agent-execution capability. It is provider-specific design and evidence, not a
 portable contract or supported integration.
 
@@ -17,7 +17,7 @@ and tool projection, and normalization into the contract's signal vocabulary.
 It does not own Drawloom memory, tool execution, policy, sandboxing,
 orchestration, durable events, or evaluation.
 
-## Proposed mapping
+## Accepted mapping
 
 | Drawloom concept | Codex projection |
 |---|---|
@@ -72,7 +72,8 @@ Drawloom sessions.
 
 ## Initial tool-boundary evidence
 
-A deliberately throwaway Bun and TypeScript spike on 2026-09-04 exercised
+A retained, explicitly non-production Bun and TypeScript spike on 2026-09-04
+exercised
 Codex app-server 0.149.0 with protocol schema SHA-256
 `4f4a8d8f53f971b97f818639f58c8d26bb68bfcdfa2d2f20572cb97e6761ab91`.
 
@@ -87,13 +88,21 @@ operation authority need not cross the agent contract as a separate grant.
 The spike also demonstrated that configured Codex plugins and apps remain
 ambient unless launch configuration disables them. This evidence closes only
 the tool exposure, gateway-authority, isolation, schema-projection, and
-exact-correlation questions. The spike remains throwaway and does not become
-production adapter code.
+exact-correlation questions. The harness and authoritative result are retained
+in the [ADR 0005 tool-exposure spike](../../spikes/adr-0005-tool-exposure/) and
+its [evidence record](../../knowledge/evidence/adr-0005-tool-exposure.md).
+Retention makes the evidence reproducible; the spike remains outside product
+packages and does not become production adapter code.
 
-## Evidence still required
+## Current evidence boundary
 
-Before ADR 0007 can be reviewed for acceptance, disposable automated probes
-and a manual Codex Desktop MCP smoke must demonstrate:
+The retained [ADR 0007 Codex spike](../../spikes/adr-0007-codex-app-server/)
+produced a complete passing automated run on 2026-09-04. Its indexed
+[evidence record](../../knowledge/evidence/adr-0007-codex-app-server.md)
+records the exact environment, scoped results, and remaining gaps without raw
+provider traces.
+
+The retained non-production probes and manual Codex Desktop MCP smoke cover:
 
 - supported app-server protocol version or schema digest detection;
 - disabled native Codex cross-thread memory;
@@ -106,15 +115,26 @@ and a manual Codex Desktop MCP smoke must demonstrate:
 - multiple pending interactions and invalidation on terminal outcome;
 - interruption and adapter-private start, resume, and recovery behaviour;
 - optional steering semantics;
-- bounded provider observations for reasoning, usage, diagnostics, and native
+- bounded provider observations for reasoning, usage, and native
   delegation using summaries and protected evidence without reconstructed child
   lineage or arbitrary provider JSON;
 - durable observation with required Drawloom identities and without forbidden
   raw data; and
 - Codex Desktop use of the same MCP boundary expected by the adapter.
 
-Passing this evidence gate supports an acceptance review; it does not accept
-ADR 0007, create a supported package, or authorize reuse of the spike code.
+The automated run closes the protocol, context, memory-mode, lifecycle,
+steering, interruption, approval, requested-input, concurrent-interaction,
+private-resume, bounded usage/reasoning observation, provider-native
+delegation, and MCP tool-boundary items. Fresh Desktop tasks discovered and
+invoked the same retained MCP server and completed provider-native delegation.
+Desktop nevertheless returned `decline` immediately for both single and
+concurrent MCP form elicitation without presenting UI. This is retained as a
+Desktop host limitation rather than a requirement of Drawloom's app-server
+client. The initial Codex mapping does not project provider diagnostics into
+ordinary signals; that can be added later only with evidence and a consumer.
+
+This evidence supported acceptance of ADR 0007. Acceptance does not create a
+supported package or authorize reuse of the spike code.
 
 ## Compared integrations
 

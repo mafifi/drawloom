@@ -18,4 +18,5 @@ contract material.
 - [Agent execution contract](agent-execution-contract.md): exact portable
   interfaces, schemas, and conformance requirements under active design.
 - [Codex app-server adapter](codex-app-server-adapter.md): provider mapping and
-  disposable integration evidence for the first proposed agent driver.
+  retained non-production integration evidence for the first accepted agent
+  driver.

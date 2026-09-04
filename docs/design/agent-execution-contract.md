@@ -1,6 +1,6 @@
 # Agent execution contract design
 
-- **Status:** Working design
+- **Status:** Accepted design
 - **Date:** 2026-09-04
 - **Architecture:** [ADR 0005](../adr/0005-partition-agent-platform-capabilities.md),
   [ADR 0006](../adr/0006-evidence-led-architecture-principles.md), and
@@ -8,7 +8,7 @@
 
 ## Context
 
-This working design refines the agent-execution capability proposed by
+This design refines the agent-execution capability accepted by
 [ADR 0007](../adr/0007-provider-neutral-agent-execution.md). It preserves the
 full integration scope explored for Codex and future providers while applying
 ADR 0006's requirement that complexity earn its place.
@@ -20,9 +20,9 @@ capability ownership or imposed coordinated state without enough demonstrated
 value. This revision keeps the required behaviours while returning their
 implementation details to the adapter or adjacent capability that owns them.
 
-This remains a working design, not a supported API or authorisation to create a
-production package. Codex-specific mapping and validation evidence live in the
-[Codex app-server adapter design](codex-app-server-adapter.md).
+This is the accepted contract design, not a supported API or authorisation to
+create a production package. Codex-specific mapping and validation evidence
+live in the [Codex app-server adapter design](codex-app-server-adapter.md).
 
 ## Decision inventory
 
@@ -45,19 +45,25 @@ The design covers:
 - bounded failures without adapter-authored retry policy; and
 - a core conformance suite plus feature-specific cases for exposed controls.
 
-Provider evidence remains pending for lifecycle, context and memory injection,
-approvals, requested input, interruption, adapter-owned recovery, steering,
-provider activity, observability, and Codex Desktop MCP compatibility. Tool
-exposure, gateway grants, ambient-tool isolation, schema projection, and exact
-MCP correlation have initial spike evidence.
+Retained automated Codex evidence now supports lifecycle, context and memory
+injection, approvals, requested input, interruption, adapter-owned resumption,
+steering, bounded observations, provider-native delegation, tool exposure,
+gateway authority, ambient-tool isolation, schema projection, and exact MCP
+correlation. The indexed
+[evidence record](../../knowledge/evidence/adr-0007-codex-app-server.md)
+distinguishes live observations from deterministic normalization tests. Codex
+Desktop discovers and invokes the same MCP server and completed native
+delegation, but returned `decline` for form elicitation without presenting UI.
+Desktop form elicitation remains a documented host limitation rather than a
+portable contract requirement.
 
-## Proposed contract
+## Accepted contract design
 
 ### Use one provider-neutral driver boundary
 
 The future contract package will live at `packages/agent/agent` and be
-published as `@drawloom/agent` only after ADR 0007 is accepted and
-implemented.
+published as `@drawloom/agent` only after separate implementation and
+conformance work is complete.
 
 The public behavioural surface is:
 
@@ -205,8 +211,8 @@ capability requires its own evidenced contract.
 
 ### Keep operation lifecycle explicit and small
 
-Version one permits one active operation per session. `execute` rejects while
-another operation is active.
+Version one permits one starting or active operation per session. `execute`
+rejects while another operation is awaiting provider acceptance or is active.
 
 `execute` returns after the provider accepts the operation. An accepted
 operation emits `operation.started` and exactly one of
@@ -219,7 +225,11 @@ than a public connection-generation model.
 
 `steer`, when present, targets the exact active operation and augments it
 without creating a second operation. `interrupt`, when present, targets the
-active operation. Both reject stale or terminal operation identifiers.
+active operation. Concurrent calls share one provider result; successful
+submission does not manufacture a terminal signal before the provider reports
+the outcome. Steering and a first interruption reject stale or terminal
+operation identifiers; repeating an interruption already confirmed for that
+operation returns the same successful command outcome.
 
 ### Define signal-stream delivery
 
@@ -442,12 +452,12 @@ providers expose Codex-like channels.
 or evidence capability, not an agent-execution identifier.
 
 `provider.observation` retains scope for provider-approved reasoning summaries,
-usage, diagnostics, and provider-native delegation without claiming portable
-semantics. Its bounded `name` and presentation-safe `summary` are validated by
-the contract. Rich structured provider data is stored through the protected
-evidence reference rather than embedded as arbitrary JSON. Consumers may
-display or store the safe summary but must not branch on its name as portable
-agent behaviour.
+usage, and provider-native delegation without claiming portable semantics. Its
+bounded `name` and presentation-safe `summary` are validated by the contract.
+Rich structured provider data is stored through the protected evidence
+reference rather than embedded as arbitrary JSON. Consumers may display or
+store the safe summary but must not branch on its name as portable agent
+behaviour.
 
 Signals exclude raw provider envelopes, private continuation state, provider
 identifiers, credentials, hidden reasoning, unrestricted command output, and
@@ -502,10 +512,10 @@ private continuation storage, provider event coverage, safe
 `provider.observation` schemas, exact tool correlation, and provider-specific
 interaction mappings.
 
-## Evidence required before acceptance
+## Acceptance evidence
 
-The contract remains Proposed until disposable Codex probes and a manual Codex
-Desktop MCP smoke demonstrate:
+Retained non-production Codex probes and a manual Codex Desktop MCP smoke
+demonstrated:
 
 - supported protocol or schema-version detection;
 - disabled native cross-thread memory;
@@ -519,14 +529,14 @@ Desktop MCP smoke demonstrate:
 - concurrent pending interactions and terminal invalidation;
 - stable MCP exposure, gateway-owned operation authority, schema projection,
   ambient-tool isolation, and exact correlation when claimed;
-- safe provider observations for reasoning, usage, diagnostics, and native
+- safe provider observations for reasoning, usage, and native
   delegation using summaries and protected evidence without shadow child state
   or arbitrary provider JSON;
 - observability wrapping of safe signals without forbidden raw data; and
 - Codex Desktop use of the same MCP boundary expected by the adapter.
 
-Passing those probes supports an acceptance review. It does not itself accept
-ADR 0007 or authorise reuse of spike code.
+Those results supported acceptance of ADR 0007. They do not authorise reuse of
+spike code as a production implementation.
 
 ## Consequences
 
