@@ -22,3 +22,5 @@ Current spikes:
   with operation-specific gateway authority.
 - [`adr-0007-codex-app-server`](adr-0007-codex-app-server/): contract-shaped
   Codex app-server integration evidence.
+- [`adr-0008-tool-execution`](adr-0008-tool-execution/): typed tool execution,
+  evidence failure semantics, and Codex MCP origin-bound authority.

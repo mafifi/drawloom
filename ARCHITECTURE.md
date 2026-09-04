@@ -10,6 +10,9 @@ platform capability partition by
 [ADR 0005](docs/adr/0005-partition-agent-platform-capabilities.md). The first
 concrete capability, provider-neutral agent execution, is accepted in
 [ADR 0007](docs/adr/0007-provider-neutral-agent-execution.md).
+Tool execution and exposure are accepted in
+[ADR 0008](docs/adr/0008-tool-execution-and-exposure.md), supported by retained
+conformance and Codex MCP integration evidence rather than a supported package.
 
 ## Architectural intent
 
@@ -91,7 +94,7 @@ pre-created as empty packages.
 ├── .agents/skills/     # repository-specific Agent Skills
 ├── docs/
 │   ├── adr/            # durable architecture decisions
-│   ├── design/         # detailed working designs for Proposed ADRs
+│   ├── design/         # detailed contract and adapter working designs
 │   ├── plans/          # bounded implementation plans
 │   ├── reference/      # current technical reference
 │   └── security/       # threat models and security design
@@ -159,7 +162,9 @@ capability and ownership map,
 [ADR 0006](docs/adr/0006-evidence-led-architecture-principles.md) for the
 decision principles, and
 [ADR 0007](docs/adr/0007-provider-neutral-agent-execution.md) for the accepted
-agent-execution capability.
+agent-execution capability. See
+[ADR 0008](docs/adr/0008-tool-execution-and-exposure.md) for accepted tool
+execution and exposure semantics.
 
 Drawloom deliberately has no `CONTEXT.md`. Context that changes agent behaviour
 belongs in `AGENTS.md`; architectural intent, principles, non-goals, and the

@@ -1,7 +1,7 @@
 # Working designs
 
-This directory holds detailed designs that refine Proposed ADRs before a
-supported contract or implementation exists.
+This directory holds detailed designs that refine Proposed or Accepted ADRs
+before a supported contract or implementation exists.
 
 Working designs may contain exact interfaces, schemas, conformance cases, and
 provider mappings that are too volatile or detailed for an ADR. They are not a
@@ -20,3 +20,5 @@ contract material.
 - [Codex app-server adapter](codex-app-server-adapter.md): provider mapping and
   retained non-production integration evidence for the first accepted agent
   driver.
+- [Tool execution contract](tool-execution-contract.md): typed definitions,
+  invocation semantics, evidence handoff, and origin-bound MCP proof for ADR 0008.

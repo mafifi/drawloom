@@ -34,7 +34,8 @@
     "check:types": "tsc --noEmit -p tsconfig.json",
     "test": "bun test",
     "spike:adr-0005": "bun run spikes/adr-0005-tool-exposure/run-live-spike.ts",
-    "spike:adr-0007": "bun run spikes/adr-0007-codex-app-server/run-live.ts"
+    "spike:adr-0007": "bun run spikes/adr-0007-codex-app-server/run-live.ts",
+    "spike:adr-0008": "bun run spikes/adr-0008-tool-execution/run-live.ts"
   },
   "devDependencies": {
     "@google/design.md": "catalog:",
