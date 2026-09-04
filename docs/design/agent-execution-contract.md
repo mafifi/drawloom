@@ -2,128 +2,66 @@
 
 - **Status:** Working design
 - **Date:** 2026-09-04
-- **Architecture:** [ADR 0005](../adr/0005-partition-agent-platform-capabilities.md)
-  and [ADR 0007](../adr/0007-provider-neutral-agent-execution.md)
+- **Architecture:** [ADR 0005](../adr/0005-partition-agent-platform-capabilities.md),
+  [ADR 0006](../adr/0006-evidence-led-architecture-principles.md), and
+  [ADR 0007](../adr/0007-provider-neutral-agent-execution.md)
 
 ## Context
 
 This working design refines the agent-execution capability proposed by
-[ADR 0007](../adr/0007-provider-neutral-agent-execution.md) within the platform
-partition proposed by
-[ADR 0005](../adr/0005-partition-agent-platform-capabilities.md). It applies the
-contract standard from
-[ADR 0004](../adr/0004-standardise-capability-contracts.md).
+[ADR 0007](../adr/0007-provider-neutral-agent-execution.md). It preserves the
+full integration scope explored for Codex and future providers while applying
+ADR 0006's requirement that complexity earn its place.
 
-It preserves exact interface and schema decisions while they are still being
-worked through. It is not an ADR, supported API, or authorization to create the
-production package. Codex-specific translation and validation evidence live in
-the [Codex app-server adapter design](codex-app-server-adapter.md).
+The earlier design introduced public machinery for continuation, connection
+lifecycle, capability negotiation, operation grants, approval recovery,
+provider delegation, and durable event projection. Those mechanisms crossed
+capability ownership or imposed coordinated state without enough demonstrated
+value. This revision keeps the required behaviours while returning their
+implementation details to the adapter or adjacent capability that owns them.
+
+This remains a working design, not a supported API or authorisation to create a
+production package. Codex-specific mapping and validation evidence live in the
+[Codex app-server adapter design](codex-app-server-adapter.md).
 
 ## Decision inventory
 
-Agreed contract areas:
+The design covers:
 
-- driver and live-session behavioural split;
-- logical session and single-active-operation lifecycles;
-- opaque continuation ownership;
-- compiled context inputs without direct memory access;
-- immutable session tool exposure and operation-scoped grants;
-- optional steering;
-- distinct requested-input and execution-approval paths;
-- lossless provider approval choices;
-- Drawloom-orchestrated children versus provider-native delegation
-  observation;
-- transient provider-neutral signals and Drawloom-owned durable events;
-- strict lifecycle signal members;
-- one shared, bounded failure detail for connection and operation signals; and
-- stable message identity with optional deltas, a complete text snapshot, and
-  provider-approved reasoning summaries.
+- driver, session, and single-active-operation behaviour;
+- adapter-owned provider transcript continuity, reconnection, and resumption;
+- session and operation identity without a public connection state machine;
+- compiled session and operation context owned by context compilation;
+- stable tool exposure owned by tools, with invocation authority left in the
+  gateway and policy;
+- optional steering and interruption declared by method presence;
+- requested input distinct from execution approval;
+- lossless provider approval choices without a portable approval taxonomy;
+- Drawloom-orchestrated children distinct from bounded observations of
+  provider-native delegation;
+- safe transient agent signals and observability-owned durable events;
+- bounded failures without adapter-authored retry policy; and
+- a core conformance suite plus feature-specific cases for exposed controls.
 
-Open contract areas, in intended order:
-
-1. tool observation signals and correlation references;
-2. approval and requested-input signal members and resolution unions;
-3. delegation lifecycle signal payloads; and
-4. usage, diagnostics, the complete `AgentSessionSignal` union, and final event
-   projection rules.
-
-Provider evidence remains separately pending for lifecycle, context and memory
-injection, approvals, requested input, interruption, continuation, steering,
-delegation, observability, and Codex Desktop MCP compatibility. Tool exposure,
-operation grants, ambient-tool isolation, schema projection, and exact MCP
-correlation have initial spike evidence.
+Provider evidence remains pending for lifecycle, context and memory injection,
+approvals, requested input, interruption, adapter-owned recovery, steering,
+provider activity, observability, and Codex Desktop MCP compatibility. Tool
+exposure, gateway grants, ambient-tool isolation, schema projection, and exact
+MCP correlation have initial spike evidence.
 
 ## Proposed contract
 
-### Make agent execution the first capability contract
+### Use one provider-neutral driver boundary
 
-The capability is named **agent execution**. Its future contract package will
-live at `packages/agent/agent` and will be published as `@drawloom/agent` only
-after ADR 0007 is accepted and implemented.
+The future contract package will live at `packages/agent/agent` and be
+published as `@drawloom/agent` only after ADR 0007 is accepted and
+implemented.
 
-The public contract is provider-neutral. It uses the following vocabulary:
-
-- an **agent driver** opens execution sessions for one provider implementation;
-- an **execution session** is Drawloom's logical relationship with a provider
-  continuation and can outlive one provider connection;
-- an **operation** is one active agent turn within an execution session;
-- a **continuation envelope** is opaque, versioned provider state needed to
-  reopen an execution session;
-- a **session signal** is a transient, normalized observation emitted by a
-  driver; and
-- an **agent event** is the durable Drawloom-owned record produced from a
-  session signal.
-
-Provider packages may internally compose a declarative provider description,
-transport, parser, context and tool projector, and continuation codec. Those
-pieces are implementation details rather than separate public capabilities.
-
-### Separate ownership explicitly
-
-Drawloom owns:
-
-- durable execution-session and operation identities;
-- compilation of run and per-turn context;
-- authoritative memory and knowledge retrieval;
-- tool registration, validation, execution, and evidence;
-- policy, approval routing, orchestration, delegation, and evaluation;
-- durable event identity, ordering, redaction, storage, and projections; and
-- provider selection in a composition root.
-
-The agent driver owns:
-
-- provider connection and protocol negotiation;
-- translating session open into provider start or resume operations;
-- translating execute, steer, input, approval, interrupt, and close commands;
-- provider-specific context and tool projection;
-- decoding and validating continuation payloads; and
-- translating provider-native messages into normalized session signals.
-
-The provider may own its thread transcript, internal compaction, and inner
-agent loop. Its thread or session identifier is execution evidence, not a
-Drawloom session, task, run, memory, or business identity.
-
-### Use two lifecycle levels
-
-An execution session moves through `opening`, `idle`, and `closed`, with
-recoverable connection loss represented separately. An operation moves through
-`running`, may wait for execution approval or requested input, and terminates as
-exactly one of `completed`, `failed`, or `interrupted`.
-
-Version one permits one active operation per execution session. A second
-`execute` command while an operation is active is rejected. Provider adapters
-must prevent late signals from a superseded operation or connection from being
-projected as current activity.
-
-The lifecycle is represented by these behavioural interfaces. The concrete
-contract will infer all serializable input, failure, signal, and event types
-from contract-owned Zod schemas.
+The public behavioural surface is:
 
 ```ts
 export interface AgentDriver {
   readonly driverId: string;
-
-  capabilities(): Promise<AgentCapabilities>;
 
   openSession(
     input: AgentSessionOpenInput,
@@ -135,7 +73,13 @@ export interface AgentSession {
 
   execute(input: AgentOperationInput): Promise<AgentResult<OperationAccepted>>;
 
-  steer(input: AgentSteeringInput): Promise<AgentResult<SteeringAccepted>>;
+  readonly steer?: (
+    input: AgentSteeringInput,
+  ) => Promise<AgentResult<void>>;
+
+  readonly interrupt?: (
+    operationId: AgentOperationId,
+  ) => Promise<AgentResult<void>>;
 
   resolveApproval(
     input: AgentApprovalResolution,
@@ -145,408 +89,261 @@ export interface AgentSession {
     input: AgentInputResolution,
   ): Promise<AgentResult<void>>;
 
-  interrupt(operationId: AgentOperationId): Promise<AgentResult<void>>;
-
   close(): Promise<AgentResult<void>>;
 
   signals(): AsyncIterable<AgentSessionSignal>;
 }
 ```
 
-The version-one contract data is shaped as follows. Each named serializable
-type has a strict Zod schema; the TypeScript type is inferred from that schema.
-Identifier schemas are separately branded non-empty strings so session,
-operation, input, approval, and requested-input identities cannot be exchanged
-accidentally.
+Method presence declares support for steering and interruption. There is no
+separate capability record that can contradict the behavioural surface.
+Providers that do not request approvals or input simply never emit those
+signals; their resolution methods therefore have no valid pending request.
+
+### Keep identifiers proportional
+
+Drawloom allocates the session and operation identifiers needed across
+capability boundaries. Approval, input-request, and message identifiers exist
+only because callers must correlate a later resolution or streamed content.
+
+All identifiers use one generic opaque-ID mechanism backed by the same
+contract-owned non-empty-string schema:
 
 ```ts
-type AgentCapabilities = {
-  continuation: boolean;
-  interruption: boolean;
-  steering: boolean;
-  approvals: boolean;
-  recoverableApprovals: boolean;
-  inputRequests: boolean;
-  toolObservation: boolean;
-  delegationObservation: boolean;
-  messagePhases: boolean;
-  reasoningSummaries: boolean;
-  usageReporting: boolean;
-};
+type OpaqueId<Kind extends string> =
+  string & { readonly __drawloomId: Kind };
 
-type CompiledAgentContext = {
-  revision: string;
-  entries: readonly {
-    key: string;
-    source: "instructions" | "memory" | "knowledge" | "policy" | "run";
-    handling: "instruction" | "context" | "untrusted";
-    value: string;
-    provenance: readonly string[];
-  }[];
-};
+type AgentSessionId = OpaqueId<"agent-session">;
+type AgentOperationId = OpaqueId<"agent-operation">;
+type AgentApprovalId = OpaqueId<"agent-approval">;
+type AgentInputRequestId = OpaqueId<"agent-input-request">;
+type AgentMessageId = OpaqueId<"agent-message">;
+```
 
-type AgentToolExposureReference = {
-  exposureId: string;
-  toolSetId: string;
-  revision: string;
-};
+Provider thread, turn, message, request, and delegated-worker identifiers never
+become public contract identities. Adapters keep them in private correlation
+state where required.
 
-type AgentToolGrantReference = {
-  grantId: string;
-  revision: string;
-};
+### Consume adjacent capability values
 
+`CompiledContext` and `ToolExposure` below are types imported from their
+owning capability contracts once those contracts exist. Their exact structures
+are intentionally not defined by agent execution.
+
+```ts
 type AgentSessionOpenInput = {
   sessionId: AgentSessionId;
-  continuation?: ContinuationEnvelope;
-  sessionContext: CompiledAgentContext;
-  toolExposure: AgentToolExposureReference;
+  context: CompiledContext;
+  tools: ToolExposure;
 };
 
 type AgentOperationInput = {
   operationId: AgentOperationId;
-  inputId: AgentInputId;
   text: string;
-  additionalContext: CompiledAgentContext;
-  toolGrant: AgentToolGrantReference;
+  additionalContext?: CompiledContext;
 };
 
 type AgentSteeringInput = {
   operationId: AgentOperationId;
-  inputId: AgentInputId;
   text: string;
-  additionalContext: CompiledAgentContext;
+  additionalContext?: CompiledContext;
 };
 
 type OperationAccepted = {
   operationId: AgentOperationId;
 };
+```
 
-type SteeringAccepted = {
-  operationId: AgentOperationId;
-  inputId: AgentInputId;
-};
+The context compiler owns source categories, trust handling, provenance, and
+revision metadata. The adapter receives the compiled value and projects the
+model-visible portion without independently querying memory or knowledge.
 
+The tool capability owns exposure identity, tool schemas, endpoint or transport
+configuration, and revisions. The adapter projects the resolved exposure into
+MCP or another provider mechanism. Provider endpoints, credentials, and raw
+configuration do not become generic agent values.
+
+Operation grants do not cross the agent contract. Before execution,
+orchestration establishes the operation's authority with policy and the tool
+gateway. The gateway evaluates every invocation against the current operation;
+the adapter neither receives nor duplicates that grant.
+
+Provider availability, installation, authentication, account information,
+model catalogues, and rate limits remain adjacent contracts. They do not become
+methods on `AgentSession` merely because a provider exposes them beside agent
+execution.
+
+### Leave provider continuity inside the driver
+
+`openSession` receives a Drawloom session identity, not a provider
+continuation envelope. The driver privately maps that identity to provider
+state and chooses whether to start, resume, reconnect, or ask the provider to
+continue.
+
+An implementation may persist its private mapping through a composed internal
+store. That store, its provider identifiers, payload versions, migrations, and
+connection generations are adapter implementation details. If private state is
+lost, the adapter either restores coherent continuity from the supplied
+context or reports provider unavailability; its provider-specific tests define
+which behaviour it supports.
+
+The returned `AgentSession` represents usable logical agent execution, not a
+particular socket, process, or provider attachment. Recoverable transport
+changes are hidden. If the adapter cannot preserve coherent execution, the
+active operation fails with a bounded provider failure.
+
+Calling `close` releases the session handle and is idempotent. It does not
+standardise deletion of provider history. A later provider-state deletion
+capability requires its own evidenced contract.
+
+### Keep operation lifecycle explicit and small
+
+Version one permits one active operation per session. `execute` rejects while
+another operation is active.
+
+`execute` returns after the provider accepts the operation. An accepted
+operation emits `operation.started` and exactly one of
+`operation.completed`, `operation.failed`, or `operation.interrupted`.
+Content and interactions occur between those lifecycle signals.
+
+The adapter prevents late provider activity from a superseded or terminal
+operation from appearing as current. This is a local adapter invariant rather
+than a public connection-generation model.
+
+`steer`, when present, targets the exact active operation and augments it
+without creating a second operation. `interrupt`, when present, targets the
+active operation. Both reject stale or terminal operation identifiers.
+
+### Use a small command-failure taxonomy
+
+```ts
 type AgentResult<T> =
   | { status: "ok"; value: T }
   | { status: "rejected"; failure: AgentCommandFailure };
 
 type AgentCommandFailure = {
   code:
-    | "unsupported_capability"
-    | "session_closed"
-    | "operation_already_active"
-    | "operation_not_active"
-    | "approval_not_pending"
-    | "approval_option_unavailable"
-    | "input_not_pending"
-    | "input_invalid"
-    | "continuation_unavailable"
+    | "invalid_state"
+    | "invalid_interaction"
     | "provider_unavailable"
     | "provider_rejected";
   message: string;
-  retryable: boolean;
 };
 
-type AgentFailureDetail = {
-  category:
-    | "provider"
-    | "protocol"
-    | "policy"
-    | "resource"
-    | "unknown";
+type AgentOperationFailure = {
+  code:
+    | "provider_unavailable"
+    | "provider_rejected"
+    | "invalid_provider_response";
   summary: string;
 };
 ```
 
-Drawloom allocates `operationId` before calling `execute`. The adapter retains
-any provider turn identifier as protected correlation evidence; a provider
-identifier never becomes the Drawloom operation identity.
+Expected invalid state, stale interaction, unavailable provider, and provider
+rejection cross as bounded values. An optional control that is not supported is
+absent rather than callable. Unexpected defects may throw only after provider
+errors and secrets have been translated out.
 
-`AgentResult<T>` is a discriminated union of `{ status: "ok", value: T }` and
-`{ status: "rejected", failure: AgentCommandFailure }`. Expected invalid
-state, unsupported capability, missing continuation, stale interaction, and
-provider rejection outcomes cross the contract as values. Unexpected defects
-may throw only after provider errors and secrets have been translated out.
+Retryability is not part of either failure. It depends on orchestration state,
+policy, cost, idempotency, and provider conditions that the adapter alone
+cannot decide.
 
-`execute` confirms that the provider accepted a new operation; it does not wait
-for completion. Every accepted operation must subsequently emit exactly one
-terminal signal. `interrupt` and `close` are idempotent. A provider process
-disconnect does not itself close the logical execution session.
+### Keep approval useful without building an approval engine
 
-`AgentSession` is the live attachment to that logical session. A
-`session.disconnected` signal makes the attachment unavailable and completes
-its signal stream. The orchestrator may call `openSession` again with the same
-Drawloom session identity and latest continuation envelope. `close` disposes
-the attachment; it does not delete provider history or the durable Drawloom
-session. All commands other than repeated `close` reject after close.
-
-### Define portable session and turn inputs
-
-`AgentSessionOpenInput` contains:
-
-- the Drawloom-owned `sessionId`;
-- an optional `ContinuationEnvelope`;
-- a compiled session-context revision and its ordered context entries; and
-- an immutable, session-scoped tool-exposure identity and exact tool-set
-  revision resolved by the composed tool subsystem.
-
-Each compiled context entry has a stable key, source category, trust
-classification, textual value, and provenance reference. The agent contract
-does not define how memory, knowledge, or instructions are curated. It accepts
-the context compiler's already-selected output and preserves entry boundaries
-for providers that support structured context injection.
-
-`AgentOperationInput` contains a Drawloom-owned input identifier, version-one
-text content, freshly compiled additional context, and the operation-scoped
-tool grant that narrows the session exposure. Later media input kinds must be
-added explicitly and advertised through capabilities; paths or ambient host
-APIs are not smuggled through the portable contract.
-
-`AgentSteeringInput` contains the exact active operation identifier, a new input
-identifier, version-one text content, and freshly compiled additional context.
-Steering augments the active operation and never creates another one.
-
-The tool-exposure and grant references do not carry provider configuration,
-endpoints, or credentials. The tool subsystem resolves an exposure before the
-session opens. The provider package is composed with a tool projector that
-projects that immutable exposure into the provider's supported mechanism. The
-adapter exposes tools; it does not register them as an authority or decide
-whether an invocation may execute.
-
-The session exposure is the maximum Drawloom tool catalogue visible to that
-provider attachment. Every operation names a narrower grant. Before accepting
-an operation, orchestration verifies that the grant belongs to the exposure
-and activates it in the authoritative tool gateway. The gateway checks the
-active operation and grant on every invocation. Changing grants does not
-require rebuilding the provider session or its visible catalogue.
-
-Provider projection must start from an isolated external-tool environment.
-Ambient MCP servers, plugins, apps, or equivalent provider integrations are
-disabled unless the composition root included them in the resolved exposure.
-Provider-native command, file, and network actions that cannot be removed are
-constrained by Drawloom sandbox and approval policy and remain distinct from
-Drawloom tool execution.
-
-The tool gateway allocates the authoritative `toolInvocationId`. When the
-provider transport supports result metadata, it returns a bounded correlation
-record containing that identifier and the Drawloom `operationId`. The adapter
-preserves those references in `tool.requested` and `tool.completed` signals,
-while arguments and results remain in the tool capability's evidence path. An
-adapter must never infer an exact link from tool name, arguments, order, or
-timestamps. If the transport cannot preserve a correlation token, it reports
-the provider observation without claiming an exact invocation link.
-
-### Persist opaque continuation envelopes in Drawloom
-
-Drawloom persists the continuation envelope; the selected driver owns its
-meaning. The serialized envelope has this contract shape:
-
-```ts
-type ContinuationEnvelope = {
-  schemaVersion: 1;
-  providerId: string;
-  driverId: string;
-  payloadVersion: number;
-  payload: JsonValue;
-};
-```
-
-The generic schema proves that an envelope is bounded JSON with the correct
-owner and versions. The provider adapter applies its own Zod schema to
-`payload` before use. Provider payloads never appear in general event or UI
-projections.
-
-A driver must reject an envelope for another provider, driver, or unsupported
-payload version. If the provider continuation is missing or unusable, it
-returns `continuation_unavailable`; it must not silently create fresh provider
-history. The orchestrator decides whether to create a successor execution
-session.
-
-### Make steering optional and precise
-
-`AgentCapabilities.steering` declares whether a driver supports steering.
-When supported, `steer`:
-
-- targets the exact active operation;
-- may carry newly compiled per-turn context;
-- returns only after the provider acknowledges the steering input;
-- emits `operation.steered` with the Drawloom input identifier;
-- returns `operation_not_active` for a terminal or superseded operation; and
-- does not create a new operation or terminal obligation.
-
-When unsupported, it returns `unsupported_capability`. Consumers must not infer
-support from the presence of the method.
-
-### Separate requested input from approval
-
-An agent or tool may request operator input while an operation remains active.
-This is not an execution approval. The contract therefore defines distinct
-`input.requested` and `input.resolved` signals and a `respondToInput` command.
-
-An input request includes a stable request identifier, optional operation
-identifier, whether it blocks progress, a presentation-safe prompt, and an
-optional JSON Schema for a structured response. A resolution is one of
-`submit`, `decline`, or `cancel`; submitted content is validated against the
-request schema before it reaches the adapter.
-
-```ts
-type AgentInputRequest = {
-  requestId: AgentInputRequestId;
-  operationId?: AgentOperationId;
-  blocking: boolean;
-  prompt: string;
-  responseSchema?: JsonValue;
-};
-
-type AgentInputResolution = {
-  requestId: AgentInputRequestId;
-  action: "submit" | "decline" | "cancel";
-  value?: JsonValue;
-};
-```
-
-This boundary covers direct model questions and MCP elicitation without
-granting filesystem, command, network, spend, publication, or business
-authority.
-
-### Cascade provider approval choices without loss
-
-An approval request describes a provider execution permission. It includes its
-approval and operation identities, category, safe summary, and the choices the
-adapter can currently honor.
+Execution approval and requested input remain separate signal and command
+families.
 
 ```ts
 type AgentApprovalOption = {
   optionId: string;
   label: string;
-  disposition: "allow" | "deny" | "cancel";
-  scope: "action" | "operation" | "session";
-  consequences: readonly AgentApprovalConsequence[];
-};
-
-type AgentApprovalConsequence = {
-  kind:
-    | "expanded-access"
-    | "persistent-permission"
-    | "provider-policy-change"
-    | "other";
-  summary: string;
+  description?: string;
 };
 
 type AgentApprovalRequest = {
   approvalId: AgentApprovalId;
   operationId: AgentOperationId;
-  category: "command" | "file-change" | "network" | "permission";
   summary: string;
   options: readonly AgentApprovalOption[];
 };
 
 type AgentApprovalResolution = {
-  approvalId: string;
+  approvalId: AgentApprovalId;
   optionId: string;
 };
 ```
 
-The adapter normalizes provider choices into stable option identifiers and
-privately retains the provider response needed for each option. Its transient
-`approval.requested` signal contains that advertised set. Drawloom policy may
-remove unsafe choices or select one automatically, but cannot invent or widen
-a provider choice. The resulting effective option set in the durable
-`approval.requested` event is immutable and is carried without reinterpretation
-through persistence, transport, ViewModel, View, resolution command, and
-adapter.
+The adapter allocates stable option identifiers and privately retains the exact
+provider response represented by each option. It emits the provider-authored
+label and description without reducing choices to allow or deny.
 
-Views render the effective labels, scopes, and consequences. They do not
-recreate binary allow/deny buttons. Resolution carries only `approvalId` and
-`optionId`, never a client-authored provider payload. The orchestrator verifies
-that the approval is pending, belongs to the active operation, and contains the
-selected option before the adapter maps it back to the provider.
+Policy may remove a choice or select one automatically, but cannot invent or
+widen a provider option. Presentation and transport preserve the effective
+option identifiers and text. Resolution returns only a pending
+`approvalId` and one of its advertised `optionId` values.
 
-Resolution is exactly once. Unknown, stale, expired, and duplicate selections
-fail closed. Provider disconnection expires pending approvals unless the
-provider explicitly declares and proves recoverable approvals. A resolution
-records the semantic option, consequences, actor, and whether it came from the
-operator, Drawloom policy, or provider policy, while excluding sensitive
-provider tokens.
+Provider scope, persistent permission, consequence classification, expiry,
+recovery across disconnection, and resolution provenance are not agent
+contract semantics in version one. Provider-specific handling remains in the
+adapter; audit and business authority remain in policy and observability.
 
-Execution approval remains separate from business approval, spend authority,
-artifact review, publication, and other consequential authority.
-
-### Separate Drawloom orchestration from provider-native delegation
-
-Drawloom-orchestrated children and provider-native delegation are different
-things. A child that Drawloom must address, resume, steer, interrupt, grant
-tools to, or recover independently is a normal Drawloom execution session and
-operation. Its parent-child relationship belongs to the orchestration layer;
-the child has its own continuation, context, tool exposure and grant, policy,
-and event stream.
-
-Provider-native delegation remains activity inside the parent's active
-operation in version one. The adapter may observe a provider spawning or
-communicating with an internal worker, but it does not promote that worker to
-an `AgentSession` or imply independent portable control. Each observed
-delegation receives a Drawloom-owned `delegationId`, the parent
-`operationId`, an optional parent `delegationId`, a bounded presentation-safe
-role or summary, and normalized lifecycle state. Provider thread, agent, or
-item identifiers are protected correlation evidence; raw delegated prompts,
-transcripts, and hidden reasoning do not enter ordinary events.
-
-A provider-native delegation inherits the parent operation's active tool grant
-and execution policy. Tool calls remain correlated to the parent operation and
-may also name a delegation only when the provider preserves an explicit
-delegation correlation token. The adapter must not infer delegation ownership
-from timing, ordering, tool name, arguments, or textual similarity.
-
-Approval and requested-input signals raised during delegated activity still
-use the parent operation's resolution paths and include the `delegationId`
-when exact correlation is available. A delegated worker becoming terminal does
-not terminate the parent operation. Provider-native workers cannot be resumed,
-steered, interrupted, or closed through `AgentSession` in version one; work
-requiring those controls must be represented as a Drawloom-orchestrated child.
-
-`AgentCapabilities.delegationObservation` therefore promises observation of
-provider-native delegation, not orchestration authority. Provider-native spawn,
-message, wait, and close activity is evidence of the parent operation, while
-provider child identifiers remain protected.
-
-### Separate transient signals from durable events
-
-Drivers emit normalized `AgentSessionSignal` values in live delivery order.
-The session signal stream has one consumer: Drawloom orchestration. Drawloom's
-orchestrator validates and redacts each signal, then constructs a distinct
-durable event envelope:
-
-`AgentSessionSignal` is a closed, strict discriminated union assembled from
-strict signal-family unions. The lifecycle family is:
+### Keep requested input informational
 
 ```ts
-type AgentLifecycleSignal =
+type AgentInputRequest = {
+  requestId: AgentInputRequestId;
+  operationId: AgentOperationId;
+  prompt: string;
+  responseSchema?: JsonValue;
+};
+
+type AgentInputResolution =
   | {
-      kind: "session.opened";
-      mode: "new" | "resumed";
+      requestId: AgentInputRequestId;
+      action: "submit";
+      value: JsonValue;
     }
   | {
-      kind: "session.continuation_updated";
-      continuation: ContinuationEnvelope;
-    }
-  | {
-      kind: "session.disconnected";
-      failure: AgentFailureDetail;
-    }
-  | {
-      kind: "session.closed";
-      source: "drawloom" | "provider";
-    }
+      requestId: AgentInputRequestId;
+      action: "cancel";
+    };
+```
+
+Submitted values are validated against the provider-supplied response schema
+before reaching the adapter. Cancellation communicates that no response will
+be supplied. A request grants no execution, filesystem, command, network,
+spend, publication, or business authority.
+
+An unknown, stale, or already-resolved interaction returns
+`invalid_interaction`. The contract does not introduce a second distinction
+between decline and cancel until a provider demonstrates observable behaviour
+that a consumer must preserve.
+
+### Keep provider-native delegation observational
+
+Drawloom-orchestrated children are ordinary independent sessions and
+operations, linked by orchestration outside this contract.
+
+Provider-native delegation remains part of the parent operation. The adapter
+may summarise it through `provider.observation`, but does not allocate
+delegation identifiers, reconstruct child lifecycles, attach separate grants,
+or expose child controls.
+
+Provider child identifiers, prompts, transcripts, and hidden reasoning remain
+private evidence. If a future consumer needs portable delegation semantics,
+that need and at least two provider mappings must justify expanding the signal
+contract.
+
+### Emit safe signals
+
+Every serializable signal has a strict contract-owned Zod schema. Signals are
+safe for ordinary observability and presentation by construction.
+
+```ts
+type AgentSessionSignal =
   | {
       kind: "operation.started";
       operationId: AgentOperationId;
-      inputId: AgentInputId;
-    }
-  | {
-      kind: "operation.steered";
-      operationId: AgentOperationId;
-      inputId: AgentInputId;
     }
   | {
       kind: "operation.completed";
@@ -555,245 +352,180 @@ type AgentLifecycleSignal =
   | {
       kind: "operation.failed";
       operationId: AgentOperationId;
-      failure: AgentFailureDetail;
+      failure: AgentOperationFailure;
     }
   | {
       kind: "operation.interrupted";
       operationId: AgentOperationId;
-      source: "drawloom" | "provider";
-    };
-```
-
-Lifecycle signals omit `sessionId` because the stream belongs to one
-`AgentSession`. They also omit durable event identity, sequence, recorded time,
-and provider identifiers. Every operation-scoped member carries the
-Drawloom-owned `operationId`; signals for accepted inputs also carry the
-Drawloom-owned `inputId`. `operation.completed` does not duplicate generated
-content because messages and artifacts cross their own contracts. The signal
-kind distinguishes a lost attachment from operation failure, so both use one
-bounded, presentation-safe `AgentFailureDetail`. Provider codes and raw errors
-remain protected evidence. Failure detail does not carry retry authority;
-adapter recovery and orchestration decisions remain outside this diagnostic
-value.
-
-The content family is:
-
-```ts
-type AgentContentSignal =
+    }
   | {
       kind: "message.delta";
       operationId: AgentOperationId;
       messageId: AgentMessageId;
-      phase: "commentary" | "final" | "unknown";
+      phase?: "commentary" | "final";
       delta: string;
     }
   | {
       kind: "message.completed";
       operationId: AgentOperationId;
       messageId: AgentMessageId;
-      phase: "commentary" | "final" | "unknown";
+      phase?: "commentary" | "final";
       text: string;
     }
   | {
-      kind: "reasoning.summary";
+      kind: "approval.requested";
+      request: AgentApprovalRequest;
+    }
+  | {
+      kind: "approval.resolved";
+      approvalId: AgentApprovalId;
+      optionId: string;
+    }
+  | {
+      kind: "input.requested";
+      request: AgentInputRequest;
+    }
+  | {
+      kind: "input.resolved";
+      requestId: AgentInputRequestId;
+    }
+  | {
+      kind: "provider.observation";
       operationId: AgentOperationId;
-      text: string;
+      name: string;
+      summary?: string;
+      data?: JsonValue;
     };
 ```
 
-The adapter allocates a contract-level `messageId` when it first observes a
-provider message and privately maps any provider item identifier. A message may
-emit zero or more deltas followed by exactly one completion containing the full
-authoritative text; it emits no delta after completion. `phase` is required,
-and adapters use `unknown` rather than inventing a distinction their provider
-does not supply.
+A message may emit deltas followed by one completion containing the complete
+text. It emits no delta after completion. `phase` is optional because not all
+providers expose Codex-like channels.
 
-Reasoning summaries are standalone provider-approved text. They are neither
-hidden reasoning nor a reconstructable reasoning stream. Version one content
-signals carry text only; media requires explicit contract evolution.
+`provider.observation` retains scope for provider-approved reasoning
+summaries, usage, diagnostics, and provider-native delegation without claiming
+portable semantics. Its `name` and `data` are adapter-owned, bounded, and
+validated by a private schema. Consumers may display or store them but must not
+branch on them as portable agent behaviour.
 
-```ts
-type AgentEvent = {
-  schemaVersion: 1;
-  eventId: AgentEventId;
-  sessionId: AgentSessionId;
-  operationId?: AgentOperationId;
-  sequence: number;
-  recordedAt: string;
-  kind: AgentSessionSignal["kind"];
-  payload: JsonValue;
-};
-```
+Signals exclude raw provider envelopes, private continuation state, provider
+identifiers, credentials, hidden reasoning, unrestricted command output, and
+raw tool arguments or results.
 
-Drawloom assigns the durable event identifier, monotonic per-session sequence,
-and recorded timestamp. Providers are not asked to resume Drawloom sequence
-allocation. Provider timestamps may be retained as optional evidence but never
-replace Drawloom ordering.
+Tool invocation and result events originate from the authoritative tool
+gateway rather than being duplicated here. Both streams carry the Drawloom
+operation identity. An exact cross-reference is included only when an explicit
+Drawloom correlation identifier survives the provider transport.
 
-Signal-to-event projection is deliberately not object inheritance. Protected
-continuation payloads, raw tool arguments or results, provider identifiers, and
-other sensitive signal fields are stored through their owning evidence path or
-replaced by bounded references and hashes before an ordinary event is written.
-For example, `session.continuation_updated` persists the envelope owner,
-versions, and protected-record reference, not the envelope payload.
+Provider-native command, file, and network actions that cannot be removed are
+constrained by Drawloom policy and sandboxing. They remain distinct from
+Drawloom tool execution and its authoritative evidence.
 
-The initial signal vocabulary is:
+### Let observability wrap signals directly
 
-- `session.opened`, `session.continuation_updated`,
-  `session.disconnected`, and `session.closed`;
-- `operation.started`, `operation.steered`, `operation.completed`,
-  `operation.failed`, and `operation.interrupted`;
-- `message.delta` and `message.completed`, with a required `commentary`,
-  `final`, or `unknown` phase;
-- `reasoning.summary`, containing only provider-approved summaries and never
-  hidden reasoning;
-- `tool.requested` and `tool.completed`, which observe agent interaction while
-  the tool capability remains authoritative for execution and results and an
-  exact tool-invocation reference is included only when explicitly preserved;
-- `approval.requested` and `approval.resolved`;
-- `input.requested` and `input.resolved`;
-- `delegation.started`, `delegation.updated`, and `delegation.completed`, which
-  observe provider-internal delegation without transferring Drawloom
-  orchestration authority;
-- `usage.reported`; and
-- `diagnostic`, for bounded, redacted warnings and unsupported provider events.
+Observability validates each safe signal, then owns its durable event envelope:
+event identity, ordering, recorded time, storage, retention, and projections.
 
-Raw provider envelopes, hidden reasoning, credentials, unrestricted command
-output, and opaque continuation payloads do not enter ordinary durable events.
-Provider-specific diagnostic evidence may be retained separately only under an
-explicit bounded and redacted policy.
+The agent contract does not define `AgentEvent`, duplicate signal payloads,
+or prescribe a deterministic conversion. Continuation and protected provider
+evidence never enter ordinary signals and therefore require no projection-time
+removal.
 
-### Declare capabilities rather than assuming parity
+### Require proportional conformance
 
-`AgentCapabilities` declares support for continuation, interruption, steering,
-approval requests, recoverable approvals, requested input, tool observation,
-delegation observation, message phases, reasoning summaries, and usage
-reporting. A method's presence does not constitute support.
+The future `@drawloom/agent` package exports a provider-neutral conformance
+suite. Its core cases verify:
 
-Capabilities describe observable semantics, not vendor features. Providers
-must return `unsupported_capability` rather than approximating a declared
-unsupported operation. Every positive declaration is exercised by the shared
-conformance suite in a runtime that the provider claims to support.
+- open, execute, single-active-operation rejection, and idempotent close;
+- required Drawloom session and operation identities;
+- exactly one terminal outcome for every accepted operation;
+- message delta ordering and complete-message snapshots;
+- strict safe-signal validation and rejection of provider identifiers or
+  forbidden raw data;
+- requested-input and approval correlation, schema validation, lossless choice
+  round-tripping, and rejection of stale resolutions;
+- context consumption without direct memory or knowledge access;
+- stable tool exposure without agent-owned grant or execution authority; and
+- rejection or explicit composition of ambient provider tools.
 
-Provider availability, installation, authentication, account information,
-model catalogues, and rate limits are adjacent contracts. They do not become
-methods on `AgentSession` merely because one provider API exposes them beside
-execution.
+If `steer` or `interrupt` is present, focused conformance cases verify its
+targeting and lifecycle behaviour. There is no combinatorial boolean
+capability matrix.
 
-Codex mapping and evidence are maintained in the separate
-[Codex app-server adapter design](codex-app-server-adapter.md). No
-provider-specific method, identifier, event, or protocol version is part of
-this contract design.
+Provider packages separately test protocol negotiation, connection recovery,
+private continuation storage, provider event coverage, safe
+`provider.observation` schemas, exact tool correlation, and provider-specific
+interaction mappings.
 
-### Require provider-neutral conformance
+## Evidence required before acceptance
 
-The future `@drawloom/agent` package will export a provider-neutral conformance
-suite. Every driver must run it against its claimed capability set. At minimum,
-the suite verifies:
+The contract remains Proposed until disposable Codex probes and a manual Codex
+Desktop MCP smoke demonstrate:
 
-- open, execute, exactly-one-terminal, and idempotent close behaviour;
-- single-active-operation rejection;
-- strict lifecycle-signal discrimination, required Drawloom identities, and
-  rejection of unknown fields and provider identifiers;
-- interruption of the exact active operation;
-- continuation ownership, validation, resume, and explicit loss;
-- stale and late signal isolation;
-- steering acceptance, exact operation targeting, context projection, and
-  unsupported behaviour;
-- message identity, delta ordering, exactly-one completion with full text,
-  required phase handling, and reasoning-summary safety;
-- requested-input correlation, schema validation, resolution, and distinction
-  from approval;
-- lossless multi-option approval cascading, policy narrowing, exactly-once
-  resolution, expiry, and rejection of unknown or stale options;
-- capability claims against observed signals;
-- immutable session tool exposure, operation-grant enforcement, exact
-  correlation when claimed, and tool observation without authority leakage;
-- rejection or explicit governance of ambient external provider tools;
-- delegation observation without orchestration-authority leakage, protected
-  provider identifiers, and no independently controllable child session;
-- inheritance of the parent operation's policy and tool grant, exact optional
-  delegation correlation, and parent lifecycle independence;
-- redaction of continuation payloads, provider envelopes, credentials, hidden
-  reasoning, and unrestricted command output; and
-- deterministic conversion from session signals to ordered durable events.
+- supported protocol or schema-version detection;
+- disabled native cross-thread memory;
+- compiled context supplied through `additionalContext` on execute and steer;
+- one-active-operation and terminal-signal behaviour;
+- adapter-private start, resume, and recovery without exposing provider IDs;
+- optional steering and interruption;
+- lossless approval-choice and requested-input mappings;
+- stable MCP exposure, gateway-owned operation authority, schema projection,
+  ambient-tool isolation, and exact correlation when claimed;
+- safe provider observations for reasoning, usage, diagnostics, and native
+  delegation without shadow child state;
+- observability wrapping of safe signals without forbidden raw data; and
+- Codex Desktop use of the same MCP boundary expected by the adapter.
 
-Provider-specific conformance evidence is maintained with each provider design
-and implementation. The contract design remains incomplete while any item in
-its decision inventory is open.
+Passing those probes supports an acceptance review. It does not itself accept
+ADR 0007 or authorise reuse of spike code.
 
 ## Consequences
 
-- Consumers can operate an agent without knowing whether the provider calls its
-  continuation a thread, session, profile, or file.
-- Provider-native transcript management remains usable without granting the
-  provider memory, tool, policy, or durable-event authority.
-- Steering, approvals, requested input, interruption, and continuation have
-  explicit observable semantics rather than callback conventions.
-- Drawloom can reconstruct UI projections, evaluations, and traces from its own
-  event log while retaining provider evidence separately.
-- Provider adapters must perform more translation and validation than a thin
-  SDK wrapper.
-- Capability negotiation and conformance fixtures add work but prevent false
-  portability claims.
-- Version one intentionally permits only one active operation per session and
-  only text input. Later concurrency or media additions require explicit
-  compatible contract evolution.
+- Consumers operate agents without knowing provider thread or transport
+  mechanics.
+- Adapters own the continuity they can actually implement.
+- Optional controls are discoverable without a separate feature matrix.
+- Context, tools, policy, and observability retain their own schemas and state.
+- Approval and requested input remain precise without a general approval
+  lifecycle subsystem.
+- Provider-native delegation remains inspectable without shadow orchestration.
+- Safe signals require less redaction and projection machinery.
+- Provider-specific observations preserve useful richness without promising
+  cross-provider parity.
+- Version one remains text-first and single-operation; media and concurrency
+  require later evidenced evolution.
 - The memory substrate's storage, curation, confidence, retrieval, and
   reweaving model remain the subject of a separate ADR.
-- No production agent package or supported API exists while ADR 0007 remains
-  Proposed.
 
 ## Alternatives considered
 
-### Mirror Codex app-server methods in the public contract
+### Expose continuation envelopes
 
-This would reduce the first adapter's translation work but would expose Codex
-thread and turn mechanics to every consumer and future provider.
+A portable envelope makes adapter state persistable by orchestration but also
+exports versioning, ownership, recovery, and secrecy concerns that only the
+adapter can interpret.
 
-### Expose a single blocking `run` callback
+### Declare every feature as a boolean
 
-A blocking callback is simple for one-shot generation but obscures steering,
-approvals, requested input, interruption, streaming, reconnection, and exactly
-one terminal outcome.
+This appears explicit but duplicates method availability and requires
+conformance across meaningless combinations of observational features.
 
-### Let each adapter persist its continuation privately
+### Pass operation grants through agent execution
 
-This hides vendor data but prevents the orchestrator from providing
-deterministic recovery, invalidation, migration, and correlated observability.
-Drawloom therefore persists an opaque envelope while the adapter owns its
-meaning.
+This appears to make execution atomic but duplicates the gateway's authority
+and creates synchronisation state between capabilities.
 
-### Persist and replay the provider's exact transcript
+### Standardise approval consequences and recovery
 
-This duplicates provider transcript and compaction behaviour and incorrectly
-couples it to Drawloom's authoritative memory. Drawloom stores its own inputs,
-events, context revisions, and continuation evidence instead.
+This would support richer automatic policy eventually, but no current policy
+consumer or second provider demonstrates a stable shared semantic.
 
-### Forward raw provider events to consumers
+### Reconstruct provider-native delegation
 
-Raw events preserve every vendor feature but make providers non-substitutable,
-leak sensitive data, and force every consumer to implement provider parsing.
+Normalising observed workers into a portable lifecycle would create identities
+and relationships for work Drawloom cannot control.
 
-### Treat requested input as approval
+### Define a separate durable agent event model
 
-Both may pause an operation, but supplying information does not grant execution
-or business authority. Combining them would make audit and policy ambiguous.
-
-### Standardize approval as accept or decline
-
-Providers may offer allow-once, session-scoped access, cancellation, or policy
-amendments. A binary contract would either discard useful choices or encourage
-provider-specific escape hatches.
-
-### Omit steering from the portable contract
-
-Consumers would need to interrupt and restart long-running work to correct it.
-Steering is therefore an optional but fully specified capability.
-
-### Use provider-native memory alongside Drawloom memory
-
-Two independent retrieval authorities can inject conflicting or
-non-reproducible context. Provider cross-thread memory is disabled when
-Drawloom manages the session; the provider retains only its own thread
-transcript.
+This would duplicate already-safe signal payloads and make agent execution own
+observability projection decisions.
