@@ -3,10 +3,52 @@
 ## Current state
 
 Drawloom currently contains its repository constitution and documentation
-structure. No runtime or supported package API exists yet. The platform
-capability partition is established by
-[ADR 0005](docs/adr/0005-partition-agent-platform-capabilities.md); focused
-ADRs will establish each concrete capability incrementally.
+structure. No runtime or supported package API exists yet. Its decision
+principles are established by
+[ADR 0006](docs/adr/0006-evidence-led-architecture-principles.md), and its
+platform capability partition by
+[ADR 0005](docs/adr/0005-partition-agent-platform-capabilities.md). The first
+concrete capability, provider-neutral agent execution, is proposed in
+[ADR 0007](docs/adr/0007-provider-neutral-agent-execution.md).
+
+## Architectural intent
+
+Drawloom provides the infrastructure around a model that makes an AI workload
+controlled, portable, inspectable, and reproducible.
+
+Its architectural metaphor is a programmable loom: durable constraints and
+run-specific inputs are composed into a traceable execution. The metaphor may
+guide product language and visual identity, but public APIs use direct technical
+names.
+
+## Decision principles
+
+**Complexity must earn its place.** Choose the simplest design that satisfies
+present, evidenced needs. Extra abstraction, state, lifecycle, indirection,
+validation, or generalisation must justify its engineering, cognitive, runtime,
+and operational cost.
+
+1. **Useful type safety.** Use precise types and runtime validation for concrete
+   invalid states and trust boundaries, not for theoretical completeness.
+2. **Evidence-led multi-provider support.** Express the smallest portable
+   semantics demonstrated by real providers and consumers; keep differences
+   optional or adapter-private until evidence supports promotion.
+3. **Clean, replaceable boundaries.** Separate real ownership, authority,
+   lifecycle, trust, and change axes without assuming each boundary needs a
+   service, process, package, or interface.
+4. **An accessible free or local path.** Provide clear defaults and a useful
+   free-tier or local route where the capability permits it; expose cost and
+   operational prerequisites instead of hiding them.
+5. **Proportional efficiency.** Treat implementation effort, comprehension,
+   runtime resources, maintenance, and provider spend as finite. Reuse safe
+   provider-native behaviour, generalise after evidence, and optimise after
+   measurement.
+
+Before adding material complexity, ask what present need or observed difference
+requires it, why the simpler option fails a principle, whether the choice can
+remain private or reversible, what it costs, and how evidence will verify it.
+If two designs satisfy the principles, prefer the simpler one. See ADR 0006 for
+the complete decision test and trade-off guidance.
 
 ## Architectural layers
 
@@ -58,6 +100,20 @@ pre-created as empty packages.
 └── scripts/            # repository automation and structural checks
 ```
 
+## Foundation non-goals
+
+- Building the user interface before the runtime contracts are understood.
+- Mirroring the structure of a consuming monorepo.
+- Introducing microservices or multiple implementation languages prematurely.
+- Treating one provider implementation as the architecture.
+- Creating generic `utils`, `shared`, or `tools` dumping grounds.
+
+## Naming vocabulary
+
+The product name is Drawloom. `Draft`, `weave`, `pattern`, and `thread` may be
+used where they make the product easier to understand, but they do not replace
+precise domain terms such as contract, provider, policy, sandbox, or trace.
+
 ## Standards
 
 - Progressive `AGENTS.md` files provide local operating guidance.
@@ -93,11 +149,16 @@ toolchain, portability, dependency, and release decisions, and
 [ADR 0004](docs/adr/0004-standardise-capability-contracts.md) for the contract,
 runtime-schema, and conformance standard. See
 [ADR 0005](docs/adr/0005-partition-agent-platform-capabilities.md) for the
-capability and ownership map.
+capability and ownership map,
+[ADR 0006](docs/adr/0006-evidence-led-architecture-principles.md) for the
+decision principles, and
+[ADR 0007](docs/adr/0007-provider-neutral-agent-execution.md) for the proposed
+agent-execution capability.
 
 Drawloom deliberately has no `CONTEXT.md`. Context that changes agent behaviour
-belongs in `AGENTS.md`; product intent belongs in `DESIGN.md`; architecture
-belongs here; provenance-bearing facts belong in `knowledge/`.
+belongs in `AGENTS.md`; architectural intent, principles, non-goals, and the
+current system map belong here; the visual design system belongs in
+`DESIGN.md`; provenance-bearing facts belong in `knowledge/`.
 
 ## Public and commercial boundary
 

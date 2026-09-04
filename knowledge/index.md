@@ -28,3 +28,5 @@ updated: 2026-09-04
 - [ADR 0003: Adopt TypeScript, Bun, and portable packages](../docs/adr/0003-typescript-bun-and-portable-packages.md)
 - [ADR 0004: Standardise capability contracts and conformance](../docs/adr/0004-standardise-capability-contracts.md)
 - [ADR 0005: Partition the agent platform into explicit capabilities](../docs/adr/0005-partition-agent-platform-capabilities.md)
+- [ADR 0006: Adopt evidence-led architecture principles](../docs/adr/0006-evidence-led-architecture-principles.md)
+- [ADR 0007: Define provider-neutral agent execution](../docs/adr/0007-provider-neutral-agent-execution.md)

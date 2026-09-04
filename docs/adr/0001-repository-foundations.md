@@ -3,6 +3,9 @@
 - **Status:** Accepted
 - **Date:** 2026-09-02
 - **Decision owners:** Drawloom maintainers
+- **Partially superseded by:**
+  [ADR 0006](0006-evidence-led-architecture-principles.md), for ownership of
+  principles and non-goals
 
 ## Context
 

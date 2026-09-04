@@ -8,6 +8,6 @@ Documentation is organised by purpose:
 - `reference/`: current technical reference and generated system views.
 - `security/`: threat models, trust boundaries, and security design.
 
-Product principles belong in the root `DESIGN.md`; the current system map
-belongs in `ARCHITECTURE.md`; provenance-bearing evidence belongs in
-`knowledge/`.
+Architectural intent, principles, non-goals, and the current system map belong
+in `ARCHITECTURE.md`; the visual design system belongs in the root `DESIGN.md`;
+provenance-bearing evidence belongs in `knowledge/`.

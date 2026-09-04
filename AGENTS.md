@@ -6,9 +6,9 @@ area you change.
 ## Read first
 
 1. `README.md`
-2. `DESIGN.md`
-3. `ARCHITECTURE.md`
-4. The applicable ADRs in `docs/adr/`
+2. `ARCHITECTURE.md`
+3. The applicable ADRs in `docs/adr/`
+4. `DESIGN.md` when changing visual or user-interface design
 5. The nearest nested `AGENTS.md`
 
 ## Non-negotiable rules
@@ -24,6 +24,8 @@ area you change.
   `catalog:` for external packages and `workspace:*` for internal packages.
 - Keep portable packages free of Bun, Node.js, Cloudflare, and Tauri ambient
   APIs. Cross host-specific behaviour through an explicit contract.
+- Make complexity earn its place: apply the principles and decision test in
+  `ARCHITECTURE.md` before adding material abstraction or lifecycle machinery.
 
 ## Area guides
 

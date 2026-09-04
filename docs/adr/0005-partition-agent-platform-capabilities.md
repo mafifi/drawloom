@@ -131,9 +131,9 @@ Provider mappings and protocol evidence live in provider designs and spike
 records linked from the relevant ADR. They do not expand the portable contract
 unless the capability requires the observed semantic.
 
-A follow-up ADR applies this partition first to the agent-execution capability.
-Its working contract design preserves the detailed interface exploration that
-informed these boundaries.
+[ADR 0007](0007-provider-neutral-agent-execution.md) applies this partition
+first to the agent-execution capability. Its working contract design preserves
+the detailed interface exploration that informed these boundaries.
 
 ## Implementation
 

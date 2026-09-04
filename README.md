@@ -9,18 +9,17 @@ strategy are documented.
 
 ## Principles
 
-- Contracts precede implementations.
-- Execution context is versioned, inspectable, and reproducible.
-- Providers are selected at composition roots, not inside consumers.
-- Knowledge carries provenance and lifecycle metadata.
-- Security, evaluation, and observability are architectural concerns.
-- The repository is designed to be legible to people and coding agents.
+Complexity must earn its place. Drawloom balances useful type safety,
+evidence-led multi-provider support, clean replaceable boundaries, an accessible
+free or local path, and proportional efficiency. The authoritative principles
+and decision test live in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Repository map
 
 - [`AGENTS.md`](AGENTS.md): short operating map for coding agents.
-- [`DESIGN.md`](DESIGN.md): durable product principles and non-goals.
-- [`ARCHITECTURE.md`](ARCHITECTURE.md): current state and architectural boundaries.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md): architectural intent, principles,
+  non-goals, current state, and boundaries.
+- [`DESIGN.md`](DESIGN.md): visual design system in Google's design.md format.
 - [`docs/`](docs/): ADRs, plans, reference material, and security design.
 - [`knowledge/`](knowledge/): OKF-profiled knowledge and provenance records.
 - [`packages/`](packages/): contract-first product packages.
