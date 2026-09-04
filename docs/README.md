@@ -3,6 +3,7 @@
 Documentation is organised by purpose:
 
 - `adr/`: durable decisions and their consequences.
+- `design/`: detailed working designs that refine Proposed ADRs.
 - `plans/`: temporary, bounded plans for significant implementation work.
 - `reference/`: current technical reference and generated system views.
 - `security/`: threat models, trust boundaries, and security design.

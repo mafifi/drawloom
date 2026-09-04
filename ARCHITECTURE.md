@@ -3,7 +3,10 @@
 ## Current state
 
 Drawloom currently contains its repository constitution and documentation
-structure. No runtime or supported package API exists yet.
+structure. No runtime or supported package API exists yet. The platform
+capability partition is established by
+[ADR 0005](docs/adr/0005-partition-agent-platform-capabilities.md); focused
+ADRs will establish each concrete capability incrementally.
 
 ## Architectural layers
 
@@ -35,7 +38,8 @@ packages/<capability>/<provider-name>/       # implementation
 - Every provider runs the contract's shared conformance suite.
 - Boundary data is parsed into contract-owned domain types.
 
-The exact initial capabilities will be established by later ADRs rather than
+ADR 0005 identifies the initial logical capabilities. Their exact contracts
+and packages are established incrementally by focused ADRs rather than
 pre-created as empty packages.
 
 ## Planned repository topology
@@ -45,6 +49,7 @@ pre-created as empty packages.
 ├── .agents/skills/     # repository-specific Agent Skills
 ├── docs/
 │   ├── adr/            # durable architecture decisions
+│   ├── design/         # detailed working designs for Proposed ADRs
 │   ├── plans/          # bounded implementation plans
 │   ├── reference/      # current technical reference
 │   └── security/       # threat models and security design
@@ -86,7 +91,9 @@ pre-created as empty packages.
 See [ADR 0003](docs/adr/0003-typescript-bun-and-portable-packages.md) for the
 toolchain, portability, dependency, and release decisions, and
 [ADR 0004](docs/adr/0004-standardise-capability-contracts.md) for the contract,
-runtime-schema, and conformance standard.
+runtime-schema, and conformance standard. See
+[ADR 0005](docs/adr/0005-partition-agent-platform-capabilities.md) for the
+capability and ownership map.
 
 Drawloom deliberately has no `CONTEXT.md`. Context that changes agent behaviour
 belongs in `AGENTS.md`; product intent belongs in `DESIGN.md`; architecture
