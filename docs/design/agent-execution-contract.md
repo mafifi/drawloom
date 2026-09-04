@@ -29,16 +29,18 @@ production package. Codex-specific mapping and validation evidence live in the
 The design covers:
 
 - driver, session, and single-active-operation behaviour;
+- one ordered, non-replaying, single-consumer signal stream per session;
 - adapter-owned provider transcript continuity, reconnection, and resumption;
 - session and operation identity without a public connection state machine;
 - compiled session and operation context owned by context compilation;
-- stable tool exposure owned by tools, with invocation authority left in the
-  gateway and policy;
+- immutable session tool exposure owned by tools, with invocation authority
+  left in the gateway and policy;
 - optional steering and interruption declared by method presence;
 - requested input distinct from execution approval;
+- multiple pending interactions with deterministic terminal cleanup;
 - lossless provider approval choices without a portable approval taxonomy;
-- Drawloom-orchestrated children distinct from bounded observations of
-  provider-native delegation;
+- Drawloom-orchestrated children distinct from summary-only observations and
+  protected evidence of provider-native delegation;
 - safe transient agent signals and observability-owned durable events;
 - bounded failures without adapter-authored retry policy; and
 - a core conformance suite plus feature-specific cases for exposed controls.
@@ -163,6 +165,11 @@ configuration, and revisions. The adapter projects the resolved exposure into
 MCP or another provider mechanism. Provider endpoints, credentials, and raw
 configuration do not become generic agent values.
 
+The advertised exposure is immutable for the life of an `AgentSession`.
+Changing its tool catalogue or schemas requires closing and reopening the
+session. Policy and gateway authority may change between and during operations
+without changing the advertised exposure or reopening the provider session.
+
 Operation grants do not cross the agent contract. Before execution,
 orchestration establishes the operation's authority with policy and the tool
 gateway. The gateway evaluates every invocation against the current operation;
@@ -213,6 +220,24 @@ than a public connection-generation model.
 `steer`, when present, targets the exact active operation and augments it
 without creating a second operation. `interrupt`, when present, targets the
 active operation. Both reject stale or terminal operation identifiers.
+
+### Define signal-stream delivery
+
+`signals()` may be called exactly once and before the first `execute`. Calling
+`execute` without an attached signal consumer returns `invalid_state`. This
+prevents an accepted operation from racing ahead of its observer.
+
+The stream preserves adapter delivery order and does not replay earlier
+signals. It ends after `close` or an unrecoverable session failure. Closing with
+an active operation produces its `operation.interrupted` terminal signal before
+ending the stream. An unrecoverable failure during an operation similarly
+produces `operation.failed` before ending it.
+
+An adapter may use backpressure or bounded buffering internally, but it never
+silently drops or reorders a signal. If it cannot preserve ordered delivery, it
+fails the active operation and closes the stream coherently. A slow or detached
+consumer does not permit the adapter to report successful completion without
+the terminal signal.
 
 ### Use a small command-failure taxonomy
 
@@ -319,6 +344,17 @@ An unknown, stale, or already-resolved interaction returns
 between decline and cancel until a provider demonstrates observable behaviour
 that a consumer must preserve.
 
+An operation may have several pending approval and requested-input
+interactions. Their identities, rather than arrival order, determine which
+provider callback a resolution answers. The adapter owns this transient pending
+state.
+
+Completing, failing, or interrupting the operation invalidates all unresolved
+interactions. Closing the session does the same. If provider reconnection cannot
+preserve pending interactions, the adapter fails the operation rather than
+silently discarding or recreating them. Resolution after invalidation returns
+`invalid_interaction`; the contract makes no cross-connection recovery promise.
+
 ### Keep provider-native delegation observational
 
 Drawloom-orchestrated children are ordinary independent sessions and
@@ -394,7 +430,7 @@ type AgentSessionSignal =
       operationId: AgentOperationId;
       name: string;
       summary?: string;
-      data?: JsonValue;
+      evidence?: ProviderEvidenceReference;
     };
 ```
 
@@ -402,11 +438,16 @@ A message may emit deltas followed by one completion containing the complete
 text. It emits no delta after completion. `phase` is optional because not all
 providers expose Codex-like channels.
 
-`provider.observation` retains scope for provider-approved reasoning
-summaries, usage, diagnostics, and provider-native delegation without claiming
-portable semantics. Its `name` and `data` are adapter-owned, bounded, and
-validated by a private schema. Consumers may display or store them but must not
-branch on them as portable agent behaviour.
+`ProviderEvidenceReference` is an opaque reference owned by the observability
+or evidence capability, not an agent-execution identifier.
+
+`provider.observation` retains scope for provider-approved reasoning summaries,
+usage, diagnostics, and provider-native delegation without claiming portable
+semantics. Its bounded `name` and presentation-safe `summary` are validated by
+the contract. Rich structured provider data is stored through the protected
+evidence reference rather than embedded as arbitrary JSON. Consumers may
+display or store the safe summary but must not branch on its name as portable
+agent behaviour.
 
 Signals exclude raw provider envelopes, private continuation state, provider
 identifiers, credentials, hidden reasoning, unrestricted command output, and
@@ -437,15 +478,19 @@ The future `@drawloom/agent` package exports a provider-neutral conformance
 suite. Its core cases verify:
 
 - open, execute, single-active-operation rejection, and idempotent close;
+- subscription before execution, single-consumer delivery, ordering, no replay,
+  coherent closure, and terminal-signal preservation;
 - required Drawloom session and operation identities;
 - exactly one terminal outcome for every accepted operation;
 - message delta ordering and complete-message snapshots;
 - strict safe-signal validation and rejection of provider identifiers or
   forbidden raw data;
 - requested-input and approval correlation, schema validation, lossless choice
-  round-tripping, and rejection of stale resolutions;
+  round-tripping, multiple pending interactions, terminal invalidation, and
+  rejection of stale resolutions;
 - context consumption without direct memory or knowledge access;
-- stable tool exposure without agent-owned grant or execution authority; and
+- stable tool exposure without agent-owned grant or execution authority;
+- immutable advertised tools with dynamic gateway authority; and
 - rejection or explicit composition of ambient provider tools.
 
 If `steer` or `interrupt` is present, focused conformance cases verify its
@@ -466,13 +511,17 @@ Desktop MCP smoke demonstrate:
 - disabled native cross-thread memory;
 - compiled context supplied through `additionalContext` on execute and steer;
 - one-active-operation and terminal-signal behaviour;
+- ordered signal subscription, terminal preservation, and coherent stream
+  closure;
 - adapter-private start, resume, and recovery without exposing provider IDs;
 - optional steering and interruption;
 - lossless approval-choice and requested-input mappings;
+- concurrent pending interactions and terminal invalidation;
 - stable MCP exposure, gateway-owned operation authority, schema projection,
   ambient-tool isolation, and exact correlation when claimed;
 - safe provider observations for reasoning, usage, diagnostics, and native
-  delegation without shadow child state;
+  delegation using summaries and protected evidence without shadow child state
+  or arbitrary provider JSON;
 - observability wrapping of safe signals without forbidden raw data; and
 - Codex Desktop use of the same MCP boundary expected by the adapter.
 

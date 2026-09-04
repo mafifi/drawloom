@@ -48,16 +48,27 @@ vocabulary. Drawloom persists streamed observations as they arrive because
 app-server history can reconstruct completed items but cannot guarantee replay
 of lost deltas.
 
+The adapter exposes one ordered signal stream. The consumer attaches before the
+first `turn/start`; the adapter does not replay earlier notifications or drop a
+terminal outcome. Closing or unrecoverable app-server failure ends the stream
+only after any active operation receives its terminal signal.
+
 MCP is the stable initial tool-exposure boundary. App-server dynamic tools
 remain experimental adapter functionality and are not required for portable
 conformance. Configured Codex plugins, apps, MCP servers, and equivalent
 ambient integrations must be disabled unless the Drawloom composition root
 included them in the resolved exposure.
 
+The advertised MCP tool catalogue is immutable for one session. Gateway allow
+and deny decisions remain dynamic and do not require rebuilding the Codex
+thread. A changed advertised catalogue requires reopening the Drawloom session.
+
 Provider-native delegated workers remain bounded observations inside the parent
-Drawloom operation. The adapter does not reconstruct portable child identities
-or lifecycle. Codex child-thread identifiers are protected evidence and do not
-become independently controllable Drawloom sessions.
+Drawloom operation. The ordinary signal carries only a bounded name, safe
+summary, and optional protected-evidence reference. The adapter does not
+reconstruct portable child identities or lifecycle. Codex child-thread
+identifiers are protected evidence and do not become independently controllable
+Drawloom sessions.
 
 ## Initial tool-boundary evidence
 
@@ -89,12 +100,15 @@ and a manual Codex Desktop MCP smoke must demonstrate:
 - sentinel memory and context supplied through `additionalContext` on execute
   and steer;
 - one-active-operation and terminal-signal mapping;
+- ordered single-consumer signal delivery and coherent stream closure;
 - lossless approval choices and resolution;
 - requested-input mapping distinct from approval;
+- multiple pending interactions and invalidation on terminal outcome;
 - interruption and adapter-private start, resume, and recovery behaviour;
 - optional steering semantics;
 - bounded provider observations for reasoning, usage, diagnostics, and native
-  delegation without reconstructed child lineage;
+  delegation using summaries and protected evidence without reconstructed child
+  lineage or arbitrary provider JSON;
 - durable observation with required Drawloom identities and without forbidden
   raw data; and
 - Codex Desktop use of the same MCP boundary expected by the adapter.

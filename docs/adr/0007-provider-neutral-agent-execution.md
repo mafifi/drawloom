@@ -89,6 +89,12 @@ Closing and interrupting are idempotent. Steering and interruption are optional
 session methods; method presence is the capability declaration. The contract
 does not maintain a parallel boolean capability matrix.
 
+Each session exposes one ordered, single-consumer signal stream. The consumer
+subscribes before the first operation. Signals are not replayed, and the stream
+ends only after session closure or unrecoverable failure. An adapter never
+silently drops or reorders signals; every accepted operation emits its terminal
+signal before the stream ends.
+
 ### Consume context without redefining it
 
 Opening a session receives context compiled for that session. Each operation
@@ -103,7 +109,9 @@ provenance categories of its own.
 
 Opening a session receives a resolved tool exposure owned by the tool
 capability. The adapter projects that exposure through MCP or another supported
-provider mechanism.
+provider mechanism. Version one keeps the advertised exposure immutable for
+the life of the session. Changing the advertised tool catalogue requires
+closing and reopening the session; changing gateway authority does not.
 
 Operation-specific permission remains authoritative in policy and the tool
 gateway. The agent-operation input carries its operation identity, not a
@@ -144,6 +152,12 @@ provider, a response schema. It resolves with submitted data or cancellation
 and grants no tool, filesystem, network, spend, publication, or business
 authority.
 
+One operation may have multiple pending approval and requested-input
+interactions. The adapter owns their provider callbacks and correlates them by
+request identity. Terminal operation outcome or session closure invalidates all
+unresolved interactions. If adapter recovery cannot preserve pending
+interactions, the operation fails rather than silently losing them.
+
 Execution approval also remains distinct from spend authority, artifact
 review, publication, and other business decisions owned by adjacent
 capabilities.
@@ -155,10 +169,12 @@ or recover independently is a normal Drawloom-orchestrated session and
 operation.
 
 Provider-native delegation remains activity inside its parent operation. The
-adapter may emit a bounded, presentation-safe provider observation, but version
-one does not assign portable delegation identities, reconstruct a child
-lifecycle, inherit grants in the agent contract, or expose the child as an
-independently controllable session.
+adapter may emit a bounded, presentation-safe provider observation containing
+only a name, safe summary, and optional protected-evidence reference. Rich
+provider data stays in adapter-owned evidence. Version one does not assign
+portable delegation identities, reconstruct a child lifecycle, inherit grants
+in the agent contract, or expose the child as an independently controllable
+session.
 
 ### Emit safe signals and let observability own events
 
@@ -176,8 +192,9 @@ signal-to-event transformation.
 Content may carry stable message identity for stream assembly and an optional
 provider-supported phase. Absence of a phase is represented by absence rather
 than an invented `unknown` value. Reasoning summaries, usage, diagnostics, and
-provider-native delegation use bounded provider observations until evidence
-justifies a portable semantic.
+provider-native delegation use the bounded provider-observation summary and
+protected-evidence path until evidence justifies a portable semantic. The
+portable signal contains no arbitrary provider JSON.
 
 Authoritative tool invocation and result events come from the tool gateway and
 are correlated with agent signals through Drawloom operation identity. Agent
