@@ -1,0 +1,47 @@
+name: Publishing proof
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publishing-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ASTRO_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.20.0'
+      - uses: oven-sh/setup-bun@v2.2.0
+      - run: bun install --frozen-lockfile
+      - run: bun run check:ci
+      - run: bun run spike:adr-0009:render
+      - run: bun run spike:adr-0009:build
+      - run: bun run spike:adr-0009:verify
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: spikes/adr-0009-publishing/dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy publishing proof
+        id: deployment
+        uses: actions/deploy-pages@v4

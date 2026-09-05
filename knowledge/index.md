@@ -22,6 +22,7 @@ updated: 2026-09-04
 - [Codex session tool exposure and operation authority](evidence/adr-0005-tool-exposure.md)
 - [Codex app-server evidence for provider-neutral agent execution](evidence/adr-0007-codex-app-server.md)
 - [Tool execution and Codex MCP authority-binding evidence](evidence/adr-0008-tool-execution.md)
+- [Repository-backed visual publishing proof](evidence/adr-0009-publishing.md)
 
 ## Related decisions
 
@@ -33,3 +34,4 @@ updated: 2026-09-04
 - [ADR 0006: Adopt evidence-led architecture principles](../docs/adr/0006-evidence-led-architecture-principles.md)
 - [ADR 0007: Define provider-neutral agent execution](../docs/adr/0007-provider-neutral-agent-execution.md)
 - [ADR 0008: Define tool execution and exposure](../docs/adr/0008-tool-execution-and-exposure.md)
+- [ADR 0009: Keep visual publishing sources in the repository](../docs/adr/0009-repository-backed-visual-publishing.md)

@@ -9,3 +9,7 @@ coverage/
 .turbo/
 
 *.log
+
+# Reproducible publishing spike output, never source artifacts.
+.astro/
+spikes/adr-0009-publishing/public/media/

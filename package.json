@@ -19,6 +19,13 @@
       "packages/*/*"
     ],
     "catalog": {
+      "astro": "7.3.1",
+      "remotion": "4.0.520",
+      "@remotion/cli": "4.0.520",
+      "react": "19.2.8",
+      "react-dom": "19.2.8",
+      "@types/react": "19.2.18",
+      "@types/react-dom": "19.2.7",
       "@google/design.md": "^0.4.0",
       "@modelcontextprotocol/sdk": "^1.30.0",
       "dependency-cruiser": "^18.2.0",
@@ -26,11 +33,17 @@
     }
   },
   "scripts": {
+    "spike:adr-0009:render": "remotion render spikes/adr-0009-publishing/remotion.tsx Workbench spikes/adr-0009-publishing/public/media/workbench.mp4 --codec=h264 --concurrency=2 && remotion still spikes/adr-0009-publishing/remotion.tsx Workbench spikes/adr-0009-publishing/public/media/workbench.png --frame=450",
+    "spike:adr-0009:build": "astro build --root spikes/adr-0009-publishing",
+    "spike:adr-0009:verify": "bun run spikes/adr-0009-publishing/verify.mts",
+    "spike:adr-0009:studio": "remotion studio spikes/adr-0009-publishing/remotion.tsx --no-open",
+    "spike:adr-0009:preview": "cd spikes/adr-0009-publishing && astro preview --host 127.0.0.1",
+    "check:publishing-types": "tsc --noEmit -p spikes/adr-0009-publishing/tsconfig.json",
     "check": "bun run check:ci",
-    "check:ci": "bun run check:dependency-policy && bun run check:architecture && bun run check:design && bun run check:types && bun run test",
+    "check:ci": "bun run check:dependency-policy && bun run check:architecture && bun run check:design && bun run check:types && bun run check:publishing-types && bun run test",
     "check:architecture": "depcruise --config .dependency-cruiser.mjs .",
     "check:dependency-policy": "bun run scripts/check-dependency-policy.ts",
-    "check:design": "designmd lint DESIGN.md",
+    "check:design": "designmd lint DESIGN.md && designmd lint publishing/DESIGN.md",
     "check:types": "tsc --noEmit -p tsconfig.json",
     "test": "bun test",
     "spike:adr-0005": "bun run spikes/adr-0005-tool-exposure/run-live-spike.ts",
@@ -38,6 +51,13 @@
     "spike:adr-0008": "bun run spikes/adr-0008-tool-execution/run-live.ts"
   },
   "devDependencies": {
+    "astro": "catalog:",
+    "remotion": "catalog:",
+    "@remotion/cli": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "@google/design.md": "catalog:",
     "@modelcontextprotocol/sdk": "catalog:",
     "@types/bun": "1.2.23",

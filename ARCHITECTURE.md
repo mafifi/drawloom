@@ -14,6 +14,11 @@ Tool execution and exposure are accepted in
 [ADR 0008](docs/adr/0008-tool-execution-and-exposure.md), supported by retained
 conformance and Codex MCP integration evidence rather than a supported package.
 
+Public editorial publishing is being evaluated separately through Proposed
+[ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md). Its Astro and
+Remotion spike consumes piece-owned `publishing/` sources without introducing
+supported product dependencies or changing the SvelteKit product UI default.
+
 ## Architectural intent
 
 Drawloom provides the infrastructure around a model that makes an AI workload
