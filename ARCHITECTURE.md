@@ -14,10 +14,12 @@ Tool execution and exposure are accepted in
 [ADR 0008](docs/adr/0008-tool-execution-and-exposure.md), supported by retained
 conformance and Codex MCP integration evidence rather than a supported package.
 
-Public editorial publishing is being evaluated separately through Proposed
+Public editorial publishing is established separately through Accepted
 [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md). Its Astro and
 Remotion spike consumes piece-owned `publishing/` sources without introducing
 supported product dependencies or changing the SvelteKit product UI default.
+The public Pages deployment currently contains only `publishing/site/`, a
+coming-soon placeholder; the example article and animation remain retained proof.
 
 ## Architectural intent
 

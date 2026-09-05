@@ -26,7 +26,7 @@ and decision test live in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 - [`apps/`](apps/): private SvelteKit and Tauri composition roots.
 - [`spikes/`](spikes/): retained, non-production architecture evidence.
 - [`publishing/`](publishing/): piece-owned editorial and visual sources;
-  [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md) is Proposed.
+  [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md) is Accepted.
 - [`.agents/skills/`](.agents/skills/): repository-specific Agent Skills.
 - [`scripts/`](scripts/): repository automation and mechanical checks.
 

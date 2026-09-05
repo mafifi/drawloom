@@ -50,6 +50,9 @@ components:
 A restrained editorial article, not a marketing landing page or final brand.
 An ImageGen layout concept informed the hierarchy; all text and controls are
 native HTML and the explanatory diagram is deterministic Remotion source.
+The public coming-soon placeholder reuses this palette and type pairing, with
+one 46–80px heading, a short 20px message and a GitHub link. It has no media or
+motion; the proof-specific components below apply only to the retained example.
 
 ## Colors
 

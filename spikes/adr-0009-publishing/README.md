@@ -7,7 +7,7 @@ This is not a supported publishing application or a real customer case study.
 
 ## Run from the repository root
 
-Use the pinned Bun 1.2.23 and Node 24.20.0 (the deployment workflow's version).
+Use the pinned Bun 1.2.23 and Node 24.20.0 (the verified rendering version).
 The first Remotion render downloads Chrome Headless Shell and requires network
 access. Subsequent rendering is local; no provider API key is needed.
 
@@ -41,7 +41,7 @@ and the generated site in ignored `dist/`. No generated binary is committed.
 The spike imports article/animation sources from `publishing/workbench-example/`.
 Nothing outside `spikes/` may import this code. Strict source checking and the
 scoped visual-design lint join `check:ci`; actual rendering/build-output checks
-run explicitly and in the publishing workflow. Browser validation is separate
+run explicitly (and ran in the original proof deployment). Browser validation is separate
 evidence, not a claim implied by a passing build.
 
 Remotion 4.0.520 declares a global Bun `Timer` type, so this host-specific spike's
@@ -51,19 +51,19 @@ Its CLI also warns that the repository's Zod 4.5.4 differs from its preferred
 and Studio are tested without downgrading Drawloom's contract dependency.
 That is a scoped compatibility observation, not a claim about Zod-backed forms.
 
-## Deploy
+## Public deployment retired
 
-The maintainer-authorised proof deploys through
-[Publishing proof](../../.github/workflows/publishing.yml), manually dispatched
-from `main` after pushing source. GitHub Pages must have GitHub Actions as its
-source. The workflow repeats the frozen install, gate, render, build and artifact
-validation, then deploys only `dist/`. It does not publish on ordinary pushes.
+After accepting ADR 0009, the maintainer requested removal of the public example.
+The [publishing workflow](../../.github/workflows/publishing.yml) now deploys only
+the coming-soon page from `publishing/site/`, not this spike's `dist/` or media.
+The commands above still reproduce the original proof locally. Historical run
+links and screenshots remain in the evidence record.
 
 ```sh
 gh workflow run publishing.yml --ref main
 gh run list --workflow publishing.yml --limit 1
 ```
 
-The target is `https://mafifi.github.io/drawloom/`. Build and deployment need
+The placeholder target is `https://mafifi.github.io/drawloom/`. Deployment needs
 GitHub Actions/Pages access; readers need only a browser. No Substack/YouTube
 account, CMS, custom domain, tracking or cloud renderer is configured.

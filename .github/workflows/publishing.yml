@@ -1,4 +1,4 @@
-name: Publishing proof
+name: Publishing
 
 on:
   workflow_dispatch:
@@ -25,12 +25,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2.2.0
       - run: bun install --frozen-lockfile
       - run: bun run check:ci
-      - run: bun run spike:adr-0009:render
-      - run: bun run spike:adr-0009:build
-      - run: bun run spike:adr-0009:verify
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: spikes/adr-0009-publishing/dist
+          path: publishing/site
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -42,6 +39,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy publishing proof
+      - name: Deploy public placeholder
         id: deployment
         uses: actions/deploy-pages@v4

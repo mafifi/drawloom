@@ -1,9 +1,9 @@
 # ADR 0009: Keep visual publishing sources in the repository
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-05
 - **Decision owners:** Drawloom maintainers
-- **Amends on acceptance:** ADR 0003, only for the public editorial website
+- **Amends:** ADR 0003, only for the public editorial website
 
 ## Context
 
@@ -18,7 +18,7 @@ We need one small publishing proof before adopting a publishing platform. This
 decision concerns source ownership, rendering and distribution, not editorial
 claims, a final visual identity, or a new Drawloom capability contract.
 
-## Proposed decision
+## Decision
 
 ### Keep each piece together
 
@@ -47,21 +47,30 @@ stay in the root catalog and exact resolutions in `bun.lock`. Astro and Remotion
 may run on their supported Node runtime at build time. No product package gains
 React, Astro, browser-renderer or publishing dependencies.
 
-### Host the proof on GitHub Pages
+### Host visual publishing on GitHub Pages
 
-Publish only the built, clearly labelled example to the public repository's
+The proof published a clearly labelled example to the public repository's
 Pages site. Source is committed normally; generated video/poster/build output
-stays out of Git history. A manually dispatched GitHub Actions workflow installs
-the frozen dependencies, checks the repository, renders the media, builds and
-validates the article, then uploads a Pages artifact and deploys it.
+stays out of Git history. The proof workflow installed frozen dependencies,
+checked the repository, rendered media, built and validated the article, then
+uploaded a Pages artifact and deployed it.
 
-Use GitHub's Pages artifact/deployment actions with explicit root Bun commands
-because this proof has a separate Remotion rendering step. Do not add an
+At acceptance, retire that public example and serve only a minimal “Coming soon”
+placeholder from `publishing/site/`. Keep the article, animation and spike source
+and evidence in the repository. The manual workflow now checks the repository
+and deploys only the placeholder directory, excluding all proof media. A single
+HTML file is sufficient for this temporary page; it does not change the Astro
+decision for authored articles. Actual articles require explicit editorial
+approval before replacing the placeholder.
+
+The proof used GitHub's Pages artifact/deployment actions with explicit root Bun
+commands for its separate Remotion rendering step. The placeholder keeps the
+same artifact/deployment mechanism without running the renderer. Do not add an
 automatic publication trigger: pushing source is not editorial approval to
 publish it. Only the default branch may deploy. No deployment-branch machinery,
 custom deployment service or long-lived credential is needed.
 
-The full visual article website is the proposed canonical public reading home.
+The full visual article website is the canonical public reading home.
 Substack for subscribers/distribution and YouTube for video remain proposals;
 this ADR does not configure accounts, syndication, analytics or automated posts.
 
@@ -113,9 +122,11 @@ source checking, a real rendered MP4 and still, project-base-path-safe HTML,
 readable mobile layout, accessible static fallback and transcript, working
 play/pause/seek on the deployed site, and no import-boundary regression.
 
-Record results and limitations in
-[publishing evidence](../../knowledge/evidence/adr-0009-publishing.md).
-Passing the proof makes this proposal ready for review, not automatically Accepted.
+The [publishing evidence](../../knowledge/evidence/adr-0009-publishing.md)
+records the successful local and deployed proof and its limitations. The
+maintainer accepted this ADR after reviewing that evidence. Acceptance does not
+promote the spike into a supported application or approve the sample as an
+editorial publication.
 
 ## References
 

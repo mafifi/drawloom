@@ -30,7 +30,8 @@ Astro spike. Only generated website output is deployed as a Pages artifact.
 
 Completed proof results live in
 [the evidence record](../../knowledge/evidence/adr-0009-publishing.md).
-ADR acceptance remains a maintainer decision.
+The maintainer subsequently accepted ADR 0009 and requested replacement of the
+public example with a coming-soon placeholder; the completed proof is retained.
 
 ## Design inventory
 

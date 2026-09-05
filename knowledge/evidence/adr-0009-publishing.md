@@ -8,7 +8,7 @@ updated: 2026-09-05
 ---
 # Repository-backed visual publishing proof
 
-Evidence for Proposed [ADR 0009](../../docs/adr/0009-repository-backed-visual-publishing.md).
+Evidence for Accepted [ADR 0009](../../docs/adr/0009-repository-backed-visual-publishing.md).
 The [retained spike](../../spikes/adr-0009-publishing/README.md) owns reproduction
 commands and toolchain limitations. This is an illustrative example, not a
 customer case study or proof of a production Drawloom runtime.
@@ -72,8 +72,11 @@ desktop word; the animation takeaway moved up to clear native playback controls.
 
 ## Limits and outcome
 
-The publishing boundary is demonstrated end to end. ADR 0009 remains Proposed;
-maintainer acceptance and any promotion to a maintained application are separate.
+The publishing boundary is demonstrated end to end. The maintainer subsequently
+accepted ADR 0009 and requested retirement of the public example in favour of a
+coming-soon page. The observations and screenshots above describe the original
+proof deployment, not the current public placeholder. The original source and
+local reproduction commands remain available; no supported application is implied.
 No real Dr Souphi case-study content, Substack/YouTube publishing, subscriber
 store, custom domain, analytics, interactive Remotion Player or cloud renderer
 was added. Real-device and assistive-technology audits were not performed.
