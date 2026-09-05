@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": { "title": "Different work takes different routes", "locale": "en", "quality_profile": "showcase" },
+  "components": [
+    { "id": "host-routing", "type": "backend", "label": "Host capability router", "sublabel": "backend-souphi", "pos": [60, 330], "size": [240, 84] },
+    { "id": "gateway", "type": "cloud", "label": "Cloudflare AI Gateway", "sublabel": "Provider-native OpenAI routes", "pos": [520, 70], "size": [250, 84] },
+    { "id": "openai", "type": "external", "label": "Text and images", "sublabel": "OpenAI Responses / gpt-image-2", "pos": [1010, 70], "size": [260, 84] },
+    { "id": "vertex", "type": "external", "label": "Generative motion", "sublabel": "Vertex AI / Veo 3.1", "pos": [520, 330], "size": [250, 84] },
+    { "id": "narration", "type": "external", "label": "Scene narration", "sublabel": "Modal / Higgs TTS 3", "pos": [520, 660], "size": [250, 84] },
+    { "id": "ffmpeg", "type": "external", "label": "Deterministic media", "sublabel": "Modal / FFmpeg", "pos": [60, 660], "size": [240, 84] }
+  ],
+  "connections": [
+    { "id": "openai-route", "from": "host-routing", "to": "gateway", "label": "text / images", "fromSide": "top", "toSide": "left" },
+    { "id": "gateway-provider", "from": "gateway", "to": "openai", "label": "Responses / Images", "variant": "emphasis" },
+    { "id": "vertex-route", "from": "host-routing", "to": "vertex", "label": "direct API", "variant": "emphasis" },
+    { "id": "narration-route", "from": "host-routing", "to": "narration", "label": "submit / lookup", "fromSide": "right", "toSide": "top" },
+    { "id": "render-route", "from": "host-routing", "to": "ffmpeg", "label": "submit / lookup", "fromSide": "bottom", "toSide": "top", "labelAt": [180, 428] }
+  ],
+  "cards": [
+    { "dot": "amber", "title": "Spend lives upstream", "items": ["Marketing binds the request and enforces its episode ceiling before these routes run."] },
+    { "dot": "violet", "title": "Recovery follows identity", "items": ["Known provider work can be checked again. An unknown submission needs reconciliation."] },
+    { "dot": "emerald", "title": "Not every transition buys AI", "items": ["Infographic entries, holds, audio assembly and final composition use deterministic media."] }
+  ]
+}

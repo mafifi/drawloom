@@ -1,0 +1,6 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {"types": ["bun", "node", "react"], "jsx": "react-jsx", "skipLibCheck": true},
+  "include": [".astro/types.d.ts", "src/**/*", "remotion.tsx"],
+  "exclude": ["dist"]
+}

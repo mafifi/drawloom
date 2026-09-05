@@ -1,6 +1,14 @@
 name: Publishing
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'publishing/**'
+      - 'scripts/build-journal.ts'
+      - 'package.json'
+      - 'bun.lock'
+      - '.github/workflows/publishing.yml'
   workflow_dispatch:
 
 permissions:
@@ -25,9 +33,11 @@ jobs:
       - uses: oven-sh/setup-bun@v2.2.0
       - run: bun install --frozen-lockfile
       - run: bun run check:ci
+      - run: bun run journal:render:article
+      - run: bun run journal:build
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: publishing/site
+          path: publishing/site/dist
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -39,6 +49,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy public placeholder
+      - name: Deploy journal
         id: deployment
         uses: actions/deploy-pages@v4

@@ -20,6 +20,7 @@
     ],
     "catalog": {
       "astro": "7.3.1",
+      "@astrojs/check": "0.9.10",
       "remotion": "4.0.520",
       "@remotion/cli": "4.0.520",
       "react": "19.2.8",
@@ -33,12 +34,18 @@
     }
   },
   "scripts": {
+    "journal:render:article": "remotion render publishing/site/remotion.tsx EpisodeSteps publishing/.generated/media/a-place-to-do-the-work/episode-steps.mp4 --codec=h264 --concurrency=2 && remotion still publishing/site/remotion.tsx EpisodeSteps publishing/.generated/media/a-place-to-do-the-work/episode-steps.png --frame=840",
+    "publishing:placeholder": "bun run scripts/stage-publishing-placeholder.ts",
+    "journal:build": "bun run scripts/build-journal.ts",
+    "journal:preview": "bun run scripts/build-journal.ts --drafts && cd publishing/site && astro preview --host 127.0.0.1 --port 4321",
+    "journal:check": "cd publishing/site && astro check && tsc --noEmit -p tsconfig.json",
+    "journal:render": "remotion render publishing/site/remotion.tsx Workbench publishing/.generated/media/workbench-example/workbench.mp4 --codec=h264 --concurrency=2 && remotion still publishing/site/remotion.tsx Workbench publishing/.generated/media/workbench-example/workbench.png --frame=450",
     "spike:adr-0009:render": "remotion render spikes/adr-0009-publishing/remotion.tsx Workbench spikes/adr-0009-publishing/public/media/workbench.mp4 --codec=h264 --concurrency=2 && remotion still spikes/adr-0009-publishing/remotion.tsx Workbench spikes/adr-0009-publishing/public/media/workbench.png --frame=450",
     "spike:adr-0009:build": "astro build --root spikes/adr-0009-publishing",
     "spike:adr-0009:verify": "bun run spikes/adr-0009-publishing/verify.mts",
     "spike:adr-0009:studio": "remotion studio spikes/adr-0009-publishing/remotion.tsx --no-open",
     "spike:adr-0009:preview": "cd spikes/adr-0009-publishing && astro preview --host 127.0.0.1",
-    "check:publishing-types": "tsc --noEmit -p spikes/adr-0009-publishing/tsconfig.json",
+    "check:publishing-types": "tsc --noEmit -p spikes/adr-0009-publishing/tsconfig.json && bun run journal:check",
     "check": "bun run check:ci",
     "check:ci": "bun run check:dependency-policy && bun run check:architecture && bun run check:design && bun run check:types && bun run check:publishing-types && bun run test",
     "check:architecture": "depcruise --config .dependency-cruiser.mjs .",
@@ -52,6 +59,7 @@
   },
   "devDependencies": {
     "astro": "catalog:",
+    "@astrojs/check": "catalog:",
     "remotion": "catalog:",
     "@remotion/cli": "catalog:",
     "react": "catalog:",

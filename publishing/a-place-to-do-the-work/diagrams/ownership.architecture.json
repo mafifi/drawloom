@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": { "title": "One episode, several kinds of responsibility", "locale": "en", "quality_profile": "showcase" },
+  "components": [
+    { "id": "operator", "type": "frontend", "label": "Review and direction", "sublabel": "Dr Souphi operator", "pos": [40, 50], "size": [220, 80] },
+    { "id": "marketing", "type": "backend", "label": "Production authority", "sublabel": "convex-marketing", "pos": [40, 310], "size": [220, 80] },
+    { "id": "substrate", "type": "messagebus", "label": "Durable re-entry", "sublabel": "convex-substrate / Action Retrier", "pos": [370, 310], "size": [250, 80] },
+    { "id": "agentic", "type": "backend", "label": "Generative attempts", "sublabel": "convex-agentic", "pos": [750, 310], "size": [220, 80] },
+    { "id": "host", "type": "backend", "label": "Provider routing", "sublabel": "backend-souphi", "pos": [1100, 310], "size": [220, 80] },
+    { "id": "render", "type": "backend", "label": "Media assembly", "sublabel": "convex-render", "pos": [750, 620], "size": [220, 80] },
+    { "id": "acceptance", "type": "database", "label": "Accepted evidence", "sublabel": "Immutable Marketing selections", "pos": [40, 620], "size": [220, 80] },
+    { "id": "assets", "type": "database", "label": "Files and delivery", "sublabel": "convex-assets", "pos": [1100, 50], "size": [220, 80] }
+  ],
+  "connections": [
+    { "id": "direction", "from": "operator", "to": "marketing", "label": "commands", "fromSide": "bottom", "toSide": "top", "labelAt": [150, 144] },
+    { "id": "frontier", "from": "marketing", "to": "substrate", "label": "start attempt", "variant": "emphasis" },
+    { "id": "generative", "from": "substrate", "to": "agentic", "label": "run / re-enter", "variant": "emphasis" },
+    { "id": "provider", "from": "agentic", "to": "host", "label": "submit / settle", "variant": "emphasis" },
+    { "id": "deterministic", "from": "substrate", "to": "render", "label": "run / re-enter", "fromSide": "bottom", "toSide": "left" },
+    { "id": "render-host", "from": "render", "to": "host", "label": "submit / settle", "fromSide": "right", "toSide": "bottom" },
+    { "id": "accept", "from": "marketing", "to": "acceptance", "label": "accept exact result", "fromSide": "bottom", "toSide": "top", "labelAt": [150, 404] },
+    { "id": "bytes", "from": "host", "to": "assets", "label": "verified file I/O", "fromSide": "top", "toSide": "bottom" }
+  ],
+  "cards": [
+    { "dot": "amber", "title": "Before a paid request", "items": ["Marketing creates spend permission and its exact child attempt in one transaction."] },
+    { "dot": "cyan", "title": "After a provider answers", "items": ["A validated result and an accepted production step remain separate facts."] },
+    { "dot": "emerald", "title": "What the arrows show", "items": ["Selected execution and ownership crossings; result returns and publication are omitted."] }
+  ]
+}

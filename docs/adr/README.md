@@ -14,9 +14,12 @@ links back.
 
 ## Latest decision
 
+- [ADR 0010: Automatically deploy approved journal content](0010-automatically-deploy-approved-journal-content.md)
+  is Accepted. Relevant pushes to `main` deploy the journal; draft content stays excluded.
+
 - [ADR 0009: Keep visual publishing sources in the repository](0009-repository-backed-visual-publishing.md)
   is Accepted, with a retained static article and Remotion publishing proof.
-  The public site shows a coming-soon placeholder until editorial content is approved.
+  ADR 0010 amends its manual-only trigger after the author approved journal publication.
 
 - [ADR 0008: Define tool execution and exposure](0008-tool-execution-and-exposure.md)
   is Accepted. Its working contract,

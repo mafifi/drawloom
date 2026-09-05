@@ -13,3 +13,5 @@ coverage/
 # Reproducible publishing spike output, never source artifacts.
 .astro/
 spikes/adr-0009-publishing/public/media/
+publishing/.generated/
+publishing/.placeholder-artifact/

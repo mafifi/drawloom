@@ -1,6 +1,12 @@
 ---
 title: From generated output to finished work
-description: Why complex business AI needs a workbench, not just a conversation.
+description: |-
+  Why complex business AI needs
+  a workbench, not just a conversation.
+draft: true
+media:
+  video: workbench.mp4
+  poster: workbench.png
 ---
 
 ## Generation is one step

@@ -18,8 +18,22 @@ Public editorial publishing is established separately through Accepted
 [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md). Its Astro and
 Remotion spike consumes piece-owned `publishing/` sources without introducing
 supported product dependencies or changing the SvelteKit product UI default.
-The public Pages deployment currently contains only `publishing/site/`, a
-coming-soon placeholder; the example article and animation remain retained proof.
+The maintained journal is implemented locally in `publishing/site/`, independently
+of that spike. Piece-owned Markdown and Remotion sources feed draft-aware static
+builds; [publishing/DESIGN.md](publishing/DESIGN.md) owns the visual system and
+[publishing/EDITORIAL.md](publishing/EDITORIAL.md) owns the writing voice.
+The author authorised journal publication on 2026-09-05. The main-only
+Pages workflow checks the repository, renders the approved article animation,
+and builds the journal. Only entries explicitly marked for publication and
+their referenced media are emitted; the synthetic example stays a local draft.
+Selected screenshots live with their piece as source assets. Rendered video,
+posters and site output remain unversioned. The old placeholder is retained as
+an optional fallback, not the normal deployment artifact.
+Changes to publishing sources or their build inputs on `main` trigger deployment
+automatically; manual dispatch remains available. Setting `draft: false` and a
+publication date is the editorial release gate. See
+[ADR 0010](docs/adr/0010-automatically-deploy-approved-journal-content.md), which
+amends ADR 0009's manual-only deployment rule.
 
 ## Architectural intent
 

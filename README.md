@@ -32,6 +32,9 @@ and decision test live in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) before proposing a change.
 
+Read the [Drawloom journal](https://mafifi.github.io/drawloom/), starting with
+[Why Drawloom?](https://mafifi.github.io/drawloom/articles/a-place-to-do-the-work/).
+
 ## Status
 
 No supported release exists yet. A private vulnerability reporting channel will

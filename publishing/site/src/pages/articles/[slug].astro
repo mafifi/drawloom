@@ -1,0 +1,45 @@
+---
+import {getCollection, getEntry, render} from 'astro:content';
+import type {CollectionEntry} from 'astro:content';
+import Journal from '../../layouts/Journal.astro';
+export async function getStaticPaths() {
+  const entries = await getCollection('articles', ({data}) => process.env.JOURNAL_DRAFTS === '1' || !data.draft);
+  return entries.map((entry) => ({params: {slug: entry.id}, props: {entry}}));
+}
+interface Props {entry: CollectionEntry<'articles'>}
+const {entry} = Astro.props;
+const {Content} = await render(entry);
+const transcript = entry.data.media ? await getEntry('transcripts', entry.id) : undefined;
+if (entry.data.media && !transcript) throw new Error(`Media requires a visible transcript: ${entry.id}`);
+const Transcript = transcript ? (await render(transcript)).Content : undefined;
+const media = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/media/${entry.id}/`;
+// An optional standalone marker puts the animation where the author discusses it.
+// These fragments are trusted, repository-authored Markdown HTML, not remote input.
+const marker = '<!-- animation -->';
+const parts = entry.rendered?.html.split(marker);
+const inlineAnimation = parts?.length === 2;
+if ((parts?.length ?? 0) > 2 || (inlineAnimation && !entry.data.media)) {
+  throw new Error(`Use one animation marker with media metadata: ${entry.id}`);
+}
+---
+<Journal title={entry.data.title} description={entry.data.description} article draft={entry.data.draft}>
+  <article class="essay">
+    <header class="article-heading prose">
+      <h1>{entry.data.title}</h1>
+      <p class="deck">{entry.data.description}</p>
+      <p class="metadata">Essay{entry.data.published && <> · <time datetime={entry.data.published}>{new Date(`${entry.data.published}T12:00:00Z`).toLocaleDateString('en-GB', {day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'})}</time></>}{entry.data.draft && <span class="notice"> · {entry.id === 'workbench-example' ? 'Illustrative example · local preview, not a customer case study.' : 'Draft · local preview'}</span>}</p>
+    </header>
+    <div class="prose article-body">
+    {inlineAnimation ? <Fragment set:html={parts![0]} /> : <Content />}
+    {entry.data.media && <figure class="explanation">
+      <video controls playsinline preload="metadata" width="1280" height="720" poster={`${media}${entry.data.media.poster}`} aria-label={`${entry.data.title}: explanatory animation`} aria-describedby="transcript-body">
+        <source src={`${media}${entry.data.media.video}`} type="video/mp4" />
+        <p><a href={`${media}${entry.data.media.video}`}>Download the animation</a> or read the transcript below.</p>
+      </video>
+      <figcaption><span>Explanatory animation</span><a href="#transcript">Read transcript</a></figcaption>
+    </figure>}
+    {inlineAnimation && <Fragment set:html={parts![1]} />}
+    </div>
+    {Transcript && <section class="prose transcript" id="transcript-body" aria-labelledby="transcript"><Transcript /></section>}
+  </article>
+</Journal>
