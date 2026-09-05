@@ -20,13 +20,17 @@ Astro spike. Only generated website output is deployed as a Pages artifact.
 ## Steps
 
 - [x] Draft the decision before implementation; confirm public repo and Pages state.
-- [ ] Add a built-output check and observe it reject the absent article/media.
-- [ ] Implement one Markdown article, one 18-second composition, Astro layout,
+- [x] Add a built-output check and observe it reject the absent article/media.
+- [x] Implement one Markdown article, one 18-second composition, Astro layout,
   native player/poster/transcript; add root build/render/verify scripts.
-- [ ] Run frozen install, source checks, render, build and output validation.
-- [ ] Preview Studio and article; check desktop/mobile and video controls.
-- [ ] Commit and push source; manually dispatch Pages build/deployment and enable Pages.
-- [ ] Verify public page/media and live playback; record evidence and limitations.
+- [x] Run frozen install, source checks, render, build and output validation.
+- [x] Preview Studio and article; check desktop/mobile and video controls.
+- [x] Commit and push source; manually dispatch Pages build/deployment and enable Pages.
+- [x] Verify public page/media and live playback; record evidence and limitations.
+
+Completed proof results live in
+[the evidence record](../../knowledge/evidence/adr-0009-publishing.md).
+ADR acceptance remains a maintainer decision.
 
 ## Design inventory
 
