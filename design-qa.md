@@ -12,7 +12,8 @@ validation; quoting the ISO date corrected it before publication. The real
 Remotion render passed with the existing Zod version-preference warning.
 
 Visual evidence below remains applicable; its local-only publication statements
-describe that earlier review stage. Live verification will follow the deployment.
+describe that earlier review stage. [Live deployment verification](knowledge/evidence/journal-publication.md)
+records the successful push-triggered deployment and browser checks.
 
 ## Current revision: image-to-code rebuild and neutral paper correction
 

@@ -4,7 +4,7 @@ id: drawloom-knowledge-index
 title: Drawloom knowledge index
 status: active
 created: 2026-09-02
-updated: 2026-09-04
+updated: 2026-09-05
 ---
 
 # Drawloom knowledge index
@@ -23,6 +23,7 @@ updated: 2026-09-04
 - [Codex app-server evidence for provider-neutral agent execution](evidence/adr-0007-codex-app-server.md)
 - [Tool execution and Codex MCP authority-binding evidence](evidence/adr-0008-tool-execution.md)
 - [Repository-backed visual publishing proof](evidence/adr-0009-publishing.md)
+- [Journal publication and automatic deployment](evidence/journal-publication.md)
 
 ## Related decisions
 
@@ -35,3 +36,4 @@ updated: 2026-09-04
 - [ADR 0007: Define provider-neutral agent execution](../docs/adr/0007-provider-neutral-agent-execution.md)
 - [ADR 0008: Define tool execution and exposure](../docs/adr/0008-tool-execution-and-exposure.md)
 - [ADR 0009: Keep visual publishing sources in the repository](../docs/adr/0009-repository-backed-visual-publishing.md)
+- [ADR 0010: Automatically deploy approved journal content](../docs/adr/0010-automatically-deploy-approved-journal-content.md)

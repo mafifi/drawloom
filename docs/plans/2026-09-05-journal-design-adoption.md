@@ -5,7 +5,8 @@
 
 **Lifecycle:** On 2026-09-05 the author explicitly authorised publication for
 sharing and integration/commit of all journal work. Tasks 1–2 are implemented;
-Task 3 is executing. Earlier local-only constraints below record the staged
+Task 3 is complete. [Live deployment evidence](../../knowledge/evidence/journal-publication.md)
+records the successful push-triggered run and browser checks. Earlier local-only constraints below record the staged
 adoption boundary, superseded only by this explicit publication approval.
 The author then requested automatic publication for public-site changes. Accepted
 ADR 0010 replaces the manual-only trigger with relevant pushes to `main` while
@@ -165,10 +166,10 @@ Add a focused evidence record under `knowledge/evidence/` using its area guide.
   main-only guard and existing Pages deployment permissions.
 - [x] Run the complete repository and journal gates at final head. Commit and
   push only when requested, then trigger the manual deployment when authorised.
-- [ ] Verify the live homepage and article, artwork and media under `/drawloom/`,
+- [x] Verify the live homepage and article, artwork and media under `/drawloom/`,
   working navigation/video, and 404s for retired proof and draft URLs. Confirm
   that public output matches the tested build and record the workflow run.
-- [ ] Update current-state documentation without rewriting Accepted ADR 0009.
+- [x] Update current-state documentation without rewriting Accepted ADR 0009.
   Mark this plan complete and retain durable design facts in `publishing/DESIGN.md`.
 
 ## Approval boundary
