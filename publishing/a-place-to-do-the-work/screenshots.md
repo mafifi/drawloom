@@ -1,5 +1,33 @@
 # Screenshot candidates
 
+## Operator selection — 2026-09-06
+
+`assets/12-operator-annual-plan.jpg` is an unaltered 1229×768 JPEG captured
+through Computer Use from the running release Operator app in worktree 4070.
+The author reported the workbench repaired and authorised screenshots. The
+annual-plan view shows story cards, separate script/image/narration stages and
+the existing Codex conversation. The displayed accepted state is a UI observation,
+not an independent backend acceptance audit.
+
+Privacy review: visible content consists of story titles, production-stage
+labels, a task-proposal discussion and the author's name. No patient records,
+contact details, credentials or financial information are visible. No image
+retouching or generated replacement was used. The screenshot now follows the
+article's definition of a workbench and is captioned as local staging, not a
+finished Drawloom product or an implemented treatment-video alternative.
+
+After the Mac became available, `assets/13-operator-story-workspace.jpg` was
+captured from the same release app: an unaltered 1229×768 JPEG showing Story 01,
+its three-part arc, thirteen storyboard tiles and the existing conversation.
+The visible conversation is staging continuity-test material. The caption says
+so, and does not imply that illustrations were generated. Privacy review found
+story content and the author's profile only, with no credentials, patient data,
+contact details or financial information. It follows the imagined episode
+workbench discussion as an explicitly separate story-production example.
+No prompts, starts/resumes, approvals,
+draft edits or provider jobs were submitted. The earlier current-homepage
+capture (11) remains retained but is no longer referenced or deployed by new builds.
+
 ## Publication selection — 2026-09-05
 
 The author authorised publication of the current journal for sharing. Exactly

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": { "title": "Drawloom: shared foundations, distinct responsibilities", "quality_profile": "showcase", "animation": "none", "legend": { "mode": "hidden" } },
+  "components": [
+    { "id": "product", "type": "frontend", "label": "Your workbench", "sublabel": "Interface and business rules", "pos": [40, 160], "size": [190, 76] },
+    { "id": "orchestration", "type": "backend", "label": "Orchestration", "sublabel": "Coordinate the work", "pos": [320, 160], "size": [180, 76] },
+    { "id": "memory", "type": "database", "label": "Memory", "sublabel": "Retained experience", "pos": [320, 40], "size": [180, 76] },
+    { "id": "knowledge", "type": "database", "label": "Knowledge", "sublabel": "Sources and claims", "pos": [570, 40], "size": [180, 76] },
+    { "id": "context", "type": "backend", "label": "Context compilation", "sublabel": "Prepare bounded input", "pos": [570, 160], "size": [180, 76] },
+    { "id": "agent", "type": "backend", "label": "Agent execution", "sublabel": "Interactive agent sessions", "pos": [820, 160], "size": [180, 76] },
+    { "id": "inference", "type": "cloud", "label": "Model inference", "sublabel": "Bounded model requests", "pos": [820, 40], "size": [180, 76] },
+    { "id": "policy", "type": "security", "label": "Policy and approval", "sublabel": "Decide what is allowed", "pos": [820, 280], "size": [180, 76] },
+    { "id": "tools", "type": "backend", "label": "Tools", "sublabel": "Validate and invoke", "pos": [570, 280], "size": [180, 76] },
+    { "id": "sandbox", "type": "security", "label": "Sandbox", "sublabel": "Enforce execution limits", "pos": [320, 280], "size": [180, 76] },
+    { "id": "observability", "type": "messagebus", "label": "Observability", "sublabel": "Record execution evidence", "pos": [570, 400], "size": [180, 76] },
+    { "id": "evaluation", "type": "backend", "label": "Evaluation", "sublabel": "Assess the results", "pos": [820, 400], "size": [180, 76] }
+  ],
+  "boundaries": [{ "kind": "region", "label": "DRAWLOOM · logical capabilities, not separate services", "wraps": ["orchestration", "memory", "knowledge", "context", "agent", "inference", "policy", "tools", "sandbox", "observability", "evaluation"], "pad": 28 }],
+  "connections": [
+    { "from": "product", "to": "orchestration", "variant": "emphasis" },
+    { "from": "orchestration", "to": "context" },
+    { "from": "memory", "to": "context" },
+    { "from": "knowledge", "to": "context" },
+    { "from": "context", "to": "agent", "variant": "emphasis" },
+    { "from": "agent", "to": "policy", "label": "tool request", "labelDy": 24 },
+    { "from": "policy", "to": "tools" },
+    { "from": "tools", "to": "sandbox" },
+    { "from": "tools", "to": "observability", "variant": "dashed" },
+    { "from": "observability", "to": "evaluation" }
+  ]
+}

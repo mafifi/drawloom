@@ -1,0 +1,58 @@
+[
+  {
+    "name": "drawloom",
+    "specification": "c90727ff97e4f925d00c2eff6cbd8908e91fb46fc3d08ccb8133742ee807ed42",
+    "theme": "13a5bd597921245cc4760ea1e5781af3e662089199698b88ad91369ee383962a",
+    "palette": {
+      "paper": "#f8f8f6",
+      "ink": "#111111",
+      "green": "#064c40",
+      "muted": "#344155",
+      "rule": "#d4d4d4"
+    },
+    "deliveredHtml": "23002791737e2d5387a00fba9379fd5bc8a8f732aa93e059bc9137442e6f12b1",
+    "svg": "5901d7fe21ed71fcf5334de352696792d5f345f5bbfc88d88a73ab03e7e513df"
+  },
+  {
+    "name": "stack-2024",
+    "specification": "c32f5fe539a243891064afa26e3f7545023d2b0a68c13f52e50d3fa57b6125d9",
+    "theme": "13a5bd597921245cc4760ea1e5781af3e662089199698b88ad91369ee383962a",
+    "palette": {
+      "paper": "#f8f8f6",
+      "ink": "#111111",
+      "green": "#064c40",
+      "muted": "#344155",
+      "rule": "#d4d4d4"
+    },
+    "deliveredHtml": "b00ab2e485afead6b3bf6adcc65da148e0c4ea7af9d72fc86c262bbc8645a493",
+    "svg": "bea1efaf8e0d9bfba1c2476874ff0ce498eb98fd0e165d52aa6613354d72224a"
+  },
+  {
+    "name": "stack-2025",
+    "specification": "18834e21e6e24012d76d180bf6fdb546e95ff4e2605a77d3b64fb7c9e319d54e",
+    "theme": "13a5bd597921245cc4760ea1e5781af3e662089199698b88ad91369ee383962a",
+    "palette": {
+      "paper": "#f8f8f6",
+      "ink": "#111111",
+      "green": "#064c40",
+      "muted": "#344155",
+      "rule": "#d4d4d4"
+    },
+    "deliveredHtml": "146b62ff1d4caeb9048b9f99e441cde0eb1e224c6cba8d3a035d5d5a5a6b0a16",
+    "svg": "f51fa682396bc3da2da8bb8c5aff0d6c64417ef69969b9e82af8f669d03822d3"
+  },
+  {
+    "name": "stack-2026",
+    "specification": "7a9613fa56a1656fa27ef9a2d63bc7f8ee9b5d2feeaf3e104b9f315ba8ff0b17",
+    "theme": "13a5bd597921245cc4760ea1e5781af3e662089199698b88ad91369ee383962a",
+    "palette": {
+      "paper": "#f8f8f6",
+      "ink": "#111111",
+      "green": "#064c40",
+      "muted": "#344155",
+      "rule": "#d4d4d4"
+    },
+    "deliveredHtml": "6f2ea236d2679db5c8e42a8017b458587ba589f692b1f668695298c3a5276eb7",
+    "svg": "e67690305a1fedbca4d1fb2bd0dd0c83381dd6b3346a96d2a84114f31084f948"
+  }
+]

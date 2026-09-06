@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": { "title": "2026 · Shared code, enforced rules", "quality_profile": "showcase", "animation": "none", "legend": { "mode": "hidden" } },
+  "components": [
+    { "id": "public-site", "type": "frontend", "label": "Public website", "sublabel": "Cloudflare Workers", "pos": [60, 60], "size": [220, 84] },
+    { "id": "clinic-admin", "type": "frontend", "label": "Clinic administration", "sublabel": "Cloudflare Workers", "pos": [60, 320], "size": [220, 84] },
+    { "id": "shared-backend", "type": "database", "label": "Convex", "sublabel": "Backend and data", "pos": [460, 190], "size": [240, 84] }
+  ],
+  "connections": [
+    { "from": "public-site", "to": "shared-backend", "variant": "emphasis" },
+    { "from": "clinic-admin", "to": "shared-backend", "variant": "emphasis" }
+  ]
+}

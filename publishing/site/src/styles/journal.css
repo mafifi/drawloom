@@ -58,7 +58,15 @@ p { margin: 0 0 18px; }
 video { display: block; width: 100%; height: auto; aspect-ratio: 16/9; background: var(--paper); border: 1px solid var(--rule); }
 figcaption { color: var(--muted); padding-top: 9px; }
 figcaption a { display: inline-block; font: 16px/1.45 'Times New Roman', Times, serif; margin-top: 8px; }
-.article-body .stack { max-width: 490px; margin-block: 28px; padding-block: 18px; border-block: 1px solid var(--rule); }
+.architecture-figure { padding-block: 18px; border-block: 1px solid var(--rule); }
+.diagram-kicker { font: 11px/1.5 Arial, Helvetica, sans-serif; letter-spacing: .07em; text-transform: uppercase; color: var(--green); margin: 0 0 12px; }
+.architecture-figure figcaption a { font: inherit; margin: 0; }
+.diagram-description { margin-top: 16px; font: 14px/1.6 Arial, Helvetica, sans-serif; color: var(--muted); }
+.diagram-description summary { cursor: pointer; color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+.diagram-description p, .diagram-description ul { margin-top: 14px; }
+@media (min-width: 1100px) {
+  .article-body .architecture-wide { width: 1000px; margin-left: calc((696px - 1000px) / 2); }
+}
 .article-body .callout { margin: 28px 0; padding: 20px 0; border-block: 1px solid var(--rule); }
 .callout .eyebrow { font: 12px/1.5 Arial, Helvetica, sans-serif; letter-spacing: .035em; text-transform: uppercase; margin-bottom: 10px; }
 .callout p { max-width: 490px; }

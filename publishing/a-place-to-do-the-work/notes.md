@@ -1,5 +1,71 @@
 # Draft notes — not article copy
 
+## Archify follow-up — 2026-09-06
+
+The subsequent colour revision uses `diagrams/journal-theme.css` and
+`diagrams/render.mjs` to apply the actual journal colour tokens before Archify
+validation and delivery. The installed renderer is left untouched. The neutral
+paper and green previews are in `publishing/.generated/archify-journal/`.
+The author also authorised screenshots of the repaired Operator; the selected
+annual-plan view is now in the article. See [capture provenance](screenshots.md).
+A second selected story-detail capture is now included after the imagined episode
+workbench discussion. Its caption identifies the working draft and staging test
+conversation; it is not evidence that the treatment-video alternative was built.
+
+The author rejected the real-text architecture figures described below and
+requested actual Archify diagrams. Four source-backed Archify candidates now
+exist for the three stack eras and Drawloom's capability boundaries. See
+[previews, provenance and verification](diagrams/archify-review.md). They are
+also the sources for the selected static vector artwork now embedded in the
+article. The author explicitly approved the Drawloom diagram on 6 September.
+Its layout and colours are unchanged. The old text-column figures are removed.
+The map uses a wider desktop figure, an enlarged vector link and a native
+collapsible text explanation; prose keeps its existing reading width.
+No publication or commit was made during this follow-up.
+
+## Editorial revision — 2026-09-06
+
+The current local revision moves forward through summer 2024, spring 2025,
+early 2026 and September 2026. The single co-created episode comes before the
+month spent automating the series. Both timings remain the author's account;
+the text explicitly distinguishes episode creation from system-building effort.
+“Alongside that work” replaces the broad “Throughout 2026” retrospective.
+
+Use workbench for the person's working surface, harness for the agent's
+supporting instructions/context/tools/controls, and Drawloom for reusable
+capabilities. Codex App Server and Claude Agent SDK remain distinct offerings.
+
+The 2024 website/admin captures establish the first attempt. The public episode
+shows the output; the programme view shows the fixed production path. The
+current homepage capture is removed from the light-bulb section because it
+shows the result, not the way of working. Its source file is preserved, but it
+is no longer copied into new build output.
+
+A real Operator screenshot is still pending. The running release application
+was inspected on 2026-09-06; it showed a missing backend function and then a
+fixture-labelled view. The author reported it broken and asked that article
+work continue while they repair it. Do not publish either state as evidence of
+a functioning workbench. No repair, business record change or agent dispatch
+was attempted. A future capture should follow the explanation of a workbench,
+labelled as a story-production example, not a tested treatment-video workbench
+or a finished Drawloom implementation.
+
+The old inline SVG inventories are replaced by responsive, real-text figures.
+The three stacks are quiet chapter notes. The closing figure names all eleven
+ADR 0005 capabilities once and explains the context, execution, authority and
+evidence relationships. It keeps the workbench outside Drawloom, distinguishes
+agent execution from model inference, and preserves provider-owned transcript
+continuity per ADR 0007. Policy, tools and sandbox remain separate per ADRs
+0005/0008. No new architecture or capability is inferred from this illustration.
+Older diagram and screenshot statements below describe earlier revisions.
+
+Verification: the revised figure assertions failed against the old SVGs, then
+passed after replacement. Final `check:ci` passed 58 tests / 211 assertions,
+with zero Astro errors, warnings or hints. The local draft build passed. Desktop
+and 390px mobile figures were visually inspected; mobile document width stayed
+390px and browser errors were empty. Local captures are in ignored
+`publishing/.generated/editorial-review-2026-09-06/`. No commit or push was made.
+
 Status: the author authorised public sharing of “Why Drawloom?” and integration
 of the journal work on 2026-09-05. Article metadata now explicitly permits
 publication. The selected five screenshots are retained in `assets/`; other

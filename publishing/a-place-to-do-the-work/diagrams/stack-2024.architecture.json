@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": { "title": "2024 · Separate foundations", "quality_profile": "showcase", "animation": "none", "legend": { "mode": "hidden" } },
+  "components": [
+    { "id": "public-site", "type": "frontend", "label": "Public website", "sublabel": "SvelteKit", "pos": [60, 60], "size": [220, 84] },
+    { "id": "public-hosting", "type": "cloud", "label": "Cloudflare Pages", "sublabel": "Website hosting", "pos": [460, 60], "size": [220, 84] },
+    { "id": "clinic-admin", "type": "frontend", "label": "Clinic administration", "sublabel": "SvelteKit", "pos": [60, 240], "size": [220, 84] },
+    { "id": "clinic-backend", "type": "database", "label": "Firebase", "sublabel": "Admin backend and data", "pos": [460, 240], "size": [220, 84] }
+  ],
+  "connections": [
+    { "from": "public-site", "to": "public-hosting", "label": "deployed on", "variant": "emphasis" },
+    { "from": "clinic-admin", "to": "clinic-backend", "label": "uses", "variant": "emphasis" }
+  ]
+}

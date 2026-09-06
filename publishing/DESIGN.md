@@ -62,9 +62,9 @@ accents, editorial serif typography, fine separators and a delicate woven
 homepage illustration. This file is authoritative for the publishing section,
 including `publishing/site/`, not Drawloom's product interfaces.
 
-The maintained local journal is being matched to this direction. The public coming-soon
-page and retained ADR 0009 proof still use their earlier white/cobalt styling.
-Local implementation is not publication approval. Execution and publication
+The maintained journal uses this direction. The retained coming-soon fallback
+and ADR 0009 proof preserve their earlier white/cobalt styling.
+Local revisions are not publication approval. Execution and publication
 follow the [adoption plan](../docs/plans/2026-09-05-journal-design-adoption.md);
 local visual and interaction checks are recorded in [design-qa.md](../design-qa.md).
 
@@ -205,6 +205,25 @@ reading background to imitate that noise. The small JOURNAL/ARTICLE labels
 above the two mockup panels are presentation framing, not site navigation.
 
 ## Accessibility and verification
+
+### Editorial architecture figures
+
+Use Archify for architecture diagrams; the author rejected the real-text
+column approximations. Keep typed diagram sources with the piece. Apply the
+journal's neutral paper, ink, forest green and slate colours through a shared
+template stylesheet before rendering and validation. Do not carry Archify's
+default cyan, purple, orange and pink palette into the article. Preserve labels,
+geometry and semantic boundaries when changing colours; colour must not be the
+only way to distinguish responsibilities. Keep text alternatives and an enlarged
+view available when a diagram cannot remain legible at mobile reading width.
+No new decorative artwork or site redesign is implied by this revision.
+
+Keep the consuming workbench outside Drawloom's capability boundary. Show what
+context feeds, who authorises a tool, and who enforces constraints. Distinguish
+provider-owned transcripts from Drawloom memory; orchestration coordinates the
+capabilities rather than owning their internals. Grouping is editorial, not a
+new architectural layer. Link the applicable ADRs from the figure caption.
+
 
 Check real text contrast, keyboard navigation and visible focus. Test desktop,
 tablet, 390px mobile and 200% zoom without horizontal reading overflow. Reading

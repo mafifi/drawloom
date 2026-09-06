@@ -1,0 +1,61 @@
+/* Applied to Archify's template before validation and delivery. Colour tokens
+   are resolved from the journal stylesheet by render.mjs, not maintained twice. */
+[data-theme="light"][data-preset] {
+  --bg: __paper__;
+  --panel: __paper__;
+  --mask: __paper__;
+  --text: __ink__;
+  --text-muted: __muted__;
+  --text-dim: __muted__;
+  --text-faint: __muted__;
+  --panel-border: __rule__;
+  --lane-fill: transparent;
+  --lane-stroke: __rule__;
+  --arrow: __muted__;
+  --arrow-emphasis: __green__;
+  --journal-accent: __green__;
+  --toolbar-bg: __paper__;
+  --toolbar-border: __rule__;
+  --toolbar-text: __muted__;
+  --toolbar-hover: #ffffff;
+  --toolbar-menu-bg: __paper__;
+}
+[data-theme="dark"][data-preset] {
+  --bg: #111916;
+  --panel: #17231f;
+  --mask: #17231f;
+  --text: #f8f8f6;
+  --text-muted: #bdcdc5;
+  --text-dim: #bdcdc5;
+  --text-faint: #bdcdc5;
+  --panel-border: #536b60;
+  --lane-fill: transparent;
+  --lane-stroke: #536b60;
+  --arrow: #bdcdc5;
+  --arrow-emphasis: #a5d4bf;
+  --journal-accent: #a5d4bf;
+  --toolbar-bg: #17231f;
+  --toolbar-border: #536b60;
+  --toolbar-text: #f8f8f6;
+  --toolbar-hover: #21392e;
+  --toolbar-menu-bg: #17231f;
+}
+[data-theme][data-preset] {
+  --grid: transparent;
+  --frontend-fill: var(--panel);
+  --backend-fill: var(--panel);
+  --database-fill: var(--panel);
+  --cloud-fill: var(--panel);
+  --security-fill: var(--panel);
+  --messagebus-fill: var(--panel);
+  --external-fill: var(--panel);
+  --frontend-stroke: var(--journal-accent);
+  --backend-stroke: var(--journal-accent);
+  --database-stroke: var(--journal-accent);
+  --cloud-stroke: var(--journal-accent);
+  --security-stroke: var(--journal-accent);
+  --messagebus-stroke: var(--journal-accent);
+  --external-stroke: var(--text-muted);
+}
+/* Archify's region tint is a literal amber value, not a theme variable. */
+[data-theme][data-preset] .c-region { fill: transparent; }

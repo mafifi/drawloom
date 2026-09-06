@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": { "title": "2025 · Separate apps, shared data", "quality_profile": "showcase", "animation": "none", "legend": { "mode": "hidden" } },
+  "components": [
+    { "id": "public-site", "type": "frontend", "label": "Public website", "sublabel": "Cloudflare Pages", "pos": [60, 60], "size": [220, 84] },
+    { "id": "souphi-admin", "type": "frontend", "label": "souphi-admin", "sublabel": "Cloudflare Pages", "pos": [60, 320], "size": [220, 84] },
+    { "id": "shared-data", "type": "database", "label": "Shared D1 database", "sublabel": "One data store, two applications", "pos": [460, 190], "size": [240, 84] }
+  ],
+  "connections": [
+    { "from": "public-site", "to": "shared-data", "label": "Drizzle", "variant": "emphasis" },
+    { "from": "souphi-admin", "to": "shared-data", "label": "Drizzle", "variant": "emphasis" }
+  ]
+}

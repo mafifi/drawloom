@@ -24,7 +24,19 @@ The visual system belongs in [DESIGN.md](DESIGN.md).
 - Keep necessary nuance. Short writing is not permission to omit a limitation
   or turn an estimate into a fact.
 
+## Consistent terms
+
+- A **workbench** is the person's working surface: the developing result,
+  relevant material and controls for directing the work.
+- A **harness** supplies the agent's instructions, context, tools and controls.
+- **Drawloom** provides reusable capabilities for building those systems.
+  It is not synonymous with a particular workbench or model provider.
+- Keep provider conversation history distinct from Drawloom memory, and model
+  inference distinct from an interactive agent session. Use the exact capability
+  names from ADR 0005 in technical figures, with a short plain-language explanation.
+
 ## Evidence and visuals
+
 
 - Separate what happened, what the author thinks it means, and what remains
   untested. Label estimates and imagined alternatives in the prose itself.
