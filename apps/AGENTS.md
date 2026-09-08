@@ -2,8 +2,10 @@
 
 This guide applies under `apps/`.
 
-- Applications are private composition-root workspaces with
-  `drawloom.role: "composition"`.
+- Applications here are public-source reference compositions with
+  `drawloom.role: "composition"` and `private: true` to prevent package
+  publication. The flag does not make their code confidential. Proprietary
+  workbenches belong outside this repository; see `../ARCHITECTURE.md`.
 - Declare the actual host with `drawloom.runtime`; do not label an application
   portable merely because it consumes portable packages.
 - Use `catalog:` for external dependencies and `workspace:*` for internal

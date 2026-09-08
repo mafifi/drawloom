@@ -1,0 +1,3 @@
+{
+  "privatePackagePattern": "^(?:@repo/|@drawloom-workbenches/|drawloom-workbenches(?:$|/|@))"
+}

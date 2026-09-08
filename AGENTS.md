@@ -28,6 +28,17 @@ area you change.
   module outside `spikes/` may import a spike module.
 - Make complexity earn its place: apply the principles and decision test in
   `ARCHITECTURE.md` before adding material abstraction or lifecycle machinery.
+- Before cross-repository work, state which repository owns each change and
+  whether it is public. Follow the public/private boundary and admission test
+  in `ARCHITECTURE.md`; keep proprietary work outside this repository.
+- Never copy private code, prompts, fixtures, data or assets here without
+  explicit publication approval. This applies to tests, examples and spikes
+  too. A package's `private: true` flag does not make its source confidential.
+- Public CI must work without private repositories, credentials or services.
+  Keep shared conformance public and business scenario tests private.
+- Challenge new public abstractions with a contrasting consumer; do not import
+  business decisions into core contracts under generic names. Known-private
+  dependency checks supplement this review, not replace it.
 
 ## Area guides
 

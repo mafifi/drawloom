@@ -19,6 +19,11 @@ runtime exercised by its verification suite.
 
 ## Dependency constraints
 
+- Public packages must not depend on private workbenches or product packages.
+  Apply the public/private admission test in `../ARCHITECTURE.md`: business
+  vocabulary and business approval rules stay outside core contracts. Keep
+  conformance public; private implementations add private integration tests.
+
 - Contracts import neither providers nor composition packages.
 - Providers import their contracts, not other providers.
 - Consumers import contracts, not providers.

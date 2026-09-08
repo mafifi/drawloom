@@ -204,3 +204,59 @@ basic security, evaluation, observability, and self-hosting capabilities.
 Commercial differentiation belongs primarily in organisational governance,
 fleet operation, compliance, enterprise integrations, hosted services, and
 support.
+
+### Repository responsibilities
+
+- `drawloom` owns public contracts, runtime fundamentals, reusable providers,
+  public conformance suites and independently useful synthetic examples.
+- `drawloom-workbenches` is a separately hosted private repository for
+  proprietary plugins, workbench compositions, consumer integration tests and
+  future enterprise extensions. It is not a private fork of the public core.
+- Existing business applications, backends and workflows remain in their
+  owning product repository. Creating the private sibling does not authorise
+  their migration or copying into either Drawloom repository.
+
+Private consumers depend on public contracts; public builds and tests must run
+without private checkouts, package access, credentials or services. Private
+implementations run the public conformance suites and add private scenario
+tests. Contract correctness must not become provable only in a private repo.
+
+Everything committed here is public source, including tests, spikes and apps.
+`private: true` in a package manifest prevents package publication; it does not
+make source confidential. Public application workspaces are open-source
+reference compositions, not proprietary product hosting locations.
+
+### Admission test for shared functionality
+
+Before introducing a public abstraction, record in its ADR or change rationale:
+
+1. The infrastructure problem, without depending on private product meaning.
+2. Why existing contracts, tools or skills cannot solve it adequately.
+3. A contrasting consumer scenario that challenges the proposed assumptions.
+4. What remains product-owned and the smallest public conformance evidence.
+
+A second implemented consumer is not an absolute prerequisite; an evidenced
+infrastructure need can justify work. But one product's workflow must not become
+a platform requirement. Neutral names do not make a domain-specific design
+neutral. Business approval rules, recipes, patient records and story canon stay
+with their owners; a generic memory or orchestration capability does not acquire
+that authority. Product plugins use public capabilities and contribute tools or
+skills, not proprietary service contracts smuggled into the core.
+
+### Enforcement and limits
+
+The existing dependency-policy and architecture gates reject known private
+package names (including manifest aliases) and analysed source imports that
+resolve outside the checkout. `scripts/public-boundary-policy.json` owns the
+known-private package pattern. New private package namespaces require an update
+there. Dependency-version exceptions cannot waive the publication boundary.
+
+These are structural checks, not an information-flow or confidentiality proof.
+Computed imports, runtime file/network reads, unsupported source formats,
+unknown private dependencies and copied content still require review. Before
+cross-repository work, agents state the destination and publication status.
+Private source, prompts, fixtures, data or assets require explicit publication
+approval before copying into this repository. Sanitise conclusions and use
+synthetic fixtures; removing names alone is not sufficient. Already approved
+journal material remains governed by its editorial publication rules, not by a
+global ban on mentioning products.

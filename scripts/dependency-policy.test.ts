@@ -51,6 +51,96 @@ const contract = (
 });
 
 describe("validateDependencyPolicy", () => {
+  test.each([
+    "@repo/clinic",
+    "@drawloom-workbenches/marketing",
+    "drawloom-workbenches",
+  ])(
+    "rejects known private dependency %s even from the root catalog",
+    (dependency) => {
+      const violations = validateDependencyPolicy(
+        root({
+          workspaces: { packages: [], catalog: { [dependency]: "1.0.0" } },
+        }),
+        [],
+      );
+      expect(violations).toContainEqual(
+        expect.objectContaining({
+          message: expect.stringContaining("private"),
+        }),
+      );
+    },
+  );
+
+  test("rejects root aliases to private packages", () => {
+    expect(
+      validateDependencyPolicy(
+        root({
+          devDependencies: { innocent: "npm:@repo/clinic@1.0.0" },
+        }),
+        [],
+      ),
+    ).toContainEqual(
+      expect.objectContaining({
+        field: "devDependencies.innocent",
+        message: expect.stringContaining("private"),
+      }),
+    );
+  });
+
+  test("rejects named catalog aliases to private packages", () => {
+    expect(
+      validateDependencyPolicy(
+        root({
+          workspaces: {
+            packages: [],
+            catalog: {},
+            catalogs: {
+              example: { innocent: "npm:@drawloom-workbenches/clinic@1.0.0" },
+            },
+          },
+        }),
+        [],
+      ),
+    ).toContainEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("private"),
+      }),
+    );
+  });
+
+  test("dependency exceptions cannot admit private product packages", () => {
+    const dependency = "@repo/clinic";
+    const workspace = contract({ dependencies: { [dependency]: "1.0.0" } });
+    expect(
+      validateDependencyPolicy(
+        root({
+          drawloom: {
+            releaseVersion: "0.0.0",
+            dependencyPolicy: {
+              exceptions: [
+                {
+                  workspace: workspace.path,
+                  section: "dependencies",
+                  dependency,
+                  spec: "1.0.0",
+                  reason: "Synthetic invalid exception",
+                },
+              ],
+            },
+          },
+        }),
+        [workspace],
+      ),
+    ).toContainEqual(
+      expect.objectContaining({
+        workspace: workspace.path,
+        field: `dependencies.${dependency}`,
+        message: expect.stringContaining("private"),
+      }),
+    );
+  });
+
   test("accepts catalog external dependencies and workspace internal dependencies", () => {
     const workspaces: WorkspaceManifestInput[] = [
       contract(),
@@ -77,10 +167,9 @@ describe("validateDependencyPolicy", () => {
   test.each(["^4.4.3", "*", "latest", "git+https://example.com/zod.git"])(
     "rejects direct external dependency spec %s",
     (spec) => {
-      const violations = validateDependencyPolicy(
-        root(),
-        [contract({ dependencies: { zod: spec } })],
-      );
+      const violations = validateDependencyPolicy(root(), [
+        contract({ dependencies: { zod: spec } }),
+      ]);
 
       expect(violations).toContainEqual(
         expect.objectContaining({
@@ -170,10 +259,9 @@ describe("validateDependencyPolicy", () => {
   });
 
   test("rejects divergent versions for publishable packages", () => {
-    const violations = validateDependencyPolicy(
-      root(),
-      [contract({ version: "0.1.0" })],
-    );
+    const violations = validateDependencyPolicy(root(), [
+      contract({ version: "0.1.0" }),
+    ]);
 
     expect(violations).toContainEqual(
       expect.objectContaining({

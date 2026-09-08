@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import publicBoundaryPolicy from "./public-boundary-policy.json";
 
 export const dependencySections = [
   "dependencies",
@@ -135,6 +136,48 @@ export const validateDependencyPolicy = (
   const violations: PolicyViolation[] = [];
   const rootPath = "package.json";
 
+  // Run before dependency exceptions: publication boundaries are not version
+  // policy exceptions. A private:true manifest is still public source here.
+  const privatePackage = new RegExp(publicBoundaryPolicy.privatePackagePattern);
+  const checkPrivateDependencies = (
+    path: string,
+    section: string,
+    dependencies: Record<string, string>,
+  ) => {
+    for (const [name, spec] of Object.entries(dependencies)) {
+      if (
+        privatePackage.test(name) ||
+        privatePackage.test(spec.replace(/^npm:/, ""))
+      ) {
+        violations.push(
+          violation(
+            path,
+            `${section}.${name}`,
+            "Public Drawloom must not depend on known private product or plugin packages.",
+          ),
+        );
+      }
+    }
+  };
+  for (const { path, manifest } of [
+    { path: rootPath, manifest: root },
+    ...workspaces,
+  ]) {
+    for (const section of dependencySections) {
+      checkPrivateDependencies(path, section, manifest[section] ?? {});
+    }
+  }
+  checkPrivateDependencies(
+    rootPath,
+    "workspaces.catalog",
+    root.workspaces?.catalog ?? {},
+  );
+  for (const [name, catalog] of Object.entries(
+    root.workspaces?.catalogs ?? {},
+  )) {
+    checkPrivateDependencies(rootPath, `workspaces.catalogs.${name}`, catalog);
+  }
+
   if (root.private !== true) {
     violations.push(
       violation(rootPath, "private", "The root workspace must be private."),
@@ -240,9 +283,7 @@ export const validateDependencyPolicy = (
 
   const usedExceptions = new Set<string>();
   const internalNames = new Set(
-    workspaces
-      .map(({ manifest }) => manifest.name)
-      .filter(isNonEmptyString),
+    workspaces.map(({ manifest }) => manifest.name).filter(isNonEmptyString),
   );
 
   const seenNames = new Map<string, string>();
@@ -318,7 +359,9 @@ export const validateDependencyPolicy = (
     }
 
     for (const section of dependencySections) {
-      for (const [dependency, spec] of Object.entries(manifest[section] ?? {})) {
+      for (const [dependency, spec] of Object.entries(
+        manifest[section] ?? {},
+      )) {
         const key = exceptionKey(path, section, dependency, spec);
         if (exceptionKeys.has(key)) {
           usedExceptions.add(key);

@@ -23,7 +23,7 @@ and decision test live in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 - [`docs/`](docs/): ADRs, plans, reference material, and security design.
 - [`knowledge/`](knowledge/): OKF-profiled knowledge and provenance records.
 - [`packages/`](packages/): contract-first product packages.
-- [`apps/`](apps/): private SvelteKit and Tauri composition roots.
+- [`apps/`](apps/): public-source reference compositions, not published as packages.
 - [`spikes/`](spikes/): retained, non-production architecture evidence.
 - [`publishing/`](publishing/): piece-owned editorial and visual sources;
   [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md) is Accepted.
