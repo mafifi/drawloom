@@ -1,0 +1,30 @@
+{
+  "name": "@drawloom/codex-agent",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    ".": {
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "drawloom": {
+    "role": "provider",
+    "runtime": "portable"
+  },
+  "dependencies": {
+    "zod": "catalog:",
+    "@drawloom/agent": "workspace:*",
+    "@drawloom/host": "workspace:*",
+    "@drawloom/tools": "workspace:*"
+  }
+}

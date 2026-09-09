@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 
 const { privatePackagePattern } = JSON.parse(
   readFileSync(
@@ -7,10 +7,55 @@ const { privatePackagePattern } = JSON.parse(
   ),
 );
 const privatePackagePath = privatePackagePattern.slice(1);
+const packages = (
+  existsSync("packages") ? readdirSync("packages", { withFileTypes: true }) : []
+)
+  .filter((entry) => entry.isDirectory())
+  .flatMap((group) =>
+    readdirSync(`packages/${group.name}`, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => {
+        const path = `packages/${group.name}/${entry.name}/`;
+        return {
+          path,
+          ...JSON.parse(readFileSync(`${path}package.json`, "utf8")).drawloom,
+        };
+      }),
+  );
+const paths = (entries) => entries.map((entry) => entry.path).join("|");
+const providerPaths = paths(
+  packages.filter((entry) => ["provider", "composition"].includes(entry.role)),
+);
 
 /** @type {import("dependency-cruiser").IConfiguration} */
 export default {
   forbidden: [
+    ...packages
+      .filter((entry) => ["contract", "consumer"].includes(entry.role))
+      .map((entry) => ({
+        name: `no-contract-provider-${entry.path.replaceAll("/", "-")}`,
+        severity: "error",
+        from: { path: `^${entry.path}`, pathNot: "\\.test\\." },
+        to: { path: `^(?:${providerPaths})` },
+      })),
+    ...packages
+      .filter((entry) => entry.role === "provider")
+      .map((entry) => ({
+        name: `no-provider-provider-${entry.path.replaceAll("/", "-")}`,
+        severity: "error",
+        from: { path: `^${entry.path}`, pathNot: "\\.test\\." },
+        to: {
+          path: `^(?:${paths(packages.filter((other) => other.path !== entry.path && ["provider", "composition"].includes(other.role)))})`,
+        },
+      })),
+    ...packages
+      .filter((entry) => entry.runtime === "portable")
+      .map((entry) => ({
+        name: `no-portable-host-${entry.path.replaceAll("/", "-")}`,
+        severity: "error",
+        from: { path: `^${entry.path}`, pathNot: "\\.test\\." },
+        to: { dependencyTypes: ["core"] },
+      })),
     {
       name: "no-private-product-imports",
       severity: "error",
@@ -48,7 +93,7 @@ export default {
     },
     exclude: {
       // Keep known private imports visible to the rule even when installed.
-      path: `(^|/)node_modules/(?!${privatePackagePath})`,
+      path: `(^|/)node_modules/(?!${privatePackagePath})|^apps/desktop/(?:build/|\.svelte-kit/|src-tauri/(?:target/|binaries/))`,
     },
     tsConfig: {
       fileName: "tsconfig.json",

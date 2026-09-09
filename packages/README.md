@@ -1,5 +1,8 @@
 # Packages
 
+The unreleased foundation packages and their exact exports are documented in
+[the foundation API reference](../docs/reference/foundation-api.md).
+
 Product code will be organised around capabilities rather than generic layers
 or provider names.
 

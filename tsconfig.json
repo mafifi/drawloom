@@ -2,12 +2,14 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    "allowJs": true,
     "types": [
       "bun",
       "node"
     ]
   },
   "include": [
+    "packages/**/*.test.ts",
     "scripts/**/*.ts",
     "spikes/**/*.ts"
   ]

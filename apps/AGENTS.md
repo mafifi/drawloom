@@ -11,6 +11,24 @@ This guide applies under `apps/`.
 - Use `catalog:` for external dependencies and `workspace:*` for internal
   Drawloom packages.
 - SvelteKit is the default UI framework.
+- Import reusable controls from `@drawloom/ui`; its
+  [component contract](../packages/ui/ui/README.md) owns the supported boundary.
+  Add missing primitives there using shadcn-svelte before composing them in an
+  application. Do not create local control libraries or import Bits UI directly.
+- Use `StatefulButton` for actions with observable waiting, such as persistence,
+  provider work and uploads. Wire action progress to `pending` and keep ordinary
+  eligibility conditions in `disabled`; the component contract owns the feedback
+  behaviour. A sibling navigation or cancel `Button` may be disabled to prevent
+  concurrent work without presenting itself as the running action.
+- Review command handlers for appropriate progress and error feedback. The UI
+  policy check rejects explicit `aria-busy`, `pending` and `isLoading` props on
+  shared `Button` imports, including named aliases and namespace imports. It does
+  not infer asynchronous behaviour from handler names or a `disabled` expression,
+  follow indirect component aliases, or inspect spread props; passing this check
+  does not replace semantic review of the action.
+- Keep application views responsible for layout, content and command wiring.
+  Semantic HTML, ordinary links and native media viewers remain appropriate;
+  reusable controls and their interaction behaviour belong to the shared UI.
 - Hosted applications may compose Cloudflare providers and bindings without
   leaking them into portable packages.
 - Local desktop applications use Tauri. Keep Rust inside the Tauri shell and
@@ -18,3 +36,4 @@ This guide applies under `apps/`.
   TypeScript.
 
 Run `bun run check:dependency-policy` after changing an application manifest.
+Run `bun run check:ui-policy` after changing maintained UI source.

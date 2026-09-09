@@ -3,9 +3,9 @@
 Drawloom is an open-source, contract-first harness for building and running AI
 systems.
 
-The project is at its repository-foundation stage. The first implementation
-will begin only after its public contracts, dependency rules, and verification
-strategy are documented.
+The first foundation packages implement agent execution, tool invocation and
+trusted startup registration. They are unreleased and under implementation
+review. See the [foundation API](docs/reference/foundation-api.md).
 
 ## Principles
 

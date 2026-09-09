@@ -2,8 +2,11 @@
 
 ## Current state
 
-Drawloom currently contains its repository constitution and documentation
-structure. No runtime or supported package API exists yet. Its decision
+Drawloom contains its repository constitution and the first implemented
+foundation packages (version 0.0.0, not released; implementation review pending).
+The [foundation API reference](docs/reference/foundation-api.md) is the current
+export and integration authority. [ADR 0011](docs/adr/0011-supported-foundation-and-startup-plugins.md)
+records the proposed startup registration and host seams. Its decision
 principles are established by
 [ADR 0006](docs/adr/0006-evidence-led-architecture-principles.md), and its
 platform capability partition by
@@ -12,7 +15,29 @@ concrete capability, provider-neutral agent execution, is accepted in
 [ADR 0007](docs/adr/0007-provider-neutral-agent-execution.md).
 Tool execution and exposure are accepted in
 [ADR 0008](docs/adr/0008-tool-execution-and-exposure.md), supported by retained
-conformance and Codex MCP integration evidence rather than a supported package.
+conformance and Codex MCP integration evidence. The first local gateway and
+Codex adapter now run exported conformance against synthetic transport; a new
+live model-backed compatibility claim is not made by this implementation.
+
+The public `apps/desktop` composition now provides a SvelteKit View/ViewModel UI,
+an authenticated same-origin loopback Bun host and a minimal Tauri macOS shell.
+The supported `@drawloom/desktop-host` startup factory passes public persistence
+and managed-asset contracts to explicitly selected trusted plugins. Workbench
+operator commands are a separate trusted channel from model tools. Codex owns
+native transcript history; UI restoration is a read-only adapter projection.
+See the [desktop host boundary](docs/design/desktop-host.md) for exact authority,
+project, asset and startup boundaries. No private plugin is needed for public CI.
+
+The public `@drawloom/ui` package owns shadcn-svelte controls and shared neutral
+theme tokens with a blue action accent, following
+[ADR 0012](docs/adr/0012-shared-ui-components-and-guidance.md).
+Application Views compose those controls; ViewModels retain state
+and commands. The package has no provider or business dependencies. Text editing,
+settings and media review consume the same primitives without introducing a new
+platform capability. See its [consumer contract](packages/ui/ui/README.md).
+The UI policy gate rejects native control reimplementations and direct primitive
+imports outside that boundary. Semantic layout, native media playback and
+sandboxed document viewers remain valid; the journal stays independent.
 
 Public editorial publishing is established separately through Accepted
 [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md). Its Astro and

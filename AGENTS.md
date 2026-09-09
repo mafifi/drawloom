@@ -42,6 +42,13 @@ area you change.
 
 ## Area guides
 
+- UI work follows [ADR 0012](docs/adr/0012-shared-ui-components-and-guidance.md).
+  Use `@drawloom/ui` compositions, and StatefulButton for the action actually
+  pending. Keep unrelated disabled controls plain. Run `bun run check:ui-policy`;
+  its errors include replacement advice. The optional `.codex/hooks.json` hook
+  repeats that advice after edits once reviewed and trusted through `/hooks`.
+  Do not bypass hook trust; CI checks remain required whether hooks run or not.
+
 - `packages/AGENTS.md`: package roles and dependency constraints.
 - `docs/AGENTS.md`: ADR, plan, and reference-document conventions.
 - `knowledge/AGENTS.md`: OKF profile and provenance requirements.

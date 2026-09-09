@@ -1,0 +1,98 @@
+# @drawloom/ui
+
+The shared Svelte control boundary for Drawloom applications. Components come
+from shadcn-svelte, including its Bits UI behaviour where applicable, and use
+the visual rules in [DESIGN.md](../../../DESIGN.md). This package exposes reusable
+controls without workbench commands, provider dependencies or business policy.
+A desktop conversation composer and a separate settings form can compose the
+same controls while owning their different state and commands.
+
+## Consumer contract
+
+Import controls through `@drawloom/ui` and its declared public exports. Preserve
+the upstream component props, bindings, events and accessibility behaviour;
+consumers supply their content, state and handlers. Add missing shadcn-svelte
+primitives to this package before using them in an application. Import the
+shared theme at the application composition boundary.
+
+The public import specifiers are `@drawloom/ui` and `@drawloom/ui/styles.css`.
+Do not reach into `src/` or `dist/` through package subpaths, relative paths or
+absolute checkout paths; those implementation files are not consumer entry points.
+
+Maintained Svelte sources under `apps/` and `packages/` must use shared controls
+for buttons, inputs (including file inputs), selects and their options, text
+areas, labels, disclosures and separators. The same boundary applies to native
+elements assigned interactive widget roles. Semantic page structure, headings,
+lists, tables, ordinary links, images, native audio/video playback and sandboxed
+document iframes remain consumer-owned HTML. Component props such as a Button's
+`role` are permitted because the shared component still owns the implementation.
+
+Direct Bits UI, shadcn-svelte or local `components/ui` imports outside this
+package's `src/` bypass the boundary. Standard Svelte APIs remain available to
+consumers. The exact shared source directory owns native control implementation;
+a similarly named sibling package is not exempt. No inline suppression comment
+can waive this policy.
+
+### StatefulButton
+
+`StatefulButton` wraps the shared shadcn-svelte `Button` for commands whose
+consumer already owns an in-progress state. It preserves Button props, events,
+variants and `bind:ref`, adding `pending` (default `false`), `pendingLabel`
+(default `"Working"`) and `iconOnly` (default `false`). While pending, it disables
+activation, sets `aria-busy`, and displays a decorative reduced-motion-aware
+spinner with the pending label. An explicit `disabled` remains effective after
+pending ends. Pending label also supplies the accessible name, including when
+the consumer supplies an idle `aria-label`.
+
+Use `iconOnly` for compact icon commands: the spinner replaces the icon and the
+pending label stays visually hidden, preserving the button's dimensions. Supply
+an accessible idle label through `aria-label` or visually hidden child text.
+For example, a composer can pass `pending={vm.busy}`, `pendingLabel="Sending"`,
+`iconOnly`, and `aria-label="Send"`; a settings form can instead show a labelled
+save command. Consumers own command execution, error feedback and completion.
+The component does not infer success from a resolved handler, catch errors,
+schedule status timers, or implement hold-to-confirm. Those behaviours are
+deliberately outside this small controlled presentation contract.
+
+## Verification scope
+
+`bun run check:ui-policy` parses maintained Svelte with the Svelte compiler and
+checks source imports in maintained JavaScript and TypeScript. It reports file
+and line with replacement advice and fails on Svelte parse errors. Dependency,
+generated and build directories are excluded. The journal under `publishing/`
+and retained `spikes/` have separate ownership and are outside this check.
+
+This is a focused structural check, not a full accessibility or styling audit.
+Computed imports, arbitrary runtime roles or tags, injected HTML, CSS-only
+imitations and the behaviour of third-party components still require review.
+Tests use public synthetic examples and require no private sources or services.
+
+## Generation and packaging
+
+Generated with shadcn-svelte CLI 1.6.1 on 2026-09-09 from its official registry,
+using the Nova style and neutral theme. `components.json` records the source.
+Generated controls retain their MIT notice in `LICENSE.shadcn-svelte`.
+Local adjustments are relative internal imports for standalone packaging and
+shared theme/density tokens. Sidebar active attributes are omitted when false
+so Tailwind's presence selector does not highlight inactive navigation rows.
+Button, label, tab and active navigation variants use normal font weight to
+match Drawloom's approved chrome rather than competing CSS overrides.
+Select items forward their display label to the underlying primitive metadata.
+InputGroup is generated from the same registry; its filled variant removes
+nested input chrome, and disabled styling follows the input rather than disabled
+toolbar buttons. Select has a ghost variant for quiet inline controls.
+Sidebar uses its standard responsive composition rather than a parallel drawer.
+`StatefulButton` is a locally authored wrapper around the generated Button;
+its controlled pending presentation adds no separate command lifecycle.
+This is not a new platform capability or an alternative component framework.
+
+The root Bun catalog owns dependency versions. When adding a component, use
+the Svelte CLI (not the React CLI), preserve existing sources, convert newly
+added dependencies to catalog references and internal aliases to relative
+imports, then run the package build/check and the root gate.
+
+Consumers import `@drawloom/ui/styles.css` once and configure Tailwind v4's Vite
+plugin. The stylesheet scans the packaged component source; the consumer adds
+its own Tailwind source path. Theme follows `prefers-color-scheme` live without
+a local override. `svelte-package` ships Svelte sources and declarations in
+`dist/`; package export checks cover the emitted files.

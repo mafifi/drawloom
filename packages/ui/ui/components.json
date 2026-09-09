@@ -1,0 +1,13 @@
+{
+  "$schema": "https://www.shadcn-svelte.com/schema.json",
+  "style": "nova",
+  "tailwind": {"css": "src/styles.css", "baseColor": "neutral"},
+  "aliases": {
+    "lib": "@drawloom/ui", "components": "@drawloom/ui/components",
+    "ui": "@drawloom/ui/components", "utils": "@drawloom/ui/utils",
+    "hooks": "@drawloom/ui/hooks"
+  },
+  "typescript": true,
+  "registry": "https://www.shadcn-svelte.com/registry",
+  "iconLibrary": "lucide"
+}

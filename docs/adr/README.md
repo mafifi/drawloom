@@ -14,6 +14,13 @@ links back.
 
 ## Latest decision
 
+- [ADR 0012: Share UI components and guide their correct use](0012-shared-ui-components-and-guidance.md)
+  is Accepted. Shared controls, stateful feedback and helpful checks have one
+  public owner.
+
+- [ADR 0011: Implement the foundation and trusted startup plugins](0011-supported-foundation-and-startup-plugins.md)
+  is Proposed, with implementation authorised and review pending.
+
 - [ADR 0010: Automatically deploy approved journal content](0010-automatically-deploy-approved-journal-content.md)
   is Accepted. Relevant pushes to `main` deploy the journal; draft content stays excluded.
 

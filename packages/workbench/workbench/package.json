@@ -1,0 +1,29 @@
+{
+  "name": "@drawloom/workbench",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    "./conformance": { "bun": "./src/conformance.ts", "types": "./dist/conformance.d.ts", "import": "./dist/conformance.js" },
+    ".": {
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "drawloom": {
+    "role": "contract",
+    "runtime": "portable"
+  },
+  "dependencies": {
+    "zod": "catalog:",
+    "@drawloom/host": "workspace:*"
+  }
+}

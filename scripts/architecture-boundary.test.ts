@@ -7,6 +7,58 @@ import { join, resolve } from "node:path";
 // fail these tests. Exercise the installed checker, not the config's text.
 const repository = resolve(import.meta.dir, "..");
 
+for (const [role, target, forbidden] of [
+  ["contract", "../provider/index.ts", true],
+  ["provider", "../provider/index.ts", true],
+  ["consumer", "../provider/index.ts", true],
+  ["composition", "../provider/index.ts", false],
+  ["contract", "node:fs", true],
+] as const) {
+  test(`package boundary: ${role} importing ${target}`, async () => {
+    const fixture = await mkdtemp(join(tmpdir(), "drawloom-package-boundary-"));
+    try {
+      for (const [name, packageRole] of [
+        ["source", role],
+        ["provider", "provider"],
+      ]) {
+        const location = join(fixture, "packages", "example", name!);
+        await mkdir(location, { recursive: true });
+        await writeFile(
+          join(location, "package.json"),
+          JSON.stringify({
+            drawloom: {
+              role: packageRole,
+              runtime: packageRole === "composition" ? "node" : "portable",
+            },
+          }),
+        );
+        await writeFile(
+          join(location, "index.ts"),
+          name === "source"
+            ? `import ${JSON.stringify(target)};`
+            : "export const value=1;",
+        );
+      }
+      await writeFile(join(fixture, "tsconfig.json"), "{}");
+      const result = Bun.spawnSync(
+        [
+          join(repository, "node_modules/.bin/depcruise"),
+          "--config",
+          join(repository, ".dependency-cruiser.mjs"),
+          "packages/example/source/index.ts",
+        ],
+        { cwd: fixture },
+      );
+      expect(
+        result.exitCode,
+        result.stdout.toString() + result.stderr.toString(),
+      ).toBe(forbidden ? 1 : 0);
+    } finally {
+      await rm(fixture, { recursive: true, force: true });
+    }
+  });
+}
+
 for (const [label, source, forbidden] of [
   ["local module", 'import "./local.ts";', false],
   ["private product package", 'import "@repo/clinic";', true],
