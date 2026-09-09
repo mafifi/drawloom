@@ -4,7 +4,7 @@ id: drawloom-knowledge-index
 title: Drawloom knowledge index
 status: active
 created: 2026-09-02
-updated: 2026-09-05
+updated: 2026-09-09
 ---
 
 # Drawloom knowledge index
@@ -24,6 +24,7 @@ updated: 2026-09-05
 - [Tool execution and Codex MCP authority-binding evidence](evidence/adr-0008-tool-execution.md)
 - [Repository-backed visual publishing proof](evidence/adr-0009-publishing.md)
 - [Journal publication and automatic deployment](evidence/journal-publication.md)
+- [Initial integrated plugin and host proof](evidence/adr-0013-plugin-host-integration.md)
 
 ## Related decisions
 

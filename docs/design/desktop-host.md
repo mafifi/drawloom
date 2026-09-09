@@ -3,8 +3,10 @@
 The public app composes providers. Its authenticated same-origin loopback HTTP
 channel is the only UI command ingress; cookies are host-only, HttpOnly and
 SameSite=Strict. Mutations require the exact Origin and JSON content type.
-Tauri launches the same host and opens its one-use bootstrap URL. No filesystem,
-shell or operator command is exposed through a frontend plugin or agent tool.
+Tauri launches the same host and opens its one-use bootstrap URL. No filesystem
+or shell API is exposed through a frontend plugin. Operator commands are not
+agent tools; the private proof's MCP server exposes reading and navigation only,
+not the broader trusted operator channel.
 
 `OperatorController` owns workbench presentation snapshots and bounded commands:
 select a candidate, record a review decision, configure non-secret fields, and
@@ -76,7 +78,57 @@ host navigation records. Native artifact intake remains host-only and idempotent
 per operation-plus-asset identity; different operations may yield identical bytes.
 
 Execution order is foundation, public desktop shell, private plugin skeleton,
-private workbench/controller, then integration. ADR 0011 remains Proposed.
+private workbench/controller, then integration. ADR 0011 remains Proposed;
+[ADR 0013](../adr/0013-plugin-boundaries-and-host-integration.md) owns the cohesive
+plugin-boundary proposal and its first integrated view proof.
+
+## Provisional plugin view hosting
+
+The public desktop hosts a separately built HTML view registered by a startup
+plugin. This extends the original declarative-only foundation; it is an
+unreleased implementation under accepted ADR 0013, not arbitrary third-party
+code execution authorised by ADR 0011. Private consumers own only their plugin
+contributions and build pipeline, not another shell or bridge implementation.
+
+The existing authenticated loopback host serves only registered, composition-
+supplied HTML to the selected conversation's workbench. The frame runs with
+scripts allowed but no same-origin privilege. Its resource CSP denies network
+connections and subresources, nested frames, forms and base URLs. It does not
+grant Tauri, filesystem or process APIs. Upstream `PostMessageTransport` checks
+the message source window; the backend validates captured view/conversation
+ownership in the same queue as navigation. Assistance callbacks additionally use
+an internal host-issued mount identity; navigation invalidates it and old cleanup
+cannot erase replacement context. It is not part of the plugin protocol.
+UI support is advertised during MCP initialization; tools and resources
+are obtained through the MCP client, not a second discovery protocol.
+
+`AppBridge` forwards standard tool calls only to app-visible tools on the bound
+server. Payloads are plugin-owned; the host imposes no shared snapshot shape.
+The private server exposes only reading and candidate inspection and validates
+these through its existing controller. Inspection persists a navigation bookmark,
+not approval or output selection. Review, settings, grants and agent commands
+are not exposed by this server. Unsupported or stale requests fail without retry.
+The parent supports standard text messaging and text/structured model context.
+Context replaces ephemeral selected reference material without agent invocation;
+explicit messaging requests a reply in the current conversation. It does not
+grant acceptance, save the reply, start a new task or silently steer a busy turn.
+The private view clears hidden passage context when changing review groups.
+Theme uses standard host context. Closing keeps the iframe mounted for a 300ms
+outro window while standard resource teardown has a 250ms timeout, then closes
+the transport. New tool requests are aborted during cleanup. Abrupt navigation
+disconnects immediately; browser/page termination cannot guarantee graceful
+cleanup or rollback of an already dispatched operation.
+Parent cleanup sends a mount-scoped release, including on component destruction.
+A failed browser delivery cannot guarantee immediate server cleanup; a new mount,
+conversation navigation or host restart clears the ephemeral context as well.
+
+These controls do not establish complete isolation from malicious code. Browser
+restrictions do not reliably prevent a frame navigating its own location to an
+external URL, and do not bound CPU use. Navigation to another origin loses bridge
+access but could still transmit data in a URL. Only explicitly trusted local
+plugin packages with synthetic proof data are exercised here. Stronger network
+or execution confinement would require a separate enforcement decision and the
+maintainer escalation required by ADR 0013.
 
 ## Declarative review presentation
 

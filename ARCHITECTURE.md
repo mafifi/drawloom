@@ -39,6 +39,18 @@ The UI policy gate rejects native control reimplementations and direct primitive
 imports outside that boundary. Semantic layout, native media playback and
 sandboxed document viewers remain valid; the journal stays independent.
 
+[ADR 0013](docs/adr/0013-plugin-boundaries-and-host-integration.md) accepts
+plugin contributions, dependencies, startup and UI hosting into one ownership
+decision. The private WIP video plugin proves integration in the public host;
+Rosalind and DeepSeek Harness provide comparison evidence. MCP Apps is the
+approved starting UI connection model, rather than in-process client modules.
+The runtime uses upstream MCP Apps with a compiled Svelte resource. Read/inspect,
+selection context and an explicit current-conversation revision request are
+verified, including a live Codex text reply without changing private project
+state. The earlier custom-protocol slice is historical evidence only. General
+placement, richer editing/authority and performance remain follow-up work, not
+implied acceptance. Changed boundaries require explicit approval and a future ADR.
+
 Public editorial publishing is established separately through Accepted
 [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md). Its Astro and
 Remotion spike consumes piece-owned `publishing/` sources without introducing
@@ -92,12 +104,43 @@ and operational cost.
    runtime resources, maintenance, and provider spend as finite. Reuse safe
    provider-native behaviour, generalise after evidence, and optimise after
    measurement.
+6. **Proven boundaries before invention.** Start from established standards and
+   inspected reference implementations. Exercise them with the real consumer
+   until a concrete requirement demonstrates a limit; do not design extensions
+   around anticipated limitations. Where the selected references differ, obtain
+   an explicit maintainer choice. Departures from their boundaries require
+   explicit maintainer approval before implementation, even when they seem small
+   or use generic names. An approved choice is not permission for adjacent drift.
 
 Before adding material complexity, ask what present need or observed difference
 requires it, why the simpler option fails a principle, whether the choice can
 remain private or reversible, what it costs, and how evidence will verify it.
-If two designs satisfy the principles, prefer the simpler one. See ADR 0006 for
-the complete decision test and trade-off guidance.
+If two designs satisfy the principles, prefer the simpler one. ADR 0006 records
+the original five principles and decision test; principle 6 is the maintainer's
+2026-09-09 addition, applied to plugin integration in ADR 0013. The accepted
+historical ADR is not rewritten.
+
+### Reference-led changes and approval
+
+For plugin boundaries, OpenAI/Codex's Rosalind and DeepSeek Harness are the
+selected references. Distinguish observed application use, documented protocol
+possibilities and unverified assumptions. A first-party extension's existence
+does not prove that our consumer needs it, or that it is publicly supported.
+
+Use MCP Apps as the starting UI connection model and persist with the actual
+private video workbench as the proving consumer. Do not switch to in-process
+client modules, invent a replacement bridge, or add host extensions merely to
+avoid working through the standard. A defect or missing feature in Drawloom's
+implementation is not, by itself, a limitation of MCP Apps.
+
+When a real interaction cannot be supported, stop before implementing a different
+boundary. Bring the maintainer the concrete example, attempts with the standard,
+the reference equivalents and differences, the smallest alternative, and the
+authority/lifecycle/maintenance implications. Record the explicit decision and
+its scope in the applicable ADR, then amend the contract and rerun the consumer
+proof. Until approval, retain the chosen approach and do not quietly substitute
+a new abstraction. [ADR 0013](docs/adr/0013-plugin-boundaries-and-host-integration.md)
+tracks plugin-specific comparisons, pending choices and approved exceptions.
 
 ## Architectural layers
 

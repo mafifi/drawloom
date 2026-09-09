@@ -12,10 +12,21 @@ export const PluginRequirementSchema = z.strictObject({
   id: z.string().min(1),
 });
 export type PluginRequirement = z.infer<typeof PluginRequirementSchema>;
+/** Provisional, separately built HTML view; trusted startup owns the resource. */
+export const WorkbenchViewSchema = z.strictObject({
+  id: z.string().min(1).max(256),
+  workbenchId: z.string().min(1).max(256),
+  title: z.string().min(1).max(120),
+  entrypoint: z.string().regex(/^ui:\/\/[A-Za-z0-9._/-]+\.html$/),
+});
+export type WorkbenchView = z.infer<typeof WorkbenchViewSchema>;
+export const RegisteredWorkbenchViewSchema = WorkbenchViewSchema.extend({ pluginId: z.string().min(1) });
+export type RegisteredWorkbenchView = z.infer<typeof RegisteredWorkbenchViewSchema>;
 export type PluginContributions = {
   tools?: readonly ToolDefinition[];
   skills?: readonly Skill[];
   workbenches?: readonly Workbench[];
+  views?: readonly WorkbenchView[];
 };
 export type PluginDefinition = {
   readonly id: string;
@@ -29,6 +40,7 @@ export type PluginRegistry = {
   readonly tools: readonly ToolDefinition[];
   readonly skills: readonly Skill[];
   readonly workbenches: readonly Workbench[];
+  readonly views: readonly RegisteredWorkbenchView[];
 };
 export function definePlugin<C extends z.ZodType>(definition: {
   id: string;

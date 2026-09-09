@@ -24,7 +24,7 @@
   .message { display: flex; justify-content: flex-start; margin-bottom: 28px; }
   .message-content { min-width: 0; max-width: 100%; }
   .user-message { justify-content: flex-end; }
-  .user-message .message-content { max-width: 85%; background: var(--muted); border-radius: 18px; padding: 10px 16px; }
+  .user-message .message-content { max-width: 85%; background: var(--primary); color: var(--primary-foreground); border-radius: 18px; padding: 10px 16px; }
   .message p:last-child { margin-bottom: 0; }
   .message h2 { font-size: 14px; margin: 1px 0 8px; }
   .message p { font-size: 15px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 12px; }

@@ -1,6 +1,7 @@
 import {
   SkillSchema,
   PluginRequirementSchema,
+  WorkbenchViewSchema,
   type PluginInstaller,
   type PluginRegistry,
 } from "@drawloom/plugins";
@@ -50,6 +51,17 @@ export function createPluginRegistry(
   const workbenches = contributions
     .flatMap((c) => [...(c.workbenches ?? [])])
     .map((w) => WorkbenchSchema.parse(w));
+  const views = contributions.flatMap((contribution, index) =>
+    (contribution.views ?? []).map((raw) => {
+      const view = WorkbenchViewSchema.parse(raw);
+      if (!contribution.workbenches?.some(w => w.id === view.workbenchId))
+        throw Error('View must belong to a workbench contributed by its plugin');
+      return { ...view, pluginId: installs[index]!.plugin.id };
+    }),
+  );
+  unique(views.map(v => v.id), 'view');
+  unique(views.map(v => v.workbenchId), 'workbench view');
+  unique(views.map(v => v.entrypoint), 'view entrypoint');
   const toolIds = unique(
     tools.map((t) => t.name),
     "tool",
@@ -100,5 +112,6 @@ export function createPluginRegistry(
     tools: Object.freeze([...tools]),
     skills: freeze(skills),
     workbenches: freeze(workbenches),
+    views: freeze(views),
   });
 }

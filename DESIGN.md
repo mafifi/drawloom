@@ -113,7 +113,9 @@ selection/status surface `#e5e5e5` (5.74:1 on white).
 New conversation is a transparent navigation action. Workspace and workbench
 rows remain flat; only the active conversation has a quiet filled selection,
 without extra font weight. The 2026-09-09 amendment introduces restrained blue
-primary actions (`#2563eb`, white foreground), not tinted surfaces. Send remains
+primary actions (`#2563eb`, white foreground). User conversation bubbles also use
+primary blue with primary-foreground text; assistant messages remain plain on
+the neutral conversation surface. Other chrome stays neutral. Send remains
 circular when idle, disabled or pending. Composer uses one filled InputGroup:
 no nested textarea border or tinted fill. Utilities and provider selection stay
 transparent and visually subordinate.

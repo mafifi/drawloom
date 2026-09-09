@@ -20,6 +20,7 @@ afterEach(() => {
 
 function snapshot(): DesktopSnapshot {
   return {
+    views: [],
     pendingTools: [],
     workspace: 'Test workspace', selectedId: 'conversation-a',
     conversations: [{ id: 'conversation-a', title: 'A', workbenchId: 'text', provider: 'synthetic' }],

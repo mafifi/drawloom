@@ -24,6 +24,28 @@ export function serveDesktop(app: Application, webRoot: string, port = 0) {
       if (!['GET', 'HEAD'].includes(request.method) && (request.headers.get('origin') !== origin || request.headers.get('content-type') !== 'application/json')) return json({ error: 'Invalid command channel' }, 403);
       try {
         if (url.pathname === '/api/state' && request.method === 'GET') return json(await app.snapshot());
+        if (url.pathname === '/api/view-session' && request.method === 'POST') {
+          const raw: unknown = await request.json();
+          const next = commandQueue.then(() => app.viewSession(raw)); commandQueue = next.catch(() => {});
+          return json(await next);
+        }
+        if (url.pathname === '/api/view-request' && request.method === 'POST') {
+          const raw: unknown = await request.json();
+          // Validate captured parent routing at dispatch time, in the same queue as navigation.
+          const next = commandQueue.then(() => app.viewRequest(raw)); commandQueue = next.catch(() => {});
+          return json(await next);
+        }
+        if (url.pathname === '/api/view-interaction' && request.method === 'POST') {
+          const raw: unknown = await request.json();
+          const next = commandQueue.then(() => app.viewInteraction(raw)); commandQueue = next.catch(() => {});
+          return json(await next);
+        }
+        if (url.pathname.startsWith('/api/views/') && request.method === 'GET') {
+          const html = app.viewHtml({ viewId: decodeURIComponent(url.pathname.slice('/api/views/'.length)), conversationId: url.searchParams.get('conversationId') });
+          // No same-origin, forms, popups, downloads or top navigation. Self-navigation
+          // is a browser limitation, not an asserted total network isolation boundary.
+          return new Response(html, { headers: { ...secure, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': `sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors ${origin}` } });
+        }
         if (url.pathname === '/api/command' && request.method === 'POST') {
           const raw: unknown = await request.json();
           const next = commandQueue.then(() => app.command(raw)); commandQueue = next.catch(() => {});

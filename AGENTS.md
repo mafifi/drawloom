@@ -42,6 +42,15 @@ area you change.
 
 ## Area guides
 
+- Apply [proven boundaries before invention](ARCHITECTURE.md#reference-led-changes-and-approval).
+  Plugin contract and proof revisions follow the explicit approval gate in
+  [ADR 0013](docs/adr/0013-plugin-boundaries-and-host-integration.md#reference-comparison-and-alternatives).
+  Compare both OpenAI/Rosalind and DeepSeek Harness before changing a boundary.
+  Stop for maintainer approval when they differ or the proposal departs from
+  either reference; a working demo or generic naming is not approval. Record
+  the concrete consumer need, reference evidence and decision in the ADR before
+  implementation. This applies to backend and UI contracts, not only rendering.
+
 - UI work follows [ADR 0012](docs/adr/0012-shared-ui-components-and-guidance.md).
   Use `@drawloom/ui` compositions, and StatefulButton for the action actually
   pending. Keep unrelated disabled controls plain. Run `bun run check:ui-policy`;

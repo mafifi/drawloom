@@ -24,6 +24,10 @@ import {
   DesktopCommandSchema,
   DesktopSnapshotSchema,
   ProjectSchema,
+  ViewTargetSchema,
+  DesktopViewRequestSchema,
+  DesktopViewInteractionSchema,
+  DesktopViewSessionSchema,
   type DesktopSnapshot,
 } from "../src/lib/protocol.js";
 import { createTextController } from "./text-controller.js";
@@ -39,6 +43,8 @@ import {
   type DesktopExtensionFactory,
 } from "./composition.js";
 import { createDesktopEvidence } from "./evidence.js";
+import { connectMcpApp } from './mcp-app.js';
+import { createViewContext } from './view-context.js';
 
 type Live = {
   session: AgentSession;
@@ -74,6 +80,8 @@ export async function createDesktopApplication(
   if (project.selectedId === "pending")
     project.selectedId = project.conversations[0]!.id;
   const live = new Map<string, Live>();
+  const viewContext = createViewContext();
+  let viewMount: { conversationId: string; viewId: string; mountId: string } | undefined;
   const evidence = new Map<
     string,
     Promise<Awaited<ReturnType<typeof createDesktopEvidence>>>
@@ -125,6 +133,24 @@ export async function createDesktopApplication(
       throw Error("Invalid startup controller");
     OperatorSnapshotSchema.parse(await controller.snapshot());
     controllers.set(key, controller);
+  }
+  const mcpApps = new Map<string, Awaited<ReturnType<typeof connectMcpApp>>>();
+  try {
+    for (const key of extension?.mcpApps?.keys() ?? [])
+      if (!registry.views.some(view => view.id === key)) throw Error('Unregistered startup MCP app');
+    for (const view of registry.views) {
+      const connection = extension?.mcpApps?.get(view.id);
+      if (!connection) throw Error('Missing startup MCP app');
+      mcpApps.set(view.id, await connectMcpApp(connection, view.entrypoint));
+    }
+  } catch (error) { await Promise.all([...mcpApps.values()].map(app => app.close())); throw error; }
+  function viewTarget(raw: unknown) {
+    const target = ViewTargetSchema.parse(raw);
+    const conversation = project.conversations.find(c => c.id === project.selectedId);
+    const view = registry.views.find(v => v.id === target.viewId);
+    if (target.conversationId !== conversation?.id || !view || view.workbenchId !== conversation.workbenchId)
+      throw Error('View unavailable');
+    return view;
   }
   async function refreshGrants(workbenchId: string) {
     const state = OperatorSnapshotSchema.parse(
@@ -362,6 +388,51 @@ export async function createDesktopApplication(
   };
   return {
     assets,
+    viewSession(raw: unknown) {
+      const input = DesktopViewSessionSchema.parse(raw);
+      const target = { conversationId: input.conversationId, viewId: input.viewId };
+      if (input.action === 'open') {
+        viewTarget(target);
+        viewContext.clear();
+        viewMount = { ...target, mountId: crypto.randomUUID() };
+        return { mountId: viewMount.mountId };
+      }
+      // A late teardown must not clear a replacement mount's reference material.
+      if (viewMount?.mountId === input.mountId && viewMount.conversationId === input.conversationId && viewMount.viewId === input.viewId) {
+        viewMount = undefined;
+        viewContext.clear();
+      }
+      return {};
+    },
+    viewHtml(raw: unknown) {
+      const view = viewTarget(raw);
+      return mcpApps.get(view.id)!.html;
+    },
+    async viewRequest(raw: unknown) {
+      const { request, ...target } = DesktopViewRequestSchema.parse(raw);
+      const view = viewTarget(target);
+      return mcpApps.get(view.id)!.callTool(request);
+    },
+    async viewInteraction(raw: unknown): Promise<{ isError?: boolean }> {
+      const { request, mountId, ...target } = DesktopViewInteractionSchema.parse(raw);
+      viewTarget(target);
+      if (viewMount?.mountId !== mountId || viewMount.conversationId !== target.conversationId || viewMount.viewId !== target.viewId) throw Error('View unavailable');
+      if (request.method === 'ui/update-model-context') {
+        viewContext.set(target, request.params);
+        return {};
+      }
+      // A plugin cannot choose another thread, impersonate the assistant or
+      // silently steer an active turn. Standard ui/message permits rejection.
+      if (request.params.role !== 'user' || request.params.content.some(c => c.type !== 'text')) return { isError: true };
+      const text = request.params.content.map(c => c.type === 'text' ? c.text : '').join('\n');
+      if (!text.trim() || text.length > 100_000) return { isError: true };
+      try {
+        const state = await connect(target.conversationId);
+        if (state.active) return { isError: true };
+        await this.command({ kind: 'send', conversationId: target.conversationId, text, attachmentKeys: [], contextArtifactIds: [] });
+        return {};
+      } catch { return { isError: true }; }
+    },
     async snapshot() {
       const conversation = project.conversations.find(
         (c) => c.id === project.selectedId,
@@ -374,6 +445,7 @@ export async function createDesktopApplication(
         workspace: "Local workspace",
         conversations: project.conversations,
         workbenches: registry.workbenches,
+        views: registry.views,
         selectedId: project.selectedId,
         messages: state?.messages ?? [],
         historyTruncated: state?.historyTruncated ?? false,
@@ -418,12 +490,16 @@ export async function createDesktopApplication(
           provider: command.provider,
         });
         project.selectedId = id;
+        viewContext.clear();
+        viewMount = undefined;
         await persist();
         if (command.provider === "codex") await connect(id);
       } else if (command.kind === "select_conversation") {
         if (!project.conversations.some((c) => c.id === command.conversationId))
           throw Error("Conversation unavailable");
         project.selectedId = command.conversationId;
+        viewContext.clear();
+        viewMount = undefined;
         await persist();
         await this.restore();
       } else if (command.kind === "operator") {
@@ -478,7 +554,7 @@ export async function createDesktopApplication(
               ...context.map(
                 (t) => "\nSelected document (reference material):\n" + t,
               ),
-            ].join("\n"),
+            ].join("\n") + viewContext.forConversation(conversation.id),
             ...(attachments.length ? { attachments } : {}),
           };
           const result = state.active
@@ -538,6 +614,7 @@ export async function createDesktopApplication(
     },
     async close() {
       await Promise.all([...live.values()].map((s) => s.close()));
+      await Promise.all([...mcpApps.values()].map(app => app.close()));
     },
   };
 }

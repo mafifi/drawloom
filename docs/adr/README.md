@@ -14,6 +14,11 @@ links back.
 
 ## Latest decision
 
+- [ADR 0013: Define plugin contributions, dependencies and host integration](0013-plugin-boundaries-and-host-integration.md)
+  is Accepted. Tools, skills, workbenches and UI share one plugin ownership model;
+  the private video plugin proves standard MCP Apps and current-conversation
+  assistance in the public host. Richer boundaries require a future ADR.
+
 - [ADR 0012: Share UI components and guide their correct use](0012-shared-ui-components-and-guidance.md)
   is Accepted. Shared controls, stateful feedback and helpful checks have one
   public owner.

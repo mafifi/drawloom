@@ -16,8 +16,11 @@
   } from "@drawloom/ui";
   import { CloseIcon } from "@drawloom/ui";
   import ArtifactViewer from "./ArtifactViewer.svelte";
+  import PluginView from './PluginView.svelte';
   import type { DesktopViewModel } from "./view-model.svelte.js";
   export let vm: DesktopViewModel;
+  $: pluginView = vm.state?.views.find(view => view.workbenchId === vm.conversation?.workbenchId);
+  let showPluginView = false;
 </script>
 
 <aside class="details-pane" aria-label="Artifact and details">
@@ -37,7 +40,12 @@
     >
   </header>
   <Separator />
-  {#if vm.pane === "preview" || vm.pane === "details"}
+  {#if pluginView && vm.state && (vm.pane === 'preview' || vm.pane === 'details')}
+    <div class="px-5 pt-4"><Button variant="outline" onclick={() => showPluginView = !showPluginView}>{showPluginView ? 'Show shared viewer' : `Open ${pluginView.title}`}</Button></div>
+  {/if}
+  {#if showPluginView && pluginView && vm.state && (vm.pane === 'preview' || vm.pane === 'details')}
+    {#key vm.state.selectedId + ':' + pluginView.id}<PluginView view={pluginView} conversationId={vm.state.selectedId} />{/key}
+  {:else if vm.pane === "preview" || vm.pane === "details"}
     <Tabs.Root
       value={vm.pane}
       onValueChange={(value) => {
@@ -339,7 +347,7 @@
         </div>{/each}
       <p class="text-muted-foreground">
         Additional trusted packages are configured by the local host at startup.
-        No browser code is loaded from plugins.
+        Optional registered HTML views run in a separate sandboxed frame.
       </p>
     </section>
   {:else}

@@ -1,6 +1,8 @@
 # Foundation API
 
-Implementation reference for ADR 0011 (review pending, version 0.0.0; no release).
+Implementation reference for ADR 0011 and the integrated plugin proof under
+[ADR 0013](../adr/0013-plugin-boundaries-and-host-integration.md)
+(review pending, version 0.0.0; no release).
 Every package exports standard ESM and declarations from `dist/`, plus bundled
 source through its optional Bun condition. `bun run
 build:packages` builds them. Portable contracts support Bun and Node 22+;
@@ -98,13 +100,56 @@ composition-selected working directory. It starts no model turn by itself.
 ## Plugins and presentation
 
 `definePlugin({id,version,config,requires?,contribute})` parses configuration and
-returns tools, skills and workbenches. `createPluginRegistry(installs,capabilities)`
+returns tools, skills, workbenches and optional views. `createPluginRegistry(installs,capabilities)`
 validates every install, rejects duplicate plugin/tool/skill/workbench IDs and
 unsatisfied `{kind:'capability'|'tool'|'skill',id}` requirements, and returns an
 immutable registry. Capabilities are public identities supplied by composition.
 Contributions confer no permission. Tool dependencies are closures; the registry
 does not invoke handlers. Skills are text instructions and confer no authority.
 Workbench/artifact/candidate/review schemas describe presentation only.
+
+### Provisional plugin view integration
+
+`@drawloom/plugins` additionally exports `WorkbenchViewSchema` and
+`RegisteredWorkbenchViewSchema` with their inferred types. A view declares an
+identity, title, workbench identity and `ui://` HTML entrypoint. Registration
+derives the contributing plugin identity and validates ownership; the view must
+belong to a workbench contributed by that plugin. This initial implementation
+permits one view per workbench. It is not an arbitrary layout-slot registry.
+
+Trusted `DesktopExtension.mcpApps` maps registered view identities to
+`{transport: Transport, toolName: string}` using the MCP SDK transport contract.
+The host advertises MCP Apps support, discovers tools and reads the opening
+tool's `_meta.ui.resourceUri` as `text/html;profile=mcp-app`. It rejects missing
+registrations, mismatched resources and requests for unsupported origins or
+permissions. Plugins may compile Svelte and `@drawloom/ui` into that HTML.
+
+The embedded resource uses the upstream `App`; the public parent uses upstream
+`AppBridge` and source-bound `PostMessageTransport`. Initialization, host theme,
+`tools/call`, results and teardown use MCP Apps, replacing the custom proof
+envelope. Only app-visible tools on the bound server can be called. Tool payloads
+belong to the plugin; neither `OperatorSnapshot` nor `OperatorController` is a
+requirement of this bridge. Public counter tests exercise a different data shape.
+The video server exposes read/inspect only, through app-only tools. It does not
+expose review, grants, editing or generation, or add those tools to the agent.
+The parent additionally handles standard `ui/update-model-context` and
+`ui/message`: text/structured selection replaces ephemeral untrusted reference
+material without running a model; an explicit user message asks the existing
+agent for a reply in the current conversation. No automatic save/acceptance,
+new task, steering or retry is introduced. Busy/unsupported requests may fail.
+Captured routing and an internal host-issued mount identity reject stale
+assistance callbacks and prevent delayed cleanup clearing a replacement view.
+Navigation/closure clears context. This verifies the accepted ADR 0013 subset,
+not all MCP Apps features; general placement remains provisional.
+Clearing removes context from future submissions, not from prior Codex turns.
+The read-only native history projection currently displays that earlier input,
+including its reference material, when restoring a conversation.
+
+HTML executes with frame restrictions rather than access to the host component
+tree. This proof blocks network subresources and privileged host API access,
+not all possible network activity: a frame may navigate itself away. Do not
+treat it as an adversarial-code isolation guarantee. The
+[desktop boundary](../design/desktop-host.md) owns exact enforcement and limits.
 
 `@drawloom/workbench` additionally exports `OperatorCommandSchema`,
 `OperatorSnapshotSchema`, `OperatorResultSchema`, `ArtifactIntakeSchema` and their
