@@ -6,6 +6,13 @@ export type RpcMessage = {
   params: unknown;
   id?: string | number;
 };
+/** Protocol code only: provider error messages/data must not escape the transport. */
+export class RpcRequestError extends Error {
+  constructor(readonly code: number) {
+    super("Provider request rejected");
+    this.name = "RpcRequestError";
+  }
+}
 export interface RpcTransport {
   request(method: string, params: unknown): Promise<unknown>;
   notify(method: string, params?: unknown): void;

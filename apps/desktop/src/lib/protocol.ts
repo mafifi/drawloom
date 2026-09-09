@@ -9,10 +9,9 @@ import { McpUiMessageRequestSchema, McpUiUpdateModelContextRequestSchema } from 
 const id = z.string().min(1).max(256);
 export const ToolStartSchema = z.strictObject({ kind: z.literal('started'), invocationId: z.string().min(1), operationId: z.string().min(1).optional(), tool: z.string().min(1) });
 export const ConversationSchema = z.strictObject({ id, title: z.string().max(120), workbenchId: id, provider: z.enum(['synthetic', 'codex']) });
-export const MessageSchema = z.strictObject({ id, role: z.enum(['user', 'assistant']), text: z.string(), assets: z.array(AssetSchema), operationId: id.optional() });
 export const DesktopSnapshotSchema = z.strictObject({
   workspace: z.string(), conversations: z.array(ConversationSchema), workbenches: z.array(WorkbenchSchema),
-  selectedId: id, messages: z.array(MessageSchema), historyTruncated: z.boolean(), operator: OperatorSnapshotSchema,
+  selectedId: id, operator: OperatorSnapshotSchema,
   activity: z.array(ToolResultSchema), signals: z.array(AgentSessionSignalSchema),
   pendingTools: z.array(ToolStartSchema).default([]),
   activeOperation: id.optional(), controls: z.strictObject({ steer: z.boolean(), interrupt: z.boolean() }),
@@ -21,6 +20,10 @@ export const DesktopSnapshotSchema = z.strictObject({
   views: z.array(RegisteredWorkbenchViewSchema).default([]),
 });
 export type DesktopSnapshot = z.infer<typeof DesktopSnapshotSchema>;
+export const DesktopStateUpdateSchema = z.strictObject({
+  kind: z.enum(['snapshot', 'patch']), token: z.string().min(1),
+  sections: z.record(z.string(), z.unknown()), removed: z.array(z.string()),
+});
 export const DesktopCommandSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('create_conversation'), workbenchId: id, provider: z.enum(['synthetic', 'codex']) }),
   z.strictObject({ kind: z.literal('select_conversation'), conversationId: id }),

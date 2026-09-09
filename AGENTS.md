@@ -42,6 +42,16 @@ area you change.
 
 ## Area guides
 
+- Before work on conversation history, runtime/host boundaries, plugin composition,
+  context, artifacts or workbench integration, consult the
+  [harness and workbench survey](docs/reference/harness-workbench-survey/README.md).
+  It links the detailed DeepSeek Harness and Open Design capability inventories,
+  source references, diagrams, limitations and candidate follow-ups. Read the
+  relevant inventory sections, not just the executive takeaways. Check recorded
+  revisions and refresh affected evidence before a new decision; package presence
+  is not proof of enabled behavior, and source-inspected tests are not passing
+  test results. Keep discoveries separate from approved Drawloom contracts.
+
 - Apply [proven boundaries before invention](ARCHITECTURE.md#reference-led-changes-and-approval).
   Plugin contract and proof revisions follow the explicit approval gate in
   [ADR 0013](docs/adr/0013-plugin-boundaries-and-host-integration.md#reference-comparison-and-alternatives).

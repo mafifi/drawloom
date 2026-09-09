@@ -25,7 +25,7 @@ function snapshot(): DesktopSnapshot {
     workspace: 'Test workspace', selectedId: 'conversation-a',
     conversations: [{ id: 'conversation-a', title: 'A', workbenchId: 'text', provider: 'synthetic' }],
     workbenches: [{ id: 'text', title: 'Text', description: '', tools: [], skills: [] }],
-    messages: [], historyTruncated: false, signals: [], activity: [], controls: { steer: false, interrupt: false }, plugins: [], notice: '',
+    signals: [], activity: [], controls: { steer: false, interrupt: false }, plugins: [], notice: '',
     operator: { artifacts: [{ id: 'artifact-a', editable: true, title: 'A', content: { kind: 'text', text: 'Original A' } }], candidates: [{ id: 'candidate-a', comparisonKey: 'document-a', label: 'A', artifactIds: ['artifact-a'], status: 'draft' }], reviews: [], readiness: 'ready', summary: '', configuration: [], grants: [] },
   };
 }
@@ -43,6 +43,7 @@ async function harness() {
   let importResponse: (() => Promise<Response>) | undefined;
   let stateResponse: (() => Promise<Response>) | undefined;
   globalThis.fetch = (async (url: string | URL | Request, options?: RequestInit) => {
+    if (String(url).startsWith('/api/history')) return Response.json({ entries: [], hasOlder: false, changeCursor: 'c1', status: { revision: 0, sync: 'idle', hasOlder: false } });
     if (url === '/api/command') {
       commands.push(JSON.parse(String(options?.body)) as DesktopCommand);
       return commandResponse ? commandResponse() : Response.json(current);
@@ -51,7 +52,8 @@ async function harness() {
       imports.push(JSON.parse(String(options?.body)));
       return importResponse ? importResponse() : Response.json({ key: 'new-image', mediaType: 'image/png', size: 1 });
     }
-    return stateResponse ? stateResponse() : Response.json(current);
+    const state = stateResponse ? await stateResponse() : Response.json(current);
+    return Response.json({ kind: 'snapshot', token: 'host:1', sections: await state.json(), removed: [] });
   }) as typeof fetch;
   const vm = createDesktopViewModel();
   await vm.start(); vm.stopPolling();
@@ -208,11 +210,12 @@ test('creating another workbench cancels the old editor before any later save', 
   expect(h.commands.filter(c => c.kind === 'operator')).toEqual([]);
 });
 
-test('native history omission remains available to the visible conversation presentation', async () => {
+test('conversation display is separate from the application snapshot', async () => {
   const h = await harness();
-  const next = snapshot(); next.historyTruncated = true;
+  const next = snapshot();
   h.setState(next); await h.vm.start(); h.vm.stopPolling();
-  expect(h.vm.state?.historyTruncated).toBe(true);
+  expect(h.vm.state).not.toHaveProperty('messages');
+  expect(h.vm.history.entries).toEqual([]);
 });
 
 test('accepted send preserves later draft, attachment and context edits', async () => {

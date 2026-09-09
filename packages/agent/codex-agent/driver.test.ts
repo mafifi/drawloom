@@ -177,6 +177,17 @@ test("provider message ordering and terminal cleanup reject stale interactions",
     phase: "final",
   });
 });
+test("native user completion uses the stable history identity", async () => {
+  const f = recorded();
+  const opened = await f.driver.openSession({ sessionId: "user-history", context: { text: "" }, tools: { id: "none", tools: [] } });
+  if (opened.status !== "ok") throw Error();
+  const iterator = opened.value.signals()[Symbol.asyncIterator]();
+  await opened.value.execute({ operationId: "operation-a", text: "question", attachments: [{ key: "imported", mediaType: "image/png", size: 7 }] });
+  await iterator.next();
+  f.emit({ method: "item/completed", params: { threadId: "private-thread", turnId: "private-turn", item: { id: "native-user", type: "userMessage", content: [{ type: "text", text: "question" }] } } });
+  expect((await iterator.next()).value).toEqual({ kind: "message.completed", operationId: "operation-a", messageId: "message-68e26fb5bcec8902c508c9ee278907db6b7547ad22dbd85ae36f8ab97fe8c24f", role: "user", text: "question", assets: [{ key: "imported", mediaType: "image/png", size: 7 }] });
+  await opened.value.close();
+});
 test("Codex rejects malformed negotiation before starting a thread", async () => {
   const f = recorded();
   let started = false;
@@ -265,6 +276,7 @@ export function recorded() {
   const values = new Map<string, JsonValue>();
   const driver = createCodexDriver({
     connect: async () => transport,
+    imageInput: async asset => `/confined/${asset.key}`,
     store: {
       async get(k) {
         return values.get(k);
@@ -384,6 +396,7 @@ test("Codex preserves private continuity, fresh context, approval choices and in
     tools: { id: "none", tools: [] },
   });
   expect(f.requests.some((x) => x.method === "thread/resume")).toBe(true);
+  expect(f.requests.find((x) => x.method === "thread/resume")?.params).toMatchObject({ excludeTurns: true });
   expect(
     f.requests.find((x) => x.method === "turn/start")?.params,
   ).toMatchObject({

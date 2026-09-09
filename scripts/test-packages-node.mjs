@@ -1,6 +1,9 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import assert from 'node:assert/strict';
+import { HistoryEntrySchema, HistoryPageOptionsSchema, HistoryReadBatchSchema } from '../packages/observability/conversation-history/dist/index.js';
+import { conversationHistoryConformance } from '../packages/observability/conversation-history/dist/conformance.js';
 import { toolConformance } from "../packages/tools/tools/dist/conformance.js";
 import { agentConformance } from "../packages/agent/agent/dist/conformance.js";
 import { pluginConformance } from "../packages/plugins/plugins/dist/conformance.js";
@@ -17,6 +20,10 @@ import {
   createStdioTransport,
 } from "../packages/host/node-host/dist/index.js";
 await toolConformance(createLocalToolGateway);
+assert.equal(typeof conversationHistoryConformance, 'function');
+assert.equal(HistoryPageOptionsSchema.safeParse({ limit: 201 }).success, false);
+assert.equal(HistoryReadBatchSchema.safeParse({ entries: [], checkpoints: [], hasOlder: false }).success, true);
+assert.equal(HistoryEntrySchema.safeParse({ id: 'portable', position: [-1, 0], role: 'user', text: 'Node contract smoke', assets: [], state: 'complete' }).success, true);
 await pluginConformance(createPluginRegistry);
 await agentConformance(syntheticAgentFixture);
 await agentConformance(codexAgentFixture);
@@ -36,5 +43,5 @@ await hostConformance(async () => {
   };
 });
 console.log(
-  "Node shared conformance: tools, synthetic agent, Codex agent, plugins, host passed",
+  "Node shared conformance: tools, synthetic agent, Codex agent, plugins, host passed; portable history schema/export smoke passed (SQLite remains Bun-only)",
 );

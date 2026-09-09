@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ArtifactIntakeSchema, OperatorCommandSchema, OperatorSnapshotSchema, type OperatorController, type OperatorSnapshot, type OperatorResult } from '@drawloom/workbench';
 import type { JsonStore, Asset } from '@drawloom/host';
+import { JsonValueSchema } from '@drawloom/host';
 export async function createTextController(store: JsonStore) {
   let state: OperatorSnapshot = OperatorSnapshotSchema.parse(await store.get('text-presentation') ?? {
     artifacts: [], candidates: [], reviews: [], readiness: 'ready', summary: 'Local synthetic text inspection. No model calls.',
@@ -9,7 +10,7 @@ export async function createTextController(store: JsonStore) {
   // Historical text drafts remain editable; unrelated histories gain no guessed lineage.
   for (const artifact of state.artifacts) if (artifact.content.kind === 'text') artifact.editable = true;
   for (const candidate of state.candidates) if (candidate.artifactIds.some(id => state.artifacts.some(a => a.id === id && a.content.kind === 'text'))) candidate.comparisonKey ??= candidate.id;
-  async function save(next: OperatorSnapshot) { await store.set('text-presentation', next); state = next; }
+  async function save(next: OperatorSnapshot) { await store.set('text-presentation', JsonValueSchema.parse(next)); state = next; }
   // Every writer shares this boundary, including signal-driven native intake.
   let mutations: Promise<unknown> = Promise.resolve();
   function mutate<T>(write: () => Promise<T>): Promise<T> {

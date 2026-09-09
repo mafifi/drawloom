@@ -2,6 +2,7 @@ import { z } from "zod";
 import { CompiledContextSchema } from "@drawloom/context";
 import { ToolExposureSchema } from "@drawloom/tools";
 import { AssetSchema } from "@drawloom/host";
+import type { ConversationHistoryReader } from '@drawloom/conversation-history';
 const id = z.string().min(1);
 export const AgentSessionOpenInputSchema = z.strictObject({
   sessionId: id,
@@ -55,7 +56,7 @@ export const AgentOperationFailureSchema = z.strictObject({
   summary: z.string().max(512),
 });
 export const AgentSessionSignalSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("artifact.available"), operationId: id, asset: AssetSchema }),
+  z.strictObject({ kind: z.literal("artifact.available"), operationId: id, asset: AssetSchema, messageId: id.optional() }),
   z.strictObject({ kind: z.literal("operation.started"), operationId: id }),
   z.strictObject({ kind: z.literal("operation.completed"), operationId: id }),
   z.strictObject({ kind: z.literal("operation.interrupted"), operationId: id }),
@@ -75,6 +76,8 @@ export const AgentSessionSignalSchema = z.discriminatedUnion("kind", [
     kind: z.literal("message.completed"),
     operationId: id,
     messageId: id,
+    role: z.enum(['user', 'assistant']).optional(),
+    assets: z.array(AssetSchema).optional(),
     phase: z.enum(["commentary", "final"]).optional(),
     text: z.string(),
   }),
@@ -119,22 +122,12 @@ export const AgentSessionSignalSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type AgentSessionSignal = z.infer<typeof AgentSessionSignalSchema>;
-/** Chronological display entries; bounded projections retain the recent tail and flag omissions. */
-export const AgentHistorySchema = z.strictObject({
-  entries: z.array(z.strictObject({
-    id, role: z.enum(["user", "assistant"]), text: z.string(),
-    operationId: id.optional(), assets: z.array(AssetSchema),
-  })),
-  truncated: z.boolean(),
-});
-export type AgentHistory = z.infer<typeof AgentHistorySchema>;
 export interface AgentDriver {
   readonly driverId: string;
   openSession(input: AgentSessionOpenInput): Promise<AgentResult<AgentSession>>;
 }
 export interface AgentSession {
-  /** Read-only display projection of native history, never a replay of signals. */
-  readonly readHistory?: () => Promise<AgentResult<AgentHistory>>;
+  readonly history?: ConversationHistoryReader;
   readonly sessionId: string;
   execute(
     input: AgentOperationInput,

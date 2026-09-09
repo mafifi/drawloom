@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import {
     Alert,
     Badge,
@@ -17,6 +18,13 @@
   import type { DesktopViewModel } from "./view-model.svelte.js";
   export let vm: DesktopViewModel;
   let inputValue = "{}";
+  let scroll: HTMLDivElement;
+  async function earlier() {
+    const anchor = [...scroll.querySelectorAll<HTMLElement>('[data-history-id]')].find(element => element.getBoundingClientRect().bottom >= scroll.getBoundingClientRect().top);
+    const offset = anchor?.getBoundingClientRect().top;
+    await vm.loadEarlier(); await tick();
+    if (anchor?.isConnected && offset !== undefined) scroll.scrollTop += anchor.getBoundingClientRect().top - offset;
+  }
 </script>
 
 <main class="conversation">
@@ -50,14 +58,13 @@
     >
   </header>
   <Separator />
-  <div class="conversation-scroll" aria-live="polite">
-    {#if vm.state?.historyTruncated}<Alert.Root role="status"
-        ><Alert.Description
-          >Showing recent conversation history. Earlier messages were omitted
-          from this bounded view; the full history remains in Codex.</Alert.Description
-        ></Alert.Root
-      >{/if}
-    {#if !vm.state?.messages.length}
+  <div class="conversation-scroll" bind:this={scroll} aria-live="polite">
+    {#if vm.history.error || vm.history.status?.message}<Alert.Root role="status"><Alert.Description>{vm.history.error || vm.history.status?.message}</Alert.Description></Alert.Root>{/if}
+    {#if vm.history.hasOlder}<StatefulButton variant="ghost" disabled={vm.history.loading} pending={vm.history.loading && vm.history.loadingEarlier} onclick={earlier}>Load earlier</StatefulButton>{/if}
+    {#if !vm.history.atLatest}<StatefulButton variant="ghost" disabled={vm.history.loading} pending={vm.history.loading && !vm.history.loadingEarlier} onclick={() => vm.loadLatest()}>Back to latest</StatefulButton>{/if}
+    {#if vm.history.status?.sync === 'syncing'}<p role="status" class="text-muted-foreground">Synchronizing saved history…</p>{/if}
+    {#if vm.history.loading}<p role="status" class="text-muted-foreground">Loading conversation…</p>{/if}
+    {#if !vm.history.entries.length && !vm.history.loading}
       <Empty.Root class="welcome"
         ><Empty.Header
           ><Empty.Title>A place to do the work</Empty.Title><Empty.Description
@@ -74,8 +81,8 @@
         ></Empty.Root
       >
     {/if}
-    {#each vm.state?.messages ?? [] as message}
-      <article class="message" class:user-message={message.role === 'user'} aria-label={message.role === 'user' ? 'Your message' : 'Drawloom message'}>
+    {#each vm.history.entries as message (message.id)}
+      <article class="message" data-history-id={message.id} class:user-message={message.role === 'user'} aria-label={message.role === 'user' ? 'Your message' : 'Drawloom message'}>
         <div class="message-content">
           <h2 class="sr-only">{message.role === "user" ? "You" : "Drawloom"}</h2>
           <p>{message.text}</p>

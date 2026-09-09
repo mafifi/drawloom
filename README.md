@@ -21,6 +21,9 @@ and decision test live in [`ARCHITECTURE.md`](ARCHITECTURE.md).
   non-goals, current state, and boundaries.
 - [`DESIGN.md`](DESIGN.md): visual design system in Google's design.md format.
 - [`docs/`](docs/): ADRs, plans, reference material, and security design.
+- [Harness and workbench survey](docs/reference/harness-workbench-survey/README.md):
+  detailed DeepSeek Harness and Open Design capability maps, source evidence,
+  limitations and comparison with Drawloom.
 - [`knowledge/`](knowledge/): OKF-profiled knowledge and provenance records.
 - [`packages/`](packages/): contract-first product packages.
 - [`apps/`](apps/): public-source reference compositions, not published as packages.

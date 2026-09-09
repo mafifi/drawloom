@@ -1,4 +1,8 @@
 import { join } from "node:path";
+import { mkdir } from 'node:fs/promises';
+import { createSqliteConversationHistory } from '@drawloom/sqlite-conversation-history';
+import { HistoryPageOptionsSchema, HistoryChangeOptionsSchema, type HistoryEntry, type HistoryPageOptions, type HistoryChangeOptions } from '@drawloom/conversation-history';
+import { createHistoryCoordinator } from './history-coordinator.js';
 import {
   createNodeJsonStore,
   createStdioTransport,
@@ -48,8 +52,6 @@ import { createViewContext } from './view-context.js';
 
 type Live = {
   session: AgentSession;
-  messages: DesktopSnapshot["messages"];
-  historyTruncated: boolean;
   signals: DesktopSnapshot["signals"];
   active?: string;
   close: () => Promise<void>;
@@ -58,6 +60,14 @@ export async function createDesktopApplication(
   root: string,
   external?: DesktopExtension | DesktopExtensionFactory,
 ) {
+  await mkdir(root, { recursive: true, mode: 0o700 });
+  const history = createSqliteConversationHistory(join(root, 'history.sqlite'));
+  const writers = new Map<string, ReturnType<typeof createHistoryCoordinator>>();
+  function writer(id: string) {
+    let found = writers.get(id);
+    if (!found) { found = createHistoryCoordinator(history, id); writers.set(id, found); }
+    return found;
+  }
   const store = createNodeJsonStore(join(root, "state"));
   const assets = createDesktopAssets(join(root, "assets"));
   const text = await createTextController(store);
@@ -80,6 +90,7 @@ export async function createDesktopApplication(
   if (project.selectedId === "pending")
     project.selectedId = project.conversations[0]!.id;
   const live = new Map<string, Live>();
+  const pumps = new Set<Promise<void>>();
   const viewContext = createViewContext();
   let viewMount: { conversationId: string; viewId: string; mountId: string } | undefined;
   const evidence = new Map<
@@ -96,9 +107,13 @@ export async function createDesktopApplication(
   }
   const opening = new Map<string, Promise<Live>>();
   const grants = new Map<string, Set<string>>();
-  let notice =
-    "Synthetic mode keeps artifacts and reviews. Conversation display lasts for this host session; Codex restores its native history.";
-  const persist = () => store.set("project", project);
+  let notice = 'Conversation display is saved locally. Provider transcripts and execution remain with the provider.';
+  let projectWrites: Promise<unknown> = Promise.resolve();
+  const persist = () => {
+    const copy = structuredClone(project);
+    const next = projectWrites.then(() => store.set('project', copy));
+    projectWrites = next.catch(() => {}); return next;
+  };
   await persist();
   const extension =
     typeof external === "function"
@@ -182,8 +197,9 @@ export async function createDesktopApplication(
           "Synthetic mode is available only in Text studio. Choose Codex for this workbench.",
         );
       await refreshGrants(workbench.id);
-      const messages: DesktopSnapshot["messages"] = [],
-        signals: DesktopSnapshot["signals"] = [];
+      const messages = new Map<string, Omit<HistoryEntry, 'position'>>();
+      const signals: DesktopSnapshot["signals"] = [];
+      const historyWriter = writer(conversationId);
       const operationBindings = new Map<string, ToolBinding>();
       const sink = await evidenceFor(conversationId);
       const gateway = createLocalToolGateway({
@@ -218,7 +234,11 @@ export async function createDesktopApplication(
                 }),
               store,
               imageInput: assets.imageInput,
-              captureImage: assets.captureImage,
+              captureImage: async result => {
+                const asset = await assets.captureImage(result);
+                if (!project.assets.some(existing => existing.key === asset.key)) { project.assets.push(asset); await persist(); }
+                return asset;
+              },
               projection: (): JsonValue =>
                 mcp
                   ? {
@@ -258,8 +278,6 @@ export async function createDesktopApplication(
       const session = result.value;
       const state: Live = {
         session,
-        messages,
-        historyTruncated: false,
         signals,
         close: async () => {
           for (const binding of operationBindings.values())
@@ -268,65 +286,48 @@ export async function createDesktopApplication(
           await mcp?.close();
         },
       };
-      if (session.readHistory) {
-        const history = await session.readHistory();
-        if (history.status === "ok") {
-          messages.push(...history.value.entries);
-          state.historyTruncated = history.value.truncated;
-          for (const entry of history.value.entries)
-            for (const asset of entry.assets) {
-              if (!project.assets.some((a) => a.key === asset.key))
-                project.assets.push(asset);
-              if (entry.operationId)
-                await controllers.get(workbench.id)?.observeArtifact?.({
-                  operationId: entry.operationId,
-                  asset,
-                });
-            }
-          await persist();
-        } else
-          notice =
-            "Native history is unavailable. New work is not retried automatically.";
-      }
       live.set(conversationId, state);
-      void (async () => {
+      const pump = (async () => {
         for await (const signal of session.signals()) {
           if (
             signal.kind === "message.delta" ||
             signal.kind === "message.completed"
           ) {
             const key = signal.operationId + ":" + signal.messageId;
-            let message = messages.find((m) => m.id === key);
+            let message = messages.get(key);
             if (!message) {
               message = {
                 id: key,
-                role: "assistant",
+                role: signal.kind === 'message.completed' ? (signal.role ?? 'assistant') : 'assistant',
                 text: "",
-                assets: [],
+                assets: signal.kind === 'message.completed' ? (signal.assets ?? []) : [],
                 operationId: signal.operationId,
+                state: 'partial',
               };
-              messages.push(message);
+              messages.set(key, message);
             }
             message.text =
               signal.kind === "message.delta"
                 ? message.text + signal.delta
                 : signal.text;
+            message.state = signal.kind === 'message.completed' ? 'complete' : 'partial';
+            if (signal.kind === 'message.completed' && signal.assets) message.assets = signal.assets;
+            await historyWriter.write({ ...message });
+            if (message.state === 'complete') messages.delete(key);
           } else if (signal.kind === "artifact.available") {
+            try {
             if (!project.assets.some((a) => a.key === signal.asset.key)) {
               project.assets.push(signal.asset);
               await persist();
             }
-            messages.push({
-              id: crypto.randomUUID(),
-              role: "assistant",
-              text: "Image result",
-              assets: [signal.asset],
-              operationId: signal.operationId,
-            });
+            await historyWriter.writeAsset(signal.messageId ? signal.operationId + ':' + signal.messageId : crypto.randomUUID(), signal.operationId, signal.asset);
+            } catch { historyWriter.reportStorageFailure(); }
+            try {
             await controllers.get(workbench.id)?.observeArtifact?.({
               operationId: signal.operationId,
               asset: signal.asset,
             });
+            } catch { notice = 'The provider returned an asset, but workbench intake could not be saved. No execution was retried.'; }
           } else {
             signals.push(signal);
             if (signal.kind === "operation.started")
@@ -339,6 +340,10 @@ export async function createDesktopApplication(
               ].includes(signal.kind)
             ) {
               delete state.active;
+              for (const message of messages.values()) await historyWriter.write({ ...message, state: 'interrupted' });
+              messages.clear();
+              await historyWriter.flush();
+              if (session.history) await historyWriter.synchronize(session.history);
             }
           }
         }
@@ -347,7 +352,9 @@ export async function createDesktopApplication(
         notice = "Session connection failed. Restart the host to reconnect.";
         await state.close();
         live.delete(conversationId);
+        await historyWriter.unavailable();
       });
+      pumps.add(pump); void pump.finally(() => pumps.delete(pump));
       // Direct synthetic tool invocation is explicit local composition, not a second agent loop.
       syntheticInvoke.set(conversationId, async (operation, input) => {
         const binding = gateway.bind(operation);
@@ -364,6 +371,7 @@ export async function createDesktopApplication(
           operationBindings.delete(operation);
         }
       });
+      if (conversation.provider === 'codex') void historyWriter.synchronize(session.history);
       return state;
     })();
     opening.set(conversationId, start);
@@ -388,6 +396,23 @@ export async function createDesktopApplication(
   };
   return {
     assets,
+    async historyPage(conversationId: string, raw: HistoryPageOptions = {}) {
+      if (!project.conversations.some(c => c.id === conversationId)) throw Error('Conversation unavailable');
+      const options = HistoryPageOptionsSchema.parse(raw);
+      let page = await history.page(conversationId, options);
+      if (options.before && page.entries.length < (options.limit ?? 50) && page.status.hasOlder) {
+        const session = live.get(conversationId)?.session;
+        if (session?.history) { await writer(conversationId).synchronize(session.history, 'older'); page = await history.page(conversationId, options); }
+      }
+      const error = writer(conversationId).error;
+      return error ? { ...page, status: { ...page.status, sync: 'error' as const, message: error } } : writer(conversationId).syncing ? { ...page, status: { ...page.status, sync: 'syncing' as const } } : page;
+    },
+    async historyChanges(conversationId: string, raw: HistoryChangeOptions = {}) {
+      if (!project.conversations.some(c => c.id === conversationId)) throw Error('Conversation unavailable');
+      const changes = await history.changes(conversationId, HistoryChangeOptionsSchema.parse(raw));
+      const error = writer(conversationId).error;
+      return error ? { ...changes, status: { ...changes.status, sync: 'error' as const, message: error } } : writer(conversationId).syncing ? { ...changes, status: { ...changes.status, sync: 'syncing' as const } } : changes;
+    },
     viewSession(raw: unknown) {
       const input = DesktopViewSessionSchema.parse(raw);
       const target = { conversationId: input.conversationId, viewId: input.viewId };
@@ -447,8 +472,6 @@ export async function createDesktopApplication(
         workbenches: registry.workbenches,
         views: registry.views,
         selectedId: project.selectedId,
-        messages: state?.messages ?? [],
-        historyTruncated: state?.historyTruncated ?? false,
         signals: state?.signals ?? [],
         activity: retained.activity(),
         pendingTools: retained.pending(),
@@ -469,12 +492,11 @@ export async function createDesktopApplication(
     async restore() {
       const c = project.conversations.find((c) => c.id === project.selectedId);
       if (c?.provider === "codex") {
-        try {
-          await connect(c.id);
-        } catch {
+        void connect(c.id).catch(async () => {
+          await writer(c.id).unavailable();
           notice =
             "Codex unavailable. Check installation and sign-in, then restart the host. Synthetic mode is a separate choice.";
-        }
+        });
       }
     },
     async command(raw: unknown) {
@@ -493,7 +515,7 @@ export async function createDesktopApplication(
         viewContext.clear();
         viewMount = undefined;
         await persist();
-        if (command.provider === "codex") await connect(id);
+        if (command.provider === "codex") await this.restore();
       } else if (command.kind === "select_conversation") {
         if (!project.conversations.some((c) => c.id === command.conversationId))
           throw Error("Conversation unavailable");
@@ -557,18 +579,14 @@ export async function createDesktopApplication(
             ].join("\n") + viewContext.forConversation(conversation.id),
             ...(attachments.length ? { attachments } : {}),
           };
+          if (conversation.provider === 'synthetic') await writer(conversation.id).write({
+            id: crypto.randomUUID(), role: 'user', text: command.text, assets: attachments, operationId: op, state: 'complete',
+          });
           const result = state.active
             ? await (state.session.steer?.(input) ??
                 Promise.reject(Error("Steering unavailable")))
             : await state.session.execute(input);
           if (result.status !== "ok") throw Error(result.failure.message);
-          state.messages.push({
-            id: crypto.randomUUID(),
-            role: "user",
-            text: command.text,
-            assets: attachments,
-            operationId: op,
-          });
           if (
             conversation.title === "New conversation" ||
             conversation.title === "A clearer introduction"
@@ -613,8 +631,13 @@ export async function createDesktopApplication(
       return asset;
     },
     async close() {
+      await Promise.allSettled([...opening.values()]);
       await Promise.all([...live.values()].map((s) => s.close()));
+      await Promise.all([...pumps]);
       await Promise.all([...mcpApps.values()].map(app => app.close()));
+      await Promise.all([...writers.values()].map(w => w.close()));
+      await projectWrites;
+      await history.close();
     },
   };
 }

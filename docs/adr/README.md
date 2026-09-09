@@ -14,6 +14,12 @@ links back.
 
 ## Latest decision
 
+- [ADR 0014: Persistent, paginated conversation history](0014-persistent-paginated-conversation-history.md)
+  is Accepted. The contract, local SQLite
+  provider, incremental native ingestion and paginated desktop are delivered
+  together; [verification evidence](../reference/conversation-history-evidence.md)
+  records the conformance, recovery, browser and measurement checks.
+
 - [ADR 0013: Define plugin contributions, dependencies and host integration](0013-plugin-boundaries-and-host-integration.md)
   is Accepted. Tools, skills, workbenches and UI share one plugin ownership model;
   the private video plugin proves standard MCP Apps and current-conversation

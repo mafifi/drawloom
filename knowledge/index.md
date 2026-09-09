@@ -11,7 +11,7 @@ updated: 2026-09-09
 
 ## Sources
 
-- No source records yet.
+- [DeepSeek Harness and Open Design capability survey](sources/harness-workbench-survey.md)
 
 ## Assumptions
 

@@ -36,12 +36,15 @@ An editor is pinned to its original document. Changing document/conversation
 cancels unsaved document edits; incoming artifacts cannot retarget Save.
 Composer edits made while Send waits are retained as the next unsent draft.
 
-Conversation display in a live host is in memory. Codex restores its own native
-history through a read-only adapter projection. Synthetic has no native transcript,
-so synthetic chat display resets after host restart; artifact/review state remains.
-Long native history displays the recent chronological tail and an explicit
-notice when earlier entries are omitted.
-No second transcript or memory store is introduced. Composer text is a local draft.
+Conversation display persists separately in `history.sqlite`, including synthetic
+conversations. Open the latest 50 entries and use “Load earlier” to page backward;
+cached pages do not require Codex. Native transcript, compaction and execution
+continuity remain with Codex. Stored history is never automatically model context.
+The UI reports synchronization errors without retrying execution.
+New installs default to `~/.drawloom`; the old Application Support location is
+retained when it is the only existing default. If both exist, select explicitly
+with `DRAWLOOM_DATA_DIR`. Nothing is moved or deleted. See
+[history operation and API](../../docs/reference/conversation-history.md).
 
 ## Trusted external composition
 

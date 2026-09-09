@@ -1,0 +1,256 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Open Design · workbench capability map",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "animation": "none",
+    "repository": {
+      "url": "https://github.com/nexu-io/open-design",
+      "revision": "81044a03ca717f77a5bde38947903a8ef222da8c"
+    }
+  },
+  "components": [
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "Project workbench",
+      "sublabel": "Chat + files + direct editing",
+      "pos": [
+        40,
+        270
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/web/src/components/ProjectView.tsx",
+          "line": 13259
+        }
+      ]
+    },
+    {
+      "id": "daemon",
+      "type": "backend",
+      "label": "Local daemon",
+      "sublabel": "Project state + physical runs",
+      "pos": [
+        390,
+        270
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/daemon/src/services/internal-run-service.ts",
+          "line": 52
+        }
+      ]
+    },
+    {
+      "id": "adapter",
+      "type": "backend",
+      "label": "Agent integration",
+      "sublabel": "Events + native session handles",
+      "pos": [
+        740,
+        270
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/daemon/src/agent-session-resume.ts",
+          "line": 108
+        }
+      ]
+    },
+    {
+      "id": "native",
+      "type": "external",
+      "label": "Native agent runtime",
+      "sublabel": "Codex App Server / Claude CLI",
+      "pos": [
+        1090,
+        270
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/daemon/src/runtimes/defs/codex.ts",
+          "line": 481
+        }
+      ]
+    },
+    {
+      "id": "plugins",
+      "type": "backend",
+      "label": "Plugins + tools",
+      "sublabel": "Skills, stages and scoped grants",
+      "pos": [
+        390,
+        45
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/daemon/src/tool-tokens.ts",
+          "line": 22
+        }
+      ]
+    },
+    {
+      "id": "preview",
+      "type": "frontend",
+      "label": "Preview + editing",
+      "sublabel": "URL or injected document",
+      "pos": [
+        40,
+        495
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/web/src/components/file-viewer-render-mode.ts",
+          "line": 102
+        }
+      ]
+    },
+    {
+      "id": "files",
+      "type": "database",
+      "label": "Project files",
+      "sublabel": "Mutable outputs + HTML history",
+      "pos": [
+        390,
+        495
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/daemon/src/project-file-versions.ts",
+          "line": 476
+        }
+      ]
+    },
+    {
+      "id": "evidence",
+      "type": "database",
+      "label": "Chat artifact evidence",
+      "sublabel": "Immutable captures + live pointers",
+      "pos": [
+        740,
+        495
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/daemon/src/chat-artifacts/types.ts",
+          "line": 1
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "ui",
+      "to": "daemon",
+      "label": "project commands"
+    },
+    {
+      "from": "daemon",
+      "to": "adapter",
+      "label": "start / resume"
+    },
+    {
+      "from": "adapter",
+      "to": "native",
+      "label": "provider protocol"
+    },
+    {
+      "from": "plugins",
+      "to": "daemon",
+      "label": "contributions",
+      "labelAt": [
+        508,
+        200
+      ]
+    },
+    {
+      "from": "ui",
+      "to": "preview",
+      "label": "inspect / edit",
+      "labelAt": [
+        158,
+        425
+      ]
+    },
+    {
+      "from": "daemon",
+      "to": "files",
+      "label": "reconcile outputs",
+      "labelAt": [
+        508,
+        425
+      ]
+    },
+    {
+      "from": "files",
+      "to": "evidence",
+      "label": "capture at finish"
+    },
+    {
+      "from": "preview",
+      "to": "files",
+      "label": "read / save"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Separate identities",
+      "items": [
+        "Conversation, run, provider session and artifact differ.",
+        "Historical cover can intentionally open today's file."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "A rich consumer",
+      "items": [
+        "Media, routines and exports extend the daemon.",
+        "Some exports depend on the desktop renderer."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Not provider parity",
+      "items": [
+        "Codex uses one App Server process per turn.",
+        "Server-initiated approvals / elicitation are rejected."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/harness-workbench-survey/open-design.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/harness-workbench-survey/open-design.html",
+  "specification": {
+    "sha256": "4e81b8ec7516eec08ae615732b92210a0cb984dc9daa6c58b1ac172e75556d2f",
+    "bytes": 4977
+  },
+  "artifact": {
+    "sha256": "b6d1cc2042c68584a1a06657fd593bf6e47f431763999f4e5c82ff73b27753a2",
+    "bytes": 713212
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/nexu-io/open-design",
+    "revision": "81044a03ca717f77a5bde38947903a8ef222da8c",
+    "references": 8
+  }
+}

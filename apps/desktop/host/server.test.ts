@@ -106,7 +106,8 @@ test('authenticated UI channel, durable revisions and no duplicate transcript', 
     expect(saved.operator.artifacts[0]?.content).toEqual({ kind: 'text', text: 'First revision' });
     const reopened = await createDesktopApplication(root);
     expect((await reopened.snapshot()).operator.candidates.length).toBe(2);
-    expect((await reopened.snapshot()).messages).toEqual([]);
+    expect(await reopened.snapshot()).not.toHaveProperty('messages');
+    expect((await reopened.historyPage(before.selectedId)).entries.some(entry => entry.text === 'First revision')).toBe(true);
     const project = JSON.parse(await readFile(join(root, 'state/project.json'), 'utf8'));
     expect(project).not.toHaveProperty('messages');
     const html = await fetch(server.origin, { headers: { cookie } });

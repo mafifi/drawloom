@@ -1,13 +1,17 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import { resolve, sep } from 'node:path';
 import { lstat, realpath } from 'node:fs/promises';
 import { ImportSchema } from '../src/lib/protocol.js';
 import type { createDesktopApplication } from './application.js';
+import { createStateFeed } from './state-feed.js';
+import { HistoryStoreError } from '@drawloom/conversation-history';
 type Application = Awaited<ReturnType<typeof createDesktopApplication>>;
 export function serveDesktop(app: Application, webRoot: string, port = 0) {
   const token = randomBytes(32).toString('hex');
   let bootstrap = true;
   let commandQueue: Promise<unknown> = Promise.resolve();
+  let stateQueue: Promise<unknown> = Promise.resolve();
+  const stateFeed = createStateFeed();
   const secure = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Cache-Control': 'no-store', 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; media-src 'self' blob:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'" };
   const json = (data: unknown, status = 200) => Response.json(data, { status, headers: secure });
   const valid = (value: string) => value.length === token.length && timingSafeEqual(Buffer.from(value), Buffer.from(token));
@@ -23,7 +27,24 @@ export function serveDesktop(app: Application, webRoot: string, port = 0) {
       if (!valid(cookie)) return json({ error: 'Open the host startup URL to authenticate this local app.' }, 401);
       if (!['GET', 'HEAD'].includes(request.method) && (request.headers.get('origin') !== origin || request.headers.get('content-type') !== 'application/json')) return json({ error: 'Invalid command channel' }, 403);
       try {
-        if (url.pathname === '/api/state' && request.method === 'GET') return json(await app.snapshot());
+        if (url.pathname === '/api/state' && request.method === 'GET') {
+          const next = stateQueue.then(async () => stateFeed.read(await app.snapshot(), url.searchParams.get('since') ?? undefined));
+          stateQueue = next.catch(() => {});
+          const update = await next;
+          return update ? json(update) : new Response(null, { status: 204, headers: secure });
+        }
+        if ((url.pathname === '/api/history' || url.pathname === '/api/history/changes') && request.method === 'GET') {
+          const id = url.searchParams.get('conversationId') ?? '';
+          const limit = url.searchParams.has('limit') ? { limit: Number(url.searchParams.get('limit')) } : {};
+          const data = url.pathname.endsWith('/changes')
+            ? await app.historyChanges(id, { ...limit, ...(url.searchParams.has('after') ? { after: url.searchParams.get('after')! } : {}) })
+            : await app.historyPage(id, { ...limit, ...(url.searchParams.has('before') ? { before: url.searchParams.get('before')! } : {}) });
+          const cursor = 'cursor' in data ? data.cursor : data.changeCursor;
+          const etag = '"' + createHash('sha256').update(JSON.stringify([cursor, data.status])).digest('hex') + '"';
+          const headers = { ...secure, ETag: etag };
+          if ('cursor' in data && !data.entries.length && request.headers.get('if-none-match') === etag) return new Response(null, { status: 204, headers });
+          return Response.json(data, { headers });
+        }
         if (url.pathname === '/api/view-session' && request.method === 'POST') {
           const raw: unknown = await request.json();
           const next = commandQueue.then(() => app.viewSession(raw)); commandQueue = next.catch(() => {});
@@ -73,6 +94,7 @@ export function serveDesktop(app: Application, webRoot: string, port = 0) {
           return new Response(new Uint8Array(bytes), { headers: { ...headers, 'Accept-Ranges': 'bytes' } });
         }
         if (request.method !== 'GET' && request.method !== 'HEAD') return json({ error: 'Not found' }, 404);
+        if (url.pathname === '/favicon.ico') return new Response(null, { status: 204, headers: secure });
         const base = await realpath(webRoot);
         let path = resolve(base, '.' + decodeURIComponent(url.pathname));
         if (!path.startsWith(base + sep) && path !== base) return json({ error: 'Not found' }, 404);
@@ -87,6 +109,7 @@ export function serveDesktop(app: Application, webRoot: string, port = 0) {
         }
         return new Response(request.method === 'HEAD' ? null : file, { headers: secure });
       } catch (error) {
+        if (error instanceof HistoryStoreError) return json({ error: error.message, code: error.code }, error.code === 'invalid_cursor' ? 409 : 503);
         const known = error instanceof Error && !('issues' in error) ? error.message : 'Invalid request';
         const safe = ['Conversation unavailable', 'Workbench unavailable', 'Controller unavailable', 'Candidate unavailable', 'Document revision unavailable', 'Attachment unavailable', 'Asset unavailable', 'Only text documents can be attached as context', 'Unsupported or oversized file', 'This provider does not support interruption', 'Steering unavailable', 'provider unavailable', 'provider rejected', 'invalid state', 'Artifact title must be 1–120 characters', 'Synthetic mode accepts text. Attachments remain available as artifacts; choose Codex to send images.'];
         return json({ error: safe.includes(known) || known === 'Synthetic mode is available only in Text studio. Choose Codex for this workbench.' ? known : 'The local operation failed. Check configuration or restart the host; no automatic retry occurred.' }, 400);

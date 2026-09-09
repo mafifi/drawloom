@@ -29,11 +29,13 @@
       "dependencies": {
         "@drawloom/agent": "workspace:*",
         "@drawloom/codex-agent": "workspace:*",
+        "@drawloom/conversation-history": "workspace:*",
         "@drawloom/desktop-host": "workspace:*",
         "@drawloom/host": "workspace:*",
         "@drawloom/local-tools": "workspace:*",
         "@drawloom/node-host": "workspace:*",
         "@drawloom/plugins": "workspace:*",
+        "@drawloom/sqlite-conversation-history": "workspace:*",
         "@drawloom/startup-plugins": "workspace:*",
         "@drawloom/synthetic-agent": "workspace:*",
         "@drawloom/tools": "workspace:*",
@@ -59,6 +61,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@drawloom/context": "workspace:*",
+        "@drawloom/conversation-history": "workspace:*",
         "@drawloom/host": "workspace:*",
         "@drawloom/tools": "workspace:*",
         "zod": "catalog:",
@@ -69,6 +72,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@drawloom/agent": "workspace:*",
+        "@drawloom/conversation-history": "workspace:*",
         "@drawloom/host": "workspace:*",
         "@drawloom/tools": "workspace:*",
         "zod": "catalog:",
@@ -127,6 +131,23 @@
         "@drawloom/host": "workspace:*",
         "@drawloom/tools": "workspace:*",
         "@modelcontextprotocol/sdk": "catalog:",
+        "zod": "catalog:",
+      },
+    },
+    "packages/observability/conversation-history": {
+      "name": "@drawloom/conversation-history",
+      "version": "0.0.0",
+      "dependencies": {
+        "@drawloom/host": "workspace:*",
+        "zod": "catalog:",
+      },
+    },
+    "packages/observability/sqlite-conversation-history": {
+      "name": "@drawloom/sqlite-conversation-history",
+      "version": "0.0.0",
+      "dependencies": {
+        "@drawloom/conversation-history": "workspace:*",
+        "@drawloom/host": "workspace:*",
         "zod": "catalog:",
       },
     },
@@ -327,6 +348,8 @@
 
     "@drawloom/context": ["@drawloom/context@workspace:packages/context/context"],
 
+    "@drawloom/conversation-history": ["@drawloom/conversation-history@workspace:packages/observability/conversation-history"],
+
     "@drawloom/desktop": ["@drawloom/desktop@workspace:apps/desktop"],
 
     "@drawloom/desktop-host": ["@drawloom/desktop-host@workspace:packages/desktop/desktop-host"],
@@ -338,6 +361,8 @@
     "@drawloom/node-host": ["@drawloom/node-host@workspace:packages/host/node-host"],
 
     "@drawloom/plugins": ["@drawloom/plugins@workspace:packages/plugins/plugins"],
+
+    "@drawloom/sqlite-conversation-history": ["@drawloom/sqlite-conversation-history@workspace:packages/observability/sqlite-conversation-history"],
 
     "@drawloom/startup-plugins": ["@drawloom/startup-plugins@workspace:packages/plugins/startup-plugins"],
 

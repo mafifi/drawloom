@@ -2,6 +2,23 @@ import { test, expect } from "bun:test";
 import { mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { RpcRequestError } from "@drawloom/host";
+test("RPC rejection retains only the protocol code and leaves transport usable", async () => {
+  const rpc = createStdioTransport({
+    command: process.execPath,
+    args: ["-e", `let b='';process.stdin.on('data',d=>{b+=d;let i;while((i=b.indexOf('\\n'))>=0){const m=JSON.parse(b.slice(0,i));b=b.slice(i+1);process.stdout.write(JSON.stringify(m.method==='ok'?{id:m.id,result:true}:{id:m.id,error:{code:m.params.code,message:'private provider text',data:{secret:'private data'}}})+'\\n')}})`],
+  });
+  try {
+    for (const code of [-32601, -32602]) {
+      const error = await rpc.request("reject", { code }).catch((cause: unknown) => cause);
+      expect(error).toBeInstanceOf(RpcRequestError);
+      expect(error).toMatchObject({ code, message: "Provider request rejected" });
+      expect(JSON.stringify(error)).not.toContain("private");
+      expect(error).not.toHaveProperty("cause");
+    }
+    expect(await rpc.request("ok", {})).toBe(true);
+  } finally { await rpc.close(); }
+});
 test("malformed matching RPC response settles before its request deadline", async () => {
   const rpc = createStdioTransport({
     command: process.execPath,

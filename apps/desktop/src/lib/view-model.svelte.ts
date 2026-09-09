@@ -1,8 +1,13 @@
-import { DesktopSnapshotSchema, type DesktopSnapshot, type DesktopCommand } from './protocol.js';
+import { DesktopSnapshotSchema, DesktopStateUpdateSchema, type DesktopSnapshot, type DesktopCommand } from './protocol.js';
+import { createHistoryPager, type HistoryPresentation } from './history-pager.js';
 import { AssetSchema, JsonValueSchema } from '@drawloom/host';
 import type { OperatorCommand } from '@drawloom/workbench';
 export function createDesktopViewModel() {
   let state = $state<DesktopSnapshot>();
+  let history = $state<HistoryPresentation>({ entries: [], loading: false, error: '', hasOlder: false, atLatest: true });
+  const pager = createHistoryPager((url, init) => fetch(url, init), value => { history = value; });
+  let stateToken: string | undefined, requestEpoch = 0, refreshingEpoch: number | undefined;
+  let stateRead = new AbortController();
   let draft = $state(''), error = $state(''), busy = $state(false);
   let pendingCommand = $state<DesktopCommand>();
   // Feedback belongs to the initiating control; rejected overlapping work must
@@ -31,18 +36,39 @@ export function createDesktopViewModel() {
   function project(raw: unknown) {
     const next = DesktopSnapshotSchema.parse(raw);
     if (editTarget && (editTarget.conversationId !== next.selectedId || next.conversations.find(c => c.id === next.selectedId)?.workbenchId !== editTarget.workbenchId)) cancelEdit();
+    const navigation = state?.selectedId !== next.selectedId;
     state = next;
+    if (navigation) void pager.open(next.selectedId);
   }
-  async function refresh() { try { project(await response(await fetch('/api/state'))); } catch (e) { error = e instanceof Error ? e.message : 'Local host unavailable'; } }
+  async function refresh() {
+    if (refreshingEpoch === requestEpoch || busy) return;
+    const captured = requestEpoch;
+    refreshingEpoch = captured;
+    try {
+      const res = await fetch('/api/state' + (stateToken ? '?since=' + encodeURIComponent(stateToken) : ''), { signal: stateRead.signal });
+      if (res.status !== 204) {
+        const update = DesktopStateUpdateSchema.parse(await response(res));
+        if (captured !== requestEpoch) return;
+        const merged: Record<string, unknown> = update.kind === 'snapshot' ? { ...update.sections } : { ...state, ...update.sections };
+        for (const key of update.removed) delete merged[key];
+        project(merged); stateToken = update.token;
+      }
+      if (captured === requestEpoch) await pager.poll();
+    } catch (e) { if (captured === requestEpoch) { error = e instanceof Error ? e.message : 'Local host unavailable'; stateToken = undefined; } }
+    finally { if (refreshingEpoch === captured) refreshingEpoch = undefined; }
+  }
   async function command(value: DesktopCommand) {
     if (busy) return false;
     busy = true; pendingCommand = value; error = '';
+    stateRead.abort(); stateRead = new AbortController(); requestEpoch++; pager.invalidate();
     try { project(await response(await fetch('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) }))); return true; }
     catch (e) { error = e instanceof Error ? e.message : 'Operation failed'; return false; }
     finally { busy = false; pendingCommand = undefined; }
   }
   async function operator(commandValue: OperatorCommand) { if (!conversation) return false; return command({ kind: 'operator', workbenchId: conversation.workbenchId, command: commandValue }); }
   return {
+    get history() { return history; },
+    loadEarlier: () => pager.earlier(), loadLatest: () => pager.latest(),
     get state() { return state; }, get conversation() { return conversation; }, get candidate() { return candidate; }, get artifact() { return artifact; },
     get candidates() { return candidates; }, get artifacts() { return artifacts; }, get comparableCandidates() { return comparableCandidates; },
     get groupId() { return groupId; }, set groupId(v: string) { cancelEdit(); groupId = v; candidateId = ''; artifactId = ''; compare = false; },
@@ -71,7 +97,7 @@ export function createDesktopViewModel() {
     get editText() { return editText; }, set editText(v: string) { editText = v; },
     get reviewSummary() { return reviewTarget === candidate?.id ? reviewSummary : ''; }, set reviewSummary(v: string) { reviewTarget = candidate?.id; reviewSummary = v; },
     async start() { draft = localStorage.getItem('drawloom-composer') ?? ''; await refresh(); timer = setInterval(() => { if (!busy) void refresh(); }, 600); },
-    stopPolling() { clearInterval(timer); },
+    stopPolling() { clearInterval(timer); stateRead.abort(); stateRead = new AbortController(); requestEpoch++; pager.invalidate(); },
     command, operator,
     async submitInput(requestId: string, raw: string) {
       try { const value = JsonValueSchema.parse(JSON.parse(raw)); if (state) await command({ kind: 'input', conversationId: state.selectedId, resolution: { requestId, action: 'submit', value } }); }

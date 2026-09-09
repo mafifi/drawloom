@@ -11,7 +11,7 @@ Cloudflare and Tauri compatibility are not claimed.
 | Package | Public surface |
 | --- | --- |
 | `@drawloom/context` | `CompiledContextSchema`, `CompiledContext` (text and source references) |
-| `@drawloom/host` | `JsonValueSchema`, `JsonValue`, `RpcTransport`, `RpcMessage`, `JsonStore`, `AssetStore`, `AssetSchema`, `Asset`; `/conformance`: `hostConformance` |
+| `@drawloom/host` | `JsonValueSchema`, `JsonValue`, `RpcTransport`, `RpcMessage`, `RpcRequestError`, `JsonStore`, `AssetStore`, `AssetSchema`, `Asset`; `/conformance`: `hostConformance` |
 | `@drawloom/tools` | `defineTool`, `ToolDefinition`, `ToolContext`, `ToolExposureSchema`, `ToolExposure`, `ToolResultSchema`, `ToolResult`, `ToolBinding`, `ToolGateway`, `ToolEvidenceSink`, `ToolEvidence`, `ToolPolicy`; `/conformance`: `toolConformance` |
 | `@drawloom/local-tools` | `createLocalToolGateway` |
 | `@drawloom/agent` | schemas and types for `AgentDriver`, `AgentSession`, session open, operation, steering, approval/input resolutions, safe signals and results; `/conformance`: `agentConformance` |
@@ -23,6 +23,8 @@ Cloudflare and Tauri compatibility are not claimed.
 | `@drawloom/desktop-host` | `DesktopCompositionContext`, `DesktopExtension`, `DesktopExtensionFactory` for explicit trusted startup composition |
 | `@drawloom/node-host` | `createNodeJsonStore`, `createNodeAssetStore`, `createStdioTransport`, `codexCommand`, `createMcpToolServer` |
 | `@drawloom/synthetic-workbench` | `createSyntheticWorkbench` |
+| `@drawloom/conversation-history` | Portable history records, pages, changes, checkpoints, store and reader contracts; `/conformance`: `conversationHistoryConformance` |
+| `@drawloom/sqlite-conversation-history` | `createSqliteConversationHistory` (Bun only) |
 
 ## Tools
 
@@ -194,14 +196,17 @@ a confined `Asset`. Exact native turn correlation yields `artifact.available`
 with Drawloom operation identity. Unknown/late turns cannot borrow current work.
 Native result paths are ignored. Media capture completes before a terminal signal.
 
-Optional `AgentSession.readHistory()` returns `AgentResult<AgentHistory>` with
-read-only user/assistant display entries and a `truncated` flag. The adapter reads
-native metadata, paginated turns and paginated items; it never replays signals or
-stores a copied transcript. Provider IDs remain private. Adapter-owned operation
-mapping preserves known origin; unknown history receives no invented operation.
-The bounded display projection retains up to 2000 recent entries in chronological
-order; the desktop exposes truncation visibly. A new, unmaterialized
-thread has empty history and is recreated on reconnect without a model turn.
+Optional `AgentSession.history` exposes `ConversationHistoryReader`, replacing
+the eager `readHistory()` projection in this unreleased API. The adapter reads
+native metadata and bounded payload pages; the host atomically stores normalized
+records and its private checkpoint updates. It never replays signals or injects
+stored history into the model. Provider IDs remain private. Unknown historical
+operations receive no invented correlation. Native message IDs are projected to
+stable public identities used by both live signals and stored history. Completed
+message signals may carry a user role and managed attachment references; artifact
+signals may correlate with the same display identity. A new unmaterialized thread
+has empty history. See [conversation history](conversation-history.md) for the
+contract, local storage, data selection and paginated browser transport.
 
 `@drawloom/host` also exports `AssetLibrary.put(bytes,mediaType)/read(key)` and
 `assetLibraryConformance` from `/conformance`. This host-managed boundary creates

@@ -1,0 +1,64 @@
+// Optional browser acceptance: provide an installed Playwright module path; no runtime dependency.
+import { pathToFileURL } from 'node:url';
+if (!process.env.DRAWLOOM_PLAYWRIGHT_PATH || !process.argv[2]) throw Error('Set DRAWLOOM_PLAYWRIGHT_PATH and pass the isolated fixture bootstrap URL.');
+const { chromium } = await import(pathToFileURL(process.env.DRAWLOOM_PLAYWRIGHT_PATH).href);
+import { mkdir, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import assert from 'node:assert/strict';
+const output = process.env.DRAWLOOM_BROWSER_EVIDENCE_DIR || await mkdtemp(join(tmpdir(), 'drawloom-history-browser-evidence-'));
+await mkdir(output, { recursive: true });
+const browser = await chromium.launch({ headless: true, channel: process.env.DRAWLOOM_BROWSER_CHANNEL || 'msedge' });
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, colorScheme: 'light' });
+const errors = [], responses = [];
+page.on('pageerror', error => errors.push(error.message));
+page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+page.on('response', response => { if (response.url().includes('/api/')) responses.push({ path: new URL(response.url()).pathname, status: response.status() }); });
+try {
+  await page.goto(process.argv[2]);
+  await page.locator('[data-history-id="public-9950"]').waitFor();
+  assert.equal(await page.locator('[data-history-id]').count(), 50);
+  assert.equal(await page.title(), 'Drawloom — Local workbench');
+  const anchor = page.locator('[data-history-id="public-9950"]');
+  const before = (await anchor.boundingBox()).y;
+  await page.getByRole('button', { name: 'Load earlier', exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll('[data-history-id]').length === 100);
+  const after = (await anchor.boundingBox()).y;
+  assert.ok(Math.abs(before - after) < 2, `scroll anchor moved: ${before} -> ${after}`);
+  for (let i = 0; i < 4; i++) {
+    await page.getByRole('button', { name: 'Load earlier', exact: true }).click();
+    await page.waitForFunction(() => !document.body.textContent.includes('Loading conversation…'));
+  }
+  assert.ok(await page.locator('[data-history-id]').count() <= 200);
+  await page.getByRole('button', { name: 'Back to latest', exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll('[data-history-id]').length === 50);
+  await page.locator('.conversation-scroll').evaluate(element => { element.scrollTop = 0; });
+  await page.screenshot({ path: join(output, 'light.png') });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.waitForFunction(() => matchMedia('(prefers-color-scheme: dark)').matches);
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await page.getByRole('button', { name: 'Load earlier', exact: true }).waitFor({ state: 'visible' });
+  await page.waitForFunction(() => [...document.querySelectorAll('button')].some(button => button.textContent?.trim() === 'Load earlier' && getComputedStyle(button).color === 'rgb(245, 245, 245)'));
+  await page.screenshot({ path: join(output, 'dark.png') });
+  await page.waitForResponse(response => response.url().includes('/api/state') && response.status() === 204);
+  await page.waitForResponse(response => response.url().includes('/api/history/changes') && response.status() === 204);
+  let release;
+  const delayed = new Promise(resolve => { release = resolve; });
+  let reached;
+  const started = new Promise(resolve => { reached = resolve; });
+  await page.route('**/api/history?*before=*', async route => { reached(); await delayed; await route.continue().catch(() => {}); });
+  await page.getByRole('button', { name: 'Load earlier', exact: true }).click();
+  await started;
+  await page.getByRole('button', { name: 'New conversation', exact: true }).last().click();
+  await page.getByText('A place to do the work', { exact: true }).waitFor();
+  release();
+  await page.waitForResponse(response => response.url().includes('/api/state'));
+  assert.equal(await page.locator('[data-history-id]').count(), 0);
+  await page.unrouteAll({ behavior: 'wait' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Close artifact pane', exact: true }).click();
+  await page.screenshot({ path: join(output, 'mobile-dark.png') });
+  assert.equal(await page.locator('vite-error-overlay').count(), 0);
+  assert.deepEqual(errors, []);
+  console.log(JSON.stringify({ output, url: new URL(page.url()).origin, browserVersion: browser.version(), pageTitle: await page.title(), initialEntries: 50, maxRendered: 200, scrollDeltaPx: after - before, navigationIsolation: 'pass', themes: ['light', 'dark'], viewports: ['1440x1000', '390x844'], errors, unchangedApplicationPolls: responses.filter(r => r.path === '/api/state' && r.status === 204).length, unchangedHistoryPolls: responses.filter(r => r.path === '/api/history/changes' && r.status === 204).length }));
+} finally { await browser.close(); }

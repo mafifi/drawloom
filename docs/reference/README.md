@@ -1,5 +1,15 @@
 # Technical reference
 
-This directory will contain current API, package, protocol, and operational
-reference material. Generated dependency graphs and contract inventories should
-live under a clearly marked `generated/` subtree when tooling is introduced.
+Current API, package, protocol, operational and external-reference material.
+
+- [Foundation API](foundation-api.md)
+- [Conversation history API and operation](conversation-history.md)
+- [Conversation history implementation evidence](conversation-history-evidence.md)
+- [Harness and workbench capability survey](harness-workbench-survey/README.md)
+  — revision-bound DeepSeek Harness and Open Design maps, evidence and candidate
+  follow-ups. Discovery evidence, not a new architecture decision.
+
+The survey keeps its authored specifications, reproducible inventories and
+generated standalone diagrams together as a self-contained evidence bundle.
+Future cross-repository generated dependency graphs and contract inventories
+should use a clearly marked `generated/` subtree.

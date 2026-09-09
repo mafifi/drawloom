@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { projectHistory } from "./history.js";
+import { createCodexHistoryReader, nativeMessageId } from "./history.js";
 import {
   AgentSessionOpenInputSchema,
   AgentOperationInputSchema,
@@ -79,7 +79,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           resume ? "thread/resume" : "thread/start",
           {
             ...(resume
-              ? { threadId: previous.threadId }
+              ? { threadId: previous.threadId, excludeTurns: true }
               : { ephemeral: false }),
             approvalPolicy: "on-request",
             sandbox: "read-only",
@@ -98,6 +98,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         await options.store.set("codex:" + input.sessionId, { threadId, materialized });
         const operationKey = "codex-operations:" + input.sessionId;
         const operations = z.record(z.string(), z.string()).parse(await options.store.get(operationKey) ?? {});
+        const userAssets = new Map<string, import("@drawloom/host").Asset[][]>();
         const mediaPending = new Set<Promise<void>>();
         let closed = false,
           attached = false,
@@ -141,6 +142,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           if (!active) return;
           const last = active;
           active = undefined;
+          userAssets.delete(last.turnId);
           approvals.clear();
           inputs.clear();
           messageIds.clear();
@@ -174,15 +176,15 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           wake?.();
           void rpc.close().catch(() => {});
         };
-        const messageId = (nativeId: string) => {
+        const messageId = async (nativeId: string) => {
           let id = messageIds.get(nativeId);
           if (!id) {
-            id = "message-" + ++sequence;
+            id = await nativeMessageId(nativeId);
             messageIds.set(nativeId, id);
           }
           return id;
         };
-        const receive = (message: import("@drawloom/host").RpcMessage) => {
+        const processMessage = async (message: import("@drawloom/host").RpcMessage) => {
           if (closed) return;
           if (starting && !active) {
             buffered.push(message);
@@ -346,7 +348,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               emit({
                 kind: "message.delta",
                 operationId,
-                messageId: messageId(native),
+                messageId: await messageId(native),
                 delta: z.string().parse(params.delta),
               });
               return;
@@ -358,9 +360,9 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 if (completedMessages.has(native)) return;
                 completedMessages.add(native);
                 const result = z.string().parse(item.result);
-                const pending = options.captureImage(result).then(asset => {
-                  if (!closed && active?.operationId === operationId) emit({ kind: "artifact.available", operationId, asset });
-                }).catch(() => { if (active?.operationId === operationId) finish("operation.failed", "invalid_provider_response"); });
+                const pending = options.captureImage(result).then(async asset => {
+                  if (!closed && active?.operationId === operationId) emit({ kind: "artifact.available", operationId, messageId: await messageId(native), asset });
+                }).catch(() => { /* Media capture is history/display work, not provider execution. */ });
                 mediaPending.add(pending);
                 void pending.finally(() => mediaPending.delete(pending));
               } else if (item.type === "agentMessage") {
@@ -376,9 +378,23 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 emit({
                   kind: "message.completed",
                   operationId,
-                  messageId: messageId(native),
+                  messageId: await messageId(native),
                   text: z.string().parse(item.text),
                   ...(phase ? { phase } : {}),
+                });
+              } else if (item.type === "userMessage") {
+                const native = identifier.parse(item.id);
+                if (completedMessages.has(native)) return;
+                completedMessages.add(native);
+                const content = z.array(record).parse(item.content);
+                const assets = userAssets.get(active.turnId)?.shift() ?? [];
+                emit({
+                  kind: "message.completed",
+                  operationId,
+                  messageId: await messageId(native),
+                  role: "user",
+                  text: content.filter(value => value.type === "text").map(value => z.string().parse(value.text)).join("\n"),
+                  ...(assets.length ? { assets } : {}),
                 });
               } else if (
                 item.type === "collabAgentToolCall" ||
@@ -428,16 +444,22 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             finish("operation.failed", "invalid_provider_response");
           }
         };
+        let receiveChain = Promise.resolve();
+        const receive = (message: import("@drawloom/host").RpcMessage) => {
+          receiveChain = receiveChain.then(() => processMessage(message));
+        };
         const unsubscribe = rpc.subscribe(receive, fail);
+        const nativeHistory = createCodexHistoryReader((method, params) => rpc.request(method, params), threadId, operations, options.captureImage);
         return {
           status: "ok",
           value: {
             sessionId: input.sessionId,
-            async readHistory() {
-              if (closed || active || starting) return reject("invalid_state");
-              if (!materialized) return { status: "ok", value: { entries: [], truncated: false } };
-              try { return { status: "ok", value: await projectHistory((method, params) => rpc.request(method, params), threadId, operations, options.captureImage) }; }
-              catch { return reject("provider_unavailable"); }
+            history: {
+              namespace: nativeHistory.namespace,
+              async read(context, readOptions) {
+                if (!materialized) return { entries: [], checkpoints: [], hasOlder: false };
+                return nativeHistory.read(context, readOptions);
+              },
             },
             signals() {
               if (attached) throw Error("Signal consumer already attached");
@@ -498,6 +520,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 if (closed) return reject("provider_unavailable");
                 active = { operationId: operation.operationId, turnId };
                 operations[turnId] = operation.operationId;
+                userAssets.set(turnId, [[...(operation.attachments ?? [])]]);
                 emit({
                   kind: "operation.started",
                   operationId: operation.operationId,
@@ -538,6 +561,8 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 return reject("invalid_state");
               try {
                 if (p.data.attachments?.length && !options.imageInput) return reject("provider_rejected");
+                const queuedAssets = [...(p.data.attachments ?? [])];
+                userAssets.get(active.turnId)?.push(queuedAssets);
                 await rpc.request("turn/steer", {
                   threadId,
                   expectedTurnId: active.turnId,
@@ -558,6 +583,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 });
                 return ok();
               } catch {
+                userAssets.get(active.turnId)?.pop();
                 return reject("provider_unavailable");
               }
             },
@@ -616,6 +642,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             },
             async close() {
               if (!closed) {
+                await receiveChain;
                 finish("operation.interrupted");
                 closed = true;
                 unsubscribe();

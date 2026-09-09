@@ -24,7 +24,11 @@ an authenticated same-origin loopback Bun host and a minimal Tauri macOS shell.
 The supported `@drawloom/desktop-host` startup factory passes public persistence
 and managed-asset contracts to explicitly selected trusted plugins. Workbench
 operator commands are a separate trusted channel from model tools. Codex owns
-native transcript history; UI restoration is a read-only adapter projection.
+native transcript history, compaction and execution continuity. Drawloom stores
+its own paginated display records under observability, with atomic ingestion
+checkpoints and cached offline reads ([ADR 0014](docs/adr/0014-persistent-paginated-conversation-history.md)).
+These records are never automatically supplied as model
+context or treated as memory.
 See the [desktop host boundary](docs/design/desktop-host.md) for exact authority,
 project, asset and startup boundaries. No private plugin is needed for public CI.
 

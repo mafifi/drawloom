@@ -1,0 +1,285 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "DeepSeek Harness · capability map",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "animation": "none",
+    "repository": {
+      "url": "https://github.com/deepseek-ai/deepseek-harness",
+      "revision": "b2e3b2a0125854567a4a5fcba75782e42fe84901"
+    }
+  },
+  "components": [
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "Web client",
+      "sublabel": "Conversations + file views",
+      "pos": [
+        40,
+        270
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/bundle/web-app/cordis.patch.yml",
+          "line": 170
+        }
+      ]
+    },
+    {
+      "id": "host",
+      "type": "backend",
+      "label": "Host API",
+      "sublabel": "Session / workspace controllers",
+      "pos": [
+        390,
+        270
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/bundle/web-app/cordis.patch.yml",
+          "line": 104
+        }
+      ]
+    },
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "Agent runtime",
+      "sublabel": "Turns, tools and live progress",
+      "pos": [
+        740,
+        270
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/core/agent-loop/src/agent.ts",
+          "line": 350
+        }
+      ]
+    },
+    {
+      "id": "models",
+      "type": "external",
+      "label": "Model adapters",
+      "sublabel": "DeepSeek + configured Pi routes",
+      "pos": [
+        1090,
+        270
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/bundle/base/cordis.patch.yml",
+          "line": 472
+        }
+      ]
+    },
+    {
+      "id": "composition",
+      "type": "backend",
+      "label": "Plugin composition",
+      "sublabel": "Profiles, presets and lifetimes",
+      "pos": [
+        390,
+        45
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/preset/agent-presets/src/mount.ts",
+          "line": 58
+        }
+      ]
+    },
+    {
+      "id": "context",
+      "type": "backend",
+      "label": "Request context",
+      "sublabel": "Instructions + compaction",
+      "pos": [
+        740,
+        45
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/compaction/compaction-basic/src/index.ts",
+          "line": 148
+        }
+      ]
+    },
+    {
+      "id": "views",
+      "type": "database",
+      "label": "Derived views",
+      "sublabel": "Versioned cache + cursor windows",
+      "pos": [
+        390,
+        495
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/session/session-projection/src/index.ts",
+          "line": 40
+        }
+      ]
+    },
+    {
+      "id": "history",
+      "type": "database",
+      "label": "Durable sessions",
+      "sublabel": "Exclusive writer + v3 migrations",
+      "pos": [
+        740,
+        495
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/session/session-format-catalog/src/generated.ts",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "id": "tools",
+      "type": "security",
+      "label": "Tool execution",
+      "sublabel": "Policy + filesystem / shell / MCP",
+      "pos": [
+        1090,
+        495
+      ],
+      "size": [
+        235,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/sandbox/sandbox-policy/src/index.ts",
+          "line": 1
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "ui",
+      "to": "host",
+      "label": "RPC / streams"
+    },
+    {
+      "from": "host",
+      "to": "agent",
+      "label": "session control"
+    },
+    {
+      "from": "agent",
+      "to": "models",
+      "label": "model requests"
+    },
+    {
+      "from": "composition",
+      "to": "host",
+      "label": "mount services",
+      "labelAt": [
+        508,
+        200
+      ]
+    },
+    {
+      "from": "context",
+      "to": "agent",
+      "label": "prepare context",
+      "labelAt": [
+        858,
+        200
+      ]
+    },
+    {
+      "from": "host",
+      "to": "views",
+      "label": "read projections",
+      "labelAt": [
+        508,
+        425
+      ]
+    },
+    {
+      "from": "agent",
+      "to": "history",
+      "label": "settle / flush",
+      "labelAt": [
+        858,
+        425
+      ]
+    },
+    {
+      "from": "agent",
+      "to": "tools",
+      "label": "tool calls"
+    },
+    {
+      "from": "history",
+      "to": "views",
+      "label": "fold events"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Reading is not execution",
+      "items": [
+        "Clients page history and follow cursor-aware streams.",
+        "Live frames do not advance the durable history cursor."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Runtime-owned machinery",
+      "items": [
+        "Goals, subagents and workflows compose around this loop.",
+        "External runtimes need not reproduce these internals."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Scope of this map",
+      "items": [
+        "Logical groups, not separate services or trust zones.",
+        "Dynamic plugin VM is not a security sandbox."
+      ]
+    }
+  ]
+}

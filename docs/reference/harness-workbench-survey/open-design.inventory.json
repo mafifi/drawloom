@@ -1,0 +1,758 @@
+{
+  "repository": "open-design",
+  "revision": "81044a03ca717f77a5bde38947903a8ef222da8c",
+  "origin": "https://github.com/nexu-io/open-design.git",
+  "trackedFiles": 12505,
+  "binaryFiles": 499,
+  "binaryBytes": 131224006,
+  "symlinks": 0,
+  "categories": {
+    "configuration-data-other": {
+      "files": 1106,
+      "lines": 118690,
+      "bytes": 12957302
+    },
+    "documentation": {
+      "files": 1174,
+      "lines": 166941,
+      "bytes": 9761410
+    },
+    "implementation-scripts-styles": {
+      "files": 2438,
+      "lines": 994293,
+      "bytes": 42800389
+    },
+    "tests": {
+      "files": 2444,
+      "lines": 798901,
+      "bytes": 30731988
+    },
+    "fixtures-snapshots": {
+      "files": 82,
+      "lines": 29117,
+      "bytes": 1805519
+    },
+    "vendor": {
+      "files": 17,
+      "lines": 2136,
+      "bytes": 85638
+    },
+    "generated": {
+      "files": 1,
+      "lines": 185,
+      "bytes": 8464
+    },
+    "localisation": {
+      "files": 75,
+      "lines": 153556,
+      "bytes": 11529954
+    },
+    "design-reference-catalogs": {
+      "files": 4667,
+      "lines": 926702,
+      "bytes": 38043760
+    },
+    "lockfiles": {
+      "files": 2,
+      "lines": 12927,
+      "bytes": 432600
+    }
+  },
+  "areas": {
+    ".claude-plugin": {
+      "files": 1,
+      "lines": 16,
+      "bytes": 693
+    },
+    ".claude": {
+      "files": 23,
+      "lines": 2027,
+      "bytes": 77452
+    },
+    ".dockerignore": {
+      "files": 1,
+      "lines": 20,
+      "bytes": 201
+    },
+    ".gitattributes": {
+      "files": 1,
+      "lines": 3,
+      "bytes": 147
+    },
+    ".github": {
+      "files": 113,
+      "lines": 26862,
+      "bytes": 1166274
+    },
+    ".gitignore": {
+      "files": 1,
+      "lines": 105,
+      "bytes": 2438
+    },
+    ".ignore": {
+      "files": 1,
+      "lines": 3,
+      "bytes": 100
+    },
+    ".node-version": {
+      "files": 1,
+      "lines": 1,
+      "bytes": 3
+    },
+    ".vaunt": {
+      "files": 1,
+      "lines": 210,
+      "bytes": 8561
+    },
+    "AGENTS.md": {
+      "files": 1,
+      "lines": 475,
+      "bytes": 56924
+    },
+    "CHANGELOG.md": {
+      "files": 1,
+      "lines": 1904,
+      "bytes": 153084
+    },
+    "CLAUDE.md": {
+      "files": 1,
+      "lines": 1,
+      "bytes": 11
+    },
+    "CONTEXT.md": {
+      "files": 1,
+      "lines": 107,
+      "bytes": 6414
+    },
+    "CONTRIBUTING.md": {
+      "files": 1,
+      "lines": 332,
+      "bytes": 19696
+    },
+    "LICENSE": {
+      "files": 1,
+      "lines": 201,
+      "bytes": 11296
+    },
+    "MAINTAINERS.md": {
+      "files": 1,
+      "lines": 243,
+      "bytes": 10105
+    },
+    "PRIVACY.md": {
+      "files": 1,
+      "lines": 131,
+      "bytes": 6636
+    },
+    "QUICKSTART.md": {
+      "files": 1,
+      "lines": 357,
+      "bytes": 19217
+    },
+    "README.md": {
+      "files": 1,
+      "lines": 772,
+      "bytes": 59089
+    },
+    "RELEASE-NOTES-0.10.0.md": {
+      "files": 1,
+      "lines": 93,
+      "bytes": 13100
+    },
+    "TRANSLATIONS.md": {
+      "files": 1,
+      "lines": 843,
+      "bytes": 38392
+    },
+    "apps/AGENTS.md": {
+      "files": 1,
+      "lines": 60,
+      "bytes": 4820
+    },
+    "apps/closure": {
+      "files": 8,
+      "lines": 230,
+      "bytes": 9748
+    },
+    "apps/daemon": {
+      "files": 1579,
+      "lines": 628022,
+      "bytes": 24715911
+    },
+    "apps/desktop": {
+      "files": 86,
+      "lines": 29760,
+      "bytes": 1516531
+    },
+    "apps/packaged": {
+      "files": 49,
+      "lines": 12653,
+      "bytes": 500268
+    },
+    "apps/web": {
+      "files": 1937,
+      "lines": 875968,
+      "bytes": 38554743
+    },
+    "assets": {
+      "files": 14,
+      "lines": 886,
+      "bytes": 26277
+    },
+    "charts": {
+      "files": 13,
+      "lines": 755,
+      "bytes": 31813
+    },
+    "clipper": {
+      "files": 39,
+      "lines": 7317,
+      "bytes": 374044
+    },
+    "craft": {
+      "files": 13,
+      "lines": 1948,
+      "bytes": 110354
+    },
+    "data": {
+      "files": 5,
+      "lines": 1294,
+      "bytes": 6425013
+    },
+    "deploy": {
+      "files": 25,
+      "lines": 4599,
+      "bytes": 154124
+    },
+    "design-browser-task-handoff.md": {
+      "files": 1,
+      "lines": 196,
+      "bytes": 10484
+    },
+    "design-systems": {
+      "files": 4013,
+      "lines": 760999,
+      "bytes": 30988878
+    },
+    "design-templates": {
+      "files": 669,
+      "lines": 167789,
+      "bytes": 7137787
+    },
+    "docs": {
+      "files": 161,
+      "lines": 52088,
+      "bytes": 3612383
+    },
+    "e2e": {
+      "files": 227,
+      "lines": 86665,
+      "bytes": 3423863
+    },
+    "figma-plugin": {
+      "files": 4,
+      "lines": 463,
+      "bytes": 17791
+    },
+    "mise.toml": {
+      "files": 1,
+      "lines": 3,
+      "bytes": 37
+    },
+    "mocks": {
+      "files": 43,
+      "lines": 6827,
+      "bytes": 297034
+    },
+    "package.json": {
+      "files": 1,
+      "lines": 73,
+      "bytes": 2556
+    },
+    "packages/AGENTS.md": {
+      "files": 1,
+      "lines": 64,
+      "bytes": 6211
+    },
+    "packages/agui-adapter": {
+      "files": 8,
+      "lines": 611,
+      "bytes": 17887
+    },
+    "packages/components": {
+      "files": 19,
+      "lines": 1187,
+      "bytes": 36629
+    },
+    "packages/contracts": {
+      "files": 205,
+      "lines": 45637,
+      "bytes": 1859653
+    },
+    "packages/diagnostics": {
+      "files": 15,
+      "lines": 1243,
+      "bytes": 47111
+    },
+    "packages/download": {
+      "files": 21,
+      "lines": 2292,
+      "bytes": 88487
+    },
+    "packages/dsh-runtime": {
+      "files": 13,
+      "lines": 1148,
+      "bytes": 37545
+    },
+    "packages/host": {
+      "files": 11,
+      "lines": 1705,
+      "bytes": 58098
+    },
+    "packages/launcher-proto": {
+      "files": 6,
+      "lines": 1130,
+      "bytes": 43430
+    },
+    "packages/metatool": {
+      "files": 7,
+      "lines": 332,
+      "bytes": 10385
+    },
+    "packages/platform": {
+      "files": 14,
+      "lines": 3375,
+      "bytes": 133101
+    },
+    "packages/plugin-runtime": {
+      "files": 29,
+      "lines": 2836,
+      "bytes": 101331
+    },
+    "packages/registry-protocol": {
+      "files": 8,
+      "lines": 371,
+      "bytes": 12042
+    },
+    "packages/release": {
+      "files": 6,
+      "lines": 395,
+      "bytes": 13498
+    },
+    "packages/sidecar-proto": {
+      "files": 8,
+      "lines": 1832,
+      "bytes": 68900
+    },
+    "packages/sidecar": {
+      "files": 33,
+      "lines": 5204,
+      "bytes": 201356
+    },
+    "packages/standalone": {
+      "files": 23,
+      "lines": 3689,
+      "bytes": 182718
+    },
+    "plugins": {
+      "files": 1593,
+      "lines": 297148,
+      "bytes": 17936666
+    },
+    "pnpm-lock.yaml": {
+      "files": 1,
+      "lines": 12903,
+      "bytes": 431694
+    },
+    "pnpm-workspace.yaml": {
+      "files": 1,
+      "lines": 28,
+      "bytes": 406
+    },
+    "prompt-templates": {
+      "files": 106,
+      "lines": 2331,
+      "bytes": 325529
+    },
+    "scripts": {
+      "files": 51,
+      "lines": 17020,
+      "bytes": 653456
+    },
+    "shells": {
+      "files": 44,
+      "lines": 5348,
+      "bytes": 283945
+    },
+    "skills": {
+      "files": 352,
+      "lines": 41990,
+      "bytes": 1839077
+    },
+    "specs": {
+      "files": 98,
+      "lines": 32057,
+      "bytes": 2308215
+    },
+    "story": {
+      "files": 2,
+      "lines": 0,
+      "bytes": 0
+    },
+    "templates": {
+      "files": 9,
+      "lines": 2707,
+      "bytes": 106791
+    },
+    "tools": {
+      "files": 277,
+      "lines": 45557,
+      "bytes": 1788342
+    },
+    "vercel.json": {
+      "files": 1,
+      "lines": 7,
+      "bytes": 229
+    }
+  },
+  "extensions": {
+    ".json": {
+      "files": 1856,
+      "lines": 441806,
+      "bytes": 14228737
+    },
+    ".md": {
+      "files": 2237,
+      "lines": 352114,
+      "bytes": 21712458
+    },
+    ".yaml": {
+      "files": 33,
+      "lines": 14728,
+      "bytes": 489688
+    },
+    ".sh": {
+      "files": 46,
+      "lines": 8000,
+      "bytes": 299445
+    },
+    "(none)": {
+      "files": 119,
+      "lines": 2395,
+      "bytes": 116381
+    },
+    ".yml": {
+      "files": 66,
+      "lines": 15198,
+      "bytes": 689544
+    },
+    ".py": {
+      "files": 98,
+      "lines": 36793,
+      "bytes": 1393858
+    },
+    ".ts": {
+      "files": 3339,
+      "lines": 1181276,
+      "bytes": 51356365
+    },
+    ".ps1": {
+      "files": 17,
+      "lines": 2332,
+      "bytes": 105695
+    },
+    ".mjs": {
+      "files": 82,
+      "lines": 13854,
+      "bytes": 575995
+    },
+    ".txt": {
+      "files": 11,
+      "lines": 1490,
+      "bytes": 389521
+    },
+    ".html": {
+      "files": 2467,
+      "lines": 504263,
+      "bytes": 23253890
+    },
+    ".jsonl": {
+      "files": 9,
+      "lines": 360,
+      "bytes": 238091
+    },
+    ".snap": {
+      "files": 2,
+      "lines": 533,
+      "bytes": 32629
+    },
+    ".cts": {
+      "files": 1,
+      "lines": 389,
+      "bytes": 15200
+    },
+    ".tsx": {
+      "files": 936,
+      "lines": 455127,
+      "bytes": 17803727
+    },
+    ".svg": {
+      "files": 75,
+      "lines": 1128,
+      "bytes": 6547531
+    },
+    ".js": {
+      "files": 70,
+      "lines": 21868,
+      "bytes": 3394851
+    },
+    ".css": {
+      "files": 518,
+      "lines": 138237,
+      "bytes": 4594406
+    },
+    ".tpl": {
+      "files": 2,
+      "lines": 90,
+      "bytes": 2729
+    },
+    ".example": {
+      "files": 1,
+      "lines": 38,
+      "bytes": 1704
+    },
+    ".local": {
+      "files": 1,
+      "lines": 8,
+      "bytes": 292
+    },
+    ".bicep": {
+      "files": 3,
+      "lines": 459,
+      "bytes": 13815
+    },
+    ".toml": {
+      "files": 1,
+      "lines": 3,
+      "bytes": 37
+    },
+    ".gltf": {
+      "files": 2,
+      "lines": 9466,
+      "bytes": 847484
+    },
+    ".jsx": {
+      "files": 6,
+      "lines": 99,
+      "bytes": 3046
+    },
+    ".mts": {
+      "files": 2,
+      "lines": 71,
+      "bytes": 3585
+    },
+    ".template": {
+      "files": 1,
+      "lines": 12,
+      "bytes": 396
+    },
+    ".plist": {
+      "files": 2,
+      "lines": 24,
+      "bytes": 786
+    },
+    ".cjs": {
+      "files": 2,
+      "lines": 1266,
+      "bytes": 44327
+    },
+    ".cmd": {
+      "files": 1,
+      "lines": 21,
+      "bytes": 811
+    }
+  },
+  "packages": [
+    {
+      "path": "apps/closure/package.json",
+      "name": "@open-design/closure",
+      "description": "Independently distributable OpenDesign Closure content.",
+      "private": true
+    },
+    {
+      "path": "apps/daemon/package.json",
+      "name": "@open-design/daemon",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "apps/desktop/package.json",
+      "name": "@open-design/desktop",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "apps/packaged/package.json",
+      "name": "@open-design/packaged",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "apps/web/package.json",
+      "name": "@open-design/web",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "design-templates/last30days/scripts/lib/vendor/bird-search/package.json",
+      "name": "bird-search",
+      "description": "Vendored Bird CLI search subset for /last30days",
+      "private": true
+    },
+    {
+      "path": "e2e/package.json",
+      "name": "@open-design/e2e",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "package.json",
+      "name": "open-design",
+      "description": "Local-first design product: detects your installed code-agent CLI, runs design skills + design systems, streams artifacts into a sandboxed preview.",
+      "private": true
+    },
+    {
+      "path": "packages/agui-adapter/package.json",
+      "name": "@open-design/agui-adapter",
+      "description": "Pure-TS bidirectional adapter between OpenDesign's PersistedAgentEvent / GenUIEvent / PluginPipelineStageEvent union and the AG-UI canonical event protocol (see https://github.com/CopilotKit/CopilotKit). No node:fs imports — daemon emits, web/CopilotKit consumes.",
+      "private": true
+    },
+    {
+      "path": "packages/components/package.json",
+      "name": "@open-design/components",
+      "description": "Shared OpenDesign React UI primitives.",
+      "private": true
+    },
+    {
+      "path": "packages/contracts/package.json",
+      "name": "@open-design/contracts",
+      "description": "Shared pure TypeScript contracts for the OpenDesign web/daemon boundary.",
+      "private": true
+    },
+    {
+      "path": "packages/diagnostics/package.json",
+      "name": "@open-design/diagnostics",
+      "description": "Diagnostics export: log collection, redaction, and zip packaging shared by daemon and desktop.",
+      "private": true
+    },
+    {
+      "path": "packages/download/package.json",
+      "name": "@open-design/download",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "packages/dsh-runtime/package.json",
+      "name": "@open-design/dsh-runtime",
+      "description": "DeepSeek Harness profile runtime for OpenDesign",
+      "private": false
+    },
+    {
+      "path": "packages/host/package.json",
+      "name": "@open-design/host",
+      "description": "OpenDesign renderer host bridge protocol.",
+      "private": true
+    },
+    {
+      "path": "packages/launcher-proto/package.json",
+      "name": "@open-design/launcher-proto",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "packages/metatool/package.json",
+      "name": "@open-design/metatool",
+      "description": "Internal metadata helpers for checking freshness of built OpenDesign tool dist outputs.",
+      "private": true
+    },
+    {
+      "path": "packages/platform/package.json",
+      "name": "@open-design/platform",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "packages/plugin-runtime/package.json",
+      "name": "@open-design/plugin-runtime",
+      "description": "Pure-TS OpenDesign plugin runtime: manifest parsers, adapters, merger, ref resolver, validator, digest. No node:fs imports — daemon/web/CI inject loaders.",
+      "private": true
+    },
+    {
+      "path": "packages/registry-protocol/package.json",
+      "name": "@open-design/registry-protocol",
+      "description": "Pure TypeScript registry backend protocol for OpenDesign plugin sources.",
+      "private": true
+    },
+    {
+      "path": "packages/release/package.json",
+      "name": "@open-design/release",
+      "description": "Open Design release domain primitives.",
+      "private": true
+    },
+    {
+      "path": "packages/sidecar-proto/package.json",
+      "name": "@open-design/sidecar-proto",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "packages/sidecar/package.json",
+      "name": "@open-design/sidecar",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "packages/standalone/package.json",
+      "name": "@open-design/standalone",
+      "description": "Shell-neutral exact distribution, generation, and launcher runtime.",
+      "private": true
+    },
+    {
+      "path": "shells/terminal/package.json",
+      "name": "@open-design/terminal",
+      "description": "Native POSIX sh and PowerShell carrier for Standalone exact distributions.",
+      "private": true
+    },
+    {
+      "path": "skills/chat-motion-overlay/assets/remotion-template/package.json",
+      "name": "chat-motion-overlay-template",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "tools/dev/package.json",
+      "name": "@open-design/tools-dev",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "tools/pack/package.json",
+      "name": "@open-design/tools-pack",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "tools/release/package.json",
+      "name": "@open-design/tools-release",
+      "description": "",
+      "private": true
+    },
+    {
+      "path": "tools/serve/package.json",
+      "name": "@open-design/tools-serve",
+      "description": "",
+      "private": true
+    }
+  ],
+  "methodology": "Tracked working-tree files at recorded clean revision. Physical lines including comments/blanks. Exclusive path/extension classification, precedence in inventory.mjs. Binary means contains NUL; embedded/minified/generated files without markers can remain in implementation. Not executable LOC or a maturity measure."
+}

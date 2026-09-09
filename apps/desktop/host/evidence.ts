@@ -1,4 +1,5 @@
 import type { JsonStore } from "@drawloom/host";
+import { JsonValueSchema } from '@drawloom/host';
 import { z } from "zod";
 import {
   ToolResultSchema,
@@ -49,7 +50,7 @@ export async function createDesktopEvidence(
       const next = queue.then(async () => {
         const updated = [...records, entry];
         try {
-          await store.set(key, updated);
+          await store.set(key, JsonValueSchema.parse(updated));
           records = updated;
         } catch (error) {
           failures.push(

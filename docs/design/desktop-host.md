@@ -27,14 +27,17 @@ Agent attachments reference assets already imported by an authoritative user
 file selection. Adapters reject unsupported media. The Codex adapter resolves
 image inputs privately and captures native base64 image results into confined
 storage, correlating against the originating native turn. It never follows a
-native result path. Optional `readHistory` projects native paginated history for
-display, separate from the non-replayable signal stream. Private turn-to-operation
-metadata is continuity evidence, not a copied transcript. Unknown historical
-operations have no invented correlation. UI project state stores navigation,
-preferences, artifacts and review metadata, not a second conversation log.
-The Codex display projection reads newest turns/items first and presents up to
-2000 recent entries in chronological order. An explicit visible notice marks
-omitted earlier history; this flag is per conversation, not a hidden host notice.
+native result path. Optional `AgentSession.history` reads native history separately
+from the non-replayable signal stream. The host stores normalized display records
+and private ingestion checkpoints atomically through the observability history
+contract. Unknown historical operations have no invented correlation. Project
+JSON still stores navigation, assets and review metadata, not conversation text.
+History lives in `history.sqlite`; Codex owns its transcript and execution state.
+The UI starts with 50 entries and loads older pages, with a 200-entry rendered
+window rather than a permanent history ceiling. Cached pages remain readable
+offline, and history errors do not retry or rewrite provider outcomes. See
+[ADR 0014](../adr/0014-persistent-paginated-conversation-history.md) and the
+[history reference](../reference/conversation-history.md).
 
 Trusted external startup composition is an explicit local factory module selected
 by the host operator. Its type is `DesktopExtensionFactory` from the supported

@@ -1,5 +1,6 @@
 import {
   JsonValueSchema,
+  RpcRequestError,
   type JsonStore,
   type AssetStore,
   type RpcTransport,
@@ -184,10 +185,12 @@ export function createStdioTransport(options: {
           // Keep the entry and its deadline until validation succeeds, so fail()
           // can reject this request as well as all other pending requests.
           if (("error" in envelope) === ("result" in envelope)) throw Error();
+          const rejection = "error" in envelope
+            ? new RpcRequestError(z.object({ code: z.number().int().safe() }).parse(envelope.error).code)
+            : undefined;
           pending.delete(id);
           clearTimeout(entry.timer);
-          if ("error" in envelope)
-            entry.reject(Error("Provider request rejected"));
+          if (rejection) entry.reject(rejection);
           else if ("result" in envelope) entry.resolve(envelope.result);
           else throw Error();
         }

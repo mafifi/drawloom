@@ -82,10 +82,10 @@ test('context updates do not start an agent and stale views cannot send conversa
   try {
     const before = await app.snapshot();
     expect(await app.viewInteraction({ ...target, request: { method: 'ui/update-model-context', params: { content: [{ type: 'text', text: 'A selected revision' }] } } })).toEqual({});
-    expect((await app.snapshot()).messages).toEqual(before.messages);
+    expect((await app.historyPage(before.selectedId)).entries).toEqual([]);
     expect((await app.snapshot()).signals).toEqual(before.signals);
     expect(await app.viewInteraction({ ...target, request: { method: 'ui/message', params: { role: 'user', content: [{ type: 'text', text: 'Revise it' }] } } })).toEqual({ isError: true });
-    expect((await app.snapshot()).messages).toEqual([]);
+    expect((await app.historyPage(before.selectedId)).entries).toEqual([]);
     const replacement = { ...routing, ...app.viewSession({ ...routing, action: 'open' }) };
     app.viewSession({ ...target, action: 'close' });
     await expect(app.viewInteraction({ ...target, request: { method: 'ui/update-model-context', params: {} } })).rejects.toThrow();
@@ -93,7 +93,7 @@ test('context updates do not start an agent and stale views cannot send conversa
     await app.command({ kind: 'select_conversation', conversationId: previous });
     await expect(app.viewInteraction({ ...target, request: { method: 'ui/update-model-context', params: {} } })).rejects.toThrow();
     await expect(app.viewInteraction({ ...target, request: { method: 'ui/message', params: { role: 'user', content: [{ type: 'text', text: 'Wrong conversation' }] } } })).rejects.toThrow();
-    expect((await app.snapshot()).messages).toEqual([]);
+    expect((await app.historyPage(before.selectedId)).entries).toEqual([]);
     await app.command({ kind: 'select_conversation', conversationId: routing.conversationId });
     await expect(app.viewInteraction({ ...replacement, request: { method: 'ui/update-model-context', params: {} } })).rejects.toThrow();
   } finally { await app.close(); }

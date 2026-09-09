@@ -22,6 +22,7 @@
     "runtime": "portable"
   },
   "dependencies": {
+    "@drawloom/conversation-history": "workspace:*",
     "zod": "catalog:",
     "@drawloom/agent": "workspace:*",
     "@drawloom/host": "workspace:*",
