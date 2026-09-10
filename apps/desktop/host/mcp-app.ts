@@ -1,12 +1,16 @@
 import type { DesktopExtension } from '@drawloom/desktop-host';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { CallToolRequestSchema, CallToolResultSchema, type CallToolRequest, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, CallToolResultSchema, type CallToolRequest, type CallToolResult, type ListResourcesResult, type ReadResourceResult, type Tool } from '@modelcontextprotocol/sdk/types.js';
 import { getToolUiResourceUri, isToolVisibilityModelOnly } from '@modelcontextprotocol/ext-apps/app-bridge';
 import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { z } from 'zod';
 type Connection = NonNullable<DesktopExtension['mcpApps']> extends ReadonlyMap<string, infer T> ? T : never;
 export async function connectMcpApp(connection: Connection, uri: string): Promise<{
   html: string;
+  tools: Tool[];
+  canRead(uri: string): boolean;
+  listResources(cursor?: string): Promise<ListResourcesResult>;
+  readResource(uri: string, previouslyAdvertised?: boolean): Promise<ReadResourceResult>;
   callTool(params: CallToolRequest['params']): Promise<CallToolResult>;
   close(): Promise<void>;
 }> {
@@ -21,6 +25,7 @@ export async function connectMcpApp(connection: Connection, uri: string): Promis
     do {
       const page = await client.listTools(cursor ? { cursor } : {});
       tools.push(...page.tools);
+      if (tools.length > 2000) throw Error('MCP tool catalogue exceeds host limit');
       cursor = page.nextCursor;
       if (cursor && seen.has(cursor)) throw Error('Invalid MCP tool pagination');
       if (cursor) seen.add(cursor);
@@ -36,12 +41,45 @@ export async function connectMcpApp(connection: Connection, uri: string): Promis
     if (Object.keys(policy.permissions ?? {}).length || Object.values(policy.csp ?? {}).some(value => !Array.isArray(value) || value.length))
       throw Error('MCP resource requests unsupported permissions or external origins');
     const allowed = new Set(tools.filter(tool => !isToolVisibilityModelOnly(tool)).map(tool => tool.name));
+    const readable = new Set<string>();
+    const resourceSupport = Boolean(client.getServerCapabilities()?.resources);
+    const cursors = new Set<string>();
     return {
       html: html.text,
+      tools,
+      canRead: value => resourceSupport && readable.has(value),
+      async listResources(cursor) {
+        if (!resourceSupport) return { resources: [] };
+        if (!cursor) cursors.clear();
+        if (cursor && !cursors.has(cursor)) throw Error('Unknown resource cursor');
+        const page = await client.listResources(cursor ? { cursor } : {});
+        if (page.resources.length > 2000 || cursors.size >= 100) throw Error('Resource catalogue exceeds host limit');
+        if (page.nextCursor && (page.nextCursor === cursor || cursors.has(page.nextCursor))) throw Error('Invalid resource pagination');
+        if (page.nextCursor) cursors.add(page.nextCursor);
+        const resources = page.resources.filter(r => r.uri !== uri && r.mimeType !== RESOURCE_MIME_TYPE).map(r => ({
+          uri: r.uri, name: r.name,
+          ...(r.title === undefined ? {} : { title: r.title }),
+          ...(r.description === undefined ? {} : { description: r.description }),
+          ...(r.mimeType === undefined ? {} : { mimeType: r.mimeType }),
+          ...(r.size === undefined ? {} : { size: r.size }),
+        }));
+        resources.forEach(r => readable.add(r.uri));
+        return { resources, ...(page.nextCursor ? { nextCursor: page.nextCursor } : {}) };
+      },
+      async readResource(value, previouslyAdvertised = false) {
+        // Only the trusted host may restore a source-bound receipt from history.
+        if (!resourceSupport || (!readable.has(value) && !previouslyAdvertised)) throw Error('Resource unavailable');
+        return client.readResource({ uri: value });
+      },
       async callTool(raw) {
         const params = CallToolRequestSchema.shape.params.parse(raw);
         if (!allowed.has(params.name)) throw Error('Tool is unavailable to this app');
-        return CallToolResultSchema.parse(await client.callTool(params, undefined, { timeout: 15_000 }));
+        const result = CallToolResultSchema.parse(await client.callTool(params, undefined, { timeout: 15_000 }));
+        for (const block of result.content) {
+          if (block.type === 'resource_link') readable.add(block.uri);
+          if (block.type === 'resource') readable.add(block.resource.uri);
+        }
+        return result;
       },
       close: () => client.close(),
     };

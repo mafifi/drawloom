@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { App } from '@modelcontextprotocol/ext-apps';
 import { getUiCapability, registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
@@ -15,6 +15,9 @@ async function fixture() {
   registerAppTool(server, 'counter.open', { inputSchema: {}, _meta: { ui: { resourceUri: uri, visibility: ['app'] } } }, async () => ({ content: [], structuredContent: { value } }));
   registerAppTool(server, 'counter.choose', { inputSchema: { value: z.number().int().min(0) }, _meta: { ui: { visibility: ['app'] } } }, async input => ({ content: [], structuredContent: { value: value = input.value } }));
   registerAppTool(server, 'private.action', { inputSchema: {}, _meta: { ui: { visibility: ['model'] } } }, async () => { privateCalls++; return { content: [] }; });
+  server.registerResource('Reference', 'document://public/reference', { mimeType: 'text/plain', _meta: { privateConfiguration: 'do-not-project' } }, async () => ({ contents: [{ uri: 'document://public/reference', text: 'Reference text', mimeType: 'text/plain' }] }));
+  server.registerResource('Unlisted reference', new ResourceTemplate('document://unlisted/{id}', { list: undefined }), { mimeType: 'text/plain' }, async uri => ({ contents: [{ uri: uri.href, text: 'Tool-linked reference', mimeType: 'text/plain' }] }));
+  registerAppTool(server, 'counter.reference', { inputSchema: {}, _meta: { ui: { visibility: ['app'] } } }, async () => ({ content: [{ type: 'resource_link', uri: 'document://unlisted/one', name: 'Unlisted reference', mimeType: 'text/plain' }] }));
   const [transport, peer] = InMemoryTransport.createLinkedPair();
   await server.connect(peer);
   return { server, uri, transport, privateCalls: () => privateCalls };
@@ -45,10 +48,37 @@ test('standard App reaches plugin-owned data without OperatorSnapshot or control
   } finally { await app.close(); await bridge.close(); await host.close(); }
 });
 
+test('resource discovery is read-only and reads are limited to source-advertised identities', async () => {
+  const f = await fixture();
+  const host = await connectMcpApp({ transport: f.transport, toolName: 'counter.open' }, f.uri);
+  try {
+    const listed = await host.listResources();
+    expect(listed.resources.some(r => r.uri === 'document://public/reference')).toBe(true);
+    expect(JSON.stringify(listed)).not.toContain('do-not-project');
+    expect((await host.readResource('document://public/reference')).contents[0]).toMatchObject({ text: 'Reference text' });
+    await expect(host.readResource('file:///etc/passwd')).rejects.toThrow();
+    expect(f.privateCalls()).toBe(0);
+  } finally { await host.close(); }
+});
+
 test('host refuses a resource not associated with its opening tool', async () => {
   const f = await fixture();
   await expect(connectMcpApp({ transport: f.transport, toolName: 'counter.open' }, 'ui://other/view.html')).rejects.toThrow();
   await f.server.close();
+});
+
+test('a tool-returned link is readable even when absent from resources/list', async () => {
+  const f = await fixture();
+  const host = await connectMcpApp({ transport: f.transport, toolName: 'counter.open' }, f.uri);
+  try {
+    expect((await host.listResources()).resources.some(r => r.uri === 'document://unlisted/one')).toBe(false);
+    await expect(host.readResource('document://unlisted/one')).rejects.toThrow('Resource unavailable');
+    const result = await host.callTool({ name: 'counter.reference', arguments: {} });
+    expect(result.content[0]).toMatchObject({ type: 'resource_link', uri: 'document://unlisted/one' });
+    expect((await host.readResource('document://unlisted/one')).contents[0]).toMatchObject({ text: 'Tool-linked reference' });
+    await expect(host.readResource('document://unlisted/two')).rejects.toThrow('Resource unavailable');
+    expect(f.privateCalls()).toBe(0);
+  } finally { await host.close(); }
 });
 
 test('standard context and message methods negotiate separately and preserve host rejection', async () => {

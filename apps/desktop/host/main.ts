@@ -17,7 +17,7 @@ if (process.env.DRAWLOOM_COMPOSITION) {
   const parsed = z.object({ default: z.custom<DesktopExtensionFactory>(value => typeof value === 'function') }).parse(module);
   extension = parsed.default;
 }
-const app = await createDesktopApplication(root, extension);
+const app = await createDesktopApplication(root, extension, { experimentalPluginDiscovery: process.env.DRAWLOOM_EXPERIMENTAL_PLUGIN_DISCOVERY === '1' });
 await app.restore();
 const server = serveDesktop(app, web, Number(process.env.DRAWLOOM_PORT ?? 0));
 console.log(server.url);

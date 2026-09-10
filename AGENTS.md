@@ -49,6 +49,13 @@ area you change.
   is implemented; independent tool grants and ADR 0014 history/media guarantees
   still apply. Consult its linked evidence before claiming ambient tool isolation.
 
+- Apply [user empowerment through platform integration](ARCHITECTURE.md#application-to-native-tools-and-integrations).
+  Do not default to excluding the user's native tools because Drawloom does not
+  own them. Investigate actual availability, governing permissions and approval
+  coverage; inventory presence alone proves neither access nor a bypass.
+  Preserve native controls and independent Drawloom grants. Bring unsupported
+  review or boundary changes back to the maintainer before implementation.
+
 - Before work on conversation history, runtime/host boundaries, plugin composition,
   context, artifacts or workbench integration, consult the
   [harness and workbench survey](docs/reference/harness-workbench-survey/README.md).

@@ -30,6 +30,8 @@ export function createHistoryCoordinator(store: ConversationHistoryStore, conver
           const previous = await store.get(conversationId, update.id);
           const { assetOnly, ...content } = update;
           entries.push(HistoryEntrySchema.parse({ ...content,
+            ...(previous?.selections && !content.selections ? { selections: previous.selections } : {}),
+            ...(previous?.resources && !content.resources ? { resources: previous.resources } : {}),
             ...(previous?.operationId && !content.operationId ? { operationId: previous.operationId } : {}),
             text: assetOnly && previous ? previous.text : content.text,
             assets: mergeAssets(previous?.assets ?? [], content.assets),
@@ -79,7 +81,15 @@ export function createHistoryCoordinator(store: ConversationHistoryStore, conver
             get: id => store.get(conversationId, id),
           }, { direction, limit: 50 }));
           const committed = await store.commit(conversationId, {
-            expectedRevision: status.revision, entries: batch.entries,
+            expectedRevision: status.revision, entries: await Promise.all(batch.entries.map(async entry => {
+              const previous = await store.get(conversationId, entry.id);
+              return { ...entry,
+                ...(previous?.selections || previous?.resources ? { text: previous.text } : {}),
+                assets: mergeAssets(previous?.assets ?? [], entry.assets),
+                ...(previous?.selections ? { selections: previous.selections } : {}),
+                ...(previous?.resources ? { resources: previous.resources } : {}),
+              };
+            })),
             checkpoints: batch.checkpoints.map(checkpoint => ({ ...checkpoint, namespace: reader.namespace })),
             sync: { sync: 'idle', hasOlder: batch.hasOlder },
           });

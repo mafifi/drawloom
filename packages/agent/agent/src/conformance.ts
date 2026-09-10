@@ -1,5 +1,6 @@
 import {
   AgentSessionSignalSchema,
+  DiscoverySnapshotSchema,
   type AgentDriver,
   type AgentSession,
   type AgentSessionSignal,
@@ -36,6 +37,24 @@ export type AgentConformanceFixture = {
 };
 function check(condition: unknown, message: string): asserts condition {
   if (!condition) throw Error(message);
+}
+/** Optional discovery never silently accepts unknown selections, on any provider. */
+export async function agentDiscoveryConformance(driver: AgentDriver): Promise<void> {
+  const opened=await driver.openSession({sessionId:'discovery-conformance',context:{text:''},tools:{id:'none',tools:[]}});
+  check(opened.status==='ok','discovery session opens');
+  const session=opened.value;session.signals();
+  try {
+    check((await session.execute({operationId:'unknown-selection',text:'',selections:[{id:'unknown',revision:'unknown'}]})).status==='rejected','unsupported or unknown selection rejected');
+    check((await session.execute({operationId:'forged-selection',text:'',selections:[{id:'unknown',revision:'unknown',path:'/untrusted/SKILL.md'}]} as unknown as Parameters<AgentSession['execute']>[0])).status==='rejected','selection cannot supply native path');
+    if(session.discovery) {
+      const first=await session.discovery.list();check(first.status==='ok','discovery reports category status');
+      DiscoverySnapshotSchema.parse(first.value);
+      const second=await session.discovery.list();check(second.status==='ok'&&second.value.revision===first.value.revision,'discovery caches revision');
+      session.discovery.invalidate();
+      const fresh=await session.discovery.list();check(fresh.status==='ok'&&fresh.value.revision!==first.value.revision,'invalidation produces new revision');
+    }
+  } finally {await session.close();}
+  if(session.discovery)check((await session.discovery.list()).status==='rejected','closed discovery rejected');
 }
 function observer(session: AgentSession) {
   const stream = session.signals();
@@ -244,6 +263,7 @@ export async function agentConformance(
   factory: () => AgentConformanceFixture | Promise<AgentConformanceFixture>,
 ): Promise<void> {
   const fixture = await factory();
+  await agentDiscoveryConformance(fixture.driver);
   const exposure = structuredClone(
     fixture.tools?.exposure ?? { id: "empty", tools: [] },
   );

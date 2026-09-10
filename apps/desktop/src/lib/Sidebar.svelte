@@ -4,7 +4,7 @@
   import type { DesktopViewModel } from './view-model.svelte.js';
   let { vm }: { vm: DesktopViewModel } = $props();
   const sidebar = Sidebar.useSidebar();
-  function showPane(pane: 'settings' | 'plugins') { vm.pane = pane; sidebar.setOpenMobile(false); }
+  function showPane(pane: 'settings' | 'plugins') { vm.primaryView = pane; sidebar.setOpenMobile(false); }
 </script>
 
 {#snippet navigation()}

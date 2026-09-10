@@ -72,6 +72,8 @@ export async function pluginConformance(
   const registry = factory([{ plugin, config: { label: "Text" } }], ["agent"]);
   check(registry.skills[0]?.title === "Text", "parsed contribution");
   check(Object.isFrozen(registry.skills), "immutable registry");
+  check(registry.contributions?.some(c => c.kind === 'skill' && c.pluginId === 'synthetic' && c.contributionId === 'inspect'), 'skill ownership retained');
+  check(!JSON.stringify(registry.contributions).includes('Inspect the supplied text'), 'catalogue does not expose instructions');
   check(registry.views?.[0]?.pluginId === 'synthetic', 'host derives view ownership');
   check(Object.isFrozen(registry.views), 'immutable views');
   const intruder = definePlugin({ id: 'intruder', version: '1.0.0', config: z.strictObject({}), contribute: () => ({ views: [{ id: 'intruder.view', workbenchId: 'text', title: 'Other', entrypoint: 'ui://intruder/view.html' }] }) });

@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   ToolExposureSchema,
   ToolResultSchema,
+  ToolContentSchema,
   type ToolBinding,
   type ToolDefinition,
   type ToolEvidenceSink,
@@ -142,7 +143,9 @@ export function createLocalToolGateway(options: {
               const text = z
                 .string()
                 .parse(tool.render(structuredClone(value)));
-              outcome = { status: "ok", value, text };
+              const content = tool.renderContent
+                ? ToolContentSchema.parse(tool.renderContent(structuredClone(value))) : undefined;
+              outcome = { status: "ok", value, text, ...(content ? { content } : {}) };
             } catch {
               outcome = failure("render_failed", "completed");
             }

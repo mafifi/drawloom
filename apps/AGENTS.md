@@ -11,6 +11,10 @@ This guide applies under `apps/`.
 - Use `catalog:` for external dependencies and `workspace:*` for internal
   Drawloom packages.
 - SvelteKit is the default UI framework.
+- Use Svelte 5 rune props/derived state in views consuming the desktop ViewModel.
+  Legacy prop deep-reading can traverse the entire catalogue per component even
+  when the visible list is paginated. Keep browser-scale regressions in
+  `desktop/tests/`, outside portable UI packages.
 - Import reusable controls from `@drawloom/ui`; its
   [component contract](../packages/ui/ui/README.md) owns the supported boundary.
   Add missing primitives there using shadcn-svelte before composing them in an

@@ -2,19 +2,26 @@
   import {
     Alert,
     Button,
-    Checkbox,
     Collapsible,
-    Empty,
     Field,
     Input,
     InputGroup,
     StatefulButton,
     Select,
   } from "@drawloom/ui";
-  import { CloseIcon, PlusIcon, DocumentIcon, StopIcon, ArrowIcon } from "@drawloom/ui";
+  import { CloseIcon, PlusIcon, StopIcon, ArrowIcon } from "@drawloom/ui";
   import type { DesktopViewModel } from "./view-model.svelte.js";
-  export let vm: DesktopViewModel;
-  let fileInput: HTMLInputElement | null = null;
+  import DiscoveryPicker from './DiscoveryPicker.svelte';
+  import ArtifactViewer from './ArtifactViewer.svelte';
+  let { vm }: { vm: DesktopViewModel } = $props();
+  let fileInput = $state<HTMLInputElement | null>(null);
+  let messageInput = $state<HTMLTextAreaElement | null>(null);
+  function typedReference(event: Event) {
+    const input = event.currentTarget as HTMLTextAreaElement;
+    vm.draft = input.value;
+    const end = input.selectionStart, match = /(?:^|\s)([$@])([^\s$@]*)$/.exec(input.value.slice(0, end));
+    if (match) vm.openPicker(match[1] === '$' ? 'skill' : 'context', { start: end - match[2]!.length - 1, end });
+  }
 </script>
 
 <div class="composer-area">
@@ -28,6 +35,8 @@
     </p>{/if}
   <form
     class="composer"
+    ondragover={(event) => { if (event.dataTransfer?.types.includes('Files')) event.preventDefault(); }}
+    ondrop={(event) => { if (event.dataTransfer?.files.length) { event.preventDefault(); void vm.importFiles(event.dataTransfer.files); } }}
     onsubmit={(event) => {
       event.preventDefault();
       void vm.send();
@@ -35,54 +44,44 @@
   >
     <Collapsible.Root bind:open={vm.contextOpen}>
       <Field.Label for="message-draft" class="sr-only">Message</Field.Label>
-      <InputGroup.Root variant="filled">
+      <InputGroup.Root variant="filled" class="relative">
           <InputGroup.Textarea
             id="message-draft"
             class="min-h-20 max-h-60 px-3 pt-3"
             placeholder="Ask or make a change…"
             bind:value={vm.draft}
+            bind:ref={messageInput}
+            oninput={typedReference}
+            onpaste={(event) => { const files = event.clipboardData?.files; if (files?.length) { event.preventDefault(); void vm.importFiles(files); } }}
             onkeydown={(event) => {
+              if (event.isComposing) return;
+              if (vm.pickerOpen) {
+                if (event.key === "Escape") { event.preventDefault(); vm.pickerOpen = false; return; }
+                if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); vm.movePicker(event.key === "ArrowDown" ? 1 : -1); return; }
+                if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); vm.selectActivePicker(); return; }
+              }
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 if (!vm.busy) void vm.send();
               }
             }}
           />
-      {#if vm.attachmentKeys.length}
-        <div class="attachment-list flex flex-wrap gap-2">
-          {#each vm.attachmentKeys as key}<Button
-              variant="secondary"
-              size="sm"
-              onclick={() => vm.removeAttachment(key)}
-              aria-label={`Remove ${vm.attachmentName(key)}`}
-              >{vm.attachmentName(key)}<CloseIcon aria-hidden="true" /></Button
-            >{/each}
-        </div>
-      {/if}
-      <Collapsible.Content class="context-picker">
-        <Field.Set
-          ><Field.Legend class="sr-only">Document context</Field.Legend
-          ><Field.Description
-            >Include a text document as reference material.</Field.Description
-          ><Field.Group>
-            {#each vm.state?.operator.artifacts.filter((a) => a.content.kind === "text") ?? [] as artifact}
-              <Field.Field orientation="horizontal"
-                ><Checkbox
-                  id={`context-${artifact.id}`}
-                  checked={vm.contextIds.includes(artifact.id)}
-                  onCheckedChange={() => vm.toggleContext(artifact.id)}
-                /><Field.Label for={`context-${artifact.id}`}
-                  >{vm.contextLabel(artifact.id)}</Field.Label
-                ></Field.Field
-              >
-            {:else}<Empty.Root
-                ><Empty.Description>No text documents yet.</Empty.Description
-                ></Empty.Root
-              >{/each}
-          </Field.Group></Field.Set
-        >
-      </Collapsible.Content>
-      <InputGroup.Addon align="block-end" class="gap-1">
+      <DiscoveryPicker {vm} />
+      {#if vm.attachments.length}<ol class="flex w-full flex-wrap gap-2 px-3" aria-label="Attachments">
+        {#each vm.attachments as attachment (attachment.id)}<li class="flex w-48 flex-col gap-1 rounded-lg border p-2">
+          <div class="flex items-center justify-between gap-1"><span class="truncate text-sm" title={attachment.name}>{attachment.name}</span><Button variant="ghost" size="icon-sm" aria-label={`Remove ${attachment.name}`} onclick={() => vm.removeAttachment(attachment.id)}><CloseIcon aria-hidden="true" /></Button></div>
+          <p class="text-xs text-muted-foreground">{(attachment.size / 1024).toFixed(1)} KB · {attachment.mediaType}</p>
+          {#if attachment.asset?.mediaType.startsWith('image/')}<img class="h-20 w-full object-contain" src={'/api/assets/' + encodeURIComponent(attachment.asset.key)} alt={attachment.name} />{:else if attachment.asset}<Collapsible.Root><Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost" size="sm">Preview file</Button>{/snippet}</Collapsible.Trigger><Collapsible.Content><ArtifactViewer artifact={{ id: attachment.id, title: attachment.name, content: { kind: 'asset', asset: attachment.asset } }} /></Collapsible.Content></Collapsible.Root>{/if}
+          {#if attachment.status !== 'ready'}{#if attachment.error}<p role="status" class="text-xs text-muted-foreground">{attachment.error}</p>{/if}<StatefulButton variant="ghost" size="sm" pending={attachment.status === 'pending'} pendingLabel="Importing attachment" disabled={vm.importing || !vm.canRetryAttachment(attachment.id)} onclick={() => vm.retryAttachment(attachment.id)}>Retry</StatefulButton>{:else if !attachment.mediaType.startsWith('image/') && !attachment.mediaType.startsWith('text/')}<p class="text-xs text-muted-foreground">Preview available; not a direct model input. Remove before sending.</p>{/if}
+        </li>{/each}
+      </ol>{/if}
+      <div class="flex w-full flex-wrap gap-2 px-3">
+        {#each vm.selectedDiscoveries as selection}<Button variant="secondary" size="sm" aria-label={`Remove ${selection.name} from ${selection.origin}`} onclick={() => vm.removeDiscovery(selection.id)}>{selection.name} · {selection.origin}{selection.unavailable ? ' · unavailable' : ''}<CloseIcon aria-hidden="true" /></Button>{/each}
+        {#each vm.contextIds as id}<Button variant="secondary" size="sm" aria-label={`Remove ${vm.contextLabel(id)}`} onclick={() => vm.toggleContext(id)}>{vm.contextLabel(id)}<CloseIcon aria-hidden="true" /></Button>{/each}
+        {#each vm.selectedResources as resource}<Button variant="secondary" size="sm" aria-label={`Remove ${resource.title}`} onclick={() => vm.removeResource(resource.entryId, resource.resourceId)}>{resource.title} · {resource.source}<CloseIcon aria-hidden="true" /></Button>{/each}
+      </div>
+      {#if vm.state?.activeContext}<Collapsible.Root class="w-full px-3"><Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost" size="sm">Current app context</Button>{/snippet}</Collapsible.Trigger><Collapsible.Content><p class="whitespace-pre-wrap break-words text-sm text-muted-foreground">{vm.state.activeContext}</p></Collapsible.Content></Collapsible.Root>{/if}
+      <InputGroup.Addon align="block-end" class="gap-1 flex-wrap">
         <Input
           class="hidden"
           aria-label="Choose attachments"
@@ -106,13 +105,8 @@
           aria-label="Attach files"
           onclick={() => fileInput?.click()}><PlusIcon aria-hidden="true" /></StatefulButton
         >
-        <Collapsible.Trigger>
-          {#snippet child({ props })}<Button {...props} variant="ghost"
-              ><DocumentIcon aria-hidden="true" />Context{vm.contextIds.length
-                ? ` (${vm.contextIds.length})`
-                : ""}</Button
-            >{/snippet}
-        </Collapsible.Trigger>
+        <Button variant="ghost" aria-label="Choose a skill" onclick={() => vm.openPicker('skill')}>$ Skills</Button>
+        <Button variant="ghost" aria-label="Choose integrations and context" onclick={() => vm.openPicker('context')}>@ Context</Button>
         <div class="composer-spacer"></div>
         <Select.Root
           type="single"
@@ -186,6 +180,7 @@
             : "Send message"}
           disabled={!vm.canSend ||
             vm.busy ||
+            vm.pickerOpen || vm.attachments.some(item => item.status !== 'ready') ||
             !vm.draft.trim() ||
             Boolean(vm.state?.activeOperation && !vm.state.controls.steer)}
           ><ArrowIcon aria-hidden="true" /></StatefulButton

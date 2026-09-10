@@ -12,6 +12,6 @@ export const textPlugin = definePlugin({
   id: 'synthetic.text', version: '1.0.0', config: z.strictObject({}),
   contribute: () => ({
     tools: [defineTool({ name: 'text.word_count', description: 'Count words in supplied text', annotations: { readOnlyHint: true }, input: z.strictObject({ text: z.string() }), output: z.strictObject({ count: z.number().int().nonnegative() }), execute: ({ text }) => ({ count: text.trim() ? text.trim().split(/\s+/u).length : 0 }) })],
-    skills: [], workbenches: [{ id: 'text', title: 'Text studio', description: 'Local synthetic text inspection', tools: ['text.word_count'], skills: [] }],
+    skills: [{ id: 'text.clear-writing', title: 'Clear writing', description: 'Help make a draft shorter and easier to read.', instructions: 'Use short sentences and plain language. Preserve the author’s meaning.' }], workbenches: [{ id: 'text', title: 'Text studio', description: 'Local synthetic text inspection', tools: ['text.word_count'], skills: [] }],
   }),
 });

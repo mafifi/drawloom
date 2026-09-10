@@ -106,6 +106,16 @@ export function createPluginRegistry(
         throw Error(`Missing workbench skill: ${skill}`);
   }
   return Object.freeze({
+    contributions: freeze(contributions.flatMap((contribution,index) => {
+      const pluginId=installs[index]!.plugin.id;
+      const entry=(kind:'skill'|'tool'|'workbench'|'view',contributionId:string,title:string,description:string) => ({id:`drawloom:${encodeURIComponent(pluginId)}:${kind}:${encodeURIComponent(contributionId)}`,pluginId,kind,contributionId,title,description});
+      return [
+        ...(contribution.skills??[]).map(s=>entry('skill',s.id,s.title,s.description??'')),
+        ...(contribution.tools??[]).map(t=>entry('tool',t.name,t.name,t.description)),
+        ...(contribution.workbenches??[]).map(w=>entry('workbench',w.id,w.title,w.description)),
+        ...(contribution.views??[]).map(v=>entry('view',v.id,v.title,'')),
+      ];
+    })),
     plugins: freeze(
       installs.map((i) => ({ id: i.plugin.id, version: i.plugin.version })),
     ),

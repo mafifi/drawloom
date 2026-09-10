@@ -17,6 +17,24 @@ function entry(id = "one") {
 }
 afterEach(() => { for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true }); });
 
+test('version one migrates additively with records, checkpoints and cursors unchanged', async () => {
+  const file = path(); let store = createSqliteConversationHistory(file);
+  await store.commit('conversation', { expectedRevision: 0, entries: [entry()], checkpoints: [{ namespace: 'native', key: 'coverage', value: 'settled' }] });
+  const cursor = (await store.page('conversation')).changeCursor;
+  await store.close();
+  const old = new Database(file);
+  old.exec('ALTER TABLE history_entries DROP COLUMN resources; ALTER TABLE history_entries DROP COLUMN selections; PRAGMA user_version=1;'); old.close();
+  store = createSqliteConversationHistory(file);
+  try {
+    expect((await store.get('conversation', 'one'))?.text).toBe('hello');
+    expect(await store.checkpoint('conversation', 'native', 'coverage')).toBe('settled');
+    expect((await store.changes('conversation', { after: cursor })).entries).toEqual([]);
+    await store.commit('conversation', { expectedRevision: 1, entries: [{ ...entry(), selections: [{ id: 'skill', title: 'Skill', source: 'public' }] }] });
+    expect((await store.get('conversation', 'one'))?.selections?.[0]?.id).toBe('skill');
+  } finally { await store.close(); }
+  store = createSqliteConversationHistory(file); await store.close();
+});
+
 test('existing data directory and SQLite sidecars have private permissions', async () => {
   const file = path(); chmodSync(dirname(file), 0o755);
   const store = createSqliteConversationHistory(file);
@@ -71,13 +89,13 @@ test("a real SQLite trigger failure rolls back entries, checkpoints, and revisio
 test("a newer schema is rejected without changing the database", () => {
   const file = path();
   const setup = new Database(file);
-  setup.exec("CREATE TABLE sentinel(value TEXT); INSERT INTO sentinel VALUES ('keep'); PRAGMA user_version=2;");
+  setup.exec("CREATE TABLE sentinel(value TEXT); INSERT INTO sentinel VALUES ('keep'); PRAGMA user_version=3;");
   setup.close();
   const bytes = readFileSync(file), permissions = statSync(file).mode;
   expect(() => createSqliteConversationHistory(file)).toThrow(HistoryStoreError);
   expect(readFileSync(file)).toEqual(bytes); expect(statSync(file).mode).toBe(permissions);
   const inspect = new Database(file, { readonly: true });
-  expect(inspect.query("PRAGMA user_version").get()).toEqual({ user_version: 2 });
+  expect(inspect.query("PRAGMA user_version").get()).toEqual({ user_version: 3 });
   expect(inspect.query("SELECT value FROM sentinel").get()).toEqual({ value: "keep" });
   inspect.close();
 });

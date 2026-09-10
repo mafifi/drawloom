@@ -1,5 +1,9 @@
 import { z } from "zod";
+import { ContentBlockSchema, type ContentBlock } from "@modelcontextprotocol/sdk/types.js";
 import { JsonValueSchema, type JsonValue } from "@drawloom/host";
+/** Standard MCP content only; canonical output and invocation authority are unchanged. */
+export const ToolContentSchema = z.array(ContentBlockSchema);
+export type ToolContent = ContentBlock[];
 export const ToolAnnotationsSchema = z.strictObject({
   title: z.string().optional(),
   readOnlyHint: z.boolean().optional(),
@@ -36,6 +40,7 @@ export type ToolDefinition = {
   parseOutput(value: unknown): JsonValue;
   execute(input: unknown, context: ToolContext): Promise<unknown>;
   render(value: JsonValue): string;
+  renderContent?(value: JsonValue): ToolContent;
 };
 export function defineTool<
   I extends z.ZodType,
@@ -51,6 +56,7 @@ export function defineTool<
     context: ToolContext,
   ) => z.input<O> | Promise<z.input<O>>;
   render?: (value: z.output<O>) => string;
+  renderContent?: (value: z.output<O>) => ToolContent;
 }): ToolDefinition {
   const name = z.string().min(1).parse(definition.name);
   const inputSchema = JsonValueSchema.parse(
@@ -77,6 +83,8 @@ export function defineTool<
       JsonValueSchema.parse(definition.output.parse(value)),
     execute: async (value: unknown, context: ToolContext) =>
       definition.execute(value as z.output<I>, context),
+    ...(definition.renderContent ? { renderContent: (value: JsonValue) =>
+      ToolContentSchema.parse(definition.renderContent!(value as z.output<O>)) } : {}),
     render: (value: JsonValue) =>
       definition.render
         ? definition.render(value as z.output<O>)
@@ -92,6 +100,7 @@ export const ToolResultSchema = z.strictObject({
       status: z.literal("ok"),
       value: JsonValueSchema,
       text: z.string(),
+      content: ToolContentSchema.optional(),
     }),
     z.strictObject({
       status: z.literal("failed"),

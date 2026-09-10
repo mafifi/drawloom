@@ -124,8 +124,14 @@ live; no saved override is introduced. Tauri uses native system appearance.
 All chrome, input, document and status colours consume these tokens. Imported
 media preserves its original colour; document viewers use native rendering.
 
-Below 1050px the details pane becomes an explicit drawer. Below 768px navigation
-also becomes a toggleable drawer; the conversation and composer retain the full
-screen width. Reduced-motion preferences disable nonessential animation.
+Plugins and Settings are dedicated main-content views with a clear Back to
+conversation action; they never occupy the artifact pane. On wide layouts the
+artifact/workbench pane remains docked and non-modal. Below 1050px an explicitly
+opened artifact becomes a main-content view with Back to conversation instead of
+an automatically opened blocking drawer. Below 768px navigation alone uses the
+shared Sidebar's standard Sheet; the conversation and composer retain the full
+screen width. Composer skill and context discovery appears as a non-modal,
+composer-anchored suggestion surface, preserving draft focus and keyboard
+selection. Reduced-motion preferences disable nonessential animation.
 Views receive state and commands from the shell ViewModel. They never consume
 provider messages, secrets or private business types.

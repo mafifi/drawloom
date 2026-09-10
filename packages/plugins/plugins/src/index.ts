@@ -4,6 +4,7 @@ import type { Workbench } from "@drawloom/workbench";
 export const SkillSchema = z.strictObject({
   id: z.string().min(1),
   title: z.string().min(1),
+  description: z.string().optional(),
   instructions: z.string().min(1),
 });
 export type Skill = z.infer<typeof SkillSchema>;
@@ -35,7 +36,14 @@ export type PluginDefinition = {
   prepare(config: unknown): () => PluginContributions;
 };
 export type PluginInstaller = { plugin: PluginDefinition; config: unknown };
+export const RegisteredContributionSchema = z.strictObject({
+  id: z.string().min(1), pluginId: z.string().min(1),
+  kind: z.enum(['skill', 'tool', 'workbench', 'view']),
+  contributionId: z.string().min(1), title: z.string().min(1), description: z.string(),
+});
+export type RegisteredContribution = z.infer<typeof RegisteredContributionSchema>;
 export type PluginRegistry = {
+  readonly contributions: readonly RegisteredContribution[];
   readonly plugins: readonly { id: string; version: string }[];
   readonly tools: readonly ToolDefinition[];
   readonly skills: readonly Skill[];

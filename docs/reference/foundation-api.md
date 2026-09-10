@@ -28,7 +28,7 @@ Cloudflare and Tauri compatibility are not claimed.
 
 ## Tools
 
-`defineTool({name, description, input, output, execute, render?, annotations?})` infers handler
+`defineTool({name, description, input, output, execute, render?, renderContent?, annotations?})` infers handler
 types from Zod. Registration projects input and output JSON Schema; canonical
 values must be JSON. Runtime refinements still run locally and are not claimed
 as equivalent external schema constraints. Handler context contains only
@@ -38,6 +38,11 @@ Optional `ToolAnnotationsSchema` / `ToolAnnotations` carry standard MCP hints:
 `title`, `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`.
 Supplied annotations are strictly validated and preserved through exposure and
 MCP discovery. They never grant invocation authority.
+
+ADR 0016 adds optional `renderContent(value)` and `ToolContentSchema`, preserving
+standard MCP content blocks alongside canonical `value` and compatible `text`.
+Rich rendering runs after output validation. Its failure does not repeat a
+settled handler. See [discovery and resources](discovery-and-resources.md).
 
 `createLocalToolGateway({tools, policy, evidence, nextInvocationId})` snapshots
 the catalogue. `gateway.bind(operationId)` produces an opaque object;
@@ -68,6 +73,11 @@ idempotent and emits interrupted for active work. Optional `steer` and `interrup
 methods declare their own support. Resolution of stale interactions is rejected.
 Approval options retain provider text and adapter-private response values. Input
 is informational. Invalid provider data and failures are bounded, not raw errors.
+
+Optional `session.discovery` lists metadata snapshots and can read discovered
+resources. `execute` and supported `steer` accept `selections: [{id, revision}]`;
+these are validated discovery identities, never native paths or arbitrary
+provider input objects. `agentDiscoveryConformance` covers the optional boundary.
 
 `AgentReviewerSchema` / `AgentReviewer` are `human | delegated`.
 `session.reviewerModes` reports supported modes explicitly; missing operation
@@ -123,6 +133,10 @@ immutable registry. Capabilities are public identities supplied by composition.
 Contributions confer no permission. Tool dependencies are closures; the registry
 does not invoke handlers. Skills are text instructions and confer no authority.
 Workbench/artifact/candidate/review schemas describe presentation only.
+
+`registry.contributions` retains each flattened contribution's owning `pluginId`,
+kind and identity. Optional skill descriptions are discovery summaries; listing
+does not expose skill bodies or load their instructions into the model.
 
 ### Provisional plugin view integration
 

@@ -1,9 +1,32 @@
 import { z } from "zod";
 import { CompiledContextSchema } from "@drawloom/context";
-import { ToolExposureSchema } from "@drawloom/tools";
+import { ToolExposureSchema, type ToolContent } from "@drawloom/tools";
 import { AssetSchema } from "@drawloom/host";
 import type { ConversationHistoryReader } from '@drawloom/conversation-history';
 const id = z.string().min(1);
+export const DiscoveryKindSchema = z.enum(['skill', 'app', 'plugin', 'tool', 'resource']);
+export const DiscoverySelectionSchema = z.strictObject({ id, revision: id });
+export type DiscoverySelection = z.infer<typeof DiscoverySelectionSchema>;
+export const DiscoveryEntrySchema = z.strictObject({
+  id, origin: id, kind: DiscoveryKindSchema, name: id,
+  description: z.string(), scope: id,
+  availability: z.enum(['available', 'unavailable', 'unverified']),
+  selectable: z.boolean(), ownerId: id.optional(), readable: z.boolean().optional(),
+});
+export type DiscoveryEntry = z.infer<typeof DiscoveryEntrySchema>;
+export const DiscoverySnapshotSchema = z.strictObject({
+  revision: id, entries: z.array(DiscoveryEntrySchema),
+  categories: z.array(z.strictObject({ kind: DiscoveryKindSchema,
+    status: z.enum(['available', 'unsupported', 'error']), message: z.string().optional() })),
+});
+export type DiscoverySnapshot = z.infer<typeof DiscoverySnapshotSchema>;
+/** Discovery is metadata only. Selection does not grant execution authority. */
+export interface AgentDiscovery {
+  list(options?: { refresh?: boolean }): Promise<AgentResult<DiscoverySnapshot>>;
+  invalidate(): void;
+  /** Source-bound read of a listed resource or retained provider-issued receipt, never a tool call. */
+  readResource?(selection: DiscoverySelection): Promise<AgentResult<ToolContent>>;
+}
 export const AgentSessionOpenInputSchema = z.strictObject({
   sessionId: id,
   context: CompiledContextSchema,
@@ -15,6 +38,7 @@ export type AgentReviewer = z.infer<typeof AgentReviewerSchema>;
 export const AgentOperationInputSchema = z.strictObject({
   operationId: id,
   text: z.string(),
+  selections: z.array(DiscoverySelectionSchema).max(32).optional(),
   attachments: z.array(AssetSchema).max(16).optional(),
   additionalContext: CompiledContextSchema.optional(),
   /** Omission retains human review. Providers reject unsupported selections. */
@@ -133,6 +157,7 @@ export interface AgentDriver {
   openSession(input: AgentSessionOpenInput): Promise<AgentResult<AgentSession>>;
 }
 export interface AgentSession {
+  readonly discovery?: AgentDiscovery;
   readonly reviewerModes: readonly AgentReviewer[];
   readonly history?: ConversationHistoryReader;
   readonly sessionId: string;

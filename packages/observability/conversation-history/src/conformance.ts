@@ -22,6 +22,11 @@ export async function conversationHistoryConformance(factory: ConversationHistor
   const store = await factory();
   try {
     check(JSON.stringify(await store.status("alpha")) === JSON.stringify({ revision: 0, sync: "idle", hasOlder: false }), "empty status");
+    const reference = entry(0, { resources: [{ id: 'reference-1', source: 'plugin:public', title: 'Source', status: 'ready', asset: { key: 'asset-1', mediaType: 'text/plain', size: 10 } }], selections: [{ id: 'public:skill:short', title: 'Short writing', source: 'public' }] });
+    await store.commit('resources', { expectedRevision: 0, entries: [reference] });
+    const storedReference = (await store.get('resources', reference.id))?.resources?.[0];
+    check(storedReference?.id === 'reference-1' && storedReference.source === 'plugin:public' && storedReference.asset?.key === 'asset-1' && storedReference.status === 'ready', 'resource display references survive storage');
+    check(JSON.stringify((await store.page('resources')).entries[0]?.selections) === JSON.stringify(reference.selections), 'sent selections retain provenance');
     await store.commit('empty-backfill', { expectedRevision: 0, sync: { sync: 'idle', hasOlder: true } });
     const empty = await store.page('empty-backfill');
     check(empty.hasOlder && empty.olderCursor, 'empty provider backfill exposes a usable continuation');

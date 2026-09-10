@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { createSqliteConversationHistory } from '@drawloom/sqlite-conversation-history';
 import { HistoryPageOptionsSchema, HistoryChangeOptionsSchema, type HistoryEntry, type HistoryPageOptions, type HistoryChangeOptions } from '@drawloom/conversation-history';
 import { createHistoryCoordinator } from './history-coordinator.js';
+import { createResourceRecovery } from './resource-recovery.js';
 import {
   createNodeJsonStore,
   createStdioTransport,
@@ -32,6 +33,8 @@ import {
   DesktopViewRequestSchema,
   DesktopViewInteractionSchema,
   DesktopViewSessionSchema,
+  DesktopCatalogueSchema,
+  type DesktopCatalogue,
   type DesktopSnapshot,
 } from "../src/lib/protocol.js";
 import { createTextController } from "./text-controller.js";
@@ -50,6 +53,7 @@ import {
 import { createDesktopEvidence } from "./evidence.js";
 import { connectMcpApp } from './mcp-app.js';
 import { createViewContext } from './view-context.js';
+import { createResourceContent } from './resource-content.js';
 
 type Live = {
   session: AgentSession;
@@ -60,6 +64,7 @@ type Live = {
 export async function createDesktopApplication(
   root: string,
   external?: DesktopExtension | DesktopExtensionFactory,
+  options: { experimentalPluginDiscovery?: boolean } = {},
 ) {
   await mkdir(root, { recursive: true, mode: 0o700 });
   const history = createSqliteConversationHistory(join(root, 'history.sqlite'));
@@ -91,6 +96,8 @@ export async function createDesktopApplication(
   if (project.selectedId === "pending")
     project.selectedId = project.conversations[0]!.id;
   const live = new Map<string, Live>();
+  const submissions = new Map<string, { text: string; assets: Asset[]; selections: NonNullable<HistoryEntry['selections']>; resources: NonNullable<HistoryEntry['resources']> }[]>();
+  const localRevision = crypto.randomUUID();
   const pumps = new Set<Promise<void>>();
   const viewContext = createViewContext();
   let viewMount: { conversationId: string; viewId: string; mountId: string } | undefined;
@@ -106,6 +113,28 @@ export async function createDesktopApplication(
     }
     return value;
   }
+  const recoveries = new Map<string, Promise<ReturnType<typeof createResourceRecovery>>>();
+  function recoveryFor(id: string) {
+    let recovery = recoveries.get(id);
+    if (!recovery) {
+      recovery = evidenceFor(id).then(sink => createResourceRecovery(sink.activity(), async result => {
+        if (result.outcome.status !== 'ok' || !result.outcome.content) return;
+        await resourceCollector(id).capture({ id: 'tool-resource:' + result.invocationId, source: 'drawloom',
+          ...(result.operationId ? { operationId: result.operationId } : {}), content: result.outcome.content });
+      }));
+      recoveries.set(id, recovery);
+    }
+    return recovery;
+  }
+  async function recoverResources(id: string) {
+    try { await (await recoveryFor(id)).recover(); return true; }
+    catch { writer(id).reportStorageFailure(); return false; }
+  }
+  async function synchronizeHistory(id: string, reader: AgentSession['history'], direction: 'latest' | 'older' = 'latest') {
+    // Missing rich results must be recovered before native coverage can advance
+    // or reconciliation can clear the storage warning.
+    if (await recoverResources(id)) await writer(id).synchronize(reader, direction);
+  }
   const opening = new Map<string, Promise<Live>>();
   const grants = new Map<string, Set<string>>();
   let notice = 'Conversation display is saved locally. Provider transcripts and execution remain with the provider.';
@@ -116,6 +145,21 @@ export async function createDesktopApplication(
     projectWrites = next.catch(() => {}); return next;
   };
   await persist();
+  function resourceCollector(conversationId: string) {
+    return createResourceContent({
+      assets: { read: assets.read, put: async (bytes, mediaType) => {
+        const asset = await assets.put(bytes, mediaType);
+        if (!project.assets.some(a => a.key === asset.key)) project.assets.push(asset);
+        await persist(); return asset;
+      } },
+      knownAsset: key => project.assets.find(a => a.key === key),
+      existing: id => history.get(conversationId, id),
+      save: async entry => {
+        await writer(conversationId).write(entry);
+        if (!await history.get(conversationId, entry.id)) throw Error('Resource capture could not be persisted');
+      },
+    });
+  }
   const extension =
     typeof external === "function"
       ? await external({
@@ -203,13 +247,20 @@ export async function createDesktopApplication(
       const historyWriter = writer(conversationId);
       const operationBindings = new Map<string, ToolBinding>();
       const sink = await evidenceFor(conversationId);
+      const resourceRecovery = await recoveryFor(conversationId);
       const gateway = createLocalToolGateway({
         tools: registry.tools.filter((t) => workbench.tools.includes(t.name)),
         policy: (operationId, name) =>
           operationBindings.has(operationId) &&
           Boolean(grants.get(workbench.id)?.has(name)),
         nextInvocationId: () => crypto.randomUUID(),
-        evidence: sink,
+        evidence: { record: async record => {
+          await sink.record(record);
+          if (record.kind === 'finished') {
+            try { await resourceRecovery.record(record.result); }
+            catch { historyWriter.reportStorageFailure(); }
+          }
+        } },
       });
       const bridge = createCodexToolBridge(gateway);
       const mcp =
@@ -227,6 +278,13 @@ export async function createDesktopApplication(
               return "Saved your text as a draft. You can edit, compare and review it in the artifact pane.";
             })
           : createCodexDriver({
+              experimentalPluginDiscovery: options.experimentalPluginDiscovery === true,
+              onToolContent: async result => {
+                // Our gateway already captured its correlated execution result.
+                if (result.source === 'drawloom' || !result.content.some(c => c.type !== 'text')) return;
+                try { return await resourceCollector(conversationId).capture({ ...result, source: `codex:${result.source}`, save: !result.deferHistoryCommit }); }
+                catch { historyWriter.reportStorageFailure(); throw Error('Resource capture could not be persisted'); }
+              },
               connect: async () =>
                 createStdioTransport({
                   ...codexCommand(),
@@ -314,6 +372,10 @@ export async function createDesktopApplication(
                 : signal.text;
             message.state = signal.kind === 'message.completed' ? 'complete' : 'partial';
             if (signal.kind === 'message.completed' && signal.assets) message.assets = signal.assets;
+            if (signal.kind === 'message.completed' && signal.role === 'user') {
+              const submission = submissions.get(signal.operationId)?.shift();
+              if (submission) Object.assign(message, submission);
+            }
             await historyWriter.write({ ...message });
             if (message.state === 'complete') messages.delete(key);
           } else if (signal.kind === "artifact.available") {
@@ -346,7 +408,7 @@ export async function createDesktopApplication(
               for (const message of messages.values()) await historyWriter.write({ ...message, state: 'interrupted' });
               messages.clear();
               await historyWriter.flush();
-              if (session.history) await historyWriter.synchronize(session.history);
+              if (session.history) await synchronizeHistory(conversationId, session.history);
             }
           }
         }
@@ -374,7 +436,7 @@ export async function createDesktopApplication(
           operationBindings.delete(operation);
         }
       });
-      if (conversation.provider === 'codex') void historyWriter.synchronize(session.history);
+      if (conversation.provider === 'codex') void synchronizeHistory(conversationId, session.history);
       return state;
     })();
     opening.set(conversationId, start);
@@ -398,14 +460,59 @@ export async function createDesktopApplication(
     grants: [],
   };
   return {
+    async discover(conversationId: string, refresh = false): Promise<DesktopCatalogue> {
+      const conversation = project.conversations.find(c => c.id === conversationId);
+      if (!conversation) throw Error('Conversation unavailable');
+      const workbench = registry.workbenches.find(w => w.id === conversation.workbenchId)!;
+      const entries: DesktopCatalogue['entries'] = registry.plugins.map(p => ({ id: `drawloom:plugin:${p.id}`, origin: 'drawloom', kind: 'plugin', name: p.id,
+        description: `Version ${p.version}. Registered at startup; permissions remain separate.`, scope: 'startup', availability: 'available', selectable: false, revision: localRevision }));
+      for (const contribution of registry.contributions) {
+        if (contribution.kind !== 'skill' && contribution.kind !== 'tool') continue;
+        entries.push({ id: contribution.id, origin: 'drawloom', kind: contribution.kind, name: contribution.title, description: contribution.description,
+          scope: contribution.kind === 'skill' && workbench.skills.includes(contribution.contributionId) ? 'required' : 'startup',
+          availability: contribution.kind === 'tool' && !workbench.tools.includes(contribution.contributionId) ? 'unavailable' : 'available',
+          selectable: contribution.kind === 'skill', ownerId: `drawloom:plugin:${contribution.pluginId}`, revision: localRevision });
+      }
+      for (const view of registry.views.filter(v => v.workbenchId === workbench.id)) {
+        for (const tool of mcpApps.get(view.id)?.tools ?? []) {
+          const visibility = tool._meta?.ui;
+          const modelOnly = typeof visibility === 'object' && visibility && 'visibility' in visibility && Array.isArray(visibility.visibility) && !visibility.visibility.includes('app');
+          entries.push({ id: `app:${view.id}:tool:${tool.name}`, origin: `app:${view.id}`, kind: 'tool', name: tool.title ?? tool.name,
+            description: tool.description ?? '', scope: modelOnly ? 'model-only' : 'app-only', availability: modelOnly ? 'unavailable' : 'available',
+            selectable: false, ownerId: `drawloom:plugin:${view.pluginId}`, revision: localRevision });
+        }
+      }
+      let categories: DesktopCatalogue['categories'] = [];
+      if (conversation.provider === 'codex') {
+        try {
+          const result = await (await connect(conversationId)).session.discovery?.list({ refresh });
+          if (result?.status === 'ok') { entries.push(...result.value.entries.map(e => ({ ...e, revision: result.value.revision }))); categories = result.value.categories; }
+          else categories = [{ kind: 'skill', status: result ? 'error' : 'unsupported', message: result ? 'Native discovery changed during loading. Refresh to try again; registered contributions remain visible.' : 'Native discovery is unavailable. Registered contributions remain visible.' }];
+        } catch { categories = [{ kind: 'skill', status: 'error', message: 'Codex discovery is unavailable. Registered contributions remain visible.' }]; }
+      }
+      return DesktopCatalogueSchema.parse({ entries, categories, experimentalPluginDiscovery: options.experimentalPluginDiscovery === true });
+    },
+    async readDiscoveredResource(conversationId: string, selection: { id: string; revision: string }) {
+      if (!project.conversations.some(c => c.id === conversationId)) throw Error('Conversation unavailable');
+      const id = `native-listed:${selection.id}`;
+      const cached = await history.get(conversationId, id);
+      if (cached) return cached;
+      const catalogue = await this.discover(conversationId);
+      const entry = catalogue.entries.find(e => e.id === selection.id && e.revision === selection.revision && e.kind === 'resource' && e.readable);
+      if (!entry) throw Error('Resource unavailable');
+      const result = await (await connect(conversationId)).session.discovery?.readResource?.(selection);
+      if (result?.status !== 'ok') throw Error('Resource unavailable');
+      return resourceCollector(conversationId).capture({ id, source: entry.origin, content: result.value });
+    },
     assets,
     async historyPage(conversationId: string, raw: HistoryPageOptions = {}) {
       if (!project.conversations.some(c => c.id === conversationId)) throw Error('Conversation unavailable');
       const options = HistoryPageOptionsSchema.parse(raw);
+      await recoverResources(conversationId);
       let page = await history.page(conversationId, options);
       if (options.before && page.entries.length < (options.limit ?? 50) && page.status.hasOlder) {
         const session = live.get(conversationId)?.session;
-        if (session?.history) { await writer(conversationId).synchronize(session.history, 'older'); page = await history.page(conversationId, options); }
+        if (session?.history) { await synchronizeHistory(conversationId, session.history, 'older'); page = await history.page(conversationId, options); }
       }
       const error = writer(conversationId).error;
       return error ? { ...page, status: { ...page.status, sync: 'error' as const, message: error } } : writer(conversationId).syncing ? { ...page, status: { ...page.status, sync: 'syncing' as const } } : page;
@@ -439,7 +546,56 @@ export async function createDesktopApplication(
     async viewRequest(raw: unknown) {
       const { request, ...target } = DesktopViewRequestSchema.parse(raw);
       const view = viewTarget(target);
-      return mcpApps.get(view.id)!.callTool(request);
+      const app = mcpApps.get(view.id)!;
+      const result = await app.callTool(request);
+      if (result.content.some(b => b.type !== 'text')) {
+        const identity = Bun.hash(JSON.stringify(result.content)).toString(16);
+        try { await resourceCollector(target.conversationId).capture({ id: `app-resource:${view.id}:${identity}`,
+          source: 'app:' + view.id, content: result.content, readable: uri => app.canRead(uri) }); }
+        catch { writer(target.conversationId).reportStorageFailure(); }
+      }
+      return result;
+    },
+    async resourcePage(conversationId: string, viewId: string, cursor?: string) {
+      viewTarget({ conversationId, viewId });
+      return mcpApps.get(viewId)!.listResources(cursor);
+    },
+    async openListedResource(conversationId: string, viewId: string, uri: string) {
+      viewTarget({ conversationId, viewId });
+      const app = mcpApps.get(viewId)!;
+      if (!app.canRead(uri)) throw Error('Resource unavailable');
+      const id = `listed-resource:${Bun.hash(viewId + ':' + uri).toString(16)}`;
+      const cached = await history.get(conversationId, id);
+      if (cached) return cached;
+      const result = await app.readResource(uri);
+      return resourceCollector(conversationId).capture({ id, source: 'app:' + viewId,
+        content: result.contents.filter(r => r.uri === uri).map(r => ({ type: 'resource', resource: r })) });
+    },
+    async readResource(conversationId: string, entryId: string, resourceId: string) {
+      if (!project.conversations.some(c => c.id === conversationId)) throw Error('Conversation unavailable');
+      const entry = await history.get(conversationId, entryId);
+      const resource = entry?.resources?.find(r => r.id === resourceId);
+      if (!resource || !entry) throw Error('Resource unavailable');
+      if (resource.asset) return resource;
+      if (!resource.uri) throw Error('Resource unavailable');
+      let content: import('@drawloom/tools').ToolContent;
+      if (resource.retrieval && resource.source.startsWith('codex:')) {
+        const result = await (await connect(conversationId)).session.discovery?.readResource?.(resource.retrieval);
+        if (result?.status !== 'ok') throw Error('Resource unavailable');
+        content = result.value;
+      } else if (resource.source.startsWith('app:')) {
+        const viewId = resource.source.slice(4);
+        viewTarget({ conversationId, viewId });
+        const result = await mcpApps.get(viewId)!.readResource(resource.uri, true);
+        content = result.contents.filter(r => r.uri === resource.uri).map(r => ({ type: 'resource', resource: r }));
+      } else throw Error('Resource unavailable');
+      const captured = await resourceCollector(conversationId).capture({ id: `${entryId}:read:${resourceId}`, source: resource.source,
+        content });
+      const ready = captured.resources?.find(r => r.asset && r.uri === resource.uri);
+      if (!ready) throw Error('Resource unavailable');
+      const updated = { ...resource, asset: ready.asset, status: 'ready' as const };
+      await writer(conversationId).write({ ...entry, resources: entry.resources!.map(r => r.id === resourceId ? updated : r) });
+      return updated;
     },
     async viewInteraction(raw: unknown): Promise<{ isError?: boolean }> {
       const { request, mountId, ...target } = DesktopViewInteractionSchema.parse(raw);
@@ -476,7 +632,8 @@ export async function createDesktopApplication(
         views: registry.views,
         selectedId: project.selectedId,
         signals: state?.signals ?? [],
-        activity: retained.activity(),
+        activity: retained.activity().map(result => result.outcome.status === 'ok'
+          ? { ...result, outcome: { status: 'ok', text: result.outcome.text, value: result.outcome.value } } : result),
         pendingTools: retained.pending(),
         operator,
         ...(state?.active ? { activeOperation: state.active } : {}),
@@ -491,6 +648,7 @@ export async function createDesktopApplication(
           summary: "Registered at startup. Tool grants are separate.",
         })),
         notice,
+        activeContext: viewContext.forConversation(conversation.id),
       });
     },
     async restore() {
@@ -564,22 +722,50 @@ export async function createDesktopApplication(
         } else {
           const op = state.active ?? crypto.randomUUID();
           const operator = await refreshGrants(conversation.workbenchId);
+          const catalogue = command.selections.length ? await this.discover(conversation.id) : undefined;
+          const selected = [...new Map(command.selections.map(s => [s.id, s])).values()].map(selection => {
+            const entry = catalogue?.entries.find(e => e.id === selection.id && e.revision === selection.revision);
+            if (!entry || !entry.selectable || entry.availability !== 'available') throw Error('Selection unavailable. Refresh the catalogue and select it again.');
+            return entry;
+          });
+          const selectedInstructions = selected.filter(e => e.origin === 'drawloom').flatMap(e => {
+            const contribution = registry.contributions.find(c => c.id === e.id && c.kind === 'skill');
+            if (!contribution || registry.workbenches.find(w => w.id === conversation.workbenchId)!.skills.includes(contribution.contributionId)) return [];
+            return registry.skills.filter(s => s.id === contribution.contributionId).map(s => s.instructions);
+          });
           const attachments = command.attachmentKeys.map((key) => {
             const a = project.assets.find((a) => a.key === key);
             if (!a) throw Error("Attachment unavailable");
             return a;
           });
-          if (conversation.provider === "synthetic" && attachments.length)
-            throw Error(
-              "Synthetic mode accepts text. Attachments remain available as artifacts; choose Codex to send images.",
-            );
           const context = command.contextArtifactIds.map((id) => {
             const a = operator.artifacts.find((a) => a.id === id);
             if (!a || a.content.kind !== "text")
               throw Error("Only text documents can be attached as context");
             return a.content.text;
           });
+          const selectedResources: NonNullable<HistoryEntry['resources']> = [];
+          for (const selection of command.resourceSelections) {
+            const entry = await history.get(conversation.id, selection.entryId);
+            const resource = entry?.resources?.find(r => r.id === selection.resourceId);
+            if (!resource?.asset || !['text/plain', 'text/markdown'].includes(resource.asset.mediaType)) throw Error('Only ready text resources can be selected as context');
+            const bytes = await assets.read(resource.asset.key);
+            if (bytes.length > 100_000) throw Error('Selected context is too large');
+            context.push(new TextDecoder().decode(bytes));
+            selectedResources.push(resource);
+          }
+          const imageAttachments: Asset[] = [];
+          for (const attachment of attachments) {
+            if (['text/plain', 'text/markdown'].includes(attachment.mediaType)) {
+              const bytes = await assets.read(attachment.key);
+              if (bytes.length > 100_000) throw Error('Selected context is too large');
+              context.push(new TextDecoder().decode(bytes));
+            } else if (attachment.mediaType.startsWith('image/')) imageAttachments.push(attachment);
+            else throw Error('This file is viewable, but is not supported as direct model input. Use a suitable tool instead.');
+          }
           // User-selected documents stay untrusted user content, never developer instructions.
+          if (conversation.provider === 'synthetic' && imageAttachments.length) throw Error('Synthetic mode accepts text. Attachments remain available as artifacts; choose Codex to send images.');
+          if (context.reduce((size, text) => size + text.length, 0) + command.text.length + viewContext.forConversation(conversation.id).length > 200_000) throw Error('Selected context is too large');
           const input = {
             operationId: op,
             reviewer: conversation.reviewer,
@@ -589,12 +775,20 @@ export async function createDesktopApplication(
                 (t) => "\nSelected document (reference material):\n" + t,
               ),
             ].join("\n") + viewContext.forConversation(conversation.id),
-            ...(attachments.length ? { attachments } : {}),
+            ...(imageAttachments.length ? { attachments: imageAttachments } : {}),
+            ...(selectedInstructions.length ? { additionalContext: { text: selectedInstructions.join('\n') } } : {}),
+            selections: selected.filter(e => e.origin !== 'drawloom').map(e => ({ id: e.id, revision: e.revision })),
           };
           if (conversation.provider === 'synthetic') await writer(conversation.id).write({
             id: crypto.randomUUID(), role: 'user', text: command.text, assets: attachments, operationId: op, state: 'complete',
+            selections: selected.map(e => ({ id: e.id, title: e.name, source: e.origin })),
+            resources: selectedResources,
           });
           const starting = !state.active;
+          const submitted = { text: command.text, assets: attachments, selections: selected.map(e => ({ id: e.id, title: e.name, source: e.origin })), resources: selectedResources };
+          if (conversation.provider === 'codex') {
+            const pending = submissions.get(op) ?? []; pending.push(submitted); submissions.set(op, pending);
+          }
           // Command serialization does not drain the asynchronous signal/history
           // pump. Lock the chosen reviewer before execute can accept this turn.
           if (starting) state.active = op;
@@ -605,6 +799,8 @@ export async function createDesktopApplication(
                   Promise.reject(Error("Steering unavailable")));
             if (result.status !== "ok") throw Error(result.failure.message);
           } catch (error) {
+            const pending = submissions.get(op);
+            if (pending) submissions.set(op, pending.filter(s => s !== submitted));
             if (starting && state.active === op) delete state.active;
             throw error;
           }
@@ -625,10 +821,11 @@ export async function createDesktopApplication(
       }
       return this.snapshot();
     },
-    async importAsset(bytes: Uint8Array, mediaType: string, name: string) {
+    async importAsset(bytes: Uint8Array, mediaType: string, name: string, conversationId = project.selectedId) {
       const workbenchId = project.conversations.find(
-        (c) => c.id === project.selectedId,
+        (c) => c.id === conversationId,
       )?.workbenchId;
+      if (!workbenchId) throw Error('Conversation unavailable');
       if (
         bytes.length > browserImportByteLimit ||
         !browserImportTypes.has(mediaType)

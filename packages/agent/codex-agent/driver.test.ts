@@ -6,6 +6,13 @@ import { defineTool } from "@drawloom/tools";
 import { createLocalToolGateway } from "../../tools/local-tools/src/index.js";
 import { z } from "zod";
 import { codexAgentFixture } from "../../../scripts/agent-conformance-fixtures.mjs";
+test('Codex bridge preserves standard returned media beside canonical typed output',async()=>{
+  const content=[{type:'resource_link' as const,uri:'reference://sample',name:'Sample'},{type:'image' as const,data:'AA==',mimeType:'image/png'}];
+  const gateway=createLocalToolGateway({tools:[defineTool({name:'rich',description:'Rich output',input:z.string(),output:z.string(),execute:value=>value,renderContent:()=>content})],policy:()=>true,evidence:{record:async()=>{}},nextInvocationId:()=> 'one'});
+  const bridge=createCodexToolBridge(gateway);bridge.publish('t','a',gateway.bind('a'));
+  const result=await bridge.call({callId:'c','x-codex-turn-metadata':{thread_id:'t',turn_id:'a'}},'rich','canonical',new AbortController().signal);
+  expect(result).toMatchObject({content,structuredContent:{value:'canonical'}});
+});
 test("native Other input accepts custom text and presents option descriptions", async () => {
   const f = recorded();
   const opened = await f.driver.openSession({

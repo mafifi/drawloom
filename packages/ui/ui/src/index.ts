@@ -8,6 +8,8 @@ export { Separator } from "./components/separator/index.js";
 export { Badge } from "./components/badge/index.js";
 export { Skeleton } from "./components/skeleton/index.js";
 export * as Select from "./components/select/index.js";
+export * as Command from "./components/command/index.js";
+export * as Dialog from "./components/dialog/index.js";
 export * as Tabs from "./components/tabs/index.js";
 export * as Collapsible from "./components/collapsible/index.js";
 export * as Alert from "./components/alert/index.js";

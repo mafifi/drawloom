@@ -49,8 +49,16 @@ use the Drawloom wordmark. Actual controls and records reflect working features.
   InputGroup. Primary actions use blue and send is circular; user messages sit
   right, assistant messages left. Root DESIGN.md owns the current exact tokens.
 - Tool details and candidate records use rows, separators and disclosures.
-- Small screens use explicitly toggleable navigation/details, not horizontal
-  overflow. Respect reduced motion and keyboard focus.
+- Plugins and Settings use dedicated main-content destinations with Back to
+  conversation, rather than sharing the artifact/details pane. The artifact pane
+  remains docked and non-modal on wide screens; below 1050px an explicitly opened
+  artifact is a main-content destination with the same back action, not a blocking
+  detail drawer. Mobile navigation may continue to use Sidebar's standard Sheet.
+- Skill and context discovery is a composer-anchored non-modal suggestion surface.
+  Preserve typing focus where practical and support `$`, `@`, arrow keys, Enter
+  and Escape without turning discovery into a blocking dialog.
+- Small screens avoid horizontal overflow. Respect reduced motion and keyboard
+  focus.
 
 ## View and ViewModel responsibilities
 

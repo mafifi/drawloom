@@ -15,9 +15,11 @@
   import { PanelIcon, DocumentIcon } from "@drawloom/ui";
   import Composer from "./Composer.svelte";
   import ArtifactViewer from "./ArtifactViewer.svelte";
+  import AttachmentCard from "./AttachmentCard.svelte";
+  import ResourceCard from './ResourceCard.svelte';
   import type { DesktopViewModel } from "./view-model.svelte.js";
-  export let vm: DesktopViewModel;
-  let inputValue = "{}";
+  let { vm }: { vm: DesktopViewModel } = $props();
+  let inputValue = $state("{}");
   let scroll: HTMLDivElement;
   async function earlier() {
     const anchor = [...scroll.querySelectorAll<HTMLElement>('[data-history-id]')].find(element => element.getBoundingClientRect().bottom >= scroll.getBoundingClientRect().top);
@@ -86,13 +88,9 @@
         <div class="message-content">
           <h2 class="sr-only">{message.role === "user" ? "You" : "Drawloom"}</h2>
           <p>{message.text}</p>
-          {#each message.assets as asset}<ArtifactViewer
-              artifact={{
-                id: asset.key,
-                title: "Attachment",
-                content: { kind: "asset", asset },
-              }}
-            />{/each}
+          {#if message.selections?.length}<div class="flex flex-wrap gap-2 py-2">{#each message.selections as selection}<Badge variant="outline" class={message.role === 'user' ? 'border-primary-foreground/50 text-primary-foreground' : ''}>{selection.title} · {selection.source}</Badge>{/each}</div>{/if}
+          {#each message.assets as asset}<AttachmentCard {asset} />{/each}
+          {#each message.resources ?? [] as resource}<ResourceCard {vm} entryId={message.id} reference={resource} />{/each}
         </div>
       </article>
     {/each}

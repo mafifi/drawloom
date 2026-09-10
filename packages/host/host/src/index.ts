@@ -33,6 +33,15 @@ export const AssetSchema = z.strictObject({
   size: z.number().int().nonnegative(),
 });
 export type Asset = z.infer<typeof AssetSchema>;
+/** Safe display reference; a URI alone grants no read or execution authority. */
+export const ResourceReferenceSchema = z.strictObject({
+  id: z.string().min(1), source: z.string().min(1), title: z.string().max(512),
+  uri: z.string().max(4096).optional(), mimeType: z.string().max(256).optional(),
+  asset: AssetSchema.optional(), status: z.enum(['ready', 'readable', 'unavailable']),
+  /** Opaque provider-owned read receipt, never a native path or tool permission. */
+  retrieval: z.strictObject({ id: z.string().min(1), revision: z.string().min(1) }).optional(),
+});
+export type ResourceReference = z.infer<typeof ResourceReferenceSchema>;
 export interface AssetStore {
   read(key: string): Promise<Uint8Array>;
   write(key: string, bytes: Uint8Array): Promise<void>;

@@ -64,7 +64,10 @@ under ADR 0014. This is not a universal artifact/revision framework, and richer
 previews are optional. Native human/delegated review and the existing video
 plugin's direct Save and agent edits are implemented. The [verification
 record](../adr-0015-native-edit-review.md) includes live results and the separately
-identified ambient-tool isolation follow-up; that requirement is not relaxed.
+identified native-tool integration follow-up. The 2026-09-10
+[empowerment principle](../../../ARCHITECTURE.md#application-to-native-tools-and-integrations)
+reframes that investigation around user-authorised access and approval coverage,
+not blanket exclusion. Tool inventory alone establishes neither access nor a bypass.
 
 ### 3. Rich interaction does not require copying a client kernel
 
@@ -151,6 +154,18 @@ Reproducible inventory script: [inventory.mjs](inventory.mjs). Exact outputs: [D
 - Only public reference code informed these records. No private business code, prompts, data, assets or fixtures were copied. The private repository and production systems were not changed.
 
 ## Refresh before using a finding for a decision
+
+### Subsequent implementation: discovery and returned resources
+
+[ADR 0016](../../adr/0016-discoverable-contributions-and-resources.md) was accepted
+on 10 September 2026. Registered contributions, native skills/mentions, standard
+MCP resources and composer attachments are implemented in the public host, with
+the existing private video plugin as the integration consumer. See the
+[API and verification record](../discovery-and-resources.md) for actual native
+review outcomes, cached-resource recovery, browser evidence and limitations.
+This follow-up does not change the upstream inspection claims or revisions above.
+
+### Refresh procedure
 
 1. Inspect checkout/remotes and local changes. Fetch the intended upstream and fast-forward only when safe; never reset local work to refresh evidence.
 2. Record old/new SHA and bounded change summary. Recount if size is discussed.

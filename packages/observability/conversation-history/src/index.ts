@@ -1,4 +1,4 @@
-import { AssetSchema } from "@drawloom/host";
+import { AssetSchema, ResourceReferenceSchema } from "@drawloom/host";
 import { z } from "zod";
 
 const nonEmptyId = z.string().min(1);
@@ -13,6 +13,8 @@ export const HistoryEntrySchema = z.strictObject({
   role: z.enum(["user", "assistant"]),
   text: z.string(),
   assets: z.array(AssetSchema),
+  resources: z.array(ResourceReferenceSchema).optional(),
+  selections: z.array(z.strictObject({ id: nonEmptyId, title: z.string(), source: nonEmptyId })).optional(),
   operationId: nonEmptyId.optional(),
   state: z.enum(["partial", "complete", "interrupted"]),
 });

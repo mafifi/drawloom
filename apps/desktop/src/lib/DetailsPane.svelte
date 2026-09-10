@@ -4,11 +4,9 @@
     Badge,
     Button,
     StatefulButton,
-    Checkbox,
     Collapsible,
     Empty,
     Field,
-    Input,
     Select,
     Separator,
     Tabs,
@@ -18,19 +16,15 @@
   import ArtifactViewer from "./ArtifactViewer.svelte";
   import PluginView from './PluginView.svelte';
   import type { DesktopViewModel } from "./view-model.svelte.js";
-  export let vm: DesktopViewModel;
-  $: pluginView = vm.state?.views.find(view => view.workbenchId === vm.conversation?.workbenchId);
-  let showPluginView = false;
+  let { vm, embedded = false }: { vm: DesktopViewModel; embedded?: boolean } = $props();
+  const pluginView = $derived(vm.state?.views.find(view => view.workbenchId === vm.conversation?.workbenchId));
+  let showPluginView = $state(false);
 </script>
 
 <aside class="details-pane" aria-label="Artifact and details">
-  <header>
+  {#if !embedded}<header>
     <h2>
-      {vm.pane === "plugins"
-        ? "Plugins"
-        : vm.pane === "settings"
-          ? "Settings"
-          : (vm.artifact?.title ?? "Artifacts")}
+      {vm.artifact?.title ?? "Artifacts"}
     </h2>
     <Button
       variant="ghost"
@@ -39,13 +33,13 @@
       onclick={() => (vm.detailsOpen = false)}><CloseIcon aria-hidden="true" /></Button
     >
   </header>
-  <Separator />
-  {#if pluginView && vm.state && (vm.pane === 'preview' || vm.pane === 'details')}
+  <Separator />{/if}
+  {#if pluginView && vm.state}
     <div class="px-5 pt-4"><Button variant="outline" onclick={() => showPluginView = !showPluginView}>{showPluginView ? 'Show shared viewer' : `Open ${pluginView.title}`}</Button></div>
   {/if}
-  {#if showPluginView && pluginView && vm.state && (vm.pane === 'preview' || vm.pane === 'details')}
+  {#if showPluginView && pluginView && vm.state}
     {#key vm.state.selectedId + ':' + pluginView.id}<PluginView view={pluginView} conversationId={vm.state.selectedId} />{/key}
-  {:else if vm.pane === "preview" || vm.pane === "details"}
+  {:else}
     <Tabs.Root
       value={vm.pane}
       onValueChange={(value) => {
@@ -338,91 +332,5 @@
         </p>
       </Collapsible.Content>
     </Collapsible.Root>
-  {:else if vm.pane === "plugins"}
-    <section class="preview">
-      {#each vm.state?.plugins ?? [] as plugin}<div class="plugin-row">
-          <h3>{plugin.id}</h3>
-          <Badge variant="secondary">{plugin.status}</Badge>
-          <p>{plugin.summary}</p>
-        </div>{/each}
-      <p class="text-muted-foreground">
-        Additional trusted packages are configured by the local host at startup.
-        Optional registered HTML views run in a separate sandboxed frame.
-      </p>
-    </section>
-  {:else}
-    <section class="preview">
-      <h3>Local workspace</h3>
-      <p>Project records stay in the host’s selected data directory.</p>
-      <h3>Workbench configuration</h3>
-      <p class="text-muted-foreground">{vm.state?.operator.summary}</p>
-      {#each vm.state?.operator.configuration ?? [] as field}
-        <form
-          onsubmit={(event) => {
-            event.preventDefault();
-            const data = new FormData(event.currentTarget);
-            const value =
-              typeof field.value === "boolean"
-                ? data.get("value") === "on"
-                : typeof field.value === "number"
-                  ? Number(data.get("value"))
-                  : String(data.get("value"));
-            void vm.operator({ kind: "configure", key: field.key, value });
-          }}
-        >
-          <Field.Group
-            ><Field.Field>
-              <Field.Label for={"config-" + field.key}
-                >{field.label}</Field.Label
-              >
-              {#if typeof field.value === "boolean"}<Checkbox
-                  id={"config-" + field.key}
-                  name="value"
-                  checked={field.value}
-                />
-              {:else}<Input
-                  id={"config-" + field.key}
-                  name="value"
-                  type={typeof field.value === "number" ? "number" : "text"}
-                  value={String(field.value)}
-                />{/if}
-              <StatefulButton
-                type="submit"
-                pending={vm.pendingCommand?.kind === 'operator' && vm.pendingCommand.command.kind === 'configure' && vm.pendingCommand.command.key === field.key}
-                variant="outline"
-                class="w-fit"
-                disabled={vm.busy}>Save</StatefulButton
-              >
-            </Field.Field></Field.Group
-          >
-        </form>
-      {/each}
-      <Field.Set>
-        <Field.Legend>Tool grants</Field.Legend>
-        <Field.Description
-          >Installing or configuring a plugin does not allow its tools to run.</Field.Description
-        >
-        <Field.Group>
-          {#each vm.state?.operator.grants ?? [] as grant}
-            <Field.Field orientation="horizontal" data-disabled={vm.busy}>
-              <Checkbox
-                id={"grant-" + grant.toolName}
-                checked={grant.allowed}
-                disabled={vm.busy}
-                onCheckedChange={(checked) =>
-                  vm.operator({
-                    kind: "set_tool_grant",
-                    toolName: grant.toolName,
-                    allowed: checked,
-                  })}
-              />
-              <Field.Label for={"grant-" + grant.toolName}
-                >{grant.toolName}</Field.Label
-              >
-            </Field.Field>
-          {/each}
-        </Field.Group>
-      </Field.Set>
-    </section>
   {/if}
 </aside>

@@ -81,15 +81,24 @@ only after any active operation receives its terminal signal.
 
 MCP is the stable initial tool-exposure boundary. App-server dynamic tools
 remain experimental adapter functionality and are not required for portable
-conformance. Configured Codex plugins, apps, MCP servers, and equivalent
-ambient integrations must be disabled unless the Drawloom composition root
-included them in the resolved exposure.
+conformance. The earlier design required configured Codex plugins, apps, MCP
+servers and equivalent ambient integrations to be disabled unless the Drawloom
+composition root included them in the resolved exposure.
 
 The [ADR 0015 live run](../reference/adr-0015-native-edit-review.md#boundaries-and-follow-up)
 found that the existing empty-map launch overrides did not achieve this on the
 installed 0.153.4 runtime: ambient integrations still appeared in thread-scoped
-inventory. Treat complete ambient isolation as an unresolved implementation
-follow-up, not as a guarantee established by the current native-review proof.
+inventory. This is not proof those tools were callable or bypassed review.
+
+**Maintainer clarification, 2026-09-10:** the new
+[empowerment principle](../../ARCHITECTURE.md#application-to-native-tools-and-integrations)
+directs investigation toward retaining user-authorised native tools with coherent
+permissions and approval, rather than implementing blanket exclusion. The earlier
+isolation requirement above is a historical design assumption, not the default
+product goal. Verify actual availability, governing controls and surfaced outcomes
+before revising runtime configuration or contracts; this clarification changes
+neither. The native-review proof establishes neither full isolation nor review
+coverage for all ambient integrations.
 
 The advertised MCP tool catalogue is immutable for one session. Gateway allow
 and deny decisions remain dynamic and do not require rebuilding the Codex

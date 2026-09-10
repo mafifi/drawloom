@@ -28,6 +28,22 @@ import { createDesktopAssets } from './assets.js';
 import { definePlugin } from '@drawloom/plugins';
 import { z } from 'zod';
 import { createTextController } from './text-controller.js';
+test('cold native discovery may exceed the HTTP idle default without blocking state reads', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-slow-discovery-'));
+  const app = await createDesktopApplication(root);
+  const id = (await app.snapshot()).selectedId;
+  const server = serveDesktop({ ...app, async discover(...args) {
+    await new Promise(resolve => setTimeout(resolve, 21_000));
+    return app.discover(...args);
+  } }, resolve('apps/desktop/build'));
+  try {
+    const boot = await fetch(server.url, { redirect: 'manual' });
+    const headers = { cookie: boot.headers.get('set-cookie')!.split(';')[0]! };
+    const discovery = fetch(`${server.origin}/api/discovery?conversationId=${id}`, { headers });
+    expect((await fetch(server.origin + '/api/state', { headers })).status).toBe(200);
+    expect((await discovery).status).toBe(200);
+  } finally { await server.close(); }
+}, 30_000);
 test('trusted media factory shares managed assets without a private dependency or synthetic fallback', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-extension-test-'));
   const app = await createDesktopApplication(root, async ({ store, assets }) => {

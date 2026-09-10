@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { createCodexHistoryReader, nativeMessageId } from "./history.js";
+import { createCodexDiscovery } from './discovery.js';
+import { createCodexHistoryReader, nativeMessageId, type CaptureToolContent } from "./history.js";
 import {
   AgentSessionOpenInputSchema,
   AgentOperationInputSchema,
@@ -14,7 +15,12 @@ import {
 } from "@drawloom/agent";
 import type { JsonStore, RpcTransport, JsonValue } from "@drawloom/host";
 import type { ToolExposure, ToolGateway, ToolBinding } from "@drawloom/tools";
+import { ToolContentSchema, type ToolContent } from '@drawloom/tools';
 export type CodexDriverOptions = {
+  /** Trusted display capture, separate from tool authority and native execution. */
+  onToolContent?: CaptureToolContent;
+  /** Read-only experimental plugin/list; disabled by default. */
+  experimentalPluginDiscovery?: boolean;
   /** Trusted host resolves only imported asset keys; provider paths never cross the contract. */
   imageInput?: (asset: import("@drawloom/host").Asset) => Promise<string>;
   /** Decode/copy native image bytes into confined storage, never follow a model-supplied path. */
@@ -119,6 +125,10 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         let closed = false,
           attached = false,
           starting = false;
+        const catalog = createCodexDiscovery(rpc, threadId, () => closed, options.experimentalPluginDiscovery, options.store);
+        const captureToolContent: CaptureToolContent | undefined = options.onToolContent ? async result => options.onToolContent!({
+          ...result, resourceSelections: await catalog.rememberReturnedResources(result.source, result.content),
+        }) : undefined;
         let active: { operationId: string; turnId: string } | undefined;
         let sequence = 0;
         const interactionScope = crypto.randomUUID();
@@ -417,7 +427,19 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             }
             if (message.method === "item/completed") {
               const item = record.parse(params.item);
-              if (item.type === "imageGeneration" && item.status === "completed" && options.captureImage) {
+              if (item.type === 'mcpToolCall' && item.status === 'completed' && captureToolContent) {
+                const native = identifier.parse(item.id);
+                if (completedMessages.has(native)) return;
+                const result = record.safeParse(item.result);
+                const content = result.success ? ToolContentSchema.safeParse(result.data.content) : undefined;
+                if (!content?.success) return;
+                completedMessages.add(native);
+                const pending = captureToolContent({ id: `${operationId}:${await messageId(native)}`, operationId,
+                  source: typeof item.server === 'string' ? item.server.slice(0, 256) : 'native', content: content.data })
+                  .then(() => {}, () => { completedMessages.delete(native); /* History can retry capture, never execution. */ });
+                mediaPending.add(pending);
+                void pending.finally(() => mediaPending.delete(pending));
+              } else if (item.type === "imageGeneration" && item.status === "completed" && options.captureImage) {
                 const native = identifier.parse(item.id);
                 if (completedMessages.has(native)) return;
                 completedMessages.add(native);
@@ -508,14 +530,16 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         };
         let receiveChain = Promise.resolve();
         const receive = (message: import("@drawloom/host").RpcMessage) => {
+          if (['skills/changed', 'app/list/updated', 'mcpServer/startupStatus/updated', 'thread/settings/updated'].includes(message.method)) catalog.upstreamChanged(message.method, message.params);
           receiveChain = receiveChain.then(() => processMessage(message));
         };
         const unsubscribe = rpc.subscribe(receive, fail);
-        const nativeHistory = createCodexHistoryReader((method, params) => rpc.request(method, params), threadId, operations, options.captureImage);
+        const nativeHistory = createCodexHistoryReader((method, params) => rpc.request(method, params), threadId, operations, options.captureImage, captureToolContent);
         return {
           status: "ok",
           value: {
             sessionId: input.sessionId,
+            discovery: catalog.discovery,
             reviewerModes: Object.freeze<AgentReviewer[]>(nativeReview ? ['human', 'delegated'] : ['human']),
             history: {
               namespace: nativeHistory.namespace,
@@ -559,14 +583,18 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               if (operation.reviewer === 'delegated' && !nativeReview) return reject('provider_rejected', 'Native delegated review is unavailable in this Codex version.');
               if (operation.attachments?.length && !options.imageInput) return reject("provider_rejected");
               starting = true;
-              used.add(operation.operationId);
               try {
+                const images = await Promise.all((operation.attachments ?? []).map(async asset => ({ type: "localImage", path: await options.imageInput!(asset) })));
+                const selected = catalog.resolve(operation.selections ?? []);
+                if (closed || !selected) return reject('invalid_state', 'Discovery changed or the selection is unavailable. Refresh and select again.');
+                used.add(operation.operationId);
                 const result = await rpc.request("turn/start", {
                   threadId,
                   ...(nativeReview ? { approvalsReviewer: operation.reviewer === 'delegated' ? 'auto_review' : 'user' } : {}),
                   input: [
                     { type: "text", text: operation.text, text_elements: [] },
-                    ...await Promise.all((operation.attachments ?? []).map(async asset => ({ type: "localImage", path: await options.imageInput!(asset) }))),
+                    ...selected,
+                    ...images,
                   ],
                   ...(operation.additionalContext
                     ? {
@@ -627,16 +655,23 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               )
                 return reject("invalid_state");
               if (p.data.reviewer !== undefined && p.data.reviewer !== activeReviewer) return reject('invalid_state');
+              const target = active;
+              let queued = false;
               try {
                 if (p.data.attachments?.length && !options.imageInput) return reject("provider_rejected");
+                const images = await Promise.all((p.data.attachments ?? []).map(async asset => ({ type: "localImage", path: await options.imageInput!(asset) })));
+                const selected = catalog.resolve(p.data.selections ?? []);
+                if (closed || active !== target || !selected) return reject('invalid_state', 'Discovery changed or the selection is unavailable. Refresh and select again.');
                 const queuedAssets = [...(p.data.attachments ?? [])];
-                userAssets.get(active.turnId)?.push(queuedAssets);
+                userAssets.get(target.turnId)?.push(queuedAssets);
+                queued = true;
                 await rpc.request("turn/steer", {
                   threadId,
-                  expectedTurnId: active.turnId,
+                  expectedTurnId: target.turnId,
                   input: [
                     { type: "text", text: p.data.text, text_elements: [] },
-                    ...await Promise.all((p.data.attachments ?? []).map(async asset => ({ type: "localImage", path: await options.imageInput!(asset) }))),
+                    ...selected,
+                    ...images,
                   ],
                   ...(p.data.additionalContext
                     ? {
@@ -651,7 +686,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 });
                 return ok();
               } catch {
-                userAssets.get(active.turnId)?.pop();
+                if (queued) userAssets.get(target.turnId)?.pop();
                 return reject("provider_unavailable");
               }
             },
@@ -792,7 +827,7 @@ export function createCodexToolBridge(gateway: ToolGateway): {
       return {
         isError:
           result.outcome.status !== "ok" || result.evidence !== "recorded",
-        content: [
+        content: result.outcome.status === 'ok' && result.outcome.content ? result.outcome.content : [
           {
             type: "text",
             text:

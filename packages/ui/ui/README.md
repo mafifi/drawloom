@@ -33,6 +33,15 @@ consumers. The exact shared source directory owns native control implementation;
 a similarly named sibling package is not exempt. No inline suppression comment
 can waive this policy.
 
+### Input files
+
+File inputs bind `files` and expose their element through `ref`; they do not bind
+a filename string through `value`. Consumers can clear `ref.value = ""` after
+capturing the selected files to allow choosing the same file again. Non-file
+inputs retain their two-way `value` binding. The optional `tests/input-browser.mjs`
+regression exercises file selection, clearing, reselection and text binding
+against a built desktop on a disposable authenticated host.
+
 ### StatefulButton
 
 `StatefulButton` wraps the shared shadcn-svelte `Button` for commands whose
@@ -55,6 +64,11 @@ schedule status timers, or implement hold-to-confirm. Those behaviours are
 deliberately outside this small controlled presentation contract.
 
 ## Verification scope
+
+Command and Dialog are upstream shadcn-svelte 1.6.1 Nova compositions added on
+2026-09-10 for searchable keyboard selection. Internal imports are relative;
+applications own selection, filtering and commands. They use the existing Bits UI
+dependency and semantic theme without adding a desktop-specific control API.
 
 `bun run check:ui-policy` parses maintained Svelte with the Svelte compiler and
 checks source imports in maintained JavaScript and TypeScript. It reports file

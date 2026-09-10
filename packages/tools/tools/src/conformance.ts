@@ -17,6 +17,27 @@ export async function toolConformance(
   const check = (condition: unknown, message: string) => {
     if (!condition) throw new Error(message);
   };
+  let richCalls = 0;
+  const rich = defineTool({
+    name: "document.read", description: "Read a document", input: z.object({}),
+    output: z.object({ text: z.string() }),
+    execute: () => { richCalls++; return { text: "A public example" }; },
+    renderContent: value => [
+      { type: "text", text: value.text },
+      { type: "resource_link", uri: "document://example", name: "Example", mimeType: "text/plain" },
+      { type: "resource", resource: { uri: "document://example", mimeType: "text/plain", text: value.text } },
+      { type: "image", mimeType: "image/png", data: "AQ==" },
+      { type: "audio", mimeType: "audio/wav", data: "Ag==" },
+    ],
+  });
+  const richGateway = factory({ tools: [rich], policy: () => true,
+    evidence: { record: async () => {} }, nextInvocationId: () => "rich-1" });
+  check(richCalls === 0, "catalogue discovery does not execute rich tools");
+  const richResult = await richGateway.invoke(richGateway.bind("rich-op"), rich.name, {}, new AbortController().signal);
+  check(richResult.outcome.status === "ok" && richResult.outcome.content?.length === 5,
+    "standard content survives the validated gateway result");
+  check(richResult.outcome.status === "ok" && JSON.stringify(richResult.outcome.value) === '{"text":"A public example"}',
+    "rich presentation keeps canonical output");
   let count = 0;
   let allowed = true;
   let mode = "normal";

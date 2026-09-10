@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { HistoryReadBatchSchema, HistoryReadError, type ConversationHistoryReader, type HistoryEntry, type HistoryReadContext } from "@drawloom/conversation-history";
 import type { Asset } from "@drawloom/host";
+import { ToolContentSchema, type ToolContent } from '@drawloom/tools';
+export type CaptureToolContent = (input: { id: string; operationId?: string; source: string; content: ToolContent; deferHistoryCommit?: boolean;
+  resourceSelections?: Record<string, import('@drawloom/agent').DiscoverySelection>;
+}) => Promise<Omit<HistoryEntry, 'position'> | void>;
 
 const turnsPage = z.object({ data: z.array(z.record(z.string(), z.unknown())).max(50), nextCursor: z.string().nullable() });
 const itemsPage = z.object({ data: z.array(z.record(z.string(), z.unknown())).max(1), nextCursor: z.string().nullable() });
@@ -32,6 +36,7 @@ type NativeDisplay = {
   role: "user" | "assistant";
   text: string;
   assets: Asset[];
+  resources?: HistoryEntry['resources'];
   operationId?: string;
   state: "partial" | "complete" | "interrupted";
 };
@@ -41,6 +46,7 @@ export function createCodexHistoryReader(
   threadId: string,
   operations: Record<string, string>,
   captureImage?: (result: string) => Promise<Asset>,
+  captureToolContent?: CaptureToolContent,
 ): ConversationHistoryReader {
   const captured = new Map<string, Promise<Asset>>();
   const publicHistoryId = async (turnId: string, itemId: string) => operations[turnId]
@@ -112,6 +118,16 @@ export function createCodexHistoryReader(
         throw new HistoryReadError("error", "Historical image capture failed.");
       }
     }
+    if (item.type === 'mcpToolCall' && item.status === 'completed' && captureToolContent) {
+      const existing = await context.get(id);
+      if (existing?.resources) return { ...common, role: 'assistant', text: existing.text, assets: existing.assets, resources: existing.resources };
+      const result = z.object({ content: ToolContentSchema }).safeParse(item.result);
+      if (!result.success || !result.data.content.some(b => b.type !== 'text')) return undefined;
+      try {
+        const captured = await captureToolContent({ id, ...(operationId ? { operationId } : {}), source: typeof item.server === 'string' ? item.server.slice(0, 256) : 'native', content: result.data.content, deferHistoryCommit: true });
+        if (captured) return { ...common, role: 'assistant', text: captured.text, assets: captured.assets, ...(captured.resources ? { resources: captured.resources } : {}) };
+      } catch { throw new HistoryReadError('error', 'Historical resource capture failed.'); }
+    }
     return undefined;
   }
 
@@ -134,7 +150,7 @@ export function createCodexHistoryReader(
           bounds.min = Math.min(bounds.min, existing.position[0]);
           bounds.max = Math.max(bounds.max, existing.position[0]);
           const updated = entry(existing.state === "complete" && item.state === "partial" ? { ...item, state: "complete" } : item, existing.position);
-          if (updated.role !== existing.role || updated.text !== existing.text || updated.state !== existing.state || updated.operationId !== existing.operationId || JSON.stringify(updated.assets) !== JSON.stringify(existing.assets)) output.push(updated);
+          if (updated.role !== existing.role || updated.text !== existing.text || updated.state !== existing.state || updated.operationId !== existing.operationId || JSON.stringify(updated.assets) !== JSON.stringify(existing.assets) || JSON.stringify(updated.resources) !== JSON.stringify(existing.resources)) output.push(updated);
           continue;
         }
         created++;

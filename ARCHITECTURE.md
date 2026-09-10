@@ -56,11 +56,13 @@ placement, richer editing/authority and performance remain follow-up work, not
 implied acceptance. Changed boundaries require explicit approval and a future ADR.
 
 [ADR 0015](docs/adr/0015-working-material-ownership-and-edit-approval.md) is
-Proposed for working-material ownership and AI edit approval. It records the
-agreed direction: lightweight provider workspace files, plugin-owned editing and
-preservation, optional previews and invocation-scoped review. It adds no universal
+Accepted for working-material ownership and AI edit approval. It records
+lightweight provider workspace files, plugin-owned editing and
+preservation, optional previews and provider-native human/delegated review. It adds no universal
 revision or undo model and does not weaken ADR 0014's captured-media guarantees.
-Its runtime implementation and verification remain pending.
+The existing desktop and private video plugin implement this boundary; the
+[verification record](docs/reference/adr-0015-native-edit-review.md) distinguishes
+live results, deterministic tests and remaining integration questions.
 
 Public editorial publishing is established separately through Accepted
 [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md). Its Astro and
@@ -137,6 +139,13 @@ effort. Account for the cost of missing protections and user controls too.
    omissions by their cost to trust, usability and adoption, not only the
    engineering effort saved. Match useful behaviours, not necessarily competitors'
    implementations or entire feature sets.
+9. **Empower users through platform integration.** Workbenches should bring the
+   user's configured, authorised tools and integrations together, not limit them
+   to a Drawloom-only toolbox. Preserve useful native capabilities and familiar
+   approval controls. Restrictions must follow concrete safety needs, user or
+   organisation policy, or demonstrated integration limits—not tool ownership
+   or implementation convenience. Make authority and limitations understandable;
+   access to a tool is not approval to use it for every action.
 
 Before adding material complexity, ask what present need or observed difference
 requires it, why the simpler option fails a principle, whether the choice can
@@ -146,12 +155,38 @@ Also ask:
 - Does the simpler option leave users exposed to avoidable harm or loss of control?
 - Would its limitations make Drawloom materially harder to trust or adopt than
   tools users already know?
+- Does it unnecessarily remove useful tools or user choice when existing platform
+  permissions and review could preserve the required safety boundary?
 
 If two designs satisfy the principles, prefer the simpler one. ADR 0006 records
 the original five principles and decision test; principle 6 is the maintainer's
 2026-09-09 addition, applied to plugin integration in ADR 0013. Principles 7 and 8
 were added with maintainer approval during the subsequent editable-artifact
-discussion. The accepted historical ADR is not rewritten.
+discussion. Principle 9 was added with maintainer approval on 2026-09-10 to guide
+native-tool integration. The accepted historical ADR is not rewritten.
+
+### Application to native tools and integrations
+
+Drawloom should integrate the tools users have chosen, with clear approval and
+execution controls. Native tools retain their platform's permissions, sandbox,
+review and evidence ownership. Drawloom-exposed tools retain their independent
+gateway grants and execution evidence. Do not wrap every native tool solely to
+route it through Drawloom, or disable it solely because it is outside that gateway.
+Consistent user control does not require identical enforcement mechanisms.
+
+This principle does not automatically enable integrations, grant permissions,
+expand sandbox access or bypass organisation policy. Verify which tools are
+actually callable, which authority and review settings govern them, and whether
+their actions and outcomes can be presented accurately. An inventory entry alone
+proves neither access nor an approval bypass. Unsupported review modes or gaps
+must be disclosed and brought back for a decision, not silently downgraded or
+covered by an invented reviewer.
+
+The next investigation is therefore approval coverage and tight integration,
+not blanket ambient-tool exclusion. Earlier adapter isolation assumptions remain
+historical evidence; this maintainer direction guides their reconsideration.
+Runtime configuration and contract changes still require evidence and explicit
+boundary decisions. No runtime change is implied by recording this principle.
 
 ### Application to editable-artifact approvals
 
@@ -177,8 +212,9 @@ publication. These remain distinct decisions. This requirement does not expand
 sandbox access or approve a general sandbox redesign. The implemented native
 review path and its conformance are recorded in
 [ADR 0015](docs/adr/0015-working-material-ownership-and-edit-approval.md).
-Its linked evidence separates live proof, simulated outcomes and the existing
-ambient-tool isolation follow-up; native review does not establish full isolation.
+Its linked evidence separates live proof, simulated outcomes and the native-tool
+integration follow-up above; review proved for Drawloom tools is not proof of
+review coverage for every native integration.
 
 ### Reference-led changes and approval
 

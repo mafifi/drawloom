@@ -83,13 +83,25 @@ Native Tauri packaging and other browsers were not revalidated by this change.
   tool evidence and persisted conversation display retain their existing owners.
 - Direct-edit domain validation, stale targets, preservation and pending-edit UX
   remain private. Saving is neither business approval nor media generation.
-- **Existing ambient-tool isolation needs a separate correction.** Thread-scoped
+- **Native-tool availability and approval coverage need investigation.** Thread-scoped
   inventory on this installation still listed ambient integrations alongside
   Drawloom despite the current empty-map launch overrides. This run proves review
   and independent authority for Drawloom-exposed tools, **not** complete isolation
   of all native/ambient tools. No global settings were modified to hide this
-  observation. The broader adapter isolation requirement remains in force; this
-  is an implementation follow-up, not permission to broaden plugin authority.
+  observation. Inventory presence alone does not establish that these tools were
+  callable or that they bypassed review.
 - Native automatic-review notification fields are upstream-unstable. The adapter
   validates observed phase/status values and reports incompatibility instead of
   inventing a fallback reviewer. A new boundary requires maintainer approval.
+
+### Follow-up clarification — 2026-09-10
+
+The initial interpretation called for an ambient-isolation correction. The
+maintainer instead selected
+[user empowerment through platform integration](../../ARCHITECTURE.md#application-to-native-tools-and-integrations):
+retain useful user-authorised tools, and investigate their actual availability,
+permissions, native review and action visibility. Blanket exclusion is not the
+goal. This reframes the follow-up without changing the recorded test results or
+claiming that approval coverage has been verified. Native authority and independent
+Drawloom grants remain necessary; no runtime or global settings changed with this
+clarification.

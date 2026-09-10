@@ -1,7 +1,7 @@
 import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import { resolve, sep } from 'node:path';
 import { lstat, realpath } from 'node:fs/promises';
-import { ImportSchema } from '../src/lib/protocol.js';
+import { ImportSchema, ResourceReadSchema, ResourceOpenSchema, DiscoveryResourceReadSchema } from '../src/lib/protocol.js';
 import type { createDesktopApplication } from './application.js';
 import { createStateFeed } from './state-feed.js';
 import { HistoryStoreError } from '@drawloom/conversation-history';
@@ -27,6 +27,30 @@ export function serveDesktop(app: Application, webRoot: string, port = 0) {
       if (!valid(cookie)) return json({ error: 'Open the host startup URL to authenticate this local app.' }, 401);
       if (!['GET', 'HEAD'].includes(request.method) && (request.headers.get('origin') !== origin || request.headers.get('content-type') !== 'application/json')) return json({ error: 'Invalid command channel' }, 403);
       try {
+        if (url.pathname === '/api/discovery' && request.method === 'GET') {
+          // Cold native catalogues can span many metadata pages. Extend this
+          // authenticated read only; provider requests retain their own bounds.
+          server.timeout(request, 120);
+          return json(await app.discover(url.searchParams.get('conversationId') ?? '', url.searchParams.get('refresh') === '1'));
+        }
+        if (url.pathname === '/api/discovery/resource/read' && request.method === 'POST') {
+          const input = DiscoveryResourceReadSchema.parse(await request.json());
+          const next = commandQueue.then(() => app.readDiscoveredResource(input.conversationId, input));
+          commandQueue = next.catch(() => {}); return json(await next);
+        }
+        if (url.pathname === '/api/resource/read' && request.method === 'POST') {
+          const input = ResourceReadSchema.parse(await request.json());
+          const next = commandQueue.then(() => app.readResource(input.conversationId, input.entryId, input.resourceId));
+          commandQueue = next.catch(() => {}); return json(await next);
+        }
+        if (url.pathname === '/api/resources' && request.method === 'GET') {
+          return json(await app.resourcePage(url.searchParams.get('conversationId') ?? '', url.searchParams.get('viewId') ?? '', url.searchParams.get('cursor') ?? undefined));
+        }
+        if (url.pathname === '/api/resource/open' && request.method === 'POST') {
+          const input = ResourceOpenSchema.parse(await request.json());
+          const next = commandQueue.then(() => app.openListedResource(input.conversationId, input.viewId, input.uri));
+          commandQueue = next.catch(() => {}); return json(await next);
+        }
         if (url.pathname === '/api/state' && request.method === 'GET') {
           const next = stateQueue.then(async () => stateFeed.read(await app.snapshot(), url.searchParams.get('since') ?? undefined));
           stateQueue = next.catch(() => {});
@@ -75,7 +99,7 @@ export function serveDesktop(app: Application, webRoot: string, port = 0) {
         if (url.pathname === '/api/import' && request.method === 'POST') {
           const input = ImportSchema.parse(await request.json());
           if (!/^[A-Za-z0-9+/]+={0,2}$/.test(input.base64)) return json({ error: 'Invalid file encoding' }, 400);
-          const next = commandQueue.then(() => app.importAsset(Buffer.from(input.base64, 'base64'), input.mediaType, input.name)); commandQueue = next.catch(() => {});
+          const next = commandQueue.then(() => app.importAsset(Buffer.from(input.base64, 'base64'), input.mediaType, input.name, input.conversationId)); commandQueue = next.catch(() => {});
           return json(await next);
         }
         if (url.pathname.startsWith('/api/assets/') && request.method === 'GET') {
@@ -112,7 +136,8 @@ export function serveDesktop(app: Application, webRoot: string, port = 0) {
         if (error instanceof HistoryStoreError) return json({ error: error.message, code: error.code }, error.code === 'invalid_cursor' ? 409 : 503);
         const known = error instanceof Error && !('issues' in error) ? error.message : 'Invalid request';
         const safe = ['Conversation unavailable', 'Workbench unavailable', 'Controller unavailable', 'Candidate unavailable', 'Document revision unavailable', 'Attachment unavailable', 'Asset unavailable', 'Only text documents can be attached as context', 'Unsupported or oversized file', 'This provider does not support interruption', 'Steering unavailable', 'provider unavailable', 'provider rejected', 'invalid state', 'Artifact title must be 1–120 characters', 'Synthetic mode accepts text. Attachments remain available as artifacts; choose Codex to send images.'];
-        return json({ error: safe.includes(known) || known === 'Synthetic mode is available only in Text studio. Choose Codex for this workbench.' ? known : 'The local operation failed. Check configuration or restart the host; no automatic retry occurred.' }, 400);
+        const discoveryErrors = ['Selection unavailable. Refresh the catalogue and select it again.', 'Resource unavailable', 'Selected context is too large', 'Only ready text resources can be selected as context', 'This file is viewable, but is not supported as direct model input. Use a suitable tool instead.'];
+        return json({ error: safe.includes(known) || discoveryErrors.includes(known) || known === 'Synthetic mode is available only in Text studio. Choose Codex for this workbench.' ? known : 'The local operation failed. Check configuration or restart the host; no automatic retry occurred.' }, 400);
       }
     },
   });

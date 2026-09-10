@@ -28,6 +28,10 @@ correlation and managed asset references. They contain no asset bytes, hidden
 reasoning or raw provider envelopes. Equal positions are ordered by ID. Updating
 an entry does not reposition it. Backfill can introduce lower positions.
 
+The [ADR 0016 implementation](discovery-and-resources.md#history-and-attachments)
+adds optional resource and selection provenance. SQLite schema version 2 migrates
+version 1 transactionally; it does not create another media or evidence store.
+
 Page cursors bind to the store generation and conversation, and anchor before
 a particular chronological record. Change cursors identify a stored change
 position and may coalesce repeated edits. Neither is an execution credential.
