@@ -24,8 +24,29 @@ afterEach(() => {
   else Reflect.deleteProperty(globalThis, 'localStorage');
 });
 
+test('provider sign-in uses a catalogue identity and discards a late URL after navigation', async () => {
+  const h = await harness();
+  h.setCatalogue({ entries: [{ id: 'codex:integration:a', origin: 'codex', kind: 'integration', name: 'Remote', description: '', scope: 'server', availability: 'unavailable', selectable: false, authenticationOwner: 'provider', revision: 'r1' }], categories: [], experimentalPluginDiscovery: false });
+  await h.vm.refreshCatalogue(true);
+  const previous = globalThis.fetch; const requests: unknown[] = [];
+  let release!: (value: Response) => void;
+  globalThis.fetch = (async (url, init) => {
+    if (url === '/api/discovery/authenticate') { requests.push(JSON.parse(String(init?.body))); return new Promise<Response>(r => { release = r; }); }
+    return previous(url, init);
+  }) as typeof fetch;
+  await h.vm.authenticateIntegration('invented'); expect(requests).toHaveLength(0);
+  const pending = h.vm.authenticateIntegration('codex:integration:a');
+  expect(requests).toEqual([{ conversationId: 'conversation-a', id: 'codex:integration:a', revision: 'r1' }]);
+  h.setState({ ...snapshot(), selectedId: 'conversation-b', conversations: [...snapshot().conversations, { ...snapshot().conversations[0]!, id: 'conversation-b' }] });
+  await h.vm.select('conversation-b');
+  release(Response.json({ authorizationUrl: 'https://auth.example/authorize' })); await pending;
+  expect(h.vm.integrationAuthorizationUrl('codex:integration:a')).toBe('');
+});
+
 function snapshot(): DesktopSnapshot {
   return {
+    toolLabels: [],
+    elicitations: [],
     views: [],
     activeContext: '',
     pendingTools: [],
@@ -88,6 +109,21 @@ async function harness() {
     },
   };
 }
+
+test('package form submission binds to the displayed request and exposes pending feedback', async () => {
+  const h = await harness();
+  const next = snapshot();
+  next.elicitations = [{ requestId: 'paper-form', source: 'package:one:stationery', operationId: 'op', invocationId: 'call', params: { message: 'Choose paper', requestedSchema: { type: 'object', properties: { paper: { type: 'string', enum: ['plain', 'lined'] } }, required: ['paper'] } } }];
+  h.setState(next); await h.vm.start(); h.vm.stopPolling();
+  const form = new FormData(); form.set('paper', 'lined');
+  expect(await h.vm.submitElicitation('stale', form)).toBe(false);
+  expect(h.commands).toHaveLength(0);
+  const release = h.deferCommand();
+  const submitted = h.vm.submitElicitation('paper-form', form);
+  expect(h.vm.pendingCommand).toEqual({ kind: 'elicitation', conversationId: 'conversation-a', requestId: 'paper-form', result: { action: 'accept', content: { paper: 'lined' } } });
+  release(); expect(await submitted).toBe(true);
+  expect(h.vm.pendingCommand).toBeUndefined();
+});
 
 test('pending feedback identifies the active command rather than every disabled sibling', async () => {
   const h = await harness();

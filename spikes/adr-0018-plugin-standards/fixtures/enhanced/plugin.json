@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "arithmetic-reference",
+  "extensions": {
+    "io.github.mafifi.drawloom": {
+      "version": 1,
+      "backend": { "entrypoint": "./backend.js" },
+      "requires": [{ "kind": "capability", "id": "orchestration" }]
+    }
+  }
+}

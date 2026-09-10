@@ -1,5 +1,15 @@
 import { join } from "node:path";
 import { mkdir } from 'node:fs/promises';
+import { z } from 'zod';
+import { createInstallationStore } from './plugin-installations.js';
+import { loadInstalledPackages } from './plugin-packages.js';
+import { createElicitationPresenter } from './elicitation.js';
+import { PackageActionSchema, PackageInspectionSchema } from '../src/lib/package-protocol.js';
+import { createPluginCredentialStore } from './plugin-credentials.js';
+import { createPluginOAuthManager } from './plugin-oauth.js';
+import { readClientRegistration } from './plugin-registration.js';
+import { readProviderDiscovery } from './discovery-deadline.js';
+import { PackageOAuthActionSchema } from '../src/lib/package-protocol.js';
 import { createSqliteConversationHistory } from '@drawloom/sqlite-conversation-history';
 import { HistoryPageOptionsSchema, HistoryChangeOptionsSchema, type HistoryEntry, type HistoryPageOptions, type HistoryChangeOptions } from '@drawloom/conversation-history';
 import { createHistoryCoordinator } from './history-coordinator.js';
@@ -47,11 +57,9 @@ import {
 import {
   textPlugin,
   mcpReviewConfiguration,
-  type DesktopExtension,
-  type DesktopExtensionFactory,
 } from "./composition.js";
 import { createDesktopEvidence } from "./evidence.js";
-import { connectMcpApp } from './mcp-app.js';
+import type { ConnectedMcpApp } from './mcp-app.js';
 import { createViewContext } from './view-context.js';
 import { createResourceContent } from './resource-content.js';
 
@@ -63,7 +71,6 @@ type Live = {
 };
 export async function createDesktopApplication(
   root: string,
-  external?: DesktopExtension | DesktopExtensionFactory,
   options: { experimentalPluginDiscovery?: boolean } = {},
 ) {
   await mkdir(root, { recursive: true, mode: 0o700 });
@@ -119,7 +126,10 @@ export async function createDesktopApplication(
     if (!recovery) {
       recovery = evidenceFor(id).then(sink => createResourceRecovery(sink.activity(), async result => {
         if (result.outcome.status !== 'ok' || !result.outcome.content) return;
-        await resourceCollector(id).capture({ id: 'tool-resource:' + result.invocationId, source: 'drawloom',
+        const tool = sink.toolFor(result.invocationId);
+        const source = tool ? packages.toolSources.get(tool) ?? 'drawloom' : 'drawloom';
+        await resourceCollector(id).capture({ id: 'tool-resource:' + result.invocationId, source,
+          readable: () => packages.canReadSource(source),
           ...(result.operationId ? { operationId: result.operationId } : {}), content: result.outcome.content });
       }));
       recoveries.set(id, recovery);
@@ -160,16 +170,14 @@ export async function createDesktopApplication(
       },
     });
   }
-  const extension =
-    typeof external === "function"
-      ? await external({
+  const compositionContext = {
           store: {
-            get: (key) => store.get("extension:" + key),
-            set: (key, value) => store.set("extension:" + key, value),
+            get: (key: string) => store.get(key),
+            set: (key: string, value: JsonValue) => store.set(key, value),
           },
           assets: {
             read: assets.read,
-            put: async (bytes, mediaType) => {
+            put: async (bytes: Uint8Array, mediaType: string) => {
               const asset = await assets.put(bytes, mediaType);
               if (!project.assets.some((a) => a.key === asset.key))
                 project.assets.push(asset);
@@ -177,13 +185,43 @@ export async function createDesktopApplication(
               return asset;
             },
           },
-        })
-      : external;
+        };
+  const installations = await createInstallationStore(store);
+  let oauthRedirect = '';
+  const oauth = createPluginOAuthManager({ credentials: await createPluginCredentialStore(), redirectUrl: () => oauthRedirect });
+  async function oauthConnection(id: string, serverName: string) {
+    const server = packages.activeServer(id, serverName);
+    if (!server) throw Error('Activate this installation and restart before connecting');
+    if (server.config.type !== 'streamable-http') throw Error('This server does not use Drawloom HTTP authentication');
+    return oauth.connection({ installationId: id, serverName, serverUrl: server.config.url });
+  }
+  const elicitation = createElicitationPresenter(operationId => project.conversations.find(c => live.get(c.id)?.active === operationId)?.id);
+  const packages = await loadInstalledPackages({ root, installations: installations.startup, host: compositionContext,
+    builtins: [{ plugin: textPlugin, config: {} }],
+    elicitation: elicitation.request,
+    authProviderFor: installation => server => oauth.connection({ installationId: installation.id, serverName: server.name, serverUrl: server.config.url }).provider,
+    toolsFor: (_installation, tools, workbenchIds) => createLocalToolGateway({ tools,
+      nextInvocationId: () => crypto.randomUUID(),
+      policy: (operationId, name) => {
+        const owner = project.conversations.find(c => live.get(c.id)?.active === operationId);
+        return Boolean(owner && workbenchIds.includes(owner.workbenchId) && grants.get(owner.workbenchId)?.has(name));
+      },
+      evidence: { record: async record => {
+        const operationId = record.kind === 'started' ? record.operationId : record.result.operationId;
+        const owner = project.conversations.find(c => live.get(c.id)?.active === operationId);
+        if (!operationId || !owner || !workbenchIds.includes(owner.workbenchId)) throw Error('No active operation owns this tool invocation');
+        await (await evidenceFor(owner.id)).record(record);
+        if (record.kind === 'finished') await (await recoveryFor(owner.id)).record(record.result);
+      } },
+    }),
+  });
+  const packageToolIds = packages.toolIds;
+  let packageGrants = z.record(z.string(), z.array(z.string())).parse((await store.get('package-grants')) ?? {});
   const registry = createPluginRegistry(
-    [{ plugin: textPlugin, config: {} }, ...(extension?.installs ?? [])],
-    ["agent"],
+    [{ plugin: textPlugin, config: {} }, ...packages.installs],
+    ["agent", "host"],
   );
-  for (const [key, controller] of extension?.controllers ?? []) {
+  for (const [key, controller] of packages.controllers) {
     if (
       controllers.has(key) ||
       !registry.workbenches.some((w) => w.id === key) ||
@@ -194,14 +232,13 @@ export async function createDesktopApplication(
     OperatorSnapshotSchema.parse(await controller.snapshot());
     controllers.set(key, controller);
   }
-  const mcpApps = new Map<string, Awaited<ReturnType<typeof connectMcpApp>>>();
+  const mcpApps = new Map<string, ConnectedMcpApp>();
   try {
-    for (const key of extension?.mcpApps?.keys() ?? [])
-      if (!registry.views.some(view => view.id === key)) throw Error('Unregistered startup MCP app');
     for (const view of registry.views) {
-      const connection = extension?.mcpApps?.get(view.id);
-      if (!connection) throw Error('Missing startup MCP app');
-      mcpApps.set(view.id, await connectMcpApp(connection, view.entrypoint));
+      const packaged = packages.mcpApps.get(view.workbenchId);
+      if (packaged) { mcpApps.set(view.id, packaged); continue; }
+      // Invalid or unavailable package views remain unavailable, never fall back
+      // to arbitrary startup transports.
     }
   } catch (error) { await Promise.all([...mcpApps.values()].map(app => app.close())); throw error; }
   function viewTarget(raw: unknown) {
@@ -218,7 +255,7 @@ export async function createDesktopApplication(
     );
     grants.set(
       workbenchId,
-      new Set(state.grants.filter((g) => g.allowed).map((g) => g.toolName)),
+      new Set([...state.grants.filter((g) => g.allowed).map((g) => g.toolName), ...(packageGrants[workbenchId] ?? []).filter(name => packageToolIds.has(name))]),
     );
     return state;
   }
@@ -249,7 +286,7 @@ export async function createDesktopApplication(
       const sink = await evidenceFor(conversationId);
       const resourceRecovery = await recoveryFor(conversationId);
       const gateway = createLocalToolGateway({
-        tools: registry.tools.filter((t) => workbench.tools.includes(t.name)),
+        tools: registry.tools.filter((t) => workbench.tools.includes(t.name) || packageToolIds.has(t.name)),
         policy: (operationId, name) =>
           operationBindings.has(operationId) &&
           Boolean(grants.get(workbench.id)?.has(name)),
@@ -460,6 +497,57 @@ export async function createDesktopApplication(
     grants: [],
   };
   return {
+    installations,
+    bindOAuthRedirect: (url: string) => { oauthRedirect = url; },
+    oauthCallback: (url: URL) => oauth.callback(url),
+    async packageOAuth(raw: unknown) {
+      const input = PackageOAuthActionSchema.parse(raw);
+      const connection = await oauthConnection(input.id, input.server);
+      if (input.action === 'configure-client') {
+        if ([...live.values()].some(session => session.active)) throw Error('Wait for current work to finish before configuring authentication');
+        const registration = await readClientRegistration(input.registrationFile);
+        await packages.disconnect(input.id, input.server);
+        return connection.configureClient(registration);
+      }
+      if (input.action === 'status') return connection.status();
+      if (input.action === 'connect') return connection.login();
+      if (input.action === 'cancel') return connection.cancel();
+      if (input.action === 'disconnect') {
+        // Drop the authenticated MCP session as well as credentials.
+        try { return await connection.disconnect(); }
+        finally { await packages.disconnect(input.id, input.server); }
+      }
+      if ([...live.values()].some(session => session.active)) throw Error('Wait for current work to finish before reconnecting');
+      return { ...connection.status(), ...await packages.reconnect(input.id, input.server) };
+    },
+    packageStatuses: () => packages.statuses,
+    async installedPackages() {
+      return Promise.all(installations.list().map(async ({ configuration: _configuration, ...installation }) => {
+        const current = packages.statuses.find(s => s.id === installation.id);
+        let availableServers = installation.servers.map(name => ({ name, transport: 'unknown' }));
+        try { availableServers = (await installations.inspect(installation.root)).servers.map(server => ({ name: server.name, transport: server.config.type })); }
+        catch { /* Retain selected identities and existing readiness errors if metadata is inaccessible. */ }
+        return { ...installation, pendingRestart: installations.pendingRestart(installation.id), status: current?.status ?? 'not-active',
+          availableServers, diagnostics: current?.codes ?? [], connections: (current?.servers ?? []).map(s => ({ ...s, transport: packages.transportFor(installation.id, s.name) ?? 'unknown' })) };
+      }));
+    },
+    async packageAction(raw: unknown) {
+      const action = PackageActionSchema.parse(raw);
+      if (action.action === 'inspect') {
+        const inventory = await installations.inspect(action.root);
+        return PackageInspectionSchema.parse({ root: inventory.root, name: inventory.name, version: inventory.version,
+          backend: Boolean(inventory.drawloom?.backend), skills: inventory.skills.map(s => s.name),
+          servers: inventory.servers.map(s => ({ name: s.name, transport: s.config.type })),
+          diagnostics: inventory.diagnostics.map(d => `${d.component}: ${d.code}`) });
+      }
+      if (action.action === 'add') await installations.add(action.root);
+      else {
+        const current = installations.list().find(i => i.id === action.id);
+        if (!current) throw Error('Installation unavailable');
+        await installations.configure(action.id, { ...action.settings, configuration: action.settings.configuration ?? current.configuration });
+      }
+      return this.installedPackages();
+    },
     async discover(conversationId: string, refresh = false): Promise<DesktopCatalogue> {
       const conversation = project.conversations.find(c => c.id === conversationId);
       if (!conversation) throw Error('Conversation unavailable');
@@ -468,10 +556,17 @@ export async function createDesktopApplication(
         description: `Version ${p.version}. Registered at startup; permissions remain separate.`, scope: 'startup', availability: 'available', selectable: false, revision: localRevision }));
       for (const contribution of registry.contributions) {
         if (contribution.kind !== 'skill' && contribution.kind !== 'tool') continue;
-        entries.push({ id: contribution.id, origin: 'drawloom', kind: contribution.kind, name: contribution.title, description: contribution.description,
+        const presentation = packages.toolPresentation.get(contribution.contributionId);
+        entries.push({ id: contribution.id, origin: presentation?.origin ?? 'drawloom', kind: contribution.kind, name: presentation?.name ?? contribution.title, description: presentation?.description ?? contribution.description,
           scope: contribution.kind === 'skill' && workbench.skills.includes(contribution.contributionId) ? 'required' : 'startup',
-          availability: contribution.kind === 'tool' && !workbench.tools.includes(contribution.contributionId) ? 'unavailable' : 'available',
+          availability: contribution.kind === 'tool' && !workbench.tools.includes(contribution.contributionId) && !packageToolIds.has(contribution.contributionId) ? 'unavailable' : 'available',
           selectable: contribution.kind === 'skill', ownerId: `drawloom:plugin:${contribution.pluginId}`, revision: localRevision });
+      }
+      for (const [alias, tool] of packages.toolPresentation) {
+        if (tool.available) continue;
+        entries.push({ id: `package-tool:${alias}`, origin: tool.origin, ownerId: tool.ownerId, kind: 'tool', name: tool.name,
+          description: tool.description, scope: tool.appOnly ? 'app-only' : 'unsupported', availability: tool.appOnly ? 'available' : 'unavailable',
+          selectable: false, revision: localRevision });
       }
       for (const view of registry.views.filter(v => v.workbenchId === workbench.id)) {
         for (const tool of mcpApps.get(view.id)?.tools ?? []) {
@@ -485,21 +580,37 @@ export async function createDesktopApplication(
       let categories: DesktopCatalogue['categories'] = [];
       if (conversation.provider === 'codex') {
         try {
-          const result = await (await connect(conversationId)).session.discovery?.list({ refresh });
+          const read = await readProviderDiscovery(async () => (await connect(conversationId)).session.discovery?.list({ refresh }));
+          if (read.status === 'unavailable') throw Error('Native discovery unavailable');
+          const result = read.value;
           if (result?.status === 'ok') { entries.push(...result.value.entries.map(e => ({ ...e, revision: result.value.revision }))); categories = result.value.categories; }
           else categories = [{ kind: 'skill', status: result ? 'error' : 'unsupported', message: result ? 'Native discovery changed during loading. Refresh to try again; registered contributions remain visible.' : 'Native discovery is unavailable. Registered contributions remain visible.' }];
-        } catch { categories = [{ kind: 'skill', status: 'error', message: 'Codex discovery is unavailable. Registered contributions remain visible.' }]; }
+        } catch { categories = (['skill', 'tool', 'app', 'resource'] as const).map(kind => ({ kind, status: 'error' as const, message: 'Codex discovery is unavailable or exceeded its display deadline. Registered contributions remain visible; refresh to retry.' })); }
       }
+      const packageResources = await packages.discoverResources(refresh);
+      entries.push(...packageResources.entries); categories.push(...packageResources.categories);
       return DesktopCatalogueSchema.parse({ entries, categories, experimentalPluginDiscovery: options.experimentalPluginDiscovery === true });
+    },
+    async authenticateIntegration(conversationId: string, selection: { id: string; revision: string }) {
+      const conversation = project.conversations.find(c => c.id === conversationId);
+      if (!conversation || conversation.provider !== 'codex') throw Error('Native sign-in is unavailable for this conversation');
+      const result = await (await connect(conversationId)).session.discovery?.authenticate?.(selection);
+      if (result?.status !== 'ok') throw Error('Native sign-in is unavailable. Refresh discovery and try again.');
+      return result.value;
     },
     async readDiscoveredResource(conversationId: string, selection: { id: string; revision: string }) {
       if (!project.conversations.some(c => c.id === conversationId)) throw Error('Conversation unavailable');
-      const id = `native-listed:${selection.id}`;
+      const id = selection.id.startsWith('package-resource:')
+        ? `native-listed:${selection.id}:${selection.revision}` : `native-listed:${selection.id}`;
       const cached = await history.get(conversationId, id);
       if (cached) return cached;
       const catalogue = await this.discover(conversationId);
       const entry = catalogue.entries.find(e => e.id === selection.id && e.revision === selection.revision && e.kind === 'resource' && e.readable);
       if (!entry) throw Error('Resource unavailable');
+      if (entry.id.startsWith('package-resource:')) {
+        const result = await packages.readDiscoveredResource(selection);
+        return resourceCollector(conversationId).capture({ id, source: entry.origin, content: result.contents.map(resource => ({ type: 'resource' as const, resource })) });
+      }
       const result = await (await connect(conversationId)).session.discovery?.readResource?.(selection);
       if (result?.status !== 'ok') throw Error('Resource unavailable');
       return resourceCollector(conversationId).capture({ id, source: entry.origin, content: result.value });
@@ -588,6 +699,9 @@ export async function createDesktopApplication(
         viewTarget({ conversationId, viewId });
         const result = await mcpApps.get(viewId)!.readResource(resource.uri, true);
         content = result.contents.filter(r => r.uri === resource.uri).map(r => ({ type: 'resource', resource: r }));
+      } else if (resource.source.startsWith('package:')) {
+        const result = await packages.readResource(resource.source, resource.uri);
+        content = result.contents.filter(r => r.uri === resource.uri).map(r => ({ type: 'resource', resource: r }));
       } else throw Error('Resource unavailable');
       const captured = await resourceCollector(conversationId).capture({ id: `${entryId}:read:${resourceId}`, source: resource.source,
         content });
@@ -623,9 +737,11 @@ export async function createDesktopApplication(
       )!;
       const state = live.get(project.selectedId);
       const controller = controllers.get(conversation.workbenchId);
-      const operator = controller ? await controller.snapshot() : unavailable;
+      const original = controller ? await controller.snapshot() : unavailable;
+      const operator = { ...original, grants: [...original.grants, ...[...packageToolIds].map(toolName => ({ toolName, allowed: packageGrants[conversation.workbenchId]?.includes(toolName) ?? false }))] };
       const retained = await evidenceFor(conversation.id);
       return DesktopSnapshotSchema.parse({
+        toolLabels: [...packages.toolPresentation].filter(([, tool]) => tool.available).map(([toolName, tool]) => ({ toolName, title: tool.name, origin: tool.origin })),
         workspace: "Local workspace",
         conversations: project.conversations,
         workbenches: registry.workbenches,
@@ -635,6 +751,7 @@ export async function createDesktopApplication(
         activity: retained.activity().map(result => result.outcome.status === 'ok'
           ? { ...result, outcome: { status: 'ok', text: result.outcome.text, value: result.outcome.value } } : result),
         pendingTools: retained.pending(),
+        elicitations: elicitation.pending(conversation.id),
         operator,
         ...(state?.active ? { activeOperation: state.active } : {}),
         controls: {
@@ -687,7 +804,18 @@ export async function createDesktopApplication(
         viewMount = undefined;
         await persist();
         await this.restore();
+      } else if (command.kind === 'elicitation') {
+        elicitation.resolve(command.conversationId, command.requestId, command.result);
       } else if (command.kind === "operator") {
+        if (command.command.kind === 'set_tool_grant' && packageToolIds.has(command.command.toolName)) {
+          if (!controllers.has(command.workbenchId)) throw Error('Workbench unavailable');
+          const selected = new Set(packageGrants[command.workbenchId] ?? []);
+          if (command.command.allowed) selected.add(command.command.toolName); else selected.delete(command.command.toolName);
+          const next = { ...packageGrants, [command.workbenchId]: [...selected] };
+          await store.set('package-grants', next); packageGrants = next;
+          await refreshGrants(command.workbenchId);
+          return this.snapshot();
+        }
         const controller = controllers.get(command.workbenchId);
         if (!controller) throw Error("Controller unavailable");
         const result = OperatorResultSchema.parse(
@@ -853,6 +981,7 @@ export async function createDesktopApplication(
       await Promise.all([...live.values()].map((s) => s.close()));
       await Promise.all([...pumps]);
       await Promise.all([...mcpApps.values()].map(app => app.close()));
+      await packages.close();
       await Promise.all([...writers.values()].map(w => w.close()));
       await projectWrites;
       await history.close();

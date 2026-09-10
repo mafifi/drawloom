@@ -42,6 +42,12 @@ area you change.
 
 ## Area guides
 
+- Standard package loading and the trusted backend migration follow Proposed
+  [ADR 0018](docs/adr/0018-plugin-standards-and-runtime-extensions.md). Consult the
+  [package reference](docs/reference/plugin-packages.md) and linked evidence before
+  changing authentication, installation or dependency resolution. Do not treat
+  implementation progress as ADR acceptance or broaden the MCP Apps browser API.
+
 - Working-material and AI edit boundaries are recorded in
   [ADR 0015](docs/adr/0015-working-material-ownership-and-edit-approval.md).
   Consult it before changing file lifecycle or plugin editing contracts; do not

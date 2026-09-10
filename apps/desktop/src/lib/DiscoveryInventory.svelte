@@ -1,10 +1,12 @@
 <script lang="ts">
   import { Alert, Badge, Button, Collapsible, Empty, Field, Input, StatefulButton } from '@drawloom/ui';
   import type { DesktopViewModel } from './view-model.svelte.js';
+  import PackageInstallations from './PackageInstallations.svelte';
   let { vm }: { vm: DesktopViewModel } = $props();
 </script>
 
 <section class="preview flex flex-col gap-3">
+  <PackageInstallations />
   <Field.Field><Field.Label for="catalogue-search">Find plugins, apps, tools and skills</Field.Label><Input id="catalogue-search" placeholder="Search contributions…" bind:value={vm.catalogueQuery} /></Field.Field>
   <StatefulButton variant="outline" pending={vm.cataloguePending} pendingLabel="Refreshing discovery" onclick={() => vm.refreshCatalogue(true)}>Refresh discovery</StatefulButton>
   {#if vm.catalogueError}<Alert.Root variant="destructive"><Alert.Description>{vm.catalogueError}</Alert.Description></Alert.Root>{/if}
@@ -16,6 +18,12 @@
       <Collapsible.Content class="flex flex-col gap-2 px-2 pb-3">
         <p>{entry.description || 'No description supplied.'}</p><p class="text-sm text-muted-foreground">Scope: {entry.scope}{entry.selectable ? ' · Can be selected for a message' : ' · Inventory only'}</p>
         {#if entry.ownerId}<p class="text-sm text-muted-foreground">Contributed by {vm.contributionOwner(entry.ownerId)?.name ?? entry.ownerId}</p>{/if}
+        {#if entry.authenticationOwner === 'provider'}
+          <p class="text-sm text-muted-foreground">Codex owns this connection and its credentials. Sign-in does not grant tool permissions. Refresh discovery after completing sign-in.</p>
+          <StatefulButton variant="outline" pending={vm.integrationIsPending(entry.id)} pendingLabel="Starting Codex sign-in" onclick={() => vm.authenticateIntegration(entry.id)}>Connect through Codex</StatefulButton>
+          {#if vm.integrationAuthorizationUrl(entry.id)}<Button href={vm.integrationAuthorizationUrl(entry.id)} target="_blank" rel="noopener noreferrer" variant="link">Continue sign-in in browser</Button>{/if}
+          {#if vm.integrationError(entry.id)}<Alert.Root variant="destructive"><Alert.Description>{vm.integrationError(entry.id)}</Alert.Description></Alert.Root>{/if}
+        {/if}
         {#each vm.contributionsFor(entry.id) as child}<p class="text-sm">{child.kind}: {child.name} · {child.availability}</p>{/each}
         {#if vm.contributionCount(entry.id)}<p class="text-sm text-muted-foreground">Showing {vm.contributionsFor(entry.id).length} of {vm.contributionCount(entry.id)} contributions.</p>{/if}
         {#if vm.contributionsFor(entry.id).length < vm.contributionCount(entry.id)}<Button variant="ghost" size="sm" onclick={() => vm.showMoreContributions(entry.id)}>Load more contributions from {entry.name}</Button>{/if}

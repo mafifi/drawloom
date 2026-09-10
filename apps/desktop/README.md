@@ -54,22 +54,23 @@ retained when it is the only existing default. If both exist, select explicitly
 with `DRAWLOOM_DATA_DIR`. Nothing is moved or deleted. See
 [history operation and API](../../docs/reference/conversation-history.md).
 
-## Trusted external composition
+## Trusted package backends
 
-Set `DRAWLOOM_COMPOSITION` to a local module whose default export satisfies
-`DesktopExtensionFactory` from `@drawloom/desktop-host`. The host calls it once,
-passing a namespaced public `JsonStore` and `AssetLibrary`. Return trusted
-`PluginInstaller[]` and a workbench-ID-to-`OperatorController` map. Use
+Install a standard package in Plugins and explicitly trust its namespaced backend
+entrypoint. The default export satisfies `PluginBackendFactory` from
+`@drawloom/desktop-host`. The host calls it once with declared capabilities and
+dependency availability. Return contributions, controllers, named MCP connections
+and cleanup. Requested host storage is installation-scoped. Use
 `assets.put(bytes,mediaType)` to create assets the host can serve safely. Configuration
 is not a grant. Snapshot fields must be explicitly safe for display; credentials
-stay inside private composition. No frontend plugin code runs.
+stay inside the connection owner. Plugin browser code runs only through MCP Apps.
 Trusted generated media may be up to 256 MiB per asset; browser imports and
 native image inputs remain 16 MiB. This is a whole-buffer, bounded-memory API,
 not streaming. See [memory and upload limits](../../docs/design/desktop-host.md).
 
-The factory module is an explicit trusted-code choice by the local operator. No
+The backend module is an explicit trusted-code choice by the local operator. No
 marketplace, auto-install, hot reload or arbitrary HTTP/file routes are supported.
-Invalid startup composition prevents launch with a bounded configuration error.
+Invalid package components fail visibly without blocking unrelated packages.
 Readiness failures after startup belong in the controller's snapshot.
 
 ## Native macOS verification

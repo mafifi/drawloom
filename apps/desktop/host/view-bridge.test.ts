@@ -1,40 +1,30 @@
 import { test, expect } from 'bun:test';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { z } from 'zod';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
-import { definePlugin } from '@drawloom/plugins';
-import type { DesktopExtensionFactory } from '@drawloom/desktop-host';
+import { createNodeJsonStore } from '@drawloom/node-host';
+import { createInstallationStore } from './plugin-installations.js';
 import { createDesktopApplication } from './application.js';
 import { serveDesktop } from './server.js';
 
-const extension: DesktopExtensionFactory = async ({ store }) => {
-  const uri = 'ui://example/view.html';
-  const server = new McpServer({ name: 'public-choice', version: '1.0.0' });
-  registerAppResource(server, 'Choices', uri, {}, async () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: '<!doctype html><p>Public fixture</p>' }] }));
-  const current = async () => ({ content: [], structuredContent: { choice: await store.get('example.choice') ?? 'first' } });
-  registerAppTool(server, 'example.open', { inputSchema: {}, _meta: { ui: { resourceUri: uri, visibility: ['app'] } } }, current);
-  registerAppTool(server, 'example.inspect', { inputSchema: { choice: z.enum(['first', 'second']) }, _meta: { ui: { visibility: ['app'] } } }, async ({ choice }) => { await store.set('example.choice', choice); return current(); });
-  registerAppTool(server, 'example.reference', { inputSchema: {}, _meta: { ui: { visibility: ['app'] } } }, async () => ({ content: [{ type: 'resource_link' as const, uri: 'document://example/guide', name: 'Writing guide', mimeType: 'text/plain' }] }));
-  server.registerResource('Writing guide', 'document://example/guide', { mimeType: 'text/plain' }, async () => {
-    await store.set('example.reads', Number(await store.get('example.reads') ?? 0) + 1);
-    return { contents: [{ uri: 'document://example/guide', text: 'Use simple words.', mimeType: 'text/plain' }] };
-  });
-  const [transport, peer] = InMemoryTransport.createLinkedPair();
-  await server.connect(peer);
-  const plugin = definePlugin({ id: 'public.example', version: '1.0.0', config: z.strictObject({}), contribute: () => ({
-    workbenches: [{ id: 'example', title: 'Example', description: '', tools: [], skills: [] }],
-    views: [{ id: 'example.view', workbenchId: 'example', title: 'Example view', entrypoint: uri }],
-  }) });
-  return { installs: [{ plugin, config: {} }], controllers: new Map(), mcpApps: new Map([['example.view', { transport, toolName: 'example.open' }]]) };
-};
+async function openExample(root: string) {
+  const installations = await createInstallationStore(createNodeJsonStore(join(root, 'state')));
+  if (!installations.startup.length) {
+    const pkg = join(root, 'example'); await mkdir(pkg, { recursive: true });
+    const build = await Bun.build({ entrypoints: [resolve(import.meta.dir, 'example-backend.fixture.ts')], target: 'bun', outdir: pkg, naming: 'backend.mjs' });
+    if (!build.success) throw Error('Example package build failed');
+    await writeFile(join(pkg, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'example',
+      extensions: { 'io.github.mafifi.drawloom': { version: 1, backend: { entrypoint: './backend.mjs' }, requires: [{ kind: 'capability', id: 'host' }],
+        workbenches: [{ id: 'example', title: 'Example', openingTool: { server: 'editor', tool: 'example.open' } }] } } }));
+    const id = await installations.add(pkg);
+    await installations.configure(id, { enabled: true, trustedBackend: true, servers: [], configuration: {} });
+  }
+  return createDesktopApplication(root);
+}
 
 test('returned and listed resources stay source-bound and cached across restart', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-resources-'));
-  let app = await createDesktopApplication(root, extension);
+  let app = await openExample(root);
   await app.command({ kind: 'create_conversation', workbenchId: 'example', provider: 'synthetic' });
   const conversationId = (await app.snapshot()).selectedId, viewId = 'example.view';
   try {
@@ -43,25 +33,27 @@ test('returned and listed resources stay source-bound and cached across restart'
     expect(returned.isError).not.toBe(true);
     const entry = (await app.historyPage(conversationId)).entries[0]!;
     expect(entry.resources?.[0]?.status).toBe('readable');
-    await app.close(); app = await createDesktopApplication(root, extension);
+    await app.close(); app = await openExample(root);
     const ready = await app.readResource(conversationId, entry.id, entry.resources![0]!.id);
     expect(ready.status).toBe('ready');
     expect(new TextDecoder().decode(await app.assets.read(ready.asset!.key))).toBe('Use simple words.');
-    await app.close(); app = await createDesktopApplication(root, extension);
+    await app.close(); app = await openExample(root);
     expect(await app.readResource(conversationId, entry.id, ready.id)).toEqual(ready);
     expect((await app.resourcePage(conversationId, viewId)).resources).toHaveLength(1);
     const listed = await app.openListedResource(conversationId, viewId, 'document://example/guide');
     expect(listed.resources?.[0]?.status).toBe('ready');
     expect((await app.openListedResource(conversationId, viewId, 'document://example/guide')).id).toBe(listed.id);
     const { createNodeJsonStore } = await import('@drawloom/node-host');
-    expect(await createNodeJsonStore(join(root, 'state')).get('extension:example.reads')).toBe(2);
+    const store = createNodeJsonStore(join(root, 'state'));
+    const id = (await createInstallationStore(store)).startup[0]!.id;
+    expect(await store.get(JSON.stringify(['plugin', id, 'example.reads']))).toBe(2);
     expect((await app.snapshot()).activity).toEqual([]);
   } finally { await app.close(); }
 });
 
 test('MCP view data stays with its active owner and persists without an OperatorController', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-mcp-view-'));
-  const app = await createDesktopApplication(root, extension);
+  const app = await openExample(root);
   const previous = (await app.snapshot()).selectedId;
   await app.command({ kind: 'create_conversation', workbenchId: 'example', provider: 'synthetic' });
   const target = { conversationId: (await app.snapshot()).selectedId, viewId: 'example.view' };
@@ -74,14 +66,14 @@ test('MCP view data stays with its active owner and persists without an Operator
     await expect(app.viewRequest({ ...target, request: { name: 'example.open' } })).rejects.toThrow();
     await app.command({ kind: 'select_conversation', conversationId: target.conversationId });
   } finally { await app.close(); }
-  const reopened = await createDesktopApplication(root, extension);
+  const reopened = await openExample(root);
   try { const reply = await reopened.viewRequest({ ...target, request: { name: 'example.open', arguments: {} } }); expect(reply.structuredContent).toEqual({ choice: 'second' }); }
   finally { await reopened.close(); }
 });
 
 test('MCP HTML and calls require authenticated parent channel and retain sandbox restrictions', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-mcp-http-'));
-  const app = await createDesktopApplication(root, extension);
+  const app = await openExample(root);
   await app.command({ kind: 'create_conversation', workbenchId: 'example', provider: 'synthetic' });
   const state = await app.snapshot();
   const server = serveDesktop(app, resolve('apps/desktop/build'));
@@ -106,7 +98,7 @@ test('MCP HTML and calls require authenticated parent channel and retain sandbox
 
 test('context updates do not start an agent and stale views cannot send conversation requests', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-mcp-context-'));
-  const app = await createDesktopApplication(root, extension);
+  const app = await openExample(root);
   const previous = (await app.snapshot()).selectedId;
   await app.command({ kind: 'create_conversation', workbenchId: 'example', provider: 'synthetic' });
   const routing = { conversationId: (await app.snapshot()).selectedId, viewId: 'example.view' };

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { AgentSessionSignalSchema, AgentApprovalResolutionSchema, AgentInputResolutionSchema, AgentReviewerSchema, DiscoveryEntrySchema, DiscoverySnapshotSchema, DiscoverySelectionSchema } from '@drawloom/agent';
 import { AssetSchema, JsonValueSchema } from '@drawloom/host';
 import { WorkbenchSchema, OperatorSnapshotSchema, OperatorCommandSchema } from '@drawloom/workbench';
-import { ToolResultSchema } from '@drawloom/tools';
+import { ToolResultSchema, ToolElicitationRequestSchema, ToolElicitationResultSchema } from '@drawloom/tools';
 import { RegisteredWorkbenchViewSchema } from '@drawloom/plugins';
 import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { McpUiMessageRequestSchema, McpUiUpdateModelContextRequestSchema } from '@modelcontextprotocol/ext-apps';
@@ -14,6 +14,7 @@ export const DesktopCatalogueSchema = z.strictObject({
 });
 export type DesktopCatalogue = z.infer<typeof DesktopCatalogueSchema>;
 export const DiscoveryResourceReadSchema = DiscoverySelectionSchema.extend({ conversationId: id });
+export const DiscoveryAuthenticationSchema = DiscoverySelectionSchema.extend({ conversationId: id });
 export const ToolStartSchema = z.strictObject({ kind: z.literal('started'), invocationId: z.string().min(1), operationId: z.string().min(1).optional(), tool: z.string().min(1) });
 export const ConversationSchema = z.strictObject({ id, title: z.string().max(120), workbenchId: id, provider: z.enum(['synthetic', 'codex']), reviewer: AgentReviewerSchema.default('human') });
 export const DesktopSnapshotSchema = z.strictObject({
@@ -21,6 +22,9 @@ export const DesktopSnapshotSchema = z.strictObject({
   selectedId: id, operator: OperatorSnapshotSchema,
   activity: z.array(ToolResultSchema), signals: z.array(AgentSessionSignalSchema),
   pendingTools: z.array(ToolStartSchema).default([]),
+  /** Display-only names for host aliases; never sent as invocation identities. */
+  toolLabels: z.array(z.strictObject({ toolName: id, title: z.string(), origin: z.string() })).default([]),
+  elicitations: z.array(ToolElicitationRequestSchema).default([]),
   activeOperation: id.optional(), controls: z.strictObject({ steer: z.boolean(), interrupt: z.boolean(), reviewerModes: z.array(AgentReviewerSchema).default(['human']) }),
   plugins: z.array(z.strictObject({ id, status: z.enum(['ready', 'unavailable']), summary: z.string() })),
   notice: z.string(),
@@ -41,6 +45,7 @@ export const DesktopCommandSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('operator'), workbenchId: id, command: OperatorCommandSchema }),
   z.strictObject({ kind: z.literal('approval'), conversationId: id, resolution: AgentApprovalResolutionSchema }),
   z.strictObject({ kind: z.literal('input'), conversationId: id, resolution: AgentInputResolutionSchema }),
+  z.strictObject({ kind: z.literal('elicitation'), conversationId: id, requestId: id, result: ToolElicitationResultSchema }),
 ]);
 export type DesktopCommand = z.input<typeof DesktopCommandSchema>;
 export const ImportSchema = z.strictObject({ conversationId: id.optional(), name: z.string().max(256), mediaType: z.string().max(128), base64: z.string().max(24 * 1024 * 1024) });

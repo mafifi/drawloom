@@ -17,6 +17,7 @@
   import ArtifactViewer from "./ArtifactViewer.svelte";
   import AttachmentCard from "./AttachmentCard.svelte";
   import ResourceCard from './ResourceCard.svelte';
+  import ElicitationForm from './ElicitationForm.svelte';
   import type { DesktopViewModel } from "./view-model.svelte.js";
   let { vm }: { vm: DesktopViewModel } = $props();
   let inputValue = $state("{}");
@@ -130,6 +131,7 @@
             : ""}</span
         ><span>Open</span></Button
       >{/if}
+    {#each vm.state?.elicitations ?? [] as request (request.requestId)}<ElicitationForm {vm} {request} />{/each}
     {#each vm.state?.signals ?? [] as signal}
       {#if signal.kind === "approval.requested" && vm.state?.activeOperation === signal.request.operationId && !vm.state.signals.some((s) => s.kind === "approval.resolved" && s.approvalId === signal.request.approvalId)}
         <Alert.Root class="interaction"

@@ -5,6 +5,7 @@ import { HistoryEntrySchema, type HistoryEntry } from '@drawloom/conversation-hi
 import { ListResourcesResultSchema, type ListResourcesResult } from '@modelcontextprotocol/sdk/types.js';
 import type { OperatorCommand } from '@drawloom/workbench';
 import { z } from 'zod';
+import { elicitationContent } from './elicitation-form.js';
 type Discovery = DesktopCatalogue['entries'][number];
 type Attachment = { id: string; name: string; size: number; mediaType: string; status: 'pending' | 'ready' | 'failed'; error: string; asset?: Asset };
 type SelectedResource = { entryId: string; resourceId: string; title: string; source: string };
@@ -25,6 +26,7 @@ export function createDesktopViewModel() {
   let stateRead = new AbortController();
   let draft = $state(''), error = $state(''), busy = $state(false);
   let pendingCommand = $state<DesktopCommand>();
+  let elicitationChoices = $state<Record<string, string>>({});
   // Feedback belongs to the initiating control; rejected overlapping work must
   // not replace it. Imports are independent so the next draft remains editable.
   let creationSource = $state<'new' | 'workbench' | 'provider'>();
@@ -41,6 +43,7 @@ export function createDesktopViewModel() {
   let catalogueQuery = $state('');
   const catalogueCache = new Map<string, DesktopCatalogue>();
   let catalogueEpoch = 0;
+  let integrationPending = $state<Record<string, boolean>>({}), integrationUrls = $state<Record<string, string>>({}), integrationErrors = $state<Record<string, string>>({});
   let pickerOpen = $state(false), pickerKind = $state<'skill' | 'context'>('skill'), pickerQuery = $state(''), pickerActiveId = $state('');
   const discoveryPageSize = 100;
   let catalogueLimit = $state(discoveryPageSize), pickerLimit = $state(discoveryPageSize), nativeResourceLimit = $state(discoveryPageSize);
@@ -154,6 +157,7 @@ export function createDesktopViewModel() {
       draftVersion++; attachmentVersion++; contextVersion++; selectionVersion++;
       resourceEpoch++; resourceVersion++; resourceOverrides = {}; resourcePending = {}; resourceErrors = {}; resourceListings = {}; openedResources = [];
       catalogueEpoch++; cataloguePending = false; catalogueError = ''; catalogue = catalogueCache.get(next.selectedId); pickerOpen = false;
+      integrationPending = {}; integrationUrls = {}; integrationErrors = {};
       catalogueQuery = ''; pickerQuery = ''; resetDiscoveryPages();
       void pager.open(next.selectedId); void refreshCatalogue();
     }
@@ -217,6 +221,19 @@ export function createDesktopViewModel() {
     contributionsFor(id: string) { return contributions.get(id)?.slice(0, contributionLimits[id] ?? discoveryPageSize) ?? []; },
     contributionCount(id: string) { return contributions.get(id)?.length ?? 0; },
     showMoreContributions(id: string) { contributionLimits[id] = (contributionLimits[id] ?? discoveryPageSize) + discoveryPageSize; },
+    integrationIsPending(id: string) { return integrationPending[id] ?? false; },
+    integrationAuthorizationUrl(id: string) { return integrationUrls[id] ?? ''; },
+    integrationError(id: string) { return integrationErrors[id] ?? ''; },
+    async authenticateIntegration(id: string) {
+      const entry = catalogue?.entries.find(item => item.id === id), conversationId = state?.selectedId, epoch = resourceEpoch;
+      if (!conversationId || entry?.authenticationOwner !== 'provider' || integrationPending[id]) return;
+      integrationPending[id] = true; integrationUrls[id] = ''; integrationErrors[id] = '';
+      try {
+        const result = z.strictObject({ authorizationUrl: z.url().refine(value => new URL(value).protocol === 'https:') }).parse(await response(await fetch('/api/discovery/authenticate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversationId, id, revision: entry.revision }) })));
+        if (epoch === resourceEpoch) integrationUrls[id] = result.authorizationUrl;
+      } catch (e) { if (epoch === resourceEpoch) integrationErrors[id] = e instanceof Error ? e.message : 'Native sign-in unavailable'; }
+      finally { if (epoch === resourceEpoch) integrationPending[id] = false; }
+    },
     async openNativeResource(id: string) {
       const entry = catalogue?.entries.find(item => item.id === id), conversationId = state?.selectedId, key = resourceKey('native', id), epoch = resourceEpoch;
       if (!conversationId || !entry?.readable || entry.kind !== 'resource' || entry.availability !== 'available' || resourcePending[key]) return;
@@ -326,9 +343,17 @@ export function createDesktopViewModel() {
     async start() { await refresh(); timer = setInterval(() => { if (!busy) void refresh(); }, 600); },
     stopPolling() { clearInterval(timer); stateRead.abort(); stateRead = new AbortController(); requestEpoch++; pager.invalidate(); },
     command, operator,
+    elicitationChoice(requestId: string, name: string, fallback = '') { return elicitationChoices[JSON.stringify([requestId, name])] ?? fallback; },
+    chooseElicitation(requestId: string, name: string, value: string) { elicitationChoices[JSON.stringify([requestId, name])] = value; },
     async submitInput(requestId: string, raw: string) {
       try { const value = JsonValueSchema.parse(JSON.parse(raw)); if (state) await command({ kind: 'input', conversationId: state.selectedId, resolution: { requestId, action: 'submit', value } }); }
       catch { error = 'Enter valid JSON matching the requested response format.'; }
+    },
+    async submitElicitation(requestId: string, form: FormData) {
+      const request = state?.elicitations.find(entry => entry.requestId === requestId);
+      if (!state || !request) { error = 'This request is no longer available.'; return false; }
+      try { return await command({ kind: 'elicitation', conversationId: state.selectedId, requestId, result: { action: 'accept', content: elicitationContent(request.params, form) } }); }
+      catch (cause) { error = cause instanceof Error ? cause.message : 'Complete the requested information.'; return false; }
     },
     async send() {
       if (!state || !draft.trim() || (conversation?.provider === 'synthetic' && conversation.workbenchId !== 'text')) return;

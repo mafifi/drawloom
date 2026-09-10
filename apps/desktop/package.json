@@ -1,7 +1,49 @@
 {
-  "name": "@drawloom/desktop", "version": "0.0.0", "private": true, "type": "module",
-  "drawloom": { "role": "composition", "runtime": "bun" },
-  "scripts": { "build": "vite build", "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json", "tauri": "tauri", "bundle:host": "bun build --compile host/main.ts --outfile src-tauri/binaries/drawloom-host" },
-  "dependencies": { "@drawloom/conversation-history": "workspace:*", "@drawloom/sqlite-conversation-history": "workspace:*", "@drawloom/ui": "workspace:*", "@drawloom/desktop-host": "workspace:*", "@drawloom/agent": "workspace:*", "@drawloom/codex-agent": "workspace:*", "@drawloom/synthetic-agent": "workspace:*", "@drawloom/host": "workspace:*", "@drawloom/node-host": "workspace:*", "@drawloom/tools": "workspace:*", "@drawloom/local-tools": "workspace:*", "@drawloom/plugins": "workspace:*", "@drawloom/startup-plugins": "workspace:*", "@drawloom/workbench": "workspace:*", "zod": "catalog:", "svelte": "catalog:" },
-  "devDependencies": { "@modelcontextprotocol/ext-apps": "catalog:", "@modelcontextprotocol/sdk": "catalog:", "@tailwindcss/vite": "catalog:", "@sveltejs/kit": "catalog:", "@sveltejs/adapter-static": "catalog:", "@sveltejs/vite-plugin-svelte": "catalog:", "vite": "catalog:", "svelte-check": "catalog:", "@tauri-apps/cli": "catalog:" }
+  "name": "@drawloom/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "drawloom": {
+    "role": "composition",
+    "runtime": "bun"
+  },
+  "optionalDependencies": {
+    "@napi-rs/keyring": "catalog:"
+  },
+  "scripts": {
+    "build": "vite build",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "tauri": "tauri",
+    "bundle:host": "bun build --compile host/main.ts --outfile src-tauri/binaries/drawloom-host"
+  },
+  "dependencies": {
+    "@drawloom/conversation-history": "workspace:*",
+    "@drawloom/sqlite-conversation-history": "workspace:*",
+    "@drawloom/ui": "workspace:*",
+    "@drawloom/desktop-host": "workspace:*",
+    "@drawloom/agent": "workspace:*",
+    "@drawloom/codex-agent": "workspace:*",
+    "@drawloom/synthetic-agent": "workspace:*",
+    "@drawloom/host": "workspace:*",
+    "@drawloom/node-host": "workspace:*",
+    "@drawloom/tools": "workspace:*",
+    "@drawloom/local-tools": "workspace:*",
+    "@drawloom/plugins": "workspace:*",
+    "@drawloom/startup-plugins": "workspace:*",
+    "@drawloom/workbench": "workspace:*",
+    "zod": "catalog:",
+    "svelte": "catalog:",
+    "@drawloom/local-plugin-packages": "workspace:*"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/ext-apps": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "@sveltejs/kit": "catalog:",
+    "@sveltejs/adapter-static": "catalog:",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "vite": "catalog:",
+    "svelte-check": "catalog:",
+    "@tauri-apps/cli": "catalog:"
+  }
 }

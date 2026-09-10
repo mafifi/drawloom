@@ -25,6 +25,7 @@
         "remotion": "catalog:",
         "svelte": "catalog:",
         "typescript": "5.9.3",
+        "yaml": "catalog:",
         "zod": "catalog:",
       },
     },
@@ -37,6 +38,7 @@
         "@drawloom/conversation-history": "workspace:*",
         "@drawloom/desktop-host": "workspace:*",
         "@drawloom/host": "workspace:*",
+        "@drawloom/local-plugin-packages": "workspace:*",
         "@drawloom/local-tools": "workspace:*",
         "@drawloom/node-host": "workspace:*",
         "@drawloom/plugins": "workspace:*",
@@ -59,6 +61,9 @@
         "@tauri-apps/cli": "catalog:",
         "svelte-check": "catalog:",
         "vite": "catalog:",
+      },
+      "optionalDependencies": {
+        "@napi-rs/keyring": "catalog:",
       },
     },
     "packages/agent/agent": {
@@ -103,7 +108,9 @@
       "version": "0.0.0",
       "dependencies": {
         "@drawloom/host": "workspace:*",
+        "@drawloom/orchestration": "workspace:*",
         "@drawloom/plugins": "workspace:*",
+        "@drawloom/tools": "workspace:*",
         "@drawloom/workbench": "workspace:*",
         "@modelcontextprotocol/sdk": "catalog:",
         "zod": "catalog:",
@@ -153,6 +160,25 @@
       "dependencies": {
         "@drawloom/conversation-history": "workspace:*",
         "@drawloom/host": "workspace:*",
+        "zod": "catalog:",
+      },
+    },
+    "packages/orchestration/orchestration": {
+      "name": "@drawloom/orchestration",
+      "version": "0.0.0",
+      "dependencies": {
+        "@drawloom/agent": "workspace:*",
+        "zod": "catalog:",
+      },
+    },
+    "packages/plugins/local-plugin-packages": {
+      "name": "@drawloom/local-plugin-packages",
+      "version": "0.0.0",
+      "dependencies": {
+        "@drawloom/plugins": "workspace:*",
+        "@drawloom/tools": "workspace:*",
+        "@modelcontextprotocol/sdk": "catalog:",
+        "yaml": "catalog:",
         "zod": "catalog:",
       },
     },
@@ -221,6 +247,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "@modelcontextprotocol/sdk@1.30.0": "patches/@modelcontextprotocol%2Fsdk@1.30.0.patch",
+  },
   "catalog": {
     "@astrojs/check": "0.9.10",
     "@google/design.md": "^0.4.0",
@@ -228,6 +257,7 @@
     "@lucide/svelte": "^1.43.0",
     "@modelcontextprotocol/ext-apps": "1.7.5",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@napi-rs/keyring": "2.0.0",
     "@remotion/cli": "4.0.520",
     "@sveltejs/adapter-static": "3.0.10",
     "@sveltejs/kit": "2.70.3",
@@ -240,6 +270,7 @@
     "@temporalio/common": "1.23.0",
     "@temporalio/worker": "1.23.0",
     "@temporalio/workflow": "1.23.0",
+    "@types/bun": "1.2.23",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "astro": "7.3.1",
@@ -256,6 +287,7 @@
     "tailwindcss": "4.3.3",
     "tw-animate-css": "1.4.0",
     "vite": "8.2.2",
+    "yaml": "2.9.0",
     "zod": "^4.5.4",
   },
   "packages": {
@@ -367,9 +399,13 @@
 
     "@drawloom/host": ["@drawloom/host@workspace:packages/host/host"],
 
+    "@drawloom/local-plugin-packages": ["@drawloom/local-plugin-packages@workspace:packages/plugins/local-plugin-packages"],
+
     "@drawloom/local-tools": ["@drawloom/local-tools@workspace:packages/tools/local-tools"],
 
     "@drawloom/node-host": ["@drawloom/node-host@workspace:packages/host/node-host"],
+
+    "@drawloom/orchestration": ["@drawloom/orchestration@workspace:packages/orchestration/orchestration"],
 
     "@drawloom/plugins": ["@drawloom/plugins@workspace:packages/plugins/plugins"],
 
@@ -594,6 +630,32 @@
     "@module-federation/sdk": ["@module-federation/sdk@0.22.0", "", {}, "sha512-x4aFNBKn2KVQRuNVC5A7SnrSCSqyfIWmm1DvubjbO9iKFe7ith5niw8dqSFBekYBg2Fwy+eMg4sEFNVvCAdo6g=="],
 
     "@module-federation/webpack-bundler-runtime": ["@module-federation/webpack-bundler-runtime@0.22.0", "", { "dependencies": { "@module-federation/runtime": "0.22.0", "@module-federation/sdk": "0.22.0" } }, "sha512-aM8gCqXu+/4wBmJtVeMeeMN5guw3chf+2i6HajKtQv7SJfxV/f4IyNQJUeUQu9HfiAZHjqtMV5Lvq/Lvh8LdyA=="],
+
+    "@napi-rs/keyring": ["@napi-rs/keyring@2.0.0", "", { "optionalDependencies": { "@napi-rs/keyring-darwin-arm64": "2.0.0", "@napi-rs/keyring-darwin-x64": "2.0.0", "@napi-rs/keyring-freebsd-x64": "2.0.0", "@napi-rs/keyring-linux-arm-gnueabihf": "2.0.0", "@napi-rs/keyring-linux-arm64-gnu": "2.0.0", "@napi-rs/keyring-linux-arm64-musl": "2.0.0", "@napi-rs/keyring-linux-riscv64-gnu": "2.0.0", "@napi-rs/keyring-linux-x64-gnu": "2.0.0", "@napi-rs/keyring-linux-x64-musl": "2.0.0", "@napi-rs/keyring-win32-arm64-msvc": "2.0.0", "@napi-rs/keyring-win32-ia32-msvc": "2.0.0", "@napi-rs/keyring-win32-x64-msvc": "2.0.0" } }, "sha512-TnrIt0nO9U2Ue9E9vJQjso1hqhIYiGrn2Ew1HBsMSqQe4+ceOqPJJwRVsV0/Wy7pqp04/doOLASyIFM3gGwZJw=="],
+
+    "@napi-rs/keyring-darwin-arm64": ["@napi-rs/keyring-darwin-arm64@2.0.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-yvIfviiXpsDSsPdyzWWd7STZt7v774biPfMBpWkiK7rwauwWbOmVjUzgiJ11rbhJbWLqXE3CuQMyLgvcbm3jIA=="],
+
+    "@napi-rs/keyring-darwin-x64": ["@napi-rs/keyring-darwin-x64@2.0.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-XJUONH0c5cg7M9/1Vj3WeIi8TtWYdZlo8Jqho09ga8OWm9cFNxUv7+4QZx5UK/3JSp2qiyhTlresyKdcpwpnRw=="],
+
+    "@napi-rs/keyring-freebsd-x64": ["@napi-rs/keyring-freebsd-x64@2.0.0", "", { "os": "freebsd", "cpu": "x64" }, "sha512-u/M114J9Lp3RqtIZihIqhvreNQ5f8wgLFo9tJFy+bIIO/xEHkMR0LENrfUF8hSY6FTNyS2kSbbkN6yOItBFY5g=="],
+
+    "@napi-rs/keyring-linux-arm-gnueabihf": ["@napi-rs/keyring-linux-arm-gnueabihf@2.0.0", "", { "os": "linux", "cpu": "arm" }, "sha512-CHMv/KTuELo/MsrGUha52KrFGPBuBkeAonnMFUd3nNcxBTSmeJbCAZTuVSXzpessdpb4tT9xIMQsv2ZdWrl8iw=="],
+
+    "@napi-rs/keyring-linux-arm64-gnu": ["@napi-rs/keyring-linux-arm64-gnu@2.0.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-BeUUPGSnW026yDGT4pKuNXDnwxw0xslwiSK6cuOIsDNLi3UO93rfF/7moqKznrBldgsZr8pl9LkMdRk8bnbjEA=="],
+
+    "@napi-rs/keyring-linux-arm64-musl": ["@napi-rs/keyring-linux-arm64-musl@2.0.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-zj7wZ23Vs7SL4odnGDbWnhZhiyrnEgBe4+8dzKHDi1mTBX1d00FYlGOubkjvx3AeK7mm6G2FyFDDFqIxyR82gA=="],
+
+    "@napi-rs/keyring-linux-riscv64-gnu": ["@napi-rs/keyring-linux-riscv64-gnu@2.0.0", "", { "os": "linux", "cpu": "none" }, "sha512-xk/1SOhuk2yQvXiN+pBhR4njSfquLm1SUKUIJcPIeYV1bHFXbUsYrXdfy4NtynSW0lhs41zWjLXSdE8TLeTt2g=="],
+
+    "@napi-rs/keyring-linux-x64-gnu": ["@napi-rs/keyring-linux-x64-gnu@2.0.0", "", { "os": "linux", "cpu": "x64" }, "sha512-12Dq6t2TOrQTibcJcfV5bnHbTvMwEz6zSDqQLHMO2x388gGFQBAeEvw7Hmt+R1QavxspTa2ptgI7axomu9TH+w=="],
+
+    "@napi-rs/keyring-linux-x64-musl": ["@napi-rs/keyring-linux-x64-musl@2.0.0", "", { "os": "linux", "cpu": "x64" }, "sha512-7NJZvFUiL1FPCrSIQ1L4IUzN6l/2zoxT3IN6j3rHTuDdIEunJaycrUovDMvPlBNP1Vh3fSYz6Pp7tFjdt/1/oQ=="],
+
+    "@napi-rs/keyring-win32-arm64-msvc": ["@napi-rs/keyring-win32-arm64-msvc@2.0.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-JTktZGXKow0HF/rhaZiQYB8DUS/iSX7S7FvJDoGxPT8mGavKE3w/vadtfKSBNDL4uGef3wu2Ll0XxSfDKBsm2Q=="],
+
+    "@napi-rs/keyring-win32-ia32-msvc": ["@napi-rs/keyring-win32-ia32-msvc@2.0.0", "", { "os": "win32", "cpu": "ia32" }, "sha512-AzvIFTqn1hJzCPu0foeYWn+kXruAIrVq3Z2IfJ24WPbIXUdD7+rcj49fqco7b14Z6C1aUfsSTyvrAgDfUWhKvA=="],
+
+    "@napi-rs/keyring-win32-x64-msvc": ["@napi-rs/keyring-win32-x64-msvc@2.0.0", "", { "os": "win32", "cpu": "x64" }, "sha512-POpEUTV6U+pb69cpuOgtLV4xhcyEWDWq+/9zdiZmNxTL1AenE0MllWrbepS+Hng4M7EarQ5TB3kX69ASqGwfIw=="],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.2.3", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1 || ^2.0.0-alpha.4", "@emnapi/runtime": "^1.7.1 || ^2.0.0-alpha.4" } }, "sha512-UMduMbqO5s5zF2NkNacMT/yK5Y5QiKvWr2+50bzIIxFDwVJ2h49b+oyjaCGPhJxd2/gC2x39EHv/gHVuu36x2Q=="],
 

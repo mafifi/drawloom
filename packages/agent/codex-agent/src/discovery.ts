@@ -7,7 +7,7 @@ const id = z.string().min(1);
 const skill = z.object({ name:id, description:z.string(), path:id, scope:z.enum(['user','repo','system','admin']), enabled:z.boolean(), pluginId:id.nullable() });
 const app = z.object({ id, name:id, description:z.string().nullable(), isAccessible:z.boolean(), isEnabled:z.boolean() });
 const plugin = z.object({ id, name:id, installed:z.boolean(), enabled:z.boolean(), availability:z.enum(['AVAILABLE','DISABLED_BY_ADMIN']), interface:z.object({ longDescription:z.string().nullable(), shortDescription:z.string().nullable() }).nullable() });
-const server = z.object({ name:id, pluginId:id.nullable(), tools:z.record(z.string(),z.object({name:id,description:z.string().optional()})), resources:z.array(z.object({uri:id,name:id,title:z.string().optional(),description:z.string().optional()})).default([]) });
+const server = z.object({ name:id, pluginId:id.nullable(), authStatus:z.enum(['unknown','unsupported','notLoggedIn','bearerToken','oAuth']).optional(), tools:z.record(z.string(),z.object({name:id,description:z.string().optional()})), resources:z.array(z.object({uri:id,name:id,title:z.string().optional(),description:z.string().optional()})).default([]) });
 type NativeSelection = { type: 'skill' | 'mention'; name: string; path: string };
 const rejected = (): AgentResult<never> => ({status:'rejected',failure:{code:'invalid_state',message:'Discovery changed or the selection is unavailable. Refresh and select again.'}});
 async function identity(kind: string, nativeId: string) {
@@ -24,7 +24,8 @@ export function createCodexDiscovery(rpc: RpcTransport, threadId: string, isClos
   let pending: Promise<AgentResult<DiscoverySnapshot>> | undefined;
   let selections = new Map<string, NativeSelection>();
   let resources = new Map<string, {server:string;uri:string}>();
-  const clear = () => { generation++; cached=undefined; pending=undefined; selections.clear(); resources.clear(); };
+  let authentication = new Map<string, string>();
+  const clear = () => { generation++; cached=undefined; pending=undefined; selections.clear(); resources.clear(); authentication.clear(); };
   const invalidate = () => { explicitRevision++; clear(); };
   const upstreamChanged = (method: string, params: unknown) => {
     if (method === 'app/list/updated') {
@@ -39,6 +40,18 @@ export function createCodexDiscovery(rpc: RpcTransport, threadId: string, isClos
   };
   const discovery: AgentDiscovery = {
     invalidate,
+    async authenticate(selection) {
+      const current = generation;
+      const name = cached?.revision === selection.revision ? authentication.get(selection.id) : undefined;
+      if (!name || isClosed()) return rejected();
+      try {
+        const result = z.object({ authorizationUrl: z.string().url().refine(value => {
+          const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password;
+        }) }).parse(await rpc.request('mcpServer/oauth/login', { name, threadId }));
+        if (current !== generation || isClosed()) return rejected();
+        return { status: 'ok', value: result };
+      } catch { return { status: 'rejected', failure: { code: 'provider_unavailable', message: 'Native sign-in is unavailable. Use the provider’s own integration settings.' } }; }
+    },
     async readResource(selection) {
       const current = generation;
       let target = cached?.revision === selection.revision ? resources.get(selection.id) : undefined;
@@ -71,6 +84,7 @@ export function createCodexDiscovery(rpc: RpcTransport, threadId: string, isClos
         const entries: DiscoveryEntry[]=[];
         const native=new Map<string,NativeSelection>();
         const readable=new Map<string,{server:string;uri:string}>();
+        const authTargets = new Map<string, string>();
         const categories: DiscoverySnapshot['categories']=[];
         const add=async (nativeId: string, entry:Omit<DiscoveryEntry,'id'>, selection?:NativeSelection) => {
           if (entries.length >= 10_000) throw Error('Inventory limit');
@@ -82,7 +96,7 @@ export function createCodexDiscovery(rpc: RpcTransport, threadId: string, isClos
         async function category(kind: DiscoveryEntry['kind'], run:()=>Promise<void>) {
           const start=entries.length;
           try {await run();categories.push({kind,status:'available'});}
-          catch(error) { for(const entry of entries.splice(start)){native.delete(entry.id);readable.delete(entry.id);}const unsupported=z.object({code:z.literal(-32601)}).safeParse(error).success;categories.push({kind,status:unsupported?'unsupported':'error',message:'Provider discovery is unavailable for this category.'}); }
+          catch(error) { for(const entry of entries.splice(start)){native.delete(entry.id);readable.delete(entry.id);authTargets.delete(entry.id);}const unsupported=z.object({code:z.literal(-32601)}).safeParse(error).success;categories.push({kind,status:unsupported?'unsupported':'error',message:'Provider discovery is unavailable for this category.'}); }
         }
         async function pages<T>(method:string,schema:z.ZodType<T>, params:Record<string,unknown>, consume:(value:T)=>Promise<void>) {
           let cursor:string|null=null;const seen=new Set<string>();
@@ -107,6 +121,12 @@ export function createCodexDiscovery(rpc: RpcTransport, threadId: string, isClos
           await add(item.id, {origin:'codex',kind:'app',name:item.name,description:item.description??'',scope:'session',availability:available?'available':'unavailable',selectable:available},available?{type:'mention',name:item.name,path:`app://${item.id}`}:undefined);
         }));
         await category('tool',()=>pages('mcpServerStatus/list',server,{threadId},async item=>{
+          if (item.authStatus === 'notLoggedIn' || item.authStatus === 'oAuth') {
+            const key = await add(item.name, { origin: 'codex', kind: 'integration', name: item.name,
+              description: item.authStatus === 'oAuth' ? 'Signed in through Codex. Credentials remain with Codex.' : 'Sign-in required through Codex.',
+              scope: 'session', availability: item.authStatus === 'oAuth' ? 'available' : 'unavailable', selectable: false, authenticationOwner: 'provider' });
+            authTargets.set(key, item.name);
+          }
           for(const tool of Object.values(item.tools))await add(item.name + ':' + tool.name, {origin:`codex:mcp:${item.name}`,kind:'tool',name:tool.name,description:tool.description??'',scope:'session',availability:'unverified',selectable:false,...(item.pluginId?{ownerId:await identity('plugin', item.pluginId)}:{})});
           for (const resource of item.resources) {
             const key = await add(item.name + ':' + resource.uri, { origin:`codex:mcp:${item.name}`,kind:'resource',name:resource.title??resource.name,description:resource.description??'',scope:'session',availability:'available',selectable:false,readable:true });
@@ -128,7 +148,7 @@ export function createCodexDiscovery(rpc: RpcTransport, threadId: string, isClos
           if (!isClosed() && explicit === explicitRevision && retries-- > 0) { options = {}; return attempt(); }
           return rejected();
         }
-        cached=DiscoverySnapshotSchema.parse({revision,entries,categories});selections=native;resources=readable;
+        cached=DiscoverySnapshotSchema.parse({revision,entries,categories});selections=native;resources=readable;authentication=authTargets;
         return {status:'ok',value:structuredClone(cached)};
       };
       const request=attempt();

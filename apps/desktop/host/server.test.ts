@@ -1,12 +1,12 @@
 import { test, expect } from 'bun:test';
 test('managed MOV export is authenticated, byte exact and offered as an attachment', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-mov-test-'));
-  let key = '';
   const bytes = new Uint8Array([0,0,0,20,102,116,121,112,113,116,32,32]);
-  const app = await createDesktopApplication(root, async host => {
-    key = (await host.assets.put(bytes, 'video/quicktime')).key;
-    return {installs: [], controllers: new Map()};
-  });
+  const app = await installedMedia(root, true);
+  await app.command({ kind: 'create_conversation', workbenchId: 'media-example', provider: 'synthetic' });
+  const content = (await app.snapshot()).operator.artifacts[0]!.content;
+  if (content.kind !== 'asset') throw Error('Expected registered media');
+  const { key } = content.asset;
   const server = serveDesktop(app, resolve('apps/desktop/build'));
   try {
     expect((await fetch(server.origin + '/api/assets/' + key)).status).toBe(401);
@@ -18,16 +18,15 @@ test('managed MOV export is authenticated, byte exact and offered as an attachme
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
   }finally{await server.close();}
 });
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createDesktopApplication } from './application.js';
 import { serveDesktop } from './server.js';
 import { assetLibraryConformance } from '@drawloom/host/conformance';
 import { createDesktopAssets } from './assets.js';
-import { definePlugin } from '@drawloom/plugins';
-import { z } from 'zod';
-import { createTextController } from './text-controller.js';
+import { createNodeJsonStore } from '@drawloom/node-host';
+import { createInstallationStore } from './plugin-installations.js';
 test('cold native discovery may exceed the HTTP idle default without blocking state reads', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-slow-discovery-'));
   const app = await createDesktopApplication(root);
@@ -44,15 +43,23 @@ test('cold native discovery may exceed the HTTP idle default without blocking st
     expect((await discovery).status).toBe(200);
   } finally { await server.close(); }
 }, 30_000);
-test('trusted media factory shares managed assets without a private dependency or synthetic fallback', async () => {
+async function installedMedia(root: string, mov = false) {
+  const pkg = join(root, 'media'); await mkdir(pkg);
+  // Build in a separate process, as package producers do. Repeated in-process
+  // Bun 1.2 builds/imports of this graph corrupt the bundler's resolver cache.
+  const built = Bun.spawn([process.execPath, 'build', resolve(import.meta.dir, 'media-backend.fixture.ts'), '--target=bun', '--outfile=' + join(pkg, 'backend.mjs')], { stdout: 'ignore', stderr: 'pipe' });
+  const buildError = await new Response(built.stderr).text();
+  if (await built.exited) throw Error('Fixture build failed: ' + buildError);
+  await writeFile(join(pkg, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'media-example',
+    extensions: { 'io.github.mafifi.drawloom': { version: 1, backend: { entrypoint: './backend.mjs' }, requires: [{ kind: 'capability', id: 'host' }] } } }));
+  const installed = await createInstallationStore(createNodeJsonStore(join(root, 'state')));
+  const id = await installed.add(pkg);
+  await installed.configure(id, { enabled: true, trustedBackend: true, servers: [], configuration: { mov } });
+  return createDesktopApplication(root);
+}
+test('trusted media package shares managed assets without a private dependency or synthetic fallback', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-extension-test-'));
-  const app = await createDesktopApplication(root, async ({ store, assets }) => {
-    const controller = await createTextController(store);
-    const asset = await assets.put(new Uint8Array(17 * 1024 * 1024), 'video/mp4');
-    await controller.observeArtifact({ operationId: 'media-operation', asset });
-    const plugin = definePlugin({ id: 'public.media-example', version: '1.0.0', config: z.strictObject({}), contribute: () => ({ workbenches: [{ id: 'media-example', title: 'Media example', description: 'Public synthetic media fixture', tools: [], skills: [] }] }) });
-    return { installs: [{ plugin, config: {} }], controllers: new Map([['media-example', controller]]) };
-  });
+  const app = await installedMedia(root);
   try {
     const before = await app.snapshot();
     await app.command({ kind: 'create_conversation', workbenchId: 'media-example', provider: 'synthetic' });

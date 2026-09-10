@@ -1,4 +1,5 @@
 import { z } from "zod";
+export { packageInspectionConformance, type PackageFixture } from './package-conformance.js';
 import {
   definePlugin,
   type PluginInstaller,

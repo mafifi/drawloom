@@ -39,16 +39,23 @@ offline, and history errors do not retry or rewrite provider outcomes. See
 [ADR 0014](../adr/0014-persistent-paginated-conversation-history.md) and the
 [history reference](../reference/conversation-history.md).
 
-Trusted external startup composition is an explicit local factory module selected
-by the host operator. Its type is `DesktopExtensionFactory` from the supported
-`@drawloom/desktop-host` package. It receives a namespaced `JsonStore` and
-`AssetLibrary`, and returns public PluginInstaller values and a matching
-OperatorController per workbench. AssetLibrary.put stores bytes and registers
+Trusted package backends use `PluginBackendFactory` from `@drawloom/desktop-host`.
+The operator explicitly activates and trusts each installed package. A backend
+receives its declared public capabilities, including an installation-scoped
+`JsonStore` and `AssetLibrary` when requested, and returns contributions,
+controllers, named MCP connections and cleanup. AssetLibrary.put stores bytes and registers
 the resulting media identity for authenticated viewing; raw AssetStore.write
 does not register presentation metadata. No arbitrary path getter or HTTP route
 registration is provided. This is host code execution by the operator's
 configuration, never package discovery or frontend dynamic execution. No private
 module is included in the public source, build or default application.
+
+Accepted [ADR 0018](../adr/0018-plugin-standards-and-runtime-extensions.md) adds
+standard local Agent Plugins loading and a trusted prebuilt backend entrypoint.
+The previous startup factory route has been removed without a compatibility path. See the
+[package reference](../reference/plugin-packages.md) for installation, native versus
+host OAuth ownership, independent permissions and standard MCP Apps placement.
+This implementation does not imply the migration or ADR has been accepted.
 
 The trusted desktop AssetLibrary accepts supported media up to 256 MiB per asset.
 This is a bounded whole-buffer contract, not a streaming API: producers must
@@ -75,9 +82,9 @@ unresolved after restart and confer no success or retry authority. This uses the
 JSON store's existing durability boundary, not a transcript or logging service.
 
 One selected data directory is one project. Different project inputs use distinct
-directories and factory-owned persisted configuration; no episode identity is
-hardcoded in the public application. The factory store is namespaced away from
-host navigation records. Native artifact intake remains host-only and idempotent
+directories and installation-owned persisted configuration; no episode identity
+is hardcoded in the public application. Each backend store is namespaced by its
+installation, away from host navigation records. Native artifact intake remains host-only and idempotent
 per operation-plus-asset identity; different operations may yield identical bytes.
 
 Execution order is foundation, public desktop shell, private plugin skeleton,

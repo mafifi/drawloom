@@ -1,7 +1,7 @@
 import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import { resolve, sep } from 'node:path';
 import { lstat, realpath } from 'node:fs/promises';
-import { ImportSchema, ResourceReadSchema, ResourceOpenSchema, DiscoveryResourceReadSchema } from '../src/lib/protocol.js';
+import { ImportSchema, ResourceReadSchema, ResourceOpenSchema, DiscoveryResourceReadSchema, DiscoveryAuthenticationSchema } from '../src/lib/protocol.js';
 import type { createDesktopApplication } from './application.js';
 import { createStateFeed } from './state-feed.js';
 import { HistoryStoreError } from '@drawloom/conversation-history';
@@ -20,6 +20,12 @@ export function serveDesktop(app: Application, webRoot: string, port = 0) {
       const url = new URL(request.url); const origin = `http://127.0.0.1:${server.port}`;
       const cookieName = `drawloom_${server.port}`;
       if (url.origin !== origin || request.headers.get('host') !== `127.0.0.1:${server.port}`) return json({ error: 'Invalid host' }, 403);
+      if (url.pathname === '/oauth/callback' && request.method === 'GET') {
+        try {
+          const status = await app.oauthCallback(url);
+          return new Response(status.state === 'authorized' ? 'Sign-in complete. Return to Drawloom and reconnect the server.' : 'Sign-in was not completed. Return to Drawloom to inspect the connection.', { headers: { ...secure, 'Content-Type': 'text/plain; charset=utf-8' } });
+        } catch { return new Response('This sign-in callback is invalid, cancelled or expired. Return to Drawloom to start again.', { status: 400, headers: { ...secure, 'Content-Type': 'text/plain; charset=utf-8' } }); }
+      }
       if (url.pathname === '/bootstrap' && bootstrap && request.method === 'GET' && valid(url.searchParams.get('token') ?? '')) {
         bootstrap = false; return new Response(null, { status: 303, headers: { ...secure, Location: '/', 'Set-Cookie': `${cookieName}=${token}; HttpOnly; SameSite=Strict; Path=/` } });
       }
@@ -27,11 +33,26 @@ export function serveDesktop(app: Application, webRoot: string, port = 0) {
       if (!valid(cookie)) return json({ error: 'Open the host startup URL to authenticate this local app.' }, 401);
       if (!['GET', 'HEAD'].includes(request.method) && (request.headers.get('origin') !== origin || request.headers.get('content-type') !== 'application/json')) return json({ error: 'Invalid command channel' }, 403);
       try {
+        if (url.pathname === '/api/packages' && request.method === 'GET') return json(await app.installedPackages());
+        if (url.pathname === '/api/packages' && request.method === 'POST') {
+          const raw: unknown = await request.json();
+          const next = commandQueue.then(() => app.packageAction(raw));
+          commandQueue = next.catch(() => {}); return json(await next);
+        }
+        if (url.pathname === '/api/packages/oauth' && request.method === 'POST') {
+          const raw: unknown = await request.json();
+          // Cancellation must not sit behind the authorization request it cancels.
+          return json(await app.packageOAuth(raw));
+        }
         if (url.pathname === '/api/discovery' && request.method === 'GET') {
-          // Cold native catalogues can span many metadata pages. Extend this
-          // authenticated read only; provider requests retain their own bounds.
+          // Allow host startup overhead. Optional native discovery has its own
+          // shorter display deadline so local contributions remain available.
           server.timeout(request, 120);
           return json(await app.discover(url.searchParams.get('conversationId') ?? '', url.searchParams.get('refresh') === '1'));
+        }
+        if (url.pathname === '/api/discovery/authenticate' && request.method === 'POST') {
+          const input = DiscoveryAuthenticationSchema.parse(await request.json());
+          return json(await app.authenticateIntegration(input.conversationId, input));
         }
         if (url.pathname === '/api/discovery/resource/read' && request.method === 'POST') {
           const input = DiscoveryResourceReadSchema.parse(await request.json());
@@ -141,5 +162,6 @@ export function serveDesktop(app: Application, webRoot: string, port = 0) {
       }
     },
   });
+  app.bindOAuthRedirect(`http://127.0.0.1:${server.port}/oauth/callback`);
   return { url: `http://127.0.0.1:${server.port}/bootstrap?token=${token}`, origin: `http://127.0.0.1:${server.port}`, async close() { server.stop(true); await app.close(); } };
 }

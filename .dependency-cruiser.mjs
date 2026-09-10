@@ -78,13 +78,13 @@ export default {
       name: "orchestration-spike-portable-authoring",
       severity: "error",
       comment:
-        "ADR 0017 plugin definitions use only candidate interfaces, portable agent schemas and Zod. Keep Temporal, handlers and host APIs in the proof adapter.",
+        "ADR 0017 plugin definitions use only the promoted portable interfaces, portable agent schemas and Zod. Keep Temporal, handlers and host APIs in the proof adapter.",
       from: {
         path: "^spikes/adr-0017-orchestration/(?:contract|fixtures|owned-agent)\\.ts$",
       },
       to: {
         pathNot:
-          "^(?:spikes/adr-0017-orchestration/(?:contract|fixtures|owned-agent)\\.ts$|@drawloom/agent$|packages/agent/agent/|node_modules/(?:zod/|@drawloom/agent/))",
+          "^(?:spikes/adr-0017-orchestration/(?:contract|fixtures|owned-agent)\\.ts$|@drawloom/(?:agent|orchestration(?:/conformance-fixtures)?)$|packages/(?:agent/agent|orchestration/orchestration)/|node_modules/(?:zod/|@drawloom/(?:agent|orchestration)/))",
       },
     },
     {

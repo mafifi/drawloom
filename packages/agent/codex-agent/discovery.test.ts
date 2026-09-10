@@ -27,6 +27,25 @@ function fixture(experimentalPluginDiscovery = false, imageInput?: () => Promise
 const input = { sessionId: 'discovery', context: { text: '' }, tools: { id: 'none', tools: [] } };
 test('shared discovery conformance: Codex',()=>agentDiscoveryConformance(fixture().driver));
 test('shared discovery conformance: unsupported synthetic',()=>agentDiscoveryConformance(createSyntheticDriver(()=>'')));
+test('native MCP sign-in stays with Codex and rejects stale or invented selections', async () => {
+  const f = fixture();
+  f.responses['mcpServerStatus/list'] = { data: [{ name: 'private-native', pluginId: null, tools: {}, resources: [], authStatus: 'notLoggedIn' }], nextCursor: null };
+  f.responses['mcpServer/oauth/login'] = { authorizationUrl: 'https://login.example.test/authorize?state=native' };
+  const opened = await f.driver.openSession(input); if (opened.status !== 'ok') throw Error();
+  try {
+    const discovery = opened.value.discovery!;
+    const page = await discovery.list(); if (page.status !== 'ok') throw Error();
+    const entry = page.value.entries.find(e => e.kind === 'integration'); expect(entry).toBeDefined();
+    expect(entry?.authenticationOwner).toBe('provider');
+    const selection = { id: entry!.id, revision: page.value.revision };
+    expect(await discovery.authenticate!(selection)).toMatchObject({ status: 'ok' });
+    expect(f.calls.find(c => c.method === 'mcpServer/oauth/login')?.params).toEqual({ name: 'private-native', threadId: 'native-thread' });
+    discovery.invalidate();
+    expect(await discovery.authenticate!(selection)).toMatchObject({ status: 'rejected' });
+    expect(f.calls.filter(c => c.method === 'mcpServer/oauth/login')).toHaveLength(1);
+    expect(f.calls.some(c => c.method === 'turn/start')).toBe(false);
+  } finally { await opened.value.close(); }
+});
 test('native resource reads use the originating server and reject invented identities without a call', async () => {
   const f = fixture();
   f.responses['mcpServerStatus/list'] = { data: [{ name: 'docs', pluginId: null, tools: {}, resources: [{ uri: 'doc://guide', name: 'Guide', mimeType: 'text/plain' }] }], nextCursor: null };

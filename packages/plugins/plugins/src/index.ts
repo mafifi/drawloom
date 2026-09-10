@@ -1,6 +1,9 @@
 import { z } from "zod";
 import type { ToolDefinition } from "@drawloom/tools";
 import type { Workbench } from "@drawloom/workbench";
+export * from './package.js';
+import { PluginRequirementSchema, type PluginRequirement } from './requirements.js';
+export { PluginRequirementSchema, type PluginRequirement } from './requirements.js';
 export const SkillSchema = z.strictObject({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -8,11 +11,6 @@ export const SkillSchema = z.strictObject({
   instructions: z.string().min(1),
 });
 export type Skill = z.infer<typeof SkillSchema>;
-export const PluginRequirementSchema = z.strictObject({
-  kind: z.enum(["capability", "tool", "skill"]),
-  id: z.string().min(1),
-});
-export type PluginRequirement = z.infer<typeof PluginRequirementSchema>;
 /** Provisional, separately built HTML view; trusted startup owns the resource. */
 export const WorkbenchViewSchema = z.strictObject({
   id: z.string().min(1).max(256),

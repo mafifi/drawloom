@@ -7,7 +7,6 @@ export function mcpReviewConfiguration(exposure: ToolExposure) {
     ToolExposureSchema.parse(exposure).tools.map(tool => [tool.name, { approval_mode: tool.annotations?.readOnlyHint === true ? 'approve' : 'prompt' }]),
   ) };
 }
-export type { DesktopExtension, DesktopExtensionFactory } from '@drawloom/desktop-host';
 export const textPlugin = definePlugin({
   id: 'synthetic.text', version: '1.0.0', config: z.strictObject({}),
   contribute: () => ({

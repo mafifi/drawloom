@@ -14,6 +14,11 @@ links back.
 
 ## Latest decision
 
+- [ADR 0018: Plugin standards and Drawloom runtime extensions](0018-plugin-standards-and-runtime-extensions.md)
+  is Accepted. Standard package loading and the bounded backend extension are
+  implemented and proven with the migrated consumer. Native discovery latency
+  remains a logging/instrumentation follow-up, not a resolved performance claim.
+
 - [ADR 0017: Orchestration interfaces](0017-orchestration-interfaces.md) is
   Accepted. Typed workflow/run/agent boundaries are demonstrated by a retained
   local Temporal proof; no supported package or production backend is selected.

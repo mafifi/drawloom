@@ -19,12 +19,20 @@ Cloudflare and Tauri compatibility are not claimed.
 | `@drawloom/codex-agent` | `createCodexDriver`, `createCodexToolBridge`, `CodexDriverOptions` |
 | `@drawloom/plugins` | `definePlugin`, `PluginDefinition`, `PluginContributions`, `SkillSchema`, `Skill`, `PluginRequirementSchema`, `PluginRequirement`, `PluginRegistry`, `PluginInstaller`; `/conformance`: `pluginConformance` |
 | `@drawloom/startup-plugins` | `createPluginRegistry` |
+| `@drawloom/local-plugin-packages` | Bun-hosted `inspectPackage`, `readSkill`, `readSupportingFile`, `activatePackage`; standard stdio/Streamable HTTP connections |
 | `@drawloom/workbench` | `WorkbenchSchema`, `ArtifactSchema`, `CandidateSchema`, `ReviewSchema` and inferred types |
-| `@drawloom/desktop-host` | `DesktopCompositionContext`, `DesktopExtension`, `DesktopExtensionFactory` for explicit trusted startup composition |
+| `@drawloom/desktop-host` | `DesktopCompositionContext`, `PluginBackendContext`, `PluginBackendCapabilities`, `PluginBackend`, `PluginBackendFactory` for trusted installed-package backends |
 | `@drawloom/node-host` | `createNodeJsonStore`, `createNodeAssetStore`, `createStdioTransport`, `codexCommand`, `createMcpToolServer` |
 | `@drawloom/synthetic-workbench` | `createSyntheticWorkbench` |
 | `@drawloom/conversation-history` | Portable history records, pages, changes, checkpoints, store and reader contracts; `/conformance`: `conversationHistoryConformance` |
 | `@drawloom/sqlite-conversation-history` | `createSqliteConversationHistory` (Bun only) |
+| `@drawloom/orchestration` | Accepted ADR 0017 workflow/task, management and owned-conversation contracts and shared conformance; no bundled workflow engine |
+
+Accepted ADR 0018 also adds portable package metadata to `@drawloom/plugins` and
+`PluginBackendFactory`, context, capabilities and cleanup types to
+`@drawloom/desktop-host`. See the [package reference](plugin-packages.md) for the
+standard/enhanced split and current evidence. This is not a Temporal desktop
+integration or an accepted migration claim.
 
 ## Tools
 
@@ -147,8 +155,9 @@ derives the contributing plugin identity and validates ownership; the view must
 belong to a workbench contributed by that plugin. This initial implementation
 permits one view per workbench. It is not an arbitrary layout-slot registry.
 
-Trusted `DesktopExtension.mcpApps` maps registered view identities to
-`{transport: Transport, toolName: string}` using the MCP SDK transport contract.
+Package extension placement identifies a named MCP server and opening tool.
+Backends may supply named `{name, transport}` connections using the MCP SDK
+transport contract; standard servers remain declared in `mcp.json`.
 The host advertises MCP Apps support, discovers tools and reads the opening
 tool's `_meta.ui.resourceUri` as `text/html;profile=mcp-app`. It rejects missing
 registrations, mismatched resources and requests for unsupported origins or
@@ -242,8 +251,8 @@ contract, local storage, data selection and paginated browser transport.
 `assetLibraryConformance` from `/conformance`. This host-managed boundary creates
 asset identity rather than accepting a path; the desktop implementation registers
 each `put` for authenticated viewing, which differs from raw `AssetStore.write`.
-The supported startup factory receives only a namespaced `JsonStore` and this
-asset library. See the [desktop host boundary](../design/desktop-host.md) and
+The supported package backend receives these through its explicitly requested
+host capability, with JSON storage scoped by installation. See the [desktop host boundary](../design/desktop-host.md) and
 [desktop instructions](../../apps/desktop/README.md).
 
 ## Local consumption

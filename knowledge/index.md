@@ -19,6 +19,8 @@ updated: 2026-09-10
 
 ## Evidence and computations
 
+- [Standard plugin loading and backend capability boundary](evidence/adr-0018-plugin-standards.md)
+
 - [Orchestration interface and local Temporal proof](evidence/adr-0017-orchestration.md)
 
 - [Codex session tool exposure and operation authority](evidence/adr-0005-tool-exposure.md)

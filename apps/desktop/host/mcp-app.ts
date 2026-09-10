@@ -1,11 +1,10 @@
-import type { DesktopExtension } from '@drawloom/desktop-host';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { CallToolRequestSchema, CallToolResultSchema, type CallToolRequest, type CallToolResult, type ListResourcesResult, type ReadResourceResult, type Tool } from '@modelcontextprotocol/sdk/types.js';
 import { getToolUiResourceUri, isToolVisibilityModelOnly } from '@modelcontextprotocol/ext-apps/app-bridge';
 import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { z } from 'zod';
-type Connection = NonNullable<DesktopExtension['mcpApps']> extends ReadonlyMap<string, infer T> ? T : never;
-export async function connectMcpApp(connection: Connection, uri: string): Promise<{
+export interface ConnectedMcpApp {
   html: string;
   tools: Tool[];
   canRead(uri: string): boolean;
@@ -13,12 +12,19 @@ export async function connectMcpApp(connection: Connection, uri: string): Promis
   readResource(uri: string, previouslyAdvertised?: boolean): Promise<ReadResourceResult>;
   callTool(params: CallToolRequest['params']): Promise<CallToolResult>;
   close(): Promise<void>;
-}> {
+}
+/** Connect a standard MCP transport; package hosts reuse their established client instead. */
+export async function connectMcpApp(connection: { transport: Transport; toolName: string }, uri: string): Promise<ConnectedMcpApp> {
   const client = new Client({ name: 'drawloom-ui-host', version: '0.0.0' }, {
     capabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: [RESOURCE_MIME_TYPE] } } },
   });
+  try { await client.connect(connection.transport); }
+  catch (error) { await client.close(); throw error; }
+  return connectMcpAppClient(client, connection.toolName, uri, true);
+}
+/** Reuse the installation's MCP session: UI mounting never starts a second server. */
+export async function connectMcpAppClient(client: Client, toolName: string, uri: string, ownsClient = false): Promise<ConnectedMcpApp> {
   try {
-    await client.connect(connection.transport);
     const tools = [];
     let cursor: string | undefined;
     const seen = new Set<string>();
@@ -30,7 +36,7 @@ export async function connectMcpApp(connection: Connection, uri: string): Promis
       if (cursor && seen.has(cursor)) throw Error('Invalid MCP tool pagination');
       if (cursor) seen.add(cursor);
     } while (cursor);
-    const opening = tools.find(tool => tool.name === connection.toolName);
+    const opening = tools.find(tool => tool.name === toolName);
     if (!opening || isToolVisibilityModelOnly(opening) || getToolUiResourceUri(opening) !== uri)
       throw Error('MCP opening tool does not expose the registered resource');
     const resource = await client.readResource({ uri });
@@ -81,7 +87,7 @@ export async function connectMcpApp(connection: Connection, uri: string): Promis
         }
         return result;
       },
-      close: () => client.close(),
+      close: () => ownsClient ? client.close() : Promise.resolve(),
     };
-  } catch (error) { await client.close(); throw error; }
+  } catch (error) { if (ownsClient) await client.close(); throw error; }
 }

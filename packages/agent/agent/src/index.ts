@@ -4,7 +4,7 @@ import { ToolExposureSchema, type ToolContent } from "@drawloom/tools";
 import { AssetSchema } from "@drawloom/host";
 import type { ConversationHistoryReader } from '@drawloom/conversation-history';
 const id = z.string().min(1);
-export const DiscoveryKindSchema = z.enum(['skill', 'app', 'plugin', 'tool', 'resource']);
+export const DiscoveryKindSchema = z.enum(['skill', 'app', 'plugin', 'tool', 'resource', 'integration']);
 export const DiscoverySelectionSchema = z.strictObject({ id, revision: id });
 export type DiscoverySelection = z.infer<typeof DiscoverySelectionSchema>;
 export const DiscoveryEntrySchema = z.strictObject({
@@ -12,6 +12,7 @@ export const DiscoveryEntrySchema = z.strictObject({
   description: z.string(), scope: id,
   availability: z.enum(['available', 'unavailable', 'unverified']),
   selectable: z.boolean(), ownerId: id.optional(), readable: z.boolean().optional(),
+  authenticationOwner: z.literal('provider').optional(),
 });
 export type DiscoveryEntry = z.infer<typeof DiscoveryEntrySchema>;
 export const DiscoverySnapshotSchema = z.strictObject({
@@ -26,6 +27,8 @@ export interface AgentDiscovery {
   invalidate(): void;
   /** Source-bound read of a listed resource or retained provider-issued receipt, never a tool call. */
   readResource?(selection: DiscoverySelection): Promise<AgentResult<ToolContent>>;
+  /** Provider owns browser authorization and credentials; this returns no tokens. */
+  authenticate?(selection: DiscoverySelection): Promise<AgentResult<{ authorizationUrl: string }>>;
 }
 export const AgentSessionOpenInputSchema = z.strictObject({
   sessionId: id,

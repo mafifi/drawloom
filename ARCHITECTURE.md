@@ -21,8 +21,8 @@ live model-backed compatibility claim is not made by this implementation.
 
 The public `apps/desktop` composition now provides a SvelteKit View/ViewModel UI,
 an authenticated same-origin loopback Bun host and a minimal Tauri macOS shell.
-The supported `@drawloom/desktop-host` startup factory passes public persistence
-and managed-asset contracts to explicitly selected trusted plugins. Workbench
+The supported `@drawloom/desktop-host` package backend passes requested public
+persistence and managed-asset contracts to explicitly trusted installed plugins. Workbench
 operator commands are a separate trusted channel from model tools. Codex owns
 native transcript history, compaction and execution continuity. Drawloom stores
 its own paginated display records under observability, with atomic ingestion
@@ -67,7 +67,9 @@ live results, deterministic tests and remaining integration questions.
 [ADR 0017](docs/adr/0017-orchestration-interfaces.md) accepts the demonstrated
 orchestration interface for trusted TypeScript workflows, explicit step retries,
 durable run management and workflow-owned agent conversations. Executable
-contracts and conformance remain retained spike evidence, not supported packages.
+contracts and shared conformance now live in `@drawloom/orchestration` for typed
+backend access under Accepted ADR 0018. Execution implementations remain retained
+spike evidence, not supported providers or desktop dependencies.
 Temporal is the local proof backend only. No production backend, live Codex
 recovery guarantee or broader plugin authority is selected by acceptance.
 

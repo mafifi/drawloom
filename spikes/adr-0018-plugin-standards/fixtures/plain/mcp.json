@@ -1,0 +1,12 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "notes": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${PLUGIN_ROOT}/server.mjs"],
+      "env": {"PROOF_LITERAL": "${PLUGIN_DATA}", "PLUGIN_ROOT": "must-not-win"}
+    },
+    "unavailable": {"type": "stdio", "command": "drawloom-deliberately-missing-executable"}
+  }
+}

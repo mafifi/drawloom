@@ -1,0 +1,10 @@
+{
+  "name": "@drawloom/local-plugin-packages",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "files": ["dist", "src"],
+  "exports": { ".": { "bun": "./src/index.ts", "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "drawloom": { "role": "provider", "runtime": "bun" },
+  "dependencies": { "@drawloom/plugins": "workspace:*", "@drawloom/tools": "workspace:*", "@modelcontextprotocol/sdk": "catalog:", "yaml": "catalog:", "zod": "catalog:" }
+}

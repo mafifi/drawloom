@@ -38,7 +38,10 @@
         </form>
       {/each}
       <Field.Set><Field.Legend>Tool grants</Field.Legend><Field.Description>Installing or configuring a plugin does not allow its tools to run.</Field.Description><Field.Group>
-        {#each vm.state?.operator.grants ?? [] as grant}<Field.Field orientation="horizontal" data-disabled={vm.busy}><Checkbox id={'grant-' + grant.toolName} checked={grant.allowed} disabled={vm.busy} onCheckedChange={(checked) => vm.operator({ kind: 'set_tool_grant', toolName: grant.toolName, allowed: checked })} /><Field.Label for={'grant-' + grant.toolName}>{grant.toolName}</Field.Label></Field.Field>{/each}
+        {#each vm.state?.operator.grants ?? [] as grant}
+          {@const label = vm.state?.toolLabels.find(tool => tool.toolName === grant.toolName)}
+          <Field.Field orientation="horizontal" data-disabled={vm.busy}><Checkbox id={'grant-' + grant.toolName} checked={grant.allowed} disabled={vm.busy} onCheckedChange={(checked) => vm.operator({ kind: 'set_tool_grant', toolName: grant.toolName, allowed: checked })} /><Field.Label for={'grant-' + grant.toolName}>{label ? `${label.title} · ${label.origin}` : grant.toolName}</Field.Label></Field.Field>
+        {/each}
       </Field.Group></Field.Set>
     </section>
   {/if}

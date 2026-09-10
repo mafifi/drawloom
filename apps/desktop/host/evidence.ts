@@ -26,6 +26,10 @@ export async function createDesktopEvidence(
   const failures: ToolResult[] = [];
   let queue: Promise<void> = Promise.resolve();
   return {
+    toolFor: (invocationId: string) => {
+      const started = records.find(r => r.kind === 'started' && r.invocationId === invocationId);
+      return started?.kind === 'started' ? started.tool : undefined;
+    },
     activity: () =>
       structuredClone([
         ...legacy,

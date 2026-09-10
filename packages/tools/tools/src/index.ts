@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ContentBlockSchema, type ContentBlock } from "@modelcontextprotocol/sdk/types.js";
+import { ContentBlockSchema, ElicitRequestFormParamsSchema, ElicitResultSchema, type ContentBlock } from "@modelcontextprotocol/sdk/types.js";
 import { JsonValueSchema, type JsonValue } from "@drawloom/host";
 /** Standard MCP content only; canonical output and invocation authority are unchanged. */
 export const ToolContentSchema = z.array(ContentBlockSchema);
@@ -30,6 +30,19 @@ export type ToolContext = {
   readonly operationId: string;
   readonly signal: AbortSignal;
 };
+/** Standard MCP form payload; the host envelope is never sent to the server. */
+export const ToolElicitationRequestSchema = z.strictObject({
+  requestId: z.string().min(1),
+  source: z.string().min(1),
+  invocationId: z.string().min(1),
+  operationId: z.string().min(1),
+  params: ElicitRequestFormParamsSchema,
+});
+export const ToolElicitationResultSchema = ElicitResultSchema.extend({ content: ElicitResultSchema.shape.content.optional() });
+export type ToolElicitationRequest = z.infer<typeof ToolElicitationRequestSchema>;
+export type ToolElicitationResult = z.infer<typeof ToolElicitationResultSchema>;
+/** Human interaction only. Cancellation invalidates this exact request identity. */
+export type ToolElicitationHandler = (request: ToolElicitationRequest, signal: AbortSignal) => Promise<ToolElicitationResult>;
 export type ToolDefinition = {
   readonly name: string;
   readonly description: string;

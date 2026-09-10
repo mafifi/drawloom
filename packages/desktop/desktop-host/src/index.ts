@@ -1,19 +1,38 @@
 import type { JsonStore, AssetLibrary } from '@drawloom/host';
-import type { PluginInstaller } from '@drawloom/plugins';
+import type { PluginContributions } from '@drawloom/plugins';
 import type { OperatorController } from '@drawloom/workbench';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-/** Trusted startup composition, deliberately not a model or HTTP command. */
-export interface DesktopExtension {
-  readonly installs: readonly PluginInstaller[];
-  readonly controllers: ReadonlyMap<string, OperatorController>;
-  /** MCP client-side transport and opening tool, keyed by registered view identity.
-   * Host owns connection/close; plugin owns the server. No private UI protocol. */
-  readonly mcpApps?: ReadonlyMap<string, { readonly transport: Transport; readonly toolName: string }>;
-}
+import type { ToolGateway } from '@drawloom/tools';
+import type { Orchestrator } from '@drawloom/orchestration';
 export interface DesktopCompositionContext {
   /** Namespaced persistence; the host owns its project/navigation records. */
   readonly store: JsonStore;
   /** put stores bytes AND registers the resulting asset for authenticated viewing. */
   readonly assets: AssetLibrary;
 }
-export type DesktopExtensionFactory = (host: DesktopCompositionContext) => Promise<DesktopExtension>;
+
+/** Supported backend API, not an OS security boundary or a browser capability. */
+export interface PluginBackendCapabilities {
+  readonly host?: DesktopCompositionContext;
+  readonly tools?: ToolGateway;
+  readonly orchestration?: Orchestrator;
+}
+export interface PluginBackendContext {
+  readonly installationId: string;
+  readonly packageRoot: string;
+  readonly dataDirectory: string;
+  /** Host-selected configuration; backend validates its own domain settings. */
+  readonly configuration: unknown;
+  readonly capabilities: PluginBackendCapabilities;
+  /** Startup presence of declared tool/skill dependencies; never a grant or readiness guarantee. */
+  readonly dependencies: readonly { readonly kind: 'tool' | 'skill'; readonly id: string; readonly available: boolean }[];
+}
+export interface PluginBackend {
+  /** Additional named MCP connections; never overrides standard mcp.json entries. */
+  readonly servers?: readonly { readonly name: string; readonly transport: Transport }[];
+  readonly contributions?: PluginContributions;
+  readonly controllers?: ReadonlyMap<string, OperatorController>;
+  dispose(): Promise<void>;
+}
+/** A prebuilt trusted module's default export. No arbitrary browser module loading. */
+export type PluginBackendFactory = (context: PluginBackendContext) => Promise<PluginBackend>;

@@ -530,7 +530,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         };
         let receiveChain = Promise.resolve();
         const receive = (message: import("@drawloom/host").RpcMessage) => {
-          if (['skills/changed', 'app/list/updated', 'mcpServer/startupStatus/updated', 'thread/settings/updated'].includes(message.method)) catalog.upstreamChanged(message.method, message.params);
+          if (['skills/changed', 'app/list/updated', 'mcpServer/startupStatus/updated', 'mcpServer/oauthLogin/completed', 'thread/settings/updated'].includes(message.method)) catalog.upstreamChanged(message.method, message.params);
           receiveChain = receiveChain.then(() => processMessage(message));
         };
         const unsubscribe = rpc.subscribe(receive, fail);
