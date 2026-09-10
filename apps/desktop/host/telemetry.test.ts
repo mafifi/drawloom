@@ -11,7 +11,6 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { activatePackage } from '@drawloom/local-plugin-packages';
-import { readProviderDiscovery } from './discovery-deadline.js';
 import { connectMcpApp } from './mcp-app.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -139,13 +138,4 @@ test('approval waits and detached gateway work retain operation ownership and cl
   for (const name of ['tool.execute', 'agent.approval.wait']) expect(spans.find(s => s.name === name)?.parentSpanContext?.spanId).toBe(operation.spanContext().spanId);
   expect(spans.filter(s => s.name === 'agent.approval.wait')).toHaveLength(1);
   expect(JSON.stringify(spans.map(s => s.attributes))).not.toContain('SECRET');
-});
-
-test('a display deadline is a timeout outcome even when fallback catalogue delivery succeeds', async () => {
-  exporter.reset();
-  const result = await observed('host.discovery', {}, () => readProviderDiscovery(() => new Promise(() => {}), 2));
-  expect(result.status).toBe('unavailable');
-  const span = exporter.getFinishedSpans()[0]!;
-  expect(span.attributes['drawloom.outcome']).toBe('timeout');
-  expect(span.status.code).toBe(2);
 });

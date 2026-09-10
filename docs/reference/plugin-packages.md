@@ -13,10 +13,11 @@ optional. Drawloom preserves original tool names on the MCP connection; separate
 host aliases disambiguate installations and servers.
 The desktop snapshot carries display-only tool titles/origins for grant controls;
 changing a label never changes the alias submitted for a permission decision.
-Optional native discovery has an eight-second display deadline so a slow provider
-cannot hide registered local contributions. A timeout returns those contributions
-with explicit native error states. The adapter's existing coalesced read may
-finish and cache its result; no tool is executed or invocation replayed.
+Discovery returns registered local contributions immediately. Native connection,
+native categories and package resources report loading independently; the UI
+refreshes pending results without restarting requests. Native app pagination is
+explicit and cached. See the [discovery API](discovery-and-resources.md).
+Discovery executes no tool and replays no invocation.
 
 Inspection parses metadata and checks contained paths. It does not start a
 process, import a backend, fetch a declared schema or load skill instructions into

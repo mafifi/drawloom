@@ -1,6 +1,16 @@
 import { expect, test } from 'bun:test';
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { createPackageResources } from './package-resources.js';
+test('nonblocking package discovery exposes loading then caches success without repeated reads',async()=>{
+  let release=()=>{};let calls=0;
+  const client={setNotificationHandler(){},async listResources(){calls++;await new Promise<void>(r=>{release=r;});return {resources:[{uri:'doc://one',name:'One'}]};}} as unknown as Client;
+  const resources=createPackageResources(new Map([['source',client]]));
+  const first=await Promise.race([resources.discover(false,false),new Promise<never>((_,reject)=>setTimeout(()=>reject(Error('Package discovery blocked presentation')),100))]);
+  expect(first).toEqual({entries:[],categories:[{kind:'resource',status:'loading'}]});
+  await resources.discover(true,false);expect(calls).toBe(1);
+  release();await resources.discover();
+  expect((await resources.discover(false,false)).entries[0]?.name).toBe('One');expect(calls).toBe(1);
+});
 
 test('resource-list invalidation rejects old receipts and an in-flight stale listing', async () => {
   let notify = () => {}; let calls = 0; let release: (() => void) | undefined;

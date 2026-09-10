@@ -50,6 +50,8 @@ export async function agentDiscoveryConformance(driver: AgentDriver): Promise<vo
       const first=await session.discovery.list();check(first.status==='ok','discovery reports category status');
       DiscoverySnapshotSchema.parse(first.value);
       const second=await session.discovery.list();check(second.status==='ok'&&second.value.revision===first.value.revision,'discovery caches revision');
+      const snapshot=await session.discovery.list({wait:false});check(snapshot.status==='ok'&&snapshot.value.revision===first.value.revision,'nonblocking cached discovery preserves selection revision');
+      check((await session.discovery.list({cursor:'unissued-cursor'})).status==='rejected','unissued continuation is rejected');
       session.discovery.invalidate();
       const fresh=await session.discovery.list();check(fresh.status==='ok'&&fresh.value.revision!==first.value.revision,'invalidation produces new revision');
     }

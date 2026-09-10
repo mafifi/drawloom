@@ -172,8 +172,10 @@ This follow-up does not change the upstream inspection claims or revisions above
 exercise standard OpenTelemetry in Drawloom. DeepSeek's recorded telemetry source
 was rechecked at the same revision: feedback-authorised session capture remains
 distinct from this content-excluding operational tracing. Native discovery is now
-measured; cancellation and category isolation remain follow-up work, not fixes
-implied by the survey. No new upstream execution claim is made.
+measured. The [discovery follow-up](../../../knowledge/evidence/discovery-latency-fix.md)
+removes blocking presentation and isolates category invalidation; provider-internal
+cold latency and native request cancellation are not claimed fixed. No new upstream
+execution claim is made.
 
 ### Refresh procedure
 

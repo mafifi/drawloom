@@ -25,7 +25,8 @@
         </Command.Group>{/if}
       </Command.List>
     </Command.Root>
-    <p class="text-sm text-muted-foreground" role="status">Showing {vm.pickerEntries.length} of {vm.pickerMatchCount} matching {vm.pickerKind === 'skill' ? 'skills' : 'integrations'}. Search includes all results.</p>
+    <p class="text-sm text-muted-foreground" role="status">Showing {vm.pickerEntries.length} of {vm.pickerMatchCount} matching {vm.pickerKind === 'skill' ? 'skills' : 'integrations'}. Search covers loaded results.</p>
+    {#if vm.pickerKind === 'context' && vm.catalogue?.nextCursor}<StatefulButton variant="outline" pending={vm.cataloguePending} pendingLabel="Loading apps" onclick={() => vm.loadMoreApps()}>Load more apps</StatefulButton>{/if}
     {#if vm.pickerEntries.length < vm.pickerMatchCount}<Button variant="outline" onclick={() => vm.showMorePicker()}>Load more {vm.pickerKind === 'skill' ? 'skills' : 'integrations'}</Button>{/if}
     {#if vm.catalogueError}<Alert.Root variant="destructive"><Alert.Description>{vm.catalogueError}</Alert.Description></Alert.Root>{/if}
     {#each vm.catalogue?.categories.filter(category => category.status !== 'available') ?? [] as category}<p class="text-sm text-muted-foreground">{category.kind}: {category.message ?? category.status}</p>{/each}

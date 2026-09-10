@@ -4,7 +4,7 @@ id: drawloom-knowledge-index
 title: Drawloom knowledge index
 status: active
 created: 2026-09-02
-updated: 2026-09-10
+updated: 2026-09-11
 ---
 
 # Drawloom knowledge index
@@ -18,6 +18,8 @@ updated: 2026-09-10
 - No assumption records yet.
 
 ## Evidence and computations
+
+- [Discovery latency follow-up](evidence/discovery-latency-fix.md)
 
 - [Operational observability and measured diagnostic value](evidence/adr-0019-observability.md)
 

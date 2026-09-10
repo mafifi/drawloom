@@ -1,0 +1,698 @@
+{
+  "firstSkillVisibleMs": 136.10125000000005,
+  "appsReadyMs": 15673.352875,
+  "commands": [
+    "create_conversation"
+  ],
+  "errors": [],
+  "responses": [
+    {
+      "ms": 73.11191600000006,
+      "count": 3,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "loading"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 551.454833,
+      "count": 3,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "loading"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 1153.886125,
+      "count": 3,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "loading"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "loading"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 1758.562041,
+      "count": 212,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "loading"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 2358.1852500000005,
+      "count": 212,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "loading"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 2957.381791,
+      "count": 212,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "loading"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 3562.9660410000006,
+      "count": 212,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "loading"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 4162.33875,
+      "count": 212,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "loading"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 4759.6230000000005,
+      "count": 212,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "loading"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 5357.124541,
+      "count": 212,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "loading"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 5957.15275,
+      "count": 212,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "loading"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 6581.768791,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 7183.008791,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 7784.050208,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 8386.198416,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 8981.655708,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 9585.193749999999,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 10186.3205,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 10782.321082999999,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 11380.491415999999,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 11980.979666,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 12583.8935,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 13183.239125,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 13782.200665999999,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 14379.083875,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 14986.592165999999,
+      "count": 905,
+      "apps": 0,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 15600.575,
+      "count": 1005,
+      "apps": 100,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "available"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": true
+    },
+    {
+      "ms": 15729.528791,
+      "count": 1005,
+      "apps": 100,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "loading"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": false
+    },
+    {
+      "ms": 16182.054415999999,
+      "count": 1105,
+      "apps": 200,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "available"
+        },
+        {
+          "kind": "app",
+          "status": "available"
+        },
+        {
+          "kind": "tool",
+          "status": "available"
+        },
+        {
+          "kind": "plugin",
+          "status": "unsupported"
+        }
+      ],
+      "next": true
+    }
+  ]
+}

@@ -430,17 +430,22 @@ test('package resource captures distinguish changed revisions and reuse unchange
     const app = await createDesktopApplication(root);
     try {
       const conversationId = (await app.snapshot()).selectedId;
-      const firstSelection = (await app.discover(conversationId)).entries.find(e => e.kind === 'resource')!;
+      async function resourceSelection(refresh=false){
+        let catalogue=await app.discover(conversationId,refresh);
+        for(let n=0;n<100&&catalogue.categories.some(c=>c.status==='loading');n++){await new Promise(resolve=>setTimeout(resolve,2));catalogue=await app.discover(conversationId);}
+        const entry=catalogue.entries.find(e=>e.kind==='resource');if(!entry)throw Error('Resource discovery did not settle');return entry;
+      }
+      const firstSelection = await resourceSelection();
       const first = await app.readDiscoveredResource(conversationId, firstSelection);
       expect(new TextDecoder().decode(await app.assets.read(first.resources![0]!.asset!.key))).toBe('First contents');
       const reads = remote.events.filter(e => e === 'resources/read').length;
       await app.packageOAuth({ action: 'reconnect', id: installation.id, server: 'remote' });
-      const unchanged = (await app.discover(conversationId, true)).entries.find(e => e.kind === 'resource')!;
+      const unchanged = await resourceSelection(true);
       expect(unchanged.revision).toBe(firstSelection.revision);
       expect((await app.readDiscoveredResource(conversationId, unchanged)).id).toBe(first.id);
       expect(remote.events.filter(e => e === 'resources/read')).toHaveLength(reads);
       resource.revision++; resource.text = 'Second contents';
-      const changed = (await app.discover(conversationId, true)).entries.find(e => e.kind === 'resource')!;
+      const changed = await resourceSelection(true);
       expect(changed.revision).not.toBe(firstSelection.revision);
       const second = await app.readDiscoveredResource(conversationId, changed);
       expect(second.id).not.toBe(first.id);

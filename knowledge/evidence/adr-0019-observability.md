@@ -98,6 +98,10 @@ The source of the provider's internal delay is still unknown.
 
 #### Follow-up diagnosis, 11 September
 
+Subsequent implementation and before/after proof are recorded in the
+[discovery latency follow-up](discovery-latency-fix.md). The diagnosis below is
+retained as the pre-fix observation, not a description of current behaviour.
+
 Reproduced through the unchanged desktop and existing instrumentation. The two
 display deadlines were 8,008 ms and 8,002 ms. This time the first `app/list`
 actually completed after 14,950 ms, followed by multiple short pagination calls;

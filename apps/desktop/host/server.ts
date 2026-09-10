@@ -50,10 +50,12 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
           return json(await app.packageOAuth(raw));
         }
         if (url.pathname === '/api/discovery' && request.method === 'GET') {
-          // Allow host startup overhead. Optional native discovery has its own
-          // shorter display deadline so local contributions remain available.
+          // Discovery returns ready categories; slow native work continues in
+          // its existing session without holding this HTTP request open.
           server.timeout(request, 120);
-          return json(await app.discover(url.searchParams.get('conversationId') ?? '', url.searchParams.get('refresh') === '1'));
+          const cursor=url.searchParams.get('cursor')??undefined;
+          if(cursor && cursor.length>256)return json({error:'Invalid discovery cursor'},400);
+          return json(await app.discover(url.searchParams.get('conversationId') ?? '', url.searchParams.get('refresh') === '1',cursor));
         }
         if (url.pathname === '/api/discovery/authenticate' && request.method === 'POST') {
           const input = DiscoveryAuthenticationSchema.parse(await request.json());

@@ -65,6 +65,14 @@ Worker/service restart is exercised; the synthetic bridge host remains alive.
 
 ## Verification
 
+The discovery launcher now exercises the implemented progressive fix: ready local
+entries, independent native categories, a warm cached read and one explicit app
+page. The pre-fix evidence remains in history; see the
+[before/after record](../../knowledge/evidence/discovery-latency-fix.md).
+`discovery-live-browser.mjs` is an opt-in, inventory-only walkthrough against a
+fresh disposable desktop. It uses the same `DRAWLOOM_PLAYWRIGHT_PATH` and
+`DRAWLOOM_PROOF_LOG` variables as the progressive browser regression.
+
 `bun run check:ci` includes deterministic host, privacy, SDK, relay and stalled
 correlation tests. Native/viewer/service runs stay opt-in. SDK conformance runs in
 Bun and Node. No supported module may import this directory. Private workbench

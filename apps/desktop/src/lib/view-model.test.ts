@@ -486,6 +486,23 @@ test('catalogue discards a response from the previous conversation', async () =>
   release(Response.json(skillCatalogue)); await pending;
   expect(h.vm.catalogue?.entries ?? []).toEqual([]);
 });
+test('concurrent catalogue reads coalesce and loading updates preserve expanded pages and selections',async()=>{
+  const h=await harness();
+  h.setCatalogue({...skillCatalogue,entries:Array.from({length:220},(_,n)=>({...skillCatalogue.entries[0]!,id:'skill:'+n})),categories:[{kind:'app',status:'loading'}]});
+  await h.vm.refreshCatalogue(true);h.vm.showMoreCatalogue();h.vm.selectDiscovery('skill:0');
+  const before=h.discoveryRequests.length,release=h.deferDiscovery();
+  const read=h.vm.refreshCatalogue(false,undefined,true);
+  await h.vm.refreshCatalogue(true);expect(h.discoveryRequests.length).toBe(before+1);
+  release();await read;
+  expect(h.vm.filteredCatalogue).toHaveLength(200);
+  expect(h.vm.selectedDiscoveries[0]).toMatchObject({id:'skill:0',unavailable:false});
+});
+test('explicit native page forwards only its opaque cursor and does not force refresh',async()=>{
+  const h=await harness();h.setCatalogue({...skillCatalogue,nextCursor:'opaque+next'});
+  await h.vm.refreshCatalogue(true);
+  await h.vm.refreshCatalogue(false,h.vm.catalogue!.nextCursor);
+  expect(h.discoveryRequests.at(-1)).toBe('/api/discovery?conversationId=conversation-a&cursor=opaque%2Bnext');
+});
 
 test('temporary discovery failure keeps cached references and draft, while opening the picker reuses cache', async () => {
   const h = await harness(); h.setCatalogue(skillCatalogue); await h.vm.refreshCatalogue(true);

@@ -109,15 +109,16 @@ export function createDesktopViewModel() {
   function saveDraft(id: string) { const saved = { text: draft, attachments, contextIds, selections, resources: selectedResources }; drafts.set(id, saved); persistReferences(id, saved); }
   function saveCurrentReferences() { if (state) saveDraft(state.selectedId); }
   function setDraft(text: string) { draftVersion++; draft = text; if (state) localStorage.setItem('drawloom-composer:' + state.selectedId, text); }
-  async function refreshCatalogue(force = false) {
+  async function refreshCatalogue(force = false, cursor?: string, poll = false) {
     const id = state?.selectedId;
-    if (!id) return;
-    if (!force && catalogueCache.has(id)) { catalogue = catalogueCache.get(id); return; }
+    if (!id || cataloguePending) return;
+    if (!force && !cursor && !poll && catalogueCache.has(id)) { catalogue = catalogueCache.get(id); return; }
     const epoch = ++catalogueEpoch; cataloguePending = true; catalogueError = '';
     try {
-      const value = DesktopCatalogueSchema.parse(await response(await fetch('/api/discovery?conversationId=' + encodeURIComponent(id) + (force ? '&refresh=1' : ''))));
+      const value = DesktopCatalogueSchema.parse(await response(await fetch('/api/discovery?conversationId=' + encodeURIComponent(id) + (force ? '&refresh=1' : '') + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''))));
       if (epoch !== catalogueEpoch || state?.selectedId !== id) return;
-      catalogueCache.set(id, value); catalogue = value; resetDiscoveryPages();
+      catalogueCache.set(id, value); catalogue = value;
+      if(force || (!poll && !cursor))resetDiscoveryPages();
     } catch (e) { if (epoch === catalogueEpoch) catalogueError = e instanceof Error ? e.message : 'Discovery unavailable'; }
     finally { if (epoch === catalogueEpoch) cataloguePending = false; }
   }
@@ -292,6 +293,7 @@ export function createDesktopViewModel() {
       finally { if (epoch === resourceEpoch) resourcePending[key] = false; }
     },
     get catalogue() { return catalogue; }, get cataloguePending() { return cataloguePending; }, get catalogueError() { return catalogueError; }, refreshCatalogue,
+    loadMoreApps() { if(catalogue?.nextCursor)void refreshCatalogue(false,catalogue.nextCursor); },
     get selectedDiscoveries() { return selectedDiscoveries; },
     get pickerOpen() { return pickerOpen; }, set pickerOpen(v: boolean) { pickerOpen = v; if (!v) pickerToken = undefined; },
     get pickerKind() { return pickerKind; }, get pickerQuery() { return pickerQuery; }, set pickerQuery(v: string) { pickerQuery = v; pickerActiveId = ''; pickerLimit = discoveryPageSize; nativeResourceLimit = discoveryPageSize; }, openPicker,
@@ -341,8 +343,11 @@ export function createDesktopViewModel() {
     },
     get editText() { return editText; }, set editText(v: string) { editText = v; },
     get reviewSummary() { return reviewTarget === candidate?.id ? reviewSummary : ''; }, set reviewSummary(v: string) { reviewTarget = candidate?.id; reviewSummary = v; },
-    async start() { void initializeUiTelemetry(); await refresh(); timer = setInterval(() => { if (!busy) void refresh(); }, 600); },
-    stopPolling() { clearInterval(timer); stateRead.abort(); stateRead = new AbortController(); requestEpoch++; pager.invalidate(); },
+    async start() { void initializeUiTelemetry(); await refresh(); timer = setInterval(() => {
+      if (!busy) void refresh();
+      if(!catalogueError && catalogue?.categories.some(category=>category.status==='loading'))void refreshCatalogue(false,undefined,true);
+    }, 600); },
+    stopPolling() { clearInterval(timer); stateRead.abort(); stateRead = new AbortController(); requestEpoch++; catalogueEpoch++; cataloguePending=false; pager.invalidate(); },
     command, operator,
     elicitationChoice(requestId: string, name: string, fallback = '') { return elicitationChoices[JSON.stringify([requestId, name])] ?? fallback; },
     chooseElicitation(requestId: string, name: string, value: string) { elicitationChoices[JSON.stringify([requestId, name])] = value; },

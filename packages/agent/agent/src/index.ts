@@ -18,12 +18,19 @@ export type DiscoveryEntry = z.infer<typeof DiscoveryEntrySchema>;
 export const DiscoverySnapshotSchema = z.strictObject({
   revision: id, entries: z.array(DiscoveryEntrySchema),
   categories: z.array(z.strictObject({ kind: DiscoveryKindSchema,
-    status: z.enum(['available', 'unsupported', 'error']), message: z.string().optional() })),
+    status: z.enum(['loading', 'available', 'unsupported', 'error']), message: z.string().optional() })),
+  /** Opaque continuation for a bounded additional page, not a native cursor. */
+  nextCursor: id.optional(),
 });
 export type DiscoverySnapshot = z.infer<typeof DiscoverySnapshotSchema>;
 /** Discovery is metadata only. Selection does not grant execution authority. */
 export interface AgentDiscovery {
-  list(options?: { refresh?: boolean }): Promise<AgentResult<DiscoverySnapshot>>;
+  /** Cumulative metadata for one revision. wait:false returns ready categories
+   * while others load; polling never requests subsequent pages automatically.
+   * A refresh during active discovery joins it. Additional pages preserve the
+   * revision and existing selection identities; invalidation rejects old cursors.
+   * Providers without incremental loading may return their complete inventory. */
+  list(options?: { refresh?: boolean; wait?: boolean; cursor?: string }): Promise<AgentResult<DiscoverySnapshot>>;
   invalidate(): void;
   /** Source-bound read of a listed resource or retained provider-issued receipt, never a tool call. */
   readResource?(selection: DiscoverySelection): Promise<AgentResult<ToolContent>>;

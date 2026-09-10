@@ -12,6 +12,7 @@
   {#if vm.catalogueError}<Alert.Root variant="destructive"><Alert.Description>{vm.catalogueError}</Alert.Description></Alert.Root>{/if}
   {#each vm.catalogue?.categories ?? [] as category}<p class="text-sm text-muted-foreground">{category.kind}: {category.message ?? category.status}</p>{/each}
   <p class="text-sm text-muted-foreground" role="status">Showing {vm.filteredCatalogue.length} of {vm.catalogueMatchCount} matching contributions.</p>
+  {#if vm.catalogue?.nextCursor}<p class="text-sm text-muted-foreground">More apps are available. Search covers loaded results.</p><StatefulButton variant="outline" pending={vm.cataloguePending} pendingLabel="Loading apps" onclick={() => vm.loadMoreApps()}>Load more apps</StatefulButton>{/if}
   {#each vm.filteredCatalogue as entry (entry.id)}
     <Collapsible.Root>
       <Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost" class="h-auto w-full justify-between py-2"><span class="min-w-0 text-left">{entry.name}<span class="block text-xs text-muted-foreground">{entry.origin} · {entry.kind}</span></span><Badge variant="outline">{entry.availability}</Badge></Button>{/snippet}</Collapsible.Trigger>

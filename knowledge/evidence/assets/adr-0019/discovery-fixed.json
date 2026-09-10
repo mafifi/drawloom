@@ -1,0 +1,934 @@
+{
+  "results": {
+    "initialMs": 1.4832920000000058,
+    "refreshMs": 0.9755419999999049,
+    "readiness": {
+      "skill": 1013.6141670000001,
+      "tool": 6697.1720000000005,
+      "app": 16442.442042
+    },
+    "completeMs": 16442.44825,
+    "polls": 80,
+    "warmMs": 3.1215420000007725,
+    "warmProviderCalls": 0,
+    "firstPageEntries": 100,
+    "nextPageMs": 57.01104100000157,
+    "secondPageEntries": 200,
+    "categories": [
+      {
+        "kind": "skill",
+        "status": "available"
+      },
+      {
+        "kind": "app",
+        "status": "available"
+      },
+      {
+        "kind": "tool",
+        "status": "available"
+      },
+      {
+        "kind": "plugin",
+        "status": "unsupported",
+        "message": "Experimental native plugin discovery is off."
+      }
+    ]
+  },
+  "calls": [
+    {
+      "name": "host.command",
+      "outcome": "ok",
+      "traceId": "c9bca4a6adeca05d1e5aeb8f86fab12c",
+      "spanId": "683cdded6651dca8",
+      "startMs": 1789083595598,
+      "durationMs": 7.293208,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "3cd510bb6e650cd0e4d81e8d0fbdcdc8",
+      "spanId": "b59fe07f4c48310c",
+      "startMs": 1789083595606,
+      "durationMs": 1.444167,
+      "error": false
+    },
+    {
+      "name": "agent.request",
+      "method": "initialize",
+      "outcome": "ok",
+      "traceId": "c9bca4a6adeca05d1e5aeb8f86fab12c",
+      "parent": "731628c7407a3112",
+      "spanId": "384ec4407f302f76",
+      "startMs": 1789083595610,
+      "durationMs": 29.005792,
+      "error": false
+    },
+    {
+      "name": "agent.request",
+      "method": "thread/start",
+      "outcome": "ok",
+      "traceId": "c9bca4a6adeca05d1e5aeb8f86fab12c",
+      "parent": "731628c7407a3112",
+      "spanId": "4d46d1ec140429e3",
+      "startMs": 1789083595640,
+      "durationMs": 106.307042,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "7249edaa1477de9c0e2f9cf0aad126c3",
+      "spanId": "2f3af2e75fb2dff2",
+      "startMs": 1789083595808,
+      "durationMs": 0.357791,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "b90dece8f4bb9e69b5dac5557afd3b88",
+      "spanId": "f53849826de6fd25",
+      "startMs": 1789083596011,
+      "durationMs": 0.298083,
+      "error": false
+    },
+    {
+      "name": "agent.request",
+      "method": "other",
+      "outcome": "ok",
+      "traceId": "c9bca4a6adeca05d1e5aeb8f86fab12c",
+      "parent": "731628c7407a3112",
+      "spanId": "e0e5b868da7d2e54",
+      "startMs": 1789083595746,
+      "durationMs": 466.10075,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "c8b2aa8617acc00d0980d5b2e8174a92",
+      "spanId": "833a79e671ba7e93",
+      "startMs": 1789083596213,
+      "durationMs": 0.915083,
+      "error": false
+    },
+    {
+      "name": "host.connect",
+      "outcome": "ok",
+      "traceId": "c9bca4a6adeca05d1e5aeb8f86fab12c",
+      "parent": "683cdded6651dca8",
+      "spanId": "731628c7407a3112",
+      "startMs": 1789083595607,
+      "durationMs": 607.630041,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "e953965a27ead9d63567f41d1924600f",
+      "spanId": "06534a32c840bdf4",
+      "startMs": 1789083596415,
+      "durationMs": 2.06125,
+      "error": false
+    },
+    {
+      "name": "agent.request",
+      "method": "skills/list",
+      "outcome": "ok",
+      "traceId": "e953965a27ead9d63567f41d1924600f",
+      "parent": "06534a32c840bdf4",
+      "spanId": "c5bc103bb4c125fc",
+      "startMs": 1789083596417,
+      "durationMs": 84.940958,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "c6ece7e85d6087ef8b32782422a79447",
+      "spanId": "ba6d36e527b10d9c",
+      "startMs": 1789083596618,
+      "durationMs": 1.696583,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "8030a767f584b3492614910056e1c70f",
+      "spanId": "e94029d2a96db68f",
+      "startMs": 1789083596821,
+      "durationMs": 0.980208,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "5f42aa3aacad17bd81356d23b9880441",
+      "spanId": "b06fcefcc71c9504",
+      "startMs": 1789083597023,
+      "durationMs": 0.970625,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "10eef900828d0933c0e079adf5d936a1",
+      "spanId": "99625153000cf382",
+      "startMs": 1789083597225,
+      "durationMs": 1.082916,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "f66bb833093ea413f984434c986b9b85",
+      "spanId": "5af1804c639048b7",
+      "startMs": 1789083597427,
+      "durationMs": 0.919542,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "4934121a3402650674cf1f5f3bc032ee",
+      "spanId": "f7ab6ba439cf534d",
+      "startMs": 1789083597630,
+      "durationMs": 0.882,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "33ae68e170f4d68edbbade08b2ab2e06",
+      "spanId": "026ca6dd4bf963b0",
+      "startMs": 1789083597833,
+      "durationMs": 1.227042,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "72c224eaa403fe54b2476fd1c5cce8f8",
+      "spanId": "61a6de60e57b6adb",
+      "startMs": 1789083598036,
+      "durationMs": 0.924792,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "9159bdc4ad180b38694a805b5de961fe",
+      "spanId": "2901c76facc9924b",
+      "startMs": 1789083598238,
+      "durationMs": 0.895917,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "0385a04a6ef5f63352124a84edf16900",
+      "spanId": "a69fa5214b6b0e9b",
+      "startMs": 1789083598440,
+      "durationMs": 1.048333,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "cd8720ec32bdb021d1ce4afa9535b0ae",
+      "spanId": "e7bb27760eba7ee9",
+      "startMs": 1789083598642,
+      "durationMs": 0.893625,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "d6fef0419ecdefbcad5ba3b9d5a42307",
+      "spanId": "9d0141bfae223d3d",
+      "startMs": 1789083598844,
+      "durationMs": 0.792042,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "a350f5455055ae8e113438c488a241c5",
+      "spanId": "ddef1bf2848d134a",
+      "startMs": 1789083599048,
+      "durationMs": 1.79275,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "16d1cbe831da4767ec28719585875efa",
+      "spanId": "a4e58c57d0708b3f",
+      "startMs": 1789083599251,
+      "durationMs": 2.1185,
+      "error": false
+    },
+    {
+      "name": "agent.request",
+      "method": "mcpServerStatus/list",
+      "outcome": "ok",
+      "traceId": "e953965a27ead9d63567f41d1924600f",
+      "parent": "06534a32c840bdf4",
+      "spanId": "893155d9894809ef",
+      "startMs": 1789083596417,
+      "durationMs": 2933.269209,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "41db2fad12dcdcf328671e8de0a95b2f",
+      "spanId": "1248fe7e15ad9222",
+      "startMs": 1789083599455,
+      "durationMs": 0.918959,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "aec7e510309755980ada94fc95fb8d92",
+      "spanId": "f14915cc8a507e4d",
+      "startMs": 1789083599657,
+      "durationMs": 2.033958,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "8226b314311f56b22495838e7e368664",
+      "spanId": "0dd50a9db044c39b",
+      "startMs": 1789083599860,
+      "durationMs": 2.820292,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "11cf7bf1873e20f55d13a87552dd010e",
+      "spanId": "5436b8c2257f6cb7",
+      "startMs": 1789083600064,
+      "durationMs": 1.999625,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "d8c24347ee39315ff28f866b33f11549",
+      "spanId": "945b7fb2b68fdc01",
+      "startMs": 1789083600270,
+      "durationMs": 2.910584,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "f1602a2e25010096ba2f1a11e5ff28f5",
+      "spanId": "e55eafd06568eeec",
+      "startMs": 1789083600477,
+      "durationMs": 2.851459,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "a937ff983e023aba096d4a3a37a5a1f7",
+      "spanId": "33f13bd0e83f58bc",
+      "startMs": 1789083600681,
+      "durationMs": 0.837416,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "17cf450ee736af97dd4e8fbd897adb3b",
+      "spanId": "df8faeddacffc96b",
+      "startMs": 1789083600883,
+      "durationMs": 0.813958,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "35015ec76eca8e7b5388f520271beae1",
+      "spanId": "c11a8921984f9c3e",
+      "startMs": 1789083601085,
+      "durationMs": 0.988708,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "343e5b88f4b1b9da042c33103a533b8e",
+      "spanId": "022f55186bf14705",
+      "startMs": 1789083601287,
+      "durationMs": 0.814583,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "290ea1512b0ba68abda76e196cac2b2b",
+      "spanId": "6a12d32777bc4e7e",
+      "startMs": 1789083601489,
+      "durationMs": 0.718709,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "1b3f76412272b25ab123300b5e70a49d",
+      "spanId": "b351e328ad801239",
+      "startMs": 1789083601690,
+      "durationMs": 0.733375,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "692e2c895fcb576a30a49a68a5c93ff4",
+      "spanId": "43fa66308521138c",
+      "startMs": 1789083601893,
+      "durationMs": 3.202625,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "192d09df2858a9e958d342fd2c918904",
+      "spanId": "6e2d166b0493485c",
+      "startMs": 1789083602097,
+      "durationMs": 2.334875,
+      "error": false
+    },
+    {
+      "name": "agent.request",
+      "method": "mcpServerStatus/list",
+      "outcome": "ok",
+      "traceId": "e953965a27ead9d63567f41d1924600f",
+      "parent": "06534a32c840bdf4",
+      "spanId": "5fb5921454e57ead",
+      "startMs": 1789083599363,
+      "durationMs": 2773.91925,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "b311ddbf30a6d8131ac05aede138f231",
+      "spanId": "e91bf58f5457882e",
+      "startMs": 1789083602300,
+      "durationMs": 2.7615,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "75b6b25fa52b370b9429cb8079b1a850",
+      "spanId": "52756cb54e376a90",
+      "startMs": 1789083602504,
+      "durationMs": 6.653542,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "45e7dea344ab26812aecc883a7b4ad66",
+      "spanId": "22a3ce5782ebbd04",
+      "startMs": 1789083602713,
+      "durationMs": 7.52,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "71ecf8938a405ecc8184b1a85ff5317f",
+      "spanId": "4ac959b79f8beeb5",
+      "startMs": 1789083602923,
+      "durationMs": 7.666,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "649a85ddb708585df96ad44a247240b2",
+      "spanId": "0387ae2297c4d2dd",
+      "startMs": 1789083603132,
+      "durationMs": 2.353875,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "dadadd969db1e81f09241da4f96d527f",
+      "spanId": "e25d193ce61d3dda",
+      "startMs": 1789083603337,
+      "durationMs": 7.500542,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "d61c3d076c9a5cdb1c2d05fd1db8fb0a",
+      "spanId": "bbeb2c38d620b4c5",
+      "startMs": 1789083603547,
+      "durationMs": 2.317875,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "cf7ed18e9f4ea43935d8dc3aab2737f9",
+      "spanId": "0546d77c99ba6f12",
+      "startMs": 1789083603750,
+      "durationMs": 5.328125,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "01ef0cfcc739e025ae295b0cd3e57337",
+      "spanId": "55ae81ddaf84c90c",
+      "startMs": 1789083603958,
+      "durationMs": 6.936959,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "9f81858d7508b779dc742eb2af13c15f",
+      "spanId": "a2e9c5609229a6d0",
+      "startMs": 1789083604169,
+      "durationMs": 5.646958,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "38d4fc69bb2260d9559554809c848041",
+      "spanId": "77216b7605f57710",
+      "startMs": 1789083604376,
+      "durationMs": 6.6795,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "609aedb5e7c85fff800328a495469899",
+      "spanId": "19247c5978e759fe",
+      "startMs": 1789083604585,
+      "durationMs": 6.617916,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "a3393c5c068602664915013590fbdcb1",
+      "spanId": "4dac4e6a0c0ffbd7",
+      "startMs": 1789083604794,
+      "durationMs": 7.027708,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "ea780a63362581e09b08a81ac1b05582",
+      "spanId": "adad017cebdcee83",
+      "startMs": 1789083605004,
+      "durationMs": 7.7985,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "1c211616ca1e86b05d81e7c712213f28",
+      "spanId": "9cff67c7cf582f15",
+      "startMs": 1789083605213,
+      "durationMs": 6.503959,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "66beb233c1a0ef4452ef7ffa122fa9c3",
+      "spanId": "a6eebfbeb7a83599",
+      "startMs": 1789083605422,
+      "durationMs": 6.440042,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "fc2c49a4b1a7907c81d1ce5998816265",
+      "spanId": "c0dce79a0fd18fdf",
+      "startMs": 1789083605631,
+      "durationMs": 6.583333,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "9c91875795b6190f5b8644f9ecde14ba",
+      "spanId": "3f65fd6488e39198",
+      "startMs": 1789083605838,
+      "durationMs": 3.684583,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "8bd20d231ad3e39c27c0af16dffdbb55",
+      "spanId": "139fe57cb308977b",
+      "startMs": 1789083606046,
+      "durationMs": 5.81675,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "e6bddac8ee9fda80aa6284d7b1f7ccfe",
+      "spanId": "47c280341702ad3d",
+      "startMs": 1789083606254,
+      "durationMs": 6.968667,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "fcdd577f188674efb1fd35e0c2831191",
+      "spanId": "d90596d8a9f99579",
+      "startMs": 1789083606463,
+      "durationMs": 8.532125,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "077c2c4c203771d7e42440f8772dd2f3",
+      "spanId": "a0ecf2037c453cb9",
+      "startMs": 1789083606673,
+      "durationMs": 2.614625,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "a9688c12c7dede552567428249bee494",
+      "spanId": "2cf93a96ed052c07",
+      "startMs": 1789083606878,
+      "durationMs": 2.457084,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "35248165cdac75863c4ae1b03fe7627e",
+      "spanId": "e376930ab414cd57",
+      "startMs": 1789083607082,
+      "durationMs": 2.21825,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "5bdb213f81640e13e48a85c633f2fa1e",
+      "spanId": "41e98547430687d1",
+      "startMs": 1789083607285,
+      "durationMs": 2.287625,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "13acd8a3c4257a0e23e9df81c84132e3",
+      "spanId": "5bb8c88e37539c79",
+      "startMs": 1789083607489,
+      "durationMs": 2.548875,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "419286aa81d97d23aeede1dbdddb61c7",
+      "spanId": "634fc3f33c757704",
+      "startMs": 1789083607693,
+      "durationMs": 2.602417,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "22cf5ec4e3a9809d0e41c389b9ddcbc0",
+      "spanId": "da16a038d919bb21",
+      "startMs": 1789083607897,
+      "durationMs": 2.200125,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "3c5a810a5b3275478bf1c8f594bd6caa",
+      "spanId": "f02ccec6f884791d",
+      "startMs": 1789083608102,
+      "durationMs": 6.016667,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "8c4837649545e531db298589ef28713d",
+      "spanId": "8d1dccb64b1beab3",
+      "startMs": 1789083608308,
+      "durationMs": 2.189875,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "b6eb3af99d7b41895ad9782479b6b60c",
+      "spanId": "8768c74df6dcd853",
+      "startMs": 1789083608512,
+      "durationMs": 5.528666,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "b6730d610fe2b1faaac47dc4fc23e1eb",
+      "spanId": "2d4f1e695504f226",
+      "startMs": 1789083608718,
+      "durationMs": 5.533542,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "618d791f3fc498ae049106fea98448db",
+      "spanId": "4a2eb4a8da60f090",
+      "startMs": 1789083608925,
+      "durationMs": 4.30475,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "55623d958c962b0951e038ab2f069b35",
+      "spanId": "77d754e25ca4be82",
+      "startMs": 1789083609130,
+      "durationMs": 6.206166,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "4fe4a86b50647dfca970a2a487d8be91",
+      "spanId": "c816b24f3fe39239",
+      "startMs": 1789083609339,
+      "durationMs": 6.377792,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "6e2d0bbb7950dcd5dafa11b223af4381",
+      "spanId": "0ab1c7df4b043e13",
+      "startMs": 1789083609548,
+      "durationMs": 7.419167,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "27c9877cc6e0e8ad5075f6d2816c6b96",
+      "spanId": "6b999b74ea5b9b2a",
+      "startMs": 1789083609757,
+      "durationMs": 6.748375,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "f3c883fb91f4fa8b987871a5fdd80b0d",
+      "spanId": "c720f4029b78566f",
+      "startMs": 1789083609965,
+      "durationMs": 2.249917,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "158c177132962a803f76a1354cabd345",
+      "spanId": "97bfd5afe3437200",
+      "startMs": 1789083610170,
+      "durationMs": 6.782917,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "ce00666d700a9937986ad82394b1627e",
+      "spanId": "630e044272c706ad",
+      "startMs": 1789083610380,
+      "durationMs": 7.89675,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "472bcc3c2c1e41e3b0ad3949f5741f07",
+      "spanId": "e5f9d023c040da66",
+      "startMs": 1789083610589,
+      "durationMs": 6.213875,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "627db83b4614ef2dc4bb8acdd05ad1f6",
+      "spanId": "19caa7b3a76f58d9",
+      "startMs": 1789083610798,
+      "durationMs": 7.223041,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "1743b1794f0558affb8f51dc854b5c68",
+      "spanId": "911a06e6b98f0c8d",
+      "startMs": 1789083611007,
+      "durationMs": 6.717709,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "779e897c886a728756195c02fef6c85c",
+      "spanId": "3436fd4d0e0a69c0",
+      "startMs": 1789083611216,
+      "durationMs": 6.651417,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "fd885da114c5a9d4273844421e74516a",
+      "spanId": "4c71af06d544d019",
+      "startMs": 1789083611424,
+      "durationMs": 7.267333,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "3298f31585e7b3acc5a0ab57f6ef32ec",
+      "spanId": "da36993e6cc16fc4",
+      "startMs": 1789083611634,
+      "durationMs": 6.7195,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "aacb270853f499a32560f86e394f2664",
+      "spanId": "bdd5b8d2f010a6e1",
+      "startMs": 1789083611842,
+      "durationMs": 2.493167,
+      "error": false
+    },
+    {
+      "name": "agent.request",
+      "method": "app/list",
+      "outcome": "ok",
+      "traceId": "e953965a27ead9d63567f41d1924600f",
+      "parent": "06534a32c840bdf4",
+      "spanId": "53c6dbd863dbbf29",
+      "startMs": 1789083596417,
+      "durationMs": 15463.353542,
+      "error": false
+    },
+    {
+      "name": "agent.request",
+      "method": "app/list",
+      "outcome": "ok",
+      "traceId": "e953965a27ead9d63567f41d1924600f",
+      "parent": "06534a32c840bdf4",
+      "spanId": "56b724e85134d8a5",
+      "startMs": 1789083611882,
+      "durationMs": 73.551542,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "595c5e10748a882513248a5669d4e5c4",
+      "spanId": "2617bab9299351c0",
+      "startMs": 1789083612046,
+      "durationMs": 2.59775,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "9741616ca9bc2eb6e92dbce38118d222",
+      "spanId": "9a7f81a74ee3bf42",
+      "startMs": 1789083612051,
+      "durationMs": 3.052917,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "3e5d6e0308fbad178a092d52c57d8013",
+      "spanId": "c3c2c417327633fb",
+      "startMs": 1789083612056,
+      "durationMs": 3.582792,
+      "error": false
+    },
+    {
+      "name": "agent.request",
+      "method": "app/list",
+      "outcome": "ok",
+      "traceId": "3e5d6e0308fbad178a092d52c57d8013",
+      "parent": "c3c2c417327633fb",
+      "spanId": "e6ab6ae7ecbee704",
+      "startMs": 1789083612059,
+      "durationMs": 33.915166,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "ok",
+      "traceId": "72360cf57989e26d8b657ab9a344cf09",
+      "spanId": "a1c8fc0644a55a87",
+      "startMs": 1789083612111,
+      "durationMs": 2.42425,
+      "error": false
+    },
+    {
+      "name": "host.package.close",
+      "outcome": "ok",
+      "traceId": "f8147f6dd65502f985237246217e7e08",
+      "spanId": "810227b254e10313",
+      "startMs": 1789083612121,
+      "durationMs": 0.27275,
+      "error": false
+    }
+  ],
+  "diagnostics": {
+    "recordedSpans": 96,
+    "recordedLogs": 96,
+    "exportFailures": 0,
+    "deadlineExceeded": 0,
+    "droppedRecords": 0
+  },
+  "limitations": [
+    "Inventory only; zero model submissions",
+    "No contribution names, provider contents or paths retained",
+    "Readiness sampled at 200ms intervals; provider-internal cold latency is not fixed"
+  ]
+}

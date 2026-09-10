@@ -11,6 +11,7 @@ export const DesktopCatalogueSchema = z.strictObject({
   entries: z.array(DiscoveryEntrySchema.extend({ revision: z.string().min(1) })),
   categories: DiscoverySnapshotSchema.shape.categories,
   experimentalPluginDiscovery: z.boolean(),
+  nextCursor: z.string().min(1).max(256).optional(),
 });
 export type DesktopCatalogue = z.infer<typeof DesktopCatalogueSchema>;
 export const DiscoveryResourceReadSchema = DiscoverySelectionSchema.extend({ conversationId: id });

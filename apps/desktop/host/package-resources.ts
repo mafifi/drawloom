@@ -10,8 +10,19 @@ export function createPackageResources(clients: ReadonlyMap<string, Client>) {
   const receipts = new Map<string, { source: string; uri: string; revision: string; client: Client }>();
   const generations = new WeakMap<Client, number>();
   let pending: Promise<Page> | undefined;
-  async function discover(refresh = false): Promise<Page> {
-    if (pending) return pending;
+  function snapshot():Page {
+    const result:Page={entries:[],categories:[]};
+    for(const [source,client] of clients){
+      const saved=cache.get(source);
+      if(saved?.client===client){result.entries.push(...saved.page.entries);result.categories.push(...saved.page.categories);}
+      else result.categories.push({kind:'resource',status:'loading'});
+    }
+    return result;
+  }
+  async function discover(refresh = false, wait = true): Promise<Page> {
+    if (pending) return wait ? pending : snapshot();
+    if(!refresh&&[...clients].every(([source,client])=>cache.get(source)?.client===client))return snapshot();
+    if(refresh)cache.clear();
     pending = (async () => {
       const result: Page = { entries: [], categories: [] };
       for (const [source, client] of clients) {
@@ -52,12 +63,13 @@ export function createPackageResources(clients: ReadonlyMap<string, Client>) {
           page.entries = []; cache.delete(source);
           for (const [id, receipt] of receipts) if (receipt.source === source) receipts.delete(id);
           page.categories.push({ kind: 'resource', status: 'error', message: 'Package resource discovery failed. Refresh to retry; tools and other servers remain independent.' });
+          if(clients.get(source)===client&&generations.get(client)===generation)cache.set(source,{client,page});
         }
         result.entries.push(...page.entries); result.categories.push(...page.categories);
       }
       return result;
-    })();
-    try { return await pending; } finally { pending = undefined; }
+    })().finally(()=>{pending=undefined;});
+    return wait ? pending : snapshot();
   }
   return { discover,
     async read(selection: { id: string; revision: string }) {

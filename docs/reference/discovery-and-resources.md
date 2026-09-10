@@ -5,23 +5,40 @@ was accepted on 2026-09-10 after the integrated acceptance walkthrough and check
 
 ## Discovery and input
 
-`AgentSession.discovery?` supports `list({refresh?})`, `invalidate()` and optional
+`AgentSession.discovery?` supports `list({refresh?, wait?, cursor?})`, `invalidate()` and optional
 `readResource({id, revision})`. A snapshot contains its revision, origin-qualified
-entries and per-category availability. Entries distinguish selection, readiness
+entries, optional opaque `nextCursor` and per-category loading/availability. Entries distinguish selection, readiness
 and resource readability. None grants execution permission. Native tool inventory
 is unverified where Codex does not establish callability.
 
 Codex uses installed protocol methods `skills/list`, `app/list`,
-`mcpServerStatus/list`, and optional experimental `plugin/list`. Each paginated
-read is bounded to 100 pages; the catalogue is bounded to 10,000 entries. Opaque
-cursors must progress. Category errors retain other successful categories. The
-session caches summaries and private native mappings; explicit refresh and native
-change notifications invalidate them. One bounded retry accommodates startup
-updates. Identical app-list notifications do not perpetually invalidate discovery.
-The authenticated desktop discovery request permits up to 120 seconds of HTTP
-idle time for cold multi-page catalogues; other routes retain their existing
-timeouts. A 21-second metadata fixture verifies the read while state polling stays
-independent. This is not an execution retry or an unbounded provider timeout.
+`mcpServerStatus/list`, and optional experimental `plugin/list`, concurrently.
+`wait:false` returns ready categories while others load; the default waits for the
+current reads and one coalesced update. A constantly changing provider may still
+report loading. Polling a snapshot never loads another app page automatically.
+The first native app page is limited to 100; `cursor` explicitly requests the next
+page. The returned snapshot is cumulative, and completed pages retain the same
+selection revision. Cursors are opaque, session-bound, validated and coalesced on
+repeated delivery; native cursors never reach the browser. Native server-status
+reads retain their bounded metadata scan. Each paginated scan is bounded to 100
+pages and the catalogue to 10,000 entries. Category failures preserve other
+categories and previously completed pages.
+
+The session caches summaries and private native mappings. Explicit refresh joins
+active discovery rather than issuing overlapping reads. When idle it invalidates
+the catalogue. Native category updates invalidate only that category, rotate the
+selection revision and queue one reread after an active request finishes. An MCP
+startup notification therefore cannot restart a slow app request. Identical app
+notifications are deduplicated. Explicit invalidation/closure rejects stale results.
+
+The desktop returns registered contributions immediately, including while its
+native connection or package resource listing is pending. Its browser polls only
+loading discovery, coalesces requests, and ignores navigation-late responses.
+“Load more apps” requests another native page; search is explicitly limited to
+loaded results. Native latency remains visible as loading, not an eight-second
+fallback error. Normal transport timeouts and category errors remain authoritative.
+The [measured follow-up](../../knowledge/evidence/discovery-latency-fix.md) records
+the live timing, counters and browser regression.
 
 Browser selections carry only validated IDs and revisions. Native selections map
 to Codex `skill` or `mention` inputs inside the adapter. Registered Drawloom skills

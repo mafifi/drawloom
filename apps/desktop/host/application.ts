@@ -8,7 +8,7 @@ import { PackageActionSchema, PackageInspectionSchema } from '../src/lib/package
 import { createPluginCredentialStore } from './plugin-credentials.js';
 import { createPluginOAuthManager } from './plugin-oauth.js';
 import { readClientRegistration } from './plugin-registration.js';
-import { readProviderDiscovery } from './discovery-deadline.js';
+import { createDiscoveryCache } from './discovery-cache.js';
 import { PackageOAuthActionSchema } from '../src/lib/package-protocol.js';
 import { createSqliteConversationHistory } from '@drawloom/sqlite-conversation-history';
 import { HistoryPageOptionsSchema, HistoryChangeOptionsSchema, type HistoryEntry, type HistoryPageOptions, type HistoryChangeOptions } from '@drawloom/conversation-history';
@@ -105,6 +105,7 @@ export async function createDesktopApplication(
   if (project.selectedId === "pending")
     project.selectedId = project.conversations[0]!.id;
   const live = new Map<string, Live>();
+  const discoveryConnections = new Map<string, ReturnType<typeof createDiscoveryCache<Live>>>();
   const submissions = new Map<string, { text: string; assets: Asset[]; selections: NonNullable<HistoryEntry['selections']>; resources: NonNullable<HistoryEntry['resources']> }[]>();
   const localRevision = crypto.randomUUID();
   const pumps = new Set<Promise<void>>();
@@ -556,7 +557,7 @@ export async function createDesktopApplication(
       }
       return this.installedPackages();
     },
-    async discover(conversationId: string, refresh = false): Promise<DesktopCatalogue> {
+    async discover(conversationId: string, refresh = false, cursor?: string): Promise<DesktopCatalogue> {
       const conversation = project.conversations.find(c => c.id === conversationId);
       if (!conversation) throw Error('Conversation unavailable');
       const workbench = registry.workbenches.find(w => w.id === conversation.workbenchId)!;
@@ -586,18 +587,25 @@ export async function createDesktopApplication(
         }
       }
       let categories: DesktopCatalogue['categories'] = [];
+      let nextCursor: string | undefined;
       if (conversation.provider === 'codex') {
         try {
-          const read = await readProviderDiscovery(async () => (await connect(conversationId)).session.discovery?.list({ refresh }));
-          if (read.status === 'unavailable') throw Error('Native discovery unavailable');
-          const result = read.value;
-          if (result?.status === 'ok') { entries.push(...result.value.entries.map(e => ({ ...e, revision: result.value.revision }))); categories = result.value.categories; }
-          else categories = [{ kind: 'skill', status: result ? 'error' : 'unsupported', message: result ? 'Native discovery changed during loading. Refresh to try again; registered contributions remain visible.' : 'Native discovery is unavailable. Registered contributions remain visible.' }];
-        } catch { categories = (['skill', 'tool', 'app', 'resource'] as const).map(kind => ({ kind, status: 'error' as const, message: 'Codex discovery is unavailable or exceeded its display deadline. Registered contributions remain visible; refresh to retry.' })); }
+          let connection = discoveryConnections.get(conversationId);
+          if(!connection){connection=createDiscoveryCache(()=>connect(conversationId));discoveryConnections.set(conversationId,connection);}
+          const read=connection.read(refresh,live.get(conversationId));
+          if(read.status==='error')throw Error('Native discovery unavailable');
+          const session=live.get(conversationId)?.session ?? read.value?.session;
+          if(!session)categories=(['skill','tool','app'] as const).map(kind=>({kind,status:'loading',message:'Connecting to Codex. Registered contributions are ready.'}));
+          else {
+            const result=await session.discovery?.list({refresh,wait:false,...(cursor?{cursor}:{})});
+            if(result?.status==='ok'){entries.push(...result.value.entries.map(e=>({...e,revision:result.value.revision})));categories=result.value.categories;nextCursor=result.value.nextCursor;}
+            else categories=[{kind:'skill',status:result?'error':'unsupported',message:result?'Native discovery changed during loading. Refresh to try again; registered contributions remain visible.':'Native discovery is unavailable. Registered contributions remain visible.'}];
+          }
+        } catch { categories = (['skill', 'tool', 'app', 'resource'] as const).map(kind => ({ kind, status: 'error' as const, message: 'Codex discovery is unavailable. Registered contributions remain visible; refresh to retry.' })); }
       }
-      const packageResources = await packages.discoverResources(refresh);
+      const packageResources = await packages.discoverResources(refresh, false);
       entries.push(...packageResources.entries); categories.push(...packageResources.categories);
-      return DesktopCatalogueSchema.parse({ entries, categories, experimentalPluginDiscovery: options.experimentalPluginDiscovery === true });
+      return DesktopCatalogueSchema.parse({ entries, categories, ...(nextCursor?{nextCursor}:{}), experimentalPluginDiscovery: options.experimentalPluginDiscovery === true });
     },
     async authenticateIntegration(conversationId: string, selection: { id: string; revision: string }) {
       const conversation = project.conversations.find(c => c.id === conversationId);
