@@ -12,6 +12,8 @@ import { z } from 'zod';
 import { mkdir, realpath, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { containedPath } from './inspection.js';
+import { context as otelContext, trace, propagation, SpanKind, SpanStatusCode, type Context } from '@opentelemetry/api';
+const telemetryMethods = new Set(['initialize', 'tools/list', 'tools/call', 'resources/list', 'resources/read', 'prompts/list', 'prompts/get', 'ping']);
 
 export interface ActivatePackageOptions {
   dataRoot: string;
@@ -78,33 +80,41 @@ export async function activatePackage(inventory: PackageInventory, options: Acti
     let transport: Transport | undefined;
     const abort = new AbortController();
     const contextStore = new AsyncLocalStorage<ToolContext>();
-    let current: { context?: ToolContext; signal: AbortSignal } | undefined;
+    let current: { context?: ToolContext; signal: AbortSignal; traceContext: Context } | undefined;
     let queue: Promise<unknown> = Promise.resolve();
     const request = client.request.bind(client);
     // Standard stdio has no parent request identity. Serialize every request on
     // this connection, including MCP App calls and resource reads without context.
     client.request = async (...args) => {
       const context = contextStore.getStore();
+      const parent = otelContext.active();
       let started = false;
-      const run = queue.then(async () => {
+      const run = queue.then(() => otelContext.with(parent, () => trace.getTracer('drawloom.mcp').startActiveSpan('mcp.request', { kind: SpanKind.CLIENT, attributes: { 'drawloom.plugin.id': options.installationId, 'rpc.method': telemetryMethods.has(args[0].method) ? args[0].method : 'other' } }, async span => {
         const lifetime = new AbortController();
         const signal = AbortSignal.any([abort.signal, ...(args[2]?.signal ? [args[2].signal] : [])]);
-        signal.throwIfAborted();
+        if (signal.aborted) { span.setAttribute('drawloom.outcome', 'cancelled'); span.end(); signal.throwIfAborted(); }
         started = true;
-        current = { ...(context ? { context } : {}), signal: AbortSignal.any([signal, lifetime.signal]) };
+        current = { ...(context ? { context } : {}), signal: AbortSignal.any([signal, lifetime.signal]), traceContext: otelContext.active() };
         const retire = () => { abort.abort(); void client.close().catch(() => {}); };
         signal.addEventListener('abort', retire, { once: true });
-        try { return await request(args[0], args[1], { ...args[2], signal }); }
+        try {
+          const carrier: Record<string, string> = {};
+          propagation.inject(otelContext.active(), carrier);
+          // SEP-414 standard metadata; never change tool arguments or forward baggage.
+          const message = carrier.traceparent ? { ...args[0], params: { ...args[0].params, _meta: { ...args[0].params?._meta, traceparent: carrier.traceparent } } } : args[0];
+          return await request(message, args[1], { ...args[2], signal });
+        }
         catch (error) {
           // A timeout/disconnect/rejected request can leave a server working.
           // Retire instead of letting late requests inherit another invocation.
-          retire(); throw error;
+          span.setStatus({ code: SpanStatusCode.ERROR }); retire(); throw error;
         } finally {
           signal.removeEventListener('abort', retire);
           current = undefined;
           lifetime.abort();
+          span.end();
         }
-      });
+      })));
       queue = run.catch(() => {});
       const queuedSignal = args[2]?.signal;
       if (!queuedSignal) return run;
@@ -127,21 +137,26 @@ export async function activatePackage(inventory: PackageInventory, options: Acti
         throw new McpError(ErrorCode.InvalidRequest, 'Task elicitation is unsupported');
       const owner = current;
       if (!owner?.context || owner.signal.aborted) throw new McpError(ErrorCode.InvalidRequest, 'No bound tool invocation for elicitation');
+      const invocation = owner.context;
+      return otelContext.with(owner.traceContext, () => trace.getTracer('drawloom.mcp').startActiveSpan('mcp.elicitation.wait', async span => {
       const signal = AbortSignal.any([owner.signal, extra.signal]);
       const envelope = ToolElicitationRequestSchema.parse({ requestId: crypto.randomUUID(), source: `package:${options.installationId}:${name}`,
-        invocationId: owner.context.invocationId, operationId: owner.context.operationId, params });
+        invocationId: invocation.invocationId, operationId: invocation.operationId, params });
       let cancel: (() => void) | undefined;
       try {
         const result = ElicitResultSchema.parse(await Promise.race([
           options.elicitation!(envelope, signal),
           new Promise<{ action: 'cancel' }>(resolve => { cancel = () => resolve({ action: 'cancel' }); if (signal.aborted) cancel(); else signal.addEventListener('abort', cancel, { once: true }); }),
         ]));
-        if (signal.aborted) return { action: 'cancel' };
+        if (signal.aborted) { span.setAttribute('drawloom.outcome', 'cancelled'); return { action: 'cancel' }; }
         const schema = z.record(z.string(), z.json()).parse(params.requestedSchema);
         if (result.action === 'accept' && (!result.content || !new AjvJsonSchemaValidator().getValidator({ ...schema, type: 'object' })(result.content).valid))
           throw new McpError(ErrorCode.InvalidParams, 'Invalid elicitation response content');
+        span.setAttribute('drawloom.outcome', result.action === 'accept' ? 'ok' : result.action === 'decline' ? 'denied' : 'cancelled');
         return result.action === 'accept' ? result : { action: result.action };
-      } finally { if (cancel) signal.removeEventListener('abort', cancel); }
+      } catch (error) { span.setAttribute('drawloom.outcome', 'error'); span.setStatus({ code: SpanStatusCode.ERROR }); throw error; }
+      finally { if (cancel) signal.removeEventListener('abort', cancel); span.end(); }
+      }));
     });
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {

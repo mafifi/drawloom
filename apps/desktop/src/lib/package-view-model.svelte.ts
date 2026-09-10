@@ -47,3 +47,4 @@ export function createPackageViewModel() {
     }),
   };
 }
+import { telemetryFetch as fetch } from './telemetry.js';

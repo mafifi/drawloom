@@ -19,6 +19,8 @@ updated: 2026-09-10
 
 ## Evidence and computations
 
+- [Operational observability and measured diagnostic value](evidence/adr-0019-observability.md)
+
 - [Standard plugin loading and backend capability boundary](evidence/adr-0018-plugin-standards.md)
 
 - [Orchestration interface and local Temporal proof](evidence/adr-0017-orchestration.md)

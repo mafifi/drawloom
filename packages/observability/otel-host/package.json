@@ -1,0 +1,24 @@
+{
+  "name": "@drawloom/otel-host",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=22" },
+  "files": ["dist", "src"],
+  "exports": { ".": { "bun": "./src/index.ts", "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "drawloom": { "role": "composition", "runtime": "node" },
+  "dependencies": {
+    "@opentelemetry/api": "catalog:",
+    "@opentelemetry/api-logs": "catalog:",
+    "@opentelemetry/sdk-trace-node": "catalog:",
+    "@opentelemetry/sdk-trace-base": "catalog:",
+    "@opentelemetry/sdk-trace": "catalog:",
+    "@opentelemetry/sdk-logs": "catalog:",
+    "@opentelemetry/sdk-metrics": "catalog:",
+    "@opentelemetry/resources": "catalog:",
+    "@opentelemetry/core": "catalog:",
+    "@opentelemetry/exporter-trace-otlp-http": "catalog:",
+    "@opentelemetry/exporter-logs-otlp-http": "catalog:",
+    "@opentelemetry/exporter-metrics-otlp-http": "catalog:"
+  }
+}

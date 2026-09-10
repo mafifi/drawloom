@@ -1,0 +1,209 @@
+{
+  "results": [
+    {
+      "refresh": false,
+      "ms": 8004.3108330000005,
+      "entryCount": 3,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "error"
+        },
+        {
+          "kind": "tool",
+          "status": "error"
+        },
+        {
+          "kind": "app",
+          "status": "error"
+        },
+        {
+          "kind": "resource",
+          "status": "error"
+        }
+      ]
+    },
+    {
+      "refresh": true,
+      "ms": 8003.498333,
+      "entryCount": 3,
+      "categories": [
+        {
+          "kind": "skill",
+          "status": "error"
+        },
+        {
+          "kind": "tool",
+          "status": "error"
+        },
+        {
+          "kind": "app",
+          "status": "error"
+        },
+        {
+          "kind": "resource",
+          "status": "error"
+        }
+      ]
+    }
+  ],
+  "calls": [
+    {
+      "name": "host.command",
+      "outcome": "ok",
+      "traceId": "ca7d3df4fac6d88c8d98095d4a8c2580",
+      "spanId": "9b1fcbac290ca96d",
+      "startMs": 1789071361346,
+      "durationMs": 7.240667,
+      "error": false
+    },
+    {
+      "name": "agent.request",
+      "method": "initialize",
+      "outcome": "ok",
+      "traceId": "ca7d3df4fac6d88c8d98095d4a8c2580",
+      "parent": "688ef30aaf65d5b8",
+      "spanId": "c96fa2bf3ed9d68a",
+      "startMs": 1789071361356,
+      "durationMs": 32.389792,
+      "error": false
+    },
+    {
+      "name": "agent.request",
+      "method": "thread/start",
+      "outcome": "ok",
+      "traceId": "ca7d3df4fac6d88c8d98095d4a8c2580",
+      "parent": "688ef30aaf65d5b8",
+      "spanId": "cace5b5ce63f0980",
+      "startMs": 1789071361390,
+      "durationMs": 106.6575,
+      "error": false
+    },
+    {
+      "name": "agent.request",
+      "method": "other",
+      "outcome": "ok",
+      "traceId": "ca7d3df4fac6d88c8d98095d4a8c2580",
+      "parent": "688ef30aaf65d5b8",
+      "spanId": "48c75c2058b60c79",
+      "startMs": 1789071361496,
+      "durationMs": 467.143208,
+      "error": false
+    },
+    {
+      "name": "host.connect",
+      "outcome": "ok",
+      "traceId": "ca7d3df4fac6d88c8d98095d4a8c2580",
+      "parent": "9b1fcbac290ca96d",
+      "spanId": "688ef30aaf65d5b8",
+      "startMs": 1789071361354,
+      "durationMs": 611.551667,
+      "error": false
+    },
+    {
+      "name": "agent.request",
+      "method": "skills/list",
+      "outcome": "ok",
+      "traceId": "ce83383f980224b3942e91a8091c3162",
+      "parent": "2c56a0a18adc0964",
+      "spanId": "006203d0e40796fe",
+      "startMs": 1789071361967,
+      "durationMs": 4.831792,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "timeout",
+      "traceId": "ce83383f980224b3942e91a8091c3162",
+      "spanId": "2c56a0a18adc0964",
+      "startMs": 1789071361353,
+      "durationMs": 8004.259875,
+      "error": true
+    },
+    {
+      "name": "agent.request",
+      "method": "skills/list",
+      "outcome": "ok",
+      "traceId": "80a28d8c252790780d98cd61fca77eb0",
+      "parent": "1678d75fd00d8f02",
+      "spanId": "99e7086ab5c6bee5",
+      "startMs": 1789071369357,
+      "durationMs": 112.796959,
+      "error": false
+    },
+    {
+      "name": "host.discovery",
+      "outcome": "timeout",
+      "traceId": "80a28d8c252790780d98cd61fca77eb0",
+      "spanId": "1678d75fd00d8f02",
+      "startMs": 1789071369357,
+      "durationMs": 8003.286334,
+      "error": true
+    },
+    {
+      "name": "agent.request",
+      "method": "app/list",
+      "outcome": "error",
+      "traceId": "ce83383f980224b3942e91a8091c3162",
+      "parent": "2c56a0a18adc0964",
+      "spanId": "f271cb078f701b44",
+      "startMs": 1789071361973,
+      "durationMs": 15391.053417,
+      "error": true
+    },
+    {
+      "name": "agent.request",
+      "method": "app/list",
+      "outcome": "error",
+      "traceId": "80a28d8c252790780d98cd61fca77eb0",
+      "parent": "1678d75fd00d8f02",
+      "spanId": "ded369759bfb2747",
+      "startMs": 1789071369477,
+      "durationMs": 7886.944791,
+      "error": true
+    },
+    {
+      "name": "agent.request",
+      "method": "mcpServerStatus/list",
+      "outcome": "error",
+      "traceId": "ce83383f980224b3942e91a8091c3162",
+      "parent": "2c56a0a18adc0964",
+      "spanId": "ff2e1274741fd4a2",
+      "startMs": 1789071377366,
+      "durationMs": 0.580042,
+      "error": true
+    },
+    {
+      "name": "agent.request",
+      "method": "mcpServerStatus/list",
+      "outcome": "error",
+      "traceId": "80a28d8c252790780d98cd61fca77eb0",
+      "parent": "1678d75fd00d8f02",
+      "spanId": "bad9a7dfd8256936",
+      "startMs": 1789071377366,
+      "durationMs": 0.398958,
+      "error": true
+    },
+    {
+      "name": "host.package.close",
+      "outcome": "ok",
+      "traceId": "f48e3c6c7ac0feb348dbe49edd497a08",
+      "spanId": "2c8584d0d1664cbc",
+      "startMs": 1789071377378,
+      "durationMs": 0.269833,
+      "error": false
+    }
+  ],
+  "diagnostics": {
+    "recordedSpans": 14,
+    "recordedLogs": 14,
+    "exportFailures": 0,
+    "deadlineExceeded": 0,
+    "droppedRecords": 0
+  },
+  "limitations": [
+    "Inventory only; zero model submissions",
+    "No contribution names, provider contents or paths retained",
+    "Calls still running after display deadline may end only during close"
+  ]
+}

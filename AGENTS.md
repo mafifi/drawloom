@@ -42,6 +42,12 @@ area you change.
 
 ## Area guides
 
+- Operational instrumentation follows [ADR 0019](docs/adr/0019-useful-observability.md)
+  and its [measurement record](knowledge/evidence/adr-0019-observability.md).
+  Use standard OpenTelemetry APIs, host-owned configuration and content-free
+  attributes. Do not turn diagnostic capture into transcript storage or execution
+  authority; preserve the stated gaps when describing proof results.
+
 - Standard package loading and the trusted backend migration follow Proposed
   [ADR 0018](docs/adr/0018-plugin-standards-and-runtime-extensions.md). Consult the
   [package reference](docs/reference/plugin-packages.md) and linked evidence before

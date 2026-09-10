@@ -5,6 +5,7 @@ import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { getToolUiResourceUri, isToolVisibilityAppOnly } from '@modelcontextprotocol/ext-apps/app-bridge';
 import { activatePackage, inspectPackage, readSkill, type ActivePackage, type ActivePackageServer, type ActivatePackageOptions } from '@drawloom/local-plugin-packages';
+import { observed, observeOutcome } from './telemetry.js';
 import type { DesktopCompositionContext } from '@drawloom/desktop-host';
 import type { OperatorController } from '@drawloom/workbench';
 import type { PluginInstaller, PluginRequirement, PackageInventory, RegisteredWorkbenchView } from '@drawloom/plugins';
@@ -51,12 +52,16 @@ export async function loadInstalledPackages(options: {
     statuses.push(status);
     if (!installation.enabled) continue;
     try {
-      const inventory = await inspectPackage(installation.root);
+      const inventory = await observed('host.package.inspect', { 'drawloom.plugin.id': installation.id }, () => inspectPackage(installation.root));
       const authProviderFor = options.authProviderFor?.(installation);
-      const connections = await activatePackage(inventory, { dataRoot: join(options.root, 'plugins'), installationId: installation.id,
+      const connections = await observed('host.package.connect', { 'drawloom.plugin.id': installation.id }, async () => {
+        const connections = await activatePackage(inventory, { dataRoot: join(options.root, 'plugins'), installationId: installation.id,
         selectedServers: installation.servers, clientCapabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: [RESOURCE_MIME_TYPE] } } },
         ...(options.elicitation ? { elicitation: options.elicitation } : {}),
         ...(authProviderFor ? { authProviderFor } : {}) });
+        if (connections.statuses.some(s => s.status !== 'connected')) observeOutcome('error');
+        return connections;
+      });
       active.push(connections); status.servers = connections.statuses;
       status.codes.push(...inventory.diagnostics.map(d => `${d.component}:${d.code}`));
       const tools: ToolDefinition[] = [];
@@ -134,13 +139,18 @@ export async function loadInstalledPackages(options: {
     if (!requirementsResolved) {
       status.codes.push('extension:unavailable'); status.status = 'partial'; continue;
     }
-    const result = await backends.activate(inventory, {
+    const result = await observed('host.package.activate', { 'drawloom.plugin.id': installation.id }, async () => {
+      const result = await backends.activate(inventory, {
       trusted: installation.trustedBackend, available,
       installationId: installation.id, dataDirectory: join(options.root, 'plugins', installation.id), configuration: installation.configuration,
       capabilities: { host: { ...options.host, store: {
         get: key => options.host.store.get(JSON.stringify(['plugin', installation.id, key])),
         set: (key, value) => options.host.store.set(JSON.stringify(['plugin', installation.id, key]), value),
       } }, ...(tools ? { tools } : {}) },
+      });
+      if (result.status === 'untrusted') observeOutcome('denied');
+      else if (result.status === 'failed' || result.status === 'unavailable') observeOutcome('error');
+      return result;
     });
     if (result.status === 'ready') {
       const backend = result.backend;
@@ -248,10 +258,12 @@ export async function loadInstalledPackages(options: {
       return client.readResource({ uri }, { timeout: 15_000 });
     },
     async close() {
+      return observed('host.package.close', {}, async () => {
       await Promise.allSettled([...mcpApps.values()].map(async app => app.close()));
       await Promise.allSettled(backendClients.map(async client => client.close()));
       try { await backends.close(); }
       finally { await Promise.allSettled(active.map(async pkg => pkg.close())); }
+      });
     },
   };
 }

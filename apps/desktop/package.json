@@ -17,6 +17,11 @@
     "bundle:host": "bun build --compile host/main.ts --outfile src-tauri/binaries/drawloom-host"
   },
   "dependencies": {
+    "@opentelemetry/api": "catalog:",
+    "@opentelemetry/api-logs": "catalog:",
+    "@opentelemetry/sdk-trace-base": "catalog:",
+    "@opentelemetry/exporter-trace-otlp-http": "catalog:",
+    "@drawloom/otel-host": "workspace:*",
     "@drawloom/conversation-history": "workspace:*",
     "@drawloom/sqlite-conversation-history": "workspace:*",
     "@drawloom/ui": "workspace:*",

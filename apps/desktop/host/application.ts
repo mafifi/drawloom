@@ -62,6 +62,7 @@ import { createDesktopEvidence } from "./evidence.js";
 import type { ConnectedMcpApp } from './mcp-app.js';
 import { createViewContext } from './view-context.js';
 import { createResourceContent } from './resource-content.js';
+import { observed, observeOutcome, observedRpc, observedToolGateway, observedTools, observedAssets, instrumentApplication, createOperationTelemetry, observeCache } from './telemetry.js';
 
 type Live = {
   session: AgentSession;
@@ -73,6 +74,7 @@ export async function createDesktopApplication(
   root: string,
   options: { experimentalPluginDiscovery?: boolean } = {},
 ) {
+  const operationTelemetry = createOperationTelemetry();
   await mkdir(root, { recursive: true, mode: 0o700 });
   const history = createSqliteConversationHistory(join(root, 'history.sqlite'));
   const writers = new Map<string, ReturnType<typeof createHistoryCoordinator>>();
@@ -82,7 +84,7 @@ export async function createDesktopApplication(
     return found;
   }
   const store = createNodeJsonStore(join(root, "state"));
-  const assets = createDesktopAssets(join(root, "assets"));
+  const assets = observedAssets(createDesktopAssets(join(root, "assets")));
   const text = await createTextController(store);
   const controllers = new Map<string, OperatorController>([["text", text]]);
   let project = ProjectSchema.parse(
@@ -200,7 +202,7 @@ export async function createDesktopApplication(
     builtins: [{ plugin: textPlugin, config: {} }],
     elicitation: elicitation.request,
     authProviderFor: installation => server => oauth.connection({ installationId: installation.id, serverName: server.name, serverUrl: server.config.url }).provider,
-    toolsFor: (_installation, tools, workbenchIds) => createLocalToolGateway({ tools,
+    toolsFor: (_installation, tools, workbenchIds) => observedToolGateway(createLocalToolGateway({ tools: observedTools(tools),
       nextInvocationId: () => crypto.randomUUID(),
       policy: (operationId, name) => {
         const owner = project.conversations.find(c => live.get(c.id)?.active === operationId);
@@ -213,7 +215,7 @@ export async function createDesktopApplication(
         await (await evidenceFor(owner.id)).record(record);
         if (record.kind === 'finished') await (await recoveryFor(owner.id)).record(record.result);
       } },
-    }),
+    }), operationTelemetry),
   });
   const packageToolIds = packages.toolIds;
   let packageGrants = z.record(z.string(), z.array(z.string())).parse((await store.get('package-grants')) ?? {});
@@ -285,8 +287,8 @@ export async function createDesktopApplication(
       const operationBindings = new Map<string, ToolBinding>();
       const sink = await evidenceFor(conversationId);
       const resourceRecovery = await recoveryFor(conversationId);
-      const gateway = createLocalToolGateway({
-        tools: registry.tools.filter((t) => workbench.tools.includes(t.name) || packageToolIds.has(t.name)),
+      const gateway = observedToolGateway(createLocalToolGateway({
+        tools: observedTools(registry.tools.filter((t) => workbench.tools.includes(t.name) || packageToolIds.has(t.name))),
         policy: (operationId, name) =>
           operationBindings.has(operationId) &&
           Boolean(grants.get(workbench.id)?.has(name)),
@@ -298,7 +300,7 @@ export async function createDesktopApplication(
             catch { historyWriter.reportStorageFailure(); }
           }
         } },
-      });
+      }), operationTelemetry);
       const bridge = createCodexToolBridge(gateway);
       const mcp =
         conversation.provider === "codex" && gateway.exposure.tools.length
@@ -323,11 +325,11 @@ export async function createDesktopApplication(
                 catch { historyWriter.reportStorageFailure(); throw Error('Resource capture could not be persisted'); }
               },
               connect: async () =>
-                createStdioTransport({
+                observedRpc(createStdioTransport({
                   ...codexCommand(),
                   cwd: root,
                   maxMessageBytes: nativeRpcMessageByteLimit,
-                }),
+                })),
               store,
               imageInput: assets.imageInput,
               captureImage: async result => {
@@ -355,7 +357,8 @@ export async function createDesktopApplication(
               },
             });
       // Tokens belong to isolated provider configuration, never model context.
-      const result = await driver.openSession({
+      const result = await observed('host.connect', {}, async () => {
+        const result = await driver.openSession({
         sessionId: conversationId,
         context: {
           text: registry.skills
@@ -367,6 +370,9 @@ export async function createDesktopApplication(
           conversation.provider === "synthetic"
             ? { id: "synthetic-no-agent-tools", tools: [] }
             : gateway.exposure,
+        });
+        if (result.status !== 'ok') observeOutcome('error');
+        return result;
       });
       if (result.status !== "ok") {
         await mcp?.close();
@@ -377,6 +383,7 @@ export async function createDesktopApplication(
         session,
         signals,
         close: async () => {
+          if (state.active) operationTelemetry.end(state.active, 'unknown');
           for (const binding of operationBindings.values())
             gateway.revoke(binding);
           await session.close();
@@ -386,6 +393,7 @@ export async function createDesktopApplication(
       live.set(conversationId, state);
       const pump = (async () => {
         for await (const signal of session.signals()) {
+          operationTelemetry.signal(signal);
           if (
             signal.kind === "message.delta" ||
             signal.kind === "message.completed"
@@ -496,7 +504,7 @@ export async function createDesktopApplication(
     configuration: [],
     grants: [],
   };
-  return {
+  const application = {
     installations,
     bindOAuthRedirect: (url: string) => { oauthRedirect = url; },
     oauthCallback: (url: URL) => oauth.callback(url),
@@ -603,6 +611,7 @@ export async function createDesktopApplication(
       const id = selection.id.startsWith('package-resource:')
         ? `native-listed:${selection.id}:${selection.revision}` : `native-listed:${selection.id}`;
       const cached = await history.get(conversationId, id);
+      observeCache(Boolean(cached));
       if (cached) return cached;
       const catalogue = await this.discover(conversationId);
       const entry = catalogue.entries.find(e => e.id === selection.id && e.revision === selection.revision && e.kind === 'resource' && e.readable);
@@ -621,10 +630,12 @@ export async function createDesktopApplication(
       const options = HistoryPageOptionsSchema.parse(raw);
       await recoverResources(conversationId);
       let page = await history.page(conversationId, options);
+      let cacheHit = true;
       if (options.before && page.entries.length < (options.limit ?? 50) && page.status.hasOlder) {
         const session = live.get(conversationId)?.session;
-        if (session?.history) { await synchronizeHistory(conversationId, session.history, 'older'); page = await history.page(conversationId, options); }
+        if (session?.history) { cacheHit = false; await synchronizeHistory(conversationId, session.history, 'older'); page = await history.page(conversationId, options); }
       }
+      observeCache(cacheHit, page.entries.length);
       const error = writer(conversationId).error;
       return error ? { ...page, status: { ...page.status, sync: 'error' as const, message: error } } : writer(conversationId).syncing ? { ...page, status: { ...page.status, sync: 'syncing' as const } } : page;
     },
@@ -919,10 +930,14 @@ export async function createDesktopApplication(
           }
           // Command serialization does not drain the asynchronous signal/history
           // pump. Lock the chosen reviewer before execute can accept this turn.
-          if (starting) state.active = op;
+          if (starting) { state.active = op; operationTelemetry.begin(op); }
           try {
             const result = starting
-              ? await state.session.execute(input)
+              ? await operationTelemetry.run(op, () => observed('agent.submit', { 'drawloom.operation.id': op }, async () => {
+                const result = await state.session.execute(input);
+                if (result.status !== 'ok') observeOutcome('error');
+                return result;
+              }))
               : await (state.session.steer?.(input) ??
                   Promise.reject(Error("Steering unavailable")));
             if (result.status !== "ok") throw Error(result.failure.message);
@@ -930,6 +945,7 @@ export async function createDesktopApplication(
             const pending = submissions.get(op);
             if (pending) submissions.set(op, pending.filter(s => s !== submitted));
             if (starting && state.active === op) delete state.active;
+            if (starting) operationTelemetry.end(op, 'unknown');
             throw error;
           }
           if (
@@ -977,6 +993,7 @@ export async function createDesktopApplication(
       return asset;
     },
     async close() {
+      operationTelemetry.close();
       await Promise.allSettled([...opening.values()]);
       await Promise.all([...live.values()].map((s) => s.close()));
       await Promise.all([...pumps]);
@@ -987,4 +1004,5 @@ export async function createDesktopApplication(
       await history.close();
     },
   };
+  return instrumentApplication(application);
 }

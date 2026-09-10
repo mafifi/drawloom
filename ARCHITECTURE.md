@@ -174,6 +174,17 @@ were added with maintainer approval during the subsequent editable-artifact
 discussion. Principle 9 was added with maintainer approval on 2026-09-10 to guide
 native-tool integration. The accepted historical ADR is not rewritten.
 
+### Application to useful observability
+
+Observability should reduce the time and guesswork needed to explain system
+behaviour. Instrumentation earns its place by answering a diagnostic question,
+with proportionate runtime cost and without exposing users' content.
+
+The opt-in instrumentation in [ADR 0019](docs/adr/0019-useful-observability.md)
+tests span ownership, propagation and overhead. Telemetry is not authoritative
+tool evidence, conversation history or permission; exporting it is a separate
+choice. Span counts alone are not proof of diagnostic value.
+
 ### Application to native tools and integrations
 
 Drawloom should integrate the tools users have chosen, with clear approval and

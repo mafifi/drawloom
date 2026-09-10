@@ -4,6 +4,8 @@ import { CallToolRequestSchema, CallToolResultSchema, type CallToolRequest, type
 import { getToolUiResourceUri, isToolVisibilityModelOnly } from '@modelcontextprotocol/ext-apps/app-bridge';
 import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { z } from 'zod';
+import { context, propagation } from '@opentelemetry/api';
+import { observed, observeOutcome } from './telemetry.js';
 export interface ConnectedMcpApp {
   html: string;
   tools: Tool[];
@@ -80,7 +82,16 @@ export async function connectMcpAppClient(client: Client, toolName: string, uri:
       async callTool(raw) {
         const params = CallToolRequestSchema.shape.params.parse(raw);
         if (!allowed.has(params.name)) throw Error('Tool is unavailable to this app');
-        const result = CallToolResultSchema.parse(await client.callTool(params, undefined, { timeout: 15_000 }));
+        const result = await observed('mcp.request', { 'rpc.method': 'tools/call' }, async () => {
+          const carrier: Record<string, string> = {};
+          propagation.inject(context.active(), carrier);
+          // The host owns propagation; an iframe cannot choose another operation's parent.
+          const { traceparent: _ignored, tracestate: _state, baggage: _baggage, ...metadata } = params._meta ?? {};
+          const value = CallToolResultSchema.parse(await client.callTool({ ...params, _meta: { ...metadata,
+            ...(carrier.traceparent ? { traceparent: carrier.traceparent } : {}) } }, undefined, { timeout: 15_000 }));
+          if (value.isError) observeOutcome('error');
+          return value;
+        });
         for (const block of result.content) {
           if (block.type === 'resource_link') readable.add(block.uri);
           if (block.type === 'resource') readable.add(block.resource.uri);

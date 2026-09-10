@@ -5,8 +5,10 @@ import { ImportSchema, ResourceReadSchema, ResourceOpenSchema, DiscoveryResource
 import type { createDesktopApplication } from './application.js';
 import { createStateFeed } from './state-feed.js';
 import { HistoryStoreError } from '@drawloom/conversation-history';
+import { observedHttp } from './telemetry.js';
+import type { createTelemetryRelay } from './telemetry-relay.js';
 type Application = Awaited<ReturnType<typeof createDesktopApplication>>;
-export function serveDesktop(app: Application, webRoot: string, port = 0) {
+export function serveDesktop(app: Application, webRoot: string, port = 0, telemetry?: ReturnType<typeof createTelemetryRelay>) {
   const token = randomBytes(32).toString('hex');
   let bootstrap = true;
   let commandQueue: Promise<unknown> = Promise.resolve();
@@ -32,6 +34,9 @@ export function serveDesktop(app: Application, webRoot: string, port = 0) {
       const cookie = request.headers.get('cookie')?.split(';').map(v => v.trim()).find(v => v.startsWith(cookieName + '='))?.slice(cookieName.length + 1) ?? '';
       if (!valid(cookie)) return json({ error: 'Open the host startup URL to authenticate this local app.' }, 401);
       if (!['GET', 'HEAD'].includes(request.method) && (request.headers.get('origin') !== origin || request.headers.get('content-type') !== 'application/json')) return json({ error: 'Invalid command channel' }, 403);
+      if (url.pathname === '/api/telemetry' && request.method === 'GET') return json({ enabled: telemetry?.enabled === true });
+      if (url.pathname === '/api/telemetry/v1/traces' && request.method === 'POST') return telemetry ? telemetry.handle(request) : new Response(null, { status: 404, headers: secure });
+      return observedHttp(request, async () => {
       try {
         if (url.pathname === '/api/packages' && request.method === 'GET') return json(await app.installedPackages());
         if (url.pathname === '/api/packages' && request.method === 'POST') {
@@ -160,6 +165,7 @@ export function serveDesktop(app: Application, webRoot: string, port = 0) {
         const discoveryErrors = ['Selection unavailable. Refresh the catalogue and select it again.', 'Resource unavailable', 'Selected context is too large', 'Only ready text resources can be selected as context', 'This file is viewable, but is not supported as direct model input. Use a suitable tool instead.'];
         return json({ error: safe.includes(known) || discoveryErrors.includes(known) || known === 'Synthetic mode is available only in Text studio. Choose Codex for this workbench.' ? known : 'The local operation failed. Check configuration or restart the host; no automatic retry occurred.' }, 400);
       }
+      });
     },
   });
   app.bindOAuthRedirect(`http://127.0.0.1:${server.port}/oauth/callback`);

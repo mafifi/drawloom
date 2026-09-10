@@ -6,6 +6,7 @@ import { ListResourcesResultSchema, type ListResourcesResult } from '@modelconte
 import type { OperatorCommand } from '@drawloom/workbench';
 import { z } from 'zod';
 import { elicitationContent } from './elicitation-form.js';
+import { initializeUiTelemetry, telemetryFetch as fetch } from './telemetry.js';
 type Discovery = DesktopCatalogue['entries'][number];
 type Attachment = { id: string; name: string; size: number; mediaType: string; status: 'pending' | 'ready' | 'failed'; error: string; asset?: Asset };
 type SelectedResource = { entryId: string; resourceId: string; title: string; source: string };
@@ -340,7 +341,7 @@ export function createDesktopViewModel() {
     },
     get editText() { return editText; }, set editText(v: string) { editText = v; },
     get reviewSummary() { return reviewTarget === candidate?.id ? reviewSummary : ''; }, set reviewSummary(v: string) { reviewTarget = candidate?.id; reviewSummary = v; },
-    async start() { await refresh(); timer = setInterval(() => { if (!busy) void refresh(); }, 600); },
+    async start() { void initializeUiTelemetry(); await refresh(); timer = setInterval(() => { if (!busy) void refresh(); }, 600); },
     stopPolling() { clearInterval(timer); stateRead.abort(); stateRead = new AbortController(); requestEpoch++; pager.invalidate(); },
     command, operator,
     elicitationChoice(requestId: string, name: string, fallback = '') { return elicitationChoices[JSON.stringify([requestId, name])] ?? fallback; },

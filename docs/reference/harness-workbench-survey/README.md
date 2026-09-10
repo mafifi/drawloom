@@ -165,6 +165,16 @@ the existing private video plugin as the integration consumer. See the
 review outcomes, cached-resource recovery, browser evidence and limitations.
 This follow-up does not change the upstream inspection claims or revisions above.
 
+### Subsequent experiment: operational observability
+
+[ADR 0019](../../adr/0019-useful-observability.md) and its
+[measurement record](../../../knowledge/evidence/adr-0019-observability.md) now
+exercise standard OpenTelemetry in Drawloom. DeepSeek's recorded telemetry source
+was rechecked at the same revision: feedback-authorised session capture remains
+distinct from this content-excluding operational tracing. Native discovery is now
+measured; cancellation and category isolation remain follow-up work, not fixes
+implied by the survey. No new upstream execution claim is made.
+
 ### Refresh procedure
 
 1. Inspect checkout/remotes and local changes. Fetch the intended upstream and fast-forward only when safe; never reset local work to refresh evidence.

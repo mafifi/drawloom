@@ -14,6 +14,10 @@ links back.
 
 ## Latest decision
 
+- [ADR 0019: Useful observability through traces, logs and metrics](0019-useful-observability.md)
+  is Accepted. Opt-in instrumentation, measured overhead and local diagnostic
+  evidence establish the approach; discovery performance remains a separate fix.
+
 - [ADR 0018: Plugin standards and Drawloom runtime extensions](0018-plugin-standards-and-runtime-extensions.md)
   is Accepted. Standard package loading and the bounded backend extension are
   implemented and proven with the migrated consumer. Native discovery latency

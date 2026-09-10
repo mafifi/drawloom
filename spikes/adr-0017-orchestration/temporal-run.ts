@@ -16,8 +16,13 @@ import { orchestrationConformance, taskHandler } from "./conformance.ts";
 import { fixtureRegistry, workflows } from "./fixtures.ts";
 import { StepFailure, type TaskContext, type Json } from "./contract.ts";
 import { stopChild as stop } from "./temporal-host.ts";
+import { initializeObservability } from '../../packages/observability/otel-host/src/index.ts';
+import { createWorkflowObservation } from '../adr-0019-observability/workflow-observation.ts';
+import { trace } from '@opentelemetry/api';
 
 const runtime = await mkdtemp(join(tmpdir(), "drawloom-temporal-proof-"));
+const observability = initializeObservability({ mode: process.env.DRAWLOOM_TELEMETRY === 'export' ? 'export' : process.env.DRAWLOOM_TELEMETRY === 'recording' ? 'recording' : 'disabled', serviceName: 'drawloom.orchestration-proof', ...(process.env.DRAWLOOM_OTLP_ENDPOINT ? { endpoint: process.env.DRAWLOOM_OTLP_ENDPOINT } : {}) });
+let workflowObservation = await createWorkflowObservation(join(runtime, 'trace-links.json'));
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const attempts: TaskContext[] = [],
   timings: {
@@ -84,7 +89,7 @@ const host = createServer(async (request, response) => {
     if (data.task === "lost-response") {
       lostResponseWrites++;
       timing.end = Date.now();
-      response.destroy();
+      await workflowObservation.activity(context, async () => { trace.getActiveSpan()?.setAttribute('drawloom.outcome', 'unknown'); response.destroy(); });
       return;
     }
     let bridge = bridges.get(data.runId);
@@ -131,9 +136,9 @@ const host = createServer(async (request, response) => {
       bridges.set(data.runId, bridge);
     }
     try {
-      const value = data.task.startsWith("agent.")
+      const value = await workflowObservation.activity(context, async () => data.task.startsWith("agent.")
         ? await dispatchAgentTask(bridge, data.task, data.input, context)
-        : taskHandler(data.task, data.input, context);
+        : taskHandler(data.task, data.input, context));
       response.end(JSON.stringify({ value }));
     } finally {
       timing.end = Date.now();
@@ -284,6 +289,7 @@ try {
     childIds = [...snapshot.childRunIds],
     sessionIds = [...sessions],
     request = snapshot.pendingInputs[0];
+  await workflowObservation.mark(id, 'workflow.wait');
   await stop(worker);
   await startWorker();
   assert.deepEqual((await engine.get(id)).childRunIds, childIds);
@@ -305,6 +311,9 @@ try {
   assert.equal(attempts.length, count);
   assert.deepEqual((await engine.get(id)).pendingInputs, [request]);
   assert.deepEqual(sessions, sessionIds);
+  const correlationPersisted = await workflowObservation.flush();
+  workflowObservation = await createWorkflowObservation(join(runtime, 'trace-links.json'));
+  await workflowObservation.mark(id, 'workflow.resume');
   await assert.rejects(engine.start("principal", workflows.spine, 4));
   await assert.rejects(engine.respond(id, `${request}-stale`, 1));
   await assert.rejects(engine.respond(id, request, "invalid"));
@@ -360,6 +369,7 @@ try {
     lostResponseWrites,
     workerRestart: "passed",
     serviceRestart: "passed",
+    correlationPersisted,
     attemptCountAtWait: count,
     attemptCountAfterRestarts: count,
     childIds,
@@ -389,4 +399,8 @@ try {
   for (const child of children) await stop(child);
   await Promise.all([...bridges.values()].map((b) => b.close()));
   await new Promise<void>((r) => host.close(() => r()));
+  console.log('CORRELATION_PERSISTED', await workflowObservation.flush());
+  await observability.flush();
+  console.log('OBSERVABILITY', JSON.stringify(observability.diagnostics()));
+  await observability.shutdown();
 }
