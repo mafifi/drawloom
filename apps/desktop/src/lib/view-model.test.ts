@@ -23,9 +23,9 @@ function snapshot(): DesktopSnapshot {
     views: [],
     pendingTools: [],
     workspace: 'Test workspace', selectedId: 'conversation-a',
-    conversations: [{ id: 'conversation-a', title: 'A', workbenchId: 'text', provider: 'synthetic' }],
+    conversations: [{ id: 'conversation-a', title: 'A', workbenchId: 'text', provider: 'synthetic', reviewer: 'human' }],
     workbenches: [{ id: 'text', title: 'Text', description: '', tools: [], skills: [] }],
-    signals: [], activity: [], controls: { steer: false, interrupt: false }, plugins: [], notice: '',
+    signals: [], activity: [], controls: { steer: false, interrupt: false, reviewerModes: ['human'] }, plugins: [], notice: '',
     operator: { artifacts: [{ id: 'artifact-a', editable: true, title: 'A', content: { kind: 'text', text: 'Original A' } }], candidates: [{ id: 'candidate-a', comparisonKey: 'document-a', label: 'A', artifactIds: ['artifact-a'], status: 'draft' }], reviews: [], readiness: 'ready', summary: '', configuration: [], grants: [] },
   };
 }
@@ -191,7 +191,7 @@ test('conversation navigation cancels the previous document editing session', as
   h.vm.editing = true; h.vm.editText = 'Do not apply to B';
   const next = snapshot();
   next.selectedId = 'conversation-b';
-  next.conversations = [{ id: 'conversation-b', title: 'B', workbenchId: 'other', provider: 'synthetic' }];
+  next.conversations = [{ id: 'conversation-b', title: 'B', workbenchId: 'other', provider: 'synthetic', reviewer: 'human' }];
   h.setState(next);
   await h.vm.select('conversation-b');
   expect(h.vm.editing).toBe(false);

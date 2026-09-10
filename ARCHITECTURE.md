@@ -55,6 +55,13 @@ state. The earlier custom-protocol slice is historical evidence only. General
 placement, richer editing/authority and performance remain follow-up work, not
 implied acceptance. Changed boundaries require explicit approval and a future ADR.
 
+[ADR 0015](docs/adr/0015-working-material-ownership-and-edit-approval.md) is
+Proposed for working-material ownership and AI edit approval. It records the
+agreed direction: lightweight provider workspace files, plugin-owned editing and
+preservation, optional previews and invocation-scoped review. It adds no universal
+revision or undo model and does not weaken ADR 0014's captured-media guarantees.
+Its runtime implementation and verification remain pending.
+
 Public editorial publishing is established separately through Accepted
 [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md). Its Astro and
 Remotion spike consumes piece-owned `publishing/` sources without introducing
@@ -91,7 +98,9 @@ names.
 **Complexity must earn its place.** Choose the simplest design that satisfies
 present, evidenced needs. Extra abstraction, state, lifecycle, indirection,
 validation, or generalisation must justify its engineering, cognitive, runtime,
-and operational cost.
+and operational cost. Simplicity means the least complex implementation that
+meets the required standard, not lowering that standard to reduce implementation
+effort. Account for the cost of missing protections and user controls too.
 
 1. **Useful type safety.** Use precise types and runtime validation for concrete
    invalid states and trust boundaries, not for theoretical completeness.
@@ -115,14 +124,61 @@ and operational cost.
    an explicit maintainer choice. Departures from their boundaries require
    explicit maintainer approval before implementation, even when they seem small
    or use generic names. An approved choice is not permission for adjacent drift.
+7. **Safe and secure by default.** Protect users' work, data and resources through
+   conservative defaults, explicit authority and inspectable actions. Prefer
+   reversible changes where practical. Delegated approval must remain within the
+   user's granted authority; uncertainty must not silently become permission or
+   trigger repeated effects. Distinguish enforced protections from cooperative
+   behaviour, and state limitations honestly.
+8. **Market readiness and familiar user control.** Treat established expectations
+   from successful AI tools as evidence of essential product requirements, not
+   merely optional polish. Users should be able to understand, direct, interrupt
+   and review work without learning Drawloom's internal architecture. Assess
+   omissions by their cost to trust, usability and adoption, not only the
+   engineering effort saved. Match useful behaviours, not necessarily competitors'
+   implementations or entire feature sets.
 
 Before adding material complexity, ask what present need or observed difference
 requires it, why the simpler option fails a principle, whether the choice can
 remain private or reversible, what it costs, and how evidence will verify it.
+Also ask:
+
+- Does the simpler option leave users exposed to avoidable harm or loss of control?
+- Would its limitations make Drawloom materially harder to trust or adopt than
+  tools users already know?
+
 If two designs satisfy the principles, prefer the simpler one. ADR 0006 records
 the original five principles and decision test; principle 6 is the maintainer's
-2026-09-09 addition, applied to plugin integration in ADR 0013. The accepted
-historical ADR is not rewritten.
+2026-09-09 addition, applied to plugin integration in ADR 0013. Principles 7 and 8
+were added with maintainer approval during the subsequent editable-artifact
+discussion. The accepted historical ADR is not rewritten.
+
+### Application to editable-artifact approvals
+
+Principles 7 and 8 require support for both human and delegated approval of
+AI-initiated edits when policy requires review. This is a required user-control
+boundary, not optional polish to omit solely because it adds implementation cost.
+Both modes review the specific invocation and its unchanged arguments. Delegated
+approval is an assessment within granted authority, not an unconditional allow
+switch; approval must not silently transfer to different work. Plugins own
+domain validation and stale-edit handling. Drawloom requires neither a revision
+scheme nor a preview, and direct editing inside a plugin UI is outside the AI
+approval flow without bypassing existing host access controls.
+
+Codex's [auto-review](https://learn.chatgpt.com/docs/sandboxing/auto-review) is the
+selected native integration for separating review from execution authority.
+Drawloom selects a supported human/delegated mode and presents native requests
+and safe review outcomes; it does not add its own reviewer or pending-review
+service to the tool gateway. Native approval never replaces Drawloom tool grants
+or execution evidence. Unsupported native review must be reported, not bypassed
+or silently replaced. Approval to
+edit does not itself accept finished content, grant paid generation or authorise
+publication. These remain distinct decisions. This requirement does not expand
+sandbox access or approve a general sandbox redesign. The implemented native
+review path and its conformance are recorded in
+[ADR 0015](docs/adr/0015-working-material-ownership-and-edit-approval.md).
+Its linked evidence separates live proof, simulated outcomes and the existing
+ambient-tool isolation follow-up; native review does not establish full isolation.
 
 ### Reference-led changes and approval
 

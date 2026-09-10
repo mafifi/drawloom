@@ -116,6 +116,23 @@
         <div class="composer-spacer"></div>
         <Select.Root
           type="single"
+          value={vm.conversation?.reviewer ?? 'human'}
+          disabled={vm.busy || Boolean(vm.state?.activeOperation)}
+          onValueChange={(reviewer) => {
+            if (vm.conversation && (reviewer === 'human' || reviewer === 'delegated'))
+              void vm.command({ kind: 'set_reviewer', conversationId: vm.conversation.id, reviewer });
+          }}
+        >
+          <Select.Trigger variant="ghost" aria-label="Execution review"
+            >{vm.conversation?.reviewer === 'delegated' ? 'Approve for me' : 'Ask me'}</Select.Trigger
+          >
+          <Select.Content><Select.Group>
+            <Select.Item value="human" label="Ask me" />
+            <Select.Item value="delegated" label="Approve for me" disabled={!vm.state?.controls.reviewerModes.includes('delegated')} />
+          </Select.Group></Select.Content>
+        </Select.Root>
+        <Select.Root
+          type="single"
           value={vm.conversation?.provider ?? "synthetic"}
           disabled={vm.busy || Boolean(vm.state?.activeOperation)}
           onValueChange={(value) => {
@@ -178,6 +195,6 @@
     </Collapsible.Root>
   </form>
   <p class="composer-note text-muted-foreground">
-    Review changes before using them.
+    {vm.conversation?.reviewer === 'delegated' ? 'Codex reviews actions within your permissions. Review the work before using it.' : 'You review actions when required. Saving work does not accept it as finished.'}
   </p>
 </div>

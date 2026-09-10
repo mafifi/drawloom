@@ -30,6 +30,7 @@ export async function createMcpToolServer(options: {
     return {
       name: t.name,
       description: t.description,
+      ...(t.annotations ? { annotations: t.annotations } : {}),
       inputSchema,
       outputSchema: {
         type: "object" as const,

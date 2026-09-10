@@ -56,6 +56,16 @@ The references make different product choices:
 
 Drawloom's video workbench must make selected candidate, current working material and historical evidence unambiguous. The exact retention policy belongs to the consumer; a file path alone cannot stand in for all three.
 
+The subsequent discussion is recorded in
+[ADR 0015](../../adr/0015-working-material-ownership-and-edit-approval.md):
+use lightweight live paths for provider-owned working files; plugins own useful
+output preservation and their editing model. Conversation media capture remains
+under ADR 0014. This is not a universal artifact/revision framework, and richer
+previews are optional. Native human/delegated review and the existing video
+plugin's direct Save and agent edits are implemented. The [verification
+record](../adr-0015-native-edit-review.md) includes live results and the separately
+identified ambient-tool isolation follow-up; that requirement is not relaxed.
+
 ### 3. Rich interaction does not require copying a client kernel
 
 DeepSeek exposes in-process browser contributions through Cordis. Open Design owns its editing/preview bridge within its product. Neither is evidence that Drawloom's chosen MCP Apps boundary is insufficient.

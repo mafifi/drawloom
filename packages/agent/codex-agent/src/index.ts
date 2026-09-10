@@ -10,6 +10,7 @@ import {
   type AgentResult,
   type AgentSessionSignal,
   type AgentInputResolution,
+  type AgentReviewer,
 } from "@drawloom/agent";
 import type { JsonStore, RpcTransport, JsonValue } from "@drawloom/host";
 import type { ToolExposure, ToolGateway, ToolBinding } from "@drawloom/tools";
@@ -36,9 +37,10 @@ const reject = (
     | "invalid_interaction"
     | "provider_unavailable"
     | "provider_rejected",
+  message = code.replaceAll('_', ' '),
 ): AgentResult<never> => ({
   status: "rejected",
-  failure: { code, message: code.replaceAll("_", " ") },
+  failure: { code, message },
 });
 const ok = (): AgentResult<void> => ({ status: "ok", value: undefined });
 export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
@@ -61,7 +63,15 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           clientInfo: { name: "drawloom", version: "0.0.0" },
           capabilities: { experimentalApi: true },
         });
-        z.object({ userAgent: z.string().min(1) }).parse(initialization);
+        const { userAgent } = z.object({ userAgent: z.string().min(1) }).parse(initialization);
+        // The native MCP-review discriminator and automatic-review wire mapping
+        // are verified from 0.153.4. Unknown/older versions must not claim parity.
+        const version = /^[^/]+\/(\d+)\.(\d+)\.(\d+)/.exec(userAgent);
+        const nativeReview = Boolean(version && (Number(version[1]) > 0 || Number(version[2]) > 153 || (Number(version[2]) === 153 && Number(version[3]) >= 4)));
+        if (input.tools.tools.length && !nativeReview) {
+          await rpc.close(); sessions.delete(input.sessionId);
+          return reject('provider_rejected', 'Native MCP review is unavailable in this Codex version. No tools were dispatched.');
+        }
         rpc.notify("initialized");
         const saved = await options.store.get("codex:" + input.sessionId);
         const previous =
@@ -74,6 +84,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           plugins: {},
           apps: {},
           "features.memories": false,
+          ...(nativeReview ? { "features.tool_call_mcp_elicitation": true } : {}),
         };
         const opened = await rpc.request(
           resume ? "thread/resume" : "thread/start",
@@ -82,6 +93,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               ? { threadId: previous.threadId, excludeTurns: true }
               : { ephemeral: false }),
             approvalPolicy: "on-request",
+            ...(nativeReview ? { approvalsReviewer: 'user' } : {}),
             sandbox: "read-only",
             developerInstructions: input.context.text,
             config,
@@ -90,6 +102,10 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         const threadId = z
           .object({ thread: z.object({ id: identifier }) })
           .parse(opened).thread.id;
+        if (nativeReview && record.parse(opened).approvalsReviewer !== 'user') {
+          await rpc.close(); sessions.delete(input.sessionId);
+          return reject('provider_rejected', 'Codex did not confirm the requested native reviewer. No operation was started.');
+        }
         await rpc.request("thread/memoryMode/set", {
           threadId,
           mode: "disabled",
@@ -105,6 +121,9 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           starting = false;
         let active: { operationId: string; turnId: string } | undefined;
         let sequence = 0;
+        const interactionScope = crypto.randomUUID();
+        let activeReviewer: AgentReviewer = 'human';
+        let interrupting = false;
         let wake: (() => void) | undefined;
         const queue: AgentSessionSignal[] = [];
         const buffered: import("@drawloom/host").RpcMessage[] = [];
@@ -115,6 +134,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           string,
           { rpcId: string | number; choices: Map<string, unknown> }
         >();
+        const interactionRequests = new Set<string | number>();
         const inputs = new Map<
           string,
           {
@@ -194,11 +214,25 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           try {
             const params = record.parse(message.params);
             if (params.threadId !== threadId) return;
+            if (message.method === 'serverRequest/resolved') {
+              for (const [approvalId, pending] of approvals) if (pending.rpcId === params.requestId) {
+                approvals.delete(approvalId);
+                emit({ kind: 'approval.resolved', approvalId });
+              }
+              for (const [requestId, pending] of inputs) if (pending.rpcId === params.requestId) {
+                inputs.delete(requestId);
+                emit({ kind: 'input.resolved', requestId });
+              }
+              return;
+            }
             const turn =
               params.turn === undefined ? undefined : record.parse(params.turn);
             if ((params.turnId ?? turn?.id) !== active.turnId) return;
             const operationId = active.operationId;
             if (message.id !== undefined) {
+              if (interrupting) return;
+              if (interactionRequests.has(message.id)) throw Error('Duplicate native request');
+              interactionRequests.add(message.id);
               if (
                 message.method === "item/commandExecution/requestApproval" ||
                 message.method === "item/fileChange/requestApproval"
@@ -227,7 +261,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                           "Provider option"),
                   };
                 });
-                const approvalId = "approval-" + ++sequence;
+                const approvalId = `${interactionScope}:approval-${++sequence}`;
                 approvals.set(approvalId, { rpcId: message.id, choices });
                 emit({
                   kind: "approval.requested",
@@ -244,11 +278,28 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 return;
               }
               if (message.method === "mcpServer/elicitation/request") {
+                const meta = params._meta === undefined ? {} : record.parse(params._meta);
+                if (meta.codex_approval_kind === 'mcp_tool_call') {
+                  if (!nativeReview || params.mode !== 'form') throw Error('Unsupported native approval');
+                  const approvalId = `${interactionScope}:approval-${++sequence}`;
+                  const choices = new Map<string, unknown>([
+                    ['approve', { action: 'accept' }], ['deny', { action: 'decline' }], ['cancel', { action: 'cancel' }],
+                  ]);
+                  approvals.set(approvalId, { rpcId: message.id, choices });
+                  const details = meta.tool_params_display ?? meta.tool_params;
+                  emit({ kind: 'approval.requested', request: {
+                    approvalId, operationId,
+                    summary: z.string().parse(params.message).slice(0, 4096),
+                    ...(details === undefined ? {} : { details: (typeof details === 'string' ? details : JSON.stringify(z.json().parse(details), null, 2)).slice(0, 16384) }),
+                    options: [{ optionId: 'approve', label: 'Approve once' }, { optionId: 'deny', label: 'Deny' }, { optionId: 'cancel', label: 'Cancel' }],
+                  } });
+                  return;
+                }
                 const responseSchema = z
                   .record(z.string(), z.json())
                   .parse(params.requestedSchema);
                 const schema = z.fromJSONSchema(responseSchema);
-                const requestId = "input-" + ++sequence;
+                const requestId = `${interactionScope}:input-${++sequence}`;
                 inputs.set(requestId, {
                   rpcId: message.id,
                   schema,
@@ -305,7 +356,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                       .min(1),
                   });
                 const schema = z.strictObject(shape);
-                const requestId = "input-" + ++sequence;
+                const requestId = `${interactionScope}:input-${++sequence}`;
                 inputs.set(requestId, {
                   rpcId: message.id,
                   schema,
@@ -340,6 +391,17 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               }
               // Unsupported server interactions cannot be silently abandoned.
               finish("operation.failed", "invalid_provider_response");
+              return;
+            }
+            if (message.method === 'item/autoApprovalReview/started' || message.method === 'item/autoApprovalReview/completed') {
+              // Background/provider diagnostics cannot change the review mode chosen for this turn.
+              if (activeReviewer !== 'delegated') return;
+              const review = z.object({ status: z.enum(['inProgress', 'approved', 'denied', 'timedOut', 'aborted']), rationale: z.string().nullable().optional() }).parse(params.review);
+              if ((message.method.endsWith('/started')) !== (review.status === 'inProgress')) throw Error('Invalid native review phase');
+              const action = record.parse(params.action);
+              const status = { inProgress: 'in progress', approved: 'approved', denied: 'denied', timedOut: 'timed out', aborted: 'cancelled' }[review.status];
+              const tool = action.type === 'mcpToolCall' ? z.string().parse(action.toolName).slice(0, 256) : 'provider action';
+              emit({ kind: 'provider.observation', operationId, name: 'approval-review', summary: `Automatic review ${status}: ${tool}${review.rationale ? `. ${review.rationale}` : ''}`.slice(0, 4096) });
               return;
             }
             if (message.method === "item/agentMessage/delta") {
@@ -454,6 +516,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           status: "ok",
           value: {
             sessionId: input.sessionId,
+            reviewerModes: Object.freeze<AgentReviewer[]>(nativeReview ? ['human', 'delegated'] : ['human']),
             history: {
               namespace: nativeHistory.namespace,
               async read(context, readOptions) {
@@ -493,12 +556,14 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               )
                 return reject("invalid_state");
               const operation = p.data;
+              if (operation.reviewer === 'delegated' && !nativeReview) return reject('provider_rejected', 'Native delegated review is unavailable in this Codex version.');
               if (operation.attachments?.length && !options.imageInput) return reject("provider_rejected");
               starting = true;
               used.add(operation.operationId);
               try {
                 const result = await rpc.request("turn/start", {
                   threadId,
+                  ...(nativeReview ? { approvalsReviewer: operation.reviewer === 'delegated' ? 'auto_review' : 'user' } : {}),
                   input: [
                     { type: "text", text: operation.text, text_elements: [] },
                     ...await Promise.all((operation.attachments ?? []).map(async asset => ({ type: "localImage", path: await options.imageInput!(asset) }))),
@@ -519,6 +584,8 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                   .parse(result).turn.id;
                 if (closed) return reject("provider_unavailable");
                 active = { operationId: operation.operationId, turnId };
+                activeReviewer = operation.reviewer ?? 'human';
+                interrupting = false;
                 operations[turnId] = operation.operationId;
                 userAssets.set(turnId, [[...(operation.attachments ?? [])]]);
                 emit({
@@ -559,6 +626,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 p.data.operationId !== active.operationId
               )
                 return reject("invalid_state");
+              if (p.data.reviewer !== undefined && p.data.reviewer !== activeReviewer) return reject('invalid_state');
               try {
                 if (p.data.attachments?.length && !options.imageInput) return reject("provider_rejected");
                 const queuedAssets = [...(p.data.attachments ?? [])];
@@ -592,6 +660,11 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               if (previous) return previous;
               if (closed || !active || active.operationId !== operationId)
                 return Promise.resolve(reject("invalid_state"));
+              interrupting = true;
+              for (const approvalId of approvals.keys()) emit({ kind: 'approval.resolved', approvalId });
+              approvals.clear();
+              for (const requestId of inputs.keys()) emit({ kind: 'input.resolved', requestId });
+              inputs.clear();
               const promise = rpc
                 .request("turn/interrupt", { threadId, turnId: active.turnId })
                 .then(

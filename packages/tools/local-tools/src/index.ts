@@ -39,9 +39,12 @@ export function createLocalToolGateway(options: {
     ToolExposureSchema.parse({
       id: options.exposureId ?? "local",
       tools: [...catalogue.values()].map(
-        ({ name, description, inputSchema, outputSchema }) => ({
+        ({ name, description, annotations, inputSchema, outputSchema }) => ({
           name,
           description,
+          ...(annotations !== undefined
+            ? { annotations: structuredClone(annotations) }
+            : {}),
           inputSchema: structuredClone(inputSchema),
           outputSchema: structuredClone(outputSchema),
         }),

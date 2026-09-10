@@ -14,6 +14,13 @@ links back.
 
 ## Latest decision
 
+- [ADR 0015: Keep working material with its owner and approve AI tool invocations](0015-working-material-ownership-and-edit-approval.md)
+  is Accepted. It records lightweight provider files, plugin-owned editing and
+  preservation, optional previews and native invocation-scoped AI review. The
+  existing video plugin proved direct Save and Codex editing; [evidence and
+  limitations](../reference/adr-0015-native-edit-review.md) distinguish live and
+  simulated checks. ADR 0014's history guarantees are unchanged.
+
 - [ADR 0014: Persistent, paginated conversation history](0014-persistent-paginated-conversation-history.md)
   is Accepted. The contract, local SQLite
   provider, incremental native ingestion and paginated desktop are delivered

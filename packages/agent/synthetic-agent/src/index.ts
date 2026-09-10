@@ -7,7 +7,7 @@ import {
   type AgentSessionSignal,
 } from "@drawloom/agent";
 const reject = (
-  code: "invalid_state" | "invalid_interaction" | "provider_unavailable",
+  code: "invalid_state" | "invalid_interaction" | "provider_unavailable" | "provider_rejected",
 ): AgentResult<never> => ({
   status: "rejected",
   failure: { code, message: code.replaceAll("_", " ") },
@@ -36,6 +36,7 @@ export function createSyntheticDriver(
         status: "ok",
         value: {
           sessionId: input.sessionId,
+          reviewerModes: Object.freeze(['human'] as const),
           signals() {
             if (attached) throw Error("Signal consumer already attached");
             attached = true;
@@ -68,6 +69,7 @@ export function createSyntheticDriver(
             )
               return reject("invalid_state");
             const operation = p.data;
+            if (operation.reviewer === 'delegated') return reject('provider_rejected');
             active = operation.operationId;
             used.add(active);
             emit({ kind: "operation.started", operationId: active });

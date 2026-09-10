@@ -42,6 +42,13 @@ area you change.
 
 ## Area guides
 
+- Working-material and AI edit boundaries are recorded in
+  [ADR 0015](docs/adr/0015-working-material-ownership-and-edit-approval.md).
+  Consult it before changing file lifecycle or plugin editing contracts; do not
+  assume a universal preview, revision, undo or import requirement. Native review
+  is implemented; independent tool grants and ADR 0014 history/media guarantees
+  still apply. Consult its linked evidence before claiming ambient tool isolation.
+
 - Before work on conversation history, runtime/host boundaries, plugin composition,
   context, artifacts or workbench integration, consult the
   [harness and workbench survey](docs/reference/harness-workbench-survey/README.md).

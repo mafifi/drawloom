@@ -26,6 +26,14 @@ the existing Codex account. The app never falls back from Codex to synthetic.
 Codex must be installed and signed in using its own setup flow. The default host
 does not download models or request a new API key.
 
+The composer offers **Ask me** (default) and **Approve for me** when the connected
+provider supports native delegated review. The choice is saved per conversation,
+changes only while idle, and applies to the next turn. Codex reviews mutating and
+unclassified Drawloom MCP tools; explicit read-only annotations bypass that
+review, not Drawloom's independent tool grant. Native review never accepts
+business content. The sandbox and approval policy remain unchanged. See
+[ADR 0015](../../docs/adr/0015-working-material-ownership-and-edit-approval.md).
+
 The composer stays editable during execution. Codex supports steering and stopping;
 synthetic does not claim those optional methods. Imported images can be sent to
 Codex. Imported audio/video/PDF/text files have viewers, but are not claimed as

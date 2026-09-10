@@ -36,6 +36,32 @@ orchestration, durable events, or evaluation.
 | Provider continuity | adapter-private Codex thread ID and recovery |
 | Terminal outcome | `turn/completed` status |
 
+### Native review addition (ADR 0015)
+
+The supported adapter adds `human` / `delegated` operation review, mapped to
+`approvalsReviewer: user` / `auto_review`. Session `reviewerModes` reports support;
+omission means human, and unsupported selection rejects. Codex 0.153.4 is the
+verified minimum for this integration. Thread startup confirms the effective
+human reviewer, then each turn supplies its selected reviewer. No global config,
+sandbox, approval policy or organisation requirement is changed.
+
+Drawloom MCP configuration sets `default_tools_approval_mode: prompt` and explicit
+per-tool `prompt`, except trusted `readOnlyHint: true` tools use `approve`.
+Annotations are behavioural hints, not permissions; the gateway still checks the
+current grant at invocation. Native MCP approval is identified only by
+`_meta.codex_approval_kind: mcp_tool_call`; ordinary elicitation remains input.
+The existing approval interaction carries bounded action details and provider
+decisions privately mapped to opaque options. Its identity is scoped to the
+session, originating turn and request and is invalidated by resolution or end.
+
+Native `item/autoApprovalReview/started|completed` notifications surface bounded
+`approval-review` observations only for delegated turns. Progress is distinct
+from approved, denied, timed-out and cancelled outcomes. No raw envelope or
+second tool-evidence store is introduced. These native notification fields remain
+upstream-unstable; incompatible responses fail explicitly. A plugin preview is
+not required. See [ADR 0015](../adr/0015-working-material-ownership-and-edit-approval.md)
+for ownership, proof and exclusions.
+
 Codex native cross-thread memory is disabled for Drawloom-managed sessions.
 Codex continues to own its thread transcript and internal compaction. Drawloom
 injects freshly compiled memory and other context for every execute or steer
@@ -58,6 +84,12 @@ remain experimental adapter functionality and are not required for portable
 conformance. Configured Codex plugins, apps, MCP servers, and equivalent
 ambient integrations must be disabled unless the Drawloom composition root
 included them in the resolved exposure.
+
+The [ADR 0015 live run](../reference/adr-0015-native-edit-review.md#boundaries-and-follow-up)
+found that the existing empty-map launch overrides did not achieve this on the
+installed 0.153.4 runtime: ambient integrations still appeared in thread-scoped
+inventory. Treat complete ambient isolation as an unresolved implementation
+follow-up, not as a guarantee established by the current native-review proof.
 
 The advertised MCP tool catalogue is immutable for one session. Gateway allow
 and deny decisions remain dynamic and do not require rebuilding the Codex

@@ -69,7 +69,7 @@ export function codexAgentFixture() {
       if (method === "initialize") return { userAgent: "codex/0.153.4" };
       if (method === "thread/start" || method === "thread/resume") {
         context = String(p.developerInstructions);
-        return { thread: { id: "private-thread" } };
+        return { thread: { id: "private-thread" }, approvalsReviewer: 'user' };
       }
       if (method === "turn/start") {
         context += " " + JSON.stringify(p.additionalContext);

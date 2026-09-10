@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AgentSessionSignalSchema, AgentApprovalResolutionSchema, AgentInputResolutionSchema } from '@drawloom/agent';
+import { AgentSessionSignalSchema, AgentApprovalResolutionSchema, AgentInputResolutionSchema, AgentReviewerSchema } from '@drawloom/agent';
 import { AssetSchema, JsonValueSchema } from '@drawloom/host';
 import { WorkbenchSchema, OperatorSnapshotSchema, OperatorCommandSchema } from '@drawloom/workbench';
 import { ToolResultSchema } from '@drawloom/tools';
@@ -8,13 +8,13 @@ import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { McpUiMessageRequestSchema, McpUiUpdateModelContextRequestSchema } from '@modelcontextprotocol/ext-apps';
 const id = z.string().min(1).max(256);
 export const ToolStartSchema = z.strictObject({ kind: z.literal('started'), invocationId: z.string().min(1), operationId: z.string().min(1).optional(), tool: z.string().min(1) });
-export const ConversationSchema = z.strictObject({ id, title: z.string().max(120), workbenchId: id, provider: z.enum(['synthetic', 'codex']) });
+export const ConversationSchema = z.strictObject({ id, title: z.string().max(120), workbenchId: id, provider: z.enum(['synthetic', 'codex']), reviewer: AgentReviewerSchema.default('human') });
 export const DesktopSnapshotSchema = z.strictObject({
   workspace: z.string(), conversations: z.array(ConversationSchema), workbenches: z.array(WorkbenchSchema),
   selectedId: id, operator: OperatorSnapshotSchema,
   activity: z.array(ToolResultSchema), signals: z.array(AgentSessionSignalSchema),
   pendingTools: z.array(ToolStartSchema).default([]),
-  activeOperation: id.optional(), controls: z.strictObject({ steer: z.boolean(), interrupt: z.boolean() }),
+  activeOperation: id.optional(), controls: z.strictObject({ steer: z.boolean(), interrupt: z.boolean(), reviewerModes: z.array(AgentReviewerSchema).default(['human']) }),
   plugins: z.array(z.strictObject({ id, status: z.enum(['ready', 'unavailable']), summary: z.string() })),
   notice: z.string(),
   views: z.array(RegisteredWorkbenchViewSchema).default([]),
@@ -27,6 +27,7 @@ export const DesktopStateUpdateSchema = z.strictObject({
 export const DesktopCommandSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('create_conversation'), workbenchId: id, provider: z.enum(['synthetic', 'codex']) }),
   z.strictObject({ kind: z.literal('select_conversation'), conversationId: id }),
+  z.strictObject({ kind: z.literal('set_reviewer'), conversationId: id, reviewer: AgentReviewerSchema }),
   z.strictObject({ kind: z.literal('send'), conversationId: id, text: z.string().min(1).max(100000), attachmentKeys: z.array(id).max(16), contextArtifactIds: z.array(id).max(16) }),
   z.strictObject({ kind: z.literal('stop'), conversationId: id }),
   z.strictObject({ kind: z.literal('operator'), workbenchId: id, command: OperatorCommandSchema }),

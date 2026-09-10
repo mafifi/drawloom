@@ -43,6 +43,7 @@ import {
 } from "./assets.js";
 import {
   textPlugin,
+  mcpReviewConfiguration,
   type DesktopExtension,
   type DesktopExtensionFactory,
 } from "./composition.js";
@@ -245,6 +246,7 @@ export async function createDesktopApplication(
                       drawloom: {
                         url: mcp.url,
                         http_headers: { Authorization: "Bearer " + mcp.token },
+                        ...mcpReviewConfiguration(gateway.exposure),
                       },
                     }
                   : {},
@@ -330,7 +332,7 @@ export async function createDesktopApplication(
             } catch { notice = 'The provider returned an asset, but workbench intake could not be saved. No execution was retried.'; }
           } else {
             signals.push(signal);
-            if (signal.kind === "operation.started")
+            if (signal.kind === "operation.started" && !state.active)
               state.active = signal.operationId;
             if (
               [
@@ -339,7 +341,8 @@ export async function createDesktopApplication(
                 "operation.interrupted",
               ].includes(signal.kind)
             ) {
-              delete state.active;
+              if ('operationId' in signal && state.active === signal.operationId)
+                delete state.active;
               for (const message of messages.values()) await historyWriter.write({ ...message, state: 'interrupted' });
               messages.clear();
               await historyWriter.flush();
@@ -480,6 +483,7 @@ export async function createDesktopApplication(
         controls: {
           steer: Boolean(state?.session.steer),
           interrupt: Boolean(state?.session.interrupt),
+          reviewerModes: state?.session.reviewerModes ?? ['human'],
         },
         plugins: registry.plugins.map((p) => ({
           id: p.id,
@@ -510,6 +514,7 @@ export async function createDesktopApplication(
           title: "New conversation",
           workbenchId: command.workbenchId,
           provider: command.provider,
+          reviewer: 'human',
         });
         project.selectedId = id;
         viewContext.clear();
@@ -537,7 +542,13 @@ export async function createDesktopApplication(
         const conversation = project.conversations.find(
           (c) => c.id === command.conversationId,
         )!;
-        if (command.kind === "stop") {
+        if (command.kind === 'set_reviewer') {
+          if (state.active) throw Error('Review mode can change only while idle');
+          if (!state.session.reviewerModes.includes(command.reviewer)) throw Error('This provider does not support the selected review mode');
+          const previous = conversation.reviewer;
+          conversation.reviewer = command.reviewer;
+          try { await persist(); } catch (error) { conversation.reviewer = previous; throw error; }
+        } else if (command.kind === "stop") {
           if (!state.active || !state.session.interrupt)
             throw Error("This provider does not support interruption");
           const result = await state.session.interrupt(state.active);
@@ -571,6 +582,7 @@ export async function createDesktopApplication(
           // User-selected documents stay untrusted user content, never developer instructions.
           const input = {
             operationId: op,
+            reviewer: conversation.reviewer,
             text: [
               command.text,
               ...context.map(
@@ -582,11 +594,20 @@ export async function createDesktopApplication(
           if (conversation.provider === 'synthetic') await writer(conversation.id).write({
             id: crypto.randomUUID(), role: 'user', text: command.text, assets: attachments, operationId: op, state: 'complete',
           });
-          const result = state.active
-            ? await (state.session.steer?.(input) ??
-                Promise.reject(Error("Steering unavailable")))
-            : await state.session.execute(input);
-          if (result.status !== "ok") throw Error(result.failure.message);
+          const starting = !state.active;
+          // Command serialization does not drain the asynchronous signal/history
+          // pump. Lock the chosen reviewer before execute can accept this turn.
+          if (starting) state.active = op;
+          try {
+            const result = starting
+              ? await state.session.execute(input)
+              : await (state.session.steer?.(input) ??
+                  Promise.reject(Error("Steering unavailable")));
+            if (result.status !== "ok") throw Error(result.failure.message);
+          } catch (error) {
+            if (starting && state.active === op) delete state.active;
+            throw error;
+          }
           if (
             conversation.title === "New conversation" ||
             conversation.title === "A clearer introduction"

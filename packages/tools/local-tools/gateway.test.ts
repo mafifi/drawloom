@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import { z } from "zod";
-import { defineTool } from "@drawloom/tools";
+import { defineTool, type ToolDefinition } from "@drawloom/tools";
 import { toolConformance } from "@drawloom/tools/conformance";
 import { createLocalToolGateway } from "./src/index.js";
 test("shared tool conformance", () => toolConformance(createLocalToolGateway));
@@ -132,4 +132,48 @@ test("catalogue rejects duplicates and takes an immutable schema snapshot", () =
     nextInvocationId: () => "1",
   });
   expect(Object.isFrozen(g.exposure.tools)).toBe(true);
+  expect(g.exposure.tools[0]?.annotations).toBeUndefined();
+});
+test("annotation values supplied at authoring and gateway boundaries are validated", () => {
+  const definition = {
+    name: "boundary",
+    description: "boundary",
+    input: z.string(),
+    output: z.string(),
+    execute: (value: string) => value,
+  };
+  for (const annotations of [
+    null,
+    false,
+    0,
+    { readOnlyHint: "yes" },
+    { unknownHint: true },
+  ]) {
+    expect(() =>
+      defineTool({
+        ...definition,
+        // @ts-expect-error Deliberately exercise untyped JavaScript callers.
+        annotations,
+      }),
+    ).toThrow();
+  }
+
+  const valid = defineTool(definition);
+  for (const annotations of [
+    null,
+    false,
+    0,
+    { readOnlyHint: "yes" },
+    { unknownHint: true },
+  ]) {
+    const manual = { ...valid, annotations } as unknown as ToolDefinition;
+    expect(() =>
+      createLocalToolGateway({
+        tools: [manual],
+        policy: () => true,
+        evidence: { record: async () => {} },
+        nextInvocationId: () => "1",
+      }),
+    ).toThrow();
+  }
 });

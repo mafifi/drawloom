@@ -10,11 +10,15 @@ export const AgentSessionOpenInputSchema = z.strictObject({
   tools: ToolExposureSchema,
 });
 export type AgentSessionOpenInput = z.infer<typeof AgentSessionOpenInputSchema>;
+export const AgentReviewerSchema = z.enum(['human', 'delegated']);
+export type AgentReviewer = z.infer<typeof AgentReviewerSchema>;
 export const AgentOperationInputSchema = z.strictObject({
   operationId: id,
   text: z.string(),
   attachments: z.array(AssetSchema).max(16).optional(),
   additionalContext: CompiledContextSchema.optional(),
+  /** Omission retains human review. Providers reject unsupported selections. */
+  reviewer: AgentReviewerSchema.optional(),
 });
 export type AgentOperationInput = z.infer<typeof AgentOperationInputSchema>;
 export type AgentSteeringInput = AgentOperationInput;
@@ -87,6 +91,7 @@ export const AgentSessionSignalSchema = z.discriminatedUnion("kind", [
       approvalId: id,
       operationId: id,
       summary: z.string().max(4096),
+      details: z.string().max(16384).optional(),
       options: z
         .array(
           z.strictObject({
@@ -101,7 +106,8 @@ export const AgentSessionSignalSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("approval.resolved"),
     approvalId: id,
-    optionId: id,
+    // Native resolution/cancellation need not disclose a selected option.
+    optionId: id.optional(),
   }),
   z.strictObject({
     kind: z.literal("input.requested"),
@@ -127,6 +133,7 @@ export interface AgentDriver {
   openSession(input: AgentSessionOpenInput): Promise<AgentResult<AgentSession>>;
 }
 export interface AgentSession {
+  readonly reviewerModes: readonly AgentReviewer[];
   readonly history?: ConversationHistoryReader;
   readonly sessionId: string;
   execute(

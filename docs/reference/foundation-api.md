@@ -28,11 +28,16 @@ Cloudflare and Tauri compatibility are not claimed.
 
 ## Tools
 
-`defineTool({name, description, input, output, execute, render?})` infers handler
+`defineTool({name, description, input, output, execute, render?, annotations?})` infers handler
 types from Zod. Registration projects input and output JSON Schema; canonical
 values must be JSON. Runtime refinements still run locally and are not claimed
 as equivalent external schema constraints. Handler context contains only
 `invocationId`, `operationId`, and `signal`. Inject dependencies by closure.
+
+Optional `ToolAnnotationsSchema` / `ToolAnnotations` carry standard MCP hints:
+`title`, `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`.
+Supplied annotations are strictly validated and preserved through exposure and
+MCP discovery. They never grant invocation authority.
 
 `createLocalToolGateway({tools, policy, evidence, nextInvocationId})` snapshots
 the catalogue. `gateway.bind(operationId)` produces an opaque object;
@@ -57,12 +62,21 @@ failure always sets MCP `isError`, even when the canonical outcome is known.
 ## Agents and hosts
 
 `driver.openSession({sessionId,context,tools})` returns `AgentResult<AgentSession>`.
-Call `signals()` once before `execute({operationId,text,additionalContext?})`.
+Call `signals()` once before `execute({operationId,text,additionalContext?,reviewer?})`.
 One accepted operation emits started then exactly one terminal signal. Close is
 idempotent and emits interrupted for active work. Optional `steer` and `interrupt`
 methods declare their own support. Resolution of stale interactions is rejected.
 Approval options retain provider text and adapter-private response values. Input
 is informational. Invalid provider data and failures are bounded, not raw errors.
+
+`AgentReviewerSchema` / `AgentReviewer` are `human | delegated`.
+`session.reviewerModes` reports supported modes explicitly; missing operation
+selection defaults to human and unsupported selections reject. An active turn
+cannot change reviewer through steering. Approval requests may include bounded
+`details`; `approval.resolved.optionId` is absent when the provider retires a
+request without a user choice. No second reviewer or preview contract is added.
+Codex native mapping and automatic-review observations are described in the
+[adapter reference](../design/codex-app-server-adapter.md#native-review-addition-adr-0015).
 
 `createCodexDriver({connect,store,projection?,onTurnAccepted?,onTurnFinished?})`
 uses one owned `RpcTransport` per session. `connect` must return an isolated
@@ -132,8 +146,10 @@ The embedded resource uses the upstream `App`; the public parent uses upstream
 envelope. Only app-visible tools on the bound server can be called. Tool payloads
 belong to the plugin; neither `OperatorSnapshot` nor `OperatorController` is a
 requirement of this bridge. Public counter tests exercise a different data shape.
-The video server exposes read/inspect only, through app-only tools. It does not
-expose review, grants, editing or generation, or add those tools to the agent.
+The video server exposes narrow app-only read/inspect/direct-save tools. Direct
+Save invokes no model and creates an unaccepted draft. It does not expose business
+review, grants, generation or the complete operator command union. Agent editing
+is a separately registered typed tool subject to native review and Drawloom grants.
 The parent additionally handles standard `ui/update-model-context` and
 `ui/message`: text/structured selection replaces ephemeral untrusted reference
 material without running a model; an explicit user message asks the existing

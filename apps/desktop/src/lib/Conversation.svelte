@@ -137,11 +137,15 @@
         <Alert.Root class="interaction"
           ><Alert.Title>Execution approval</Alert.Title><Alert.Description
             ><p>{signal.request.summary}</p>
+            {#if signal.request.details}<Collapsible.Root>
+              <Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost">Proposed action</Button>{/snippet}</Collapsible.Trigger>
+              <Collapsible.Content><pre>{signal.request.details}</pre></Collapsible.Content>
+            </Collapsible.Root>{/if}
             <div class="flex flex-wrap gap-2">
               {#each signal.request.options as option}<StatefulButton
                   variant="outline"
                   disabled={vm.busy}
-                  pending={vm.pendingCommand?.kind === 'approval' && vm.pendingCommand.resolution.optionId === option.optionId}
+                  pending={vm.pendingCommand?.kind === 'approval' && vm.pendingCommand.resolution.approvalId === signal.request.approvalId && vm.pendingCommand.resolution.optionId === option.optionId}
                   onclick={() =>
                     vm.state &&
                     vm.command({
@@ -207,6 +211,8 @@
             </div></Alert.Description
           ></Alert.Root
         >
+      {:else if signal.kind === 'provider.observation' && signal.name === 'approval-review'}
+        <Alert.Root role="status"><Alert.Title>Automatic review</Alert.Title><Alert.Description>{signal.summary}</Alert.Description></Alert.Root>
       {:else if signal.kind === "operation.failed"}<Alert.Root
           variant="destructive"
           ><Alert.Description>{signal.failure.summary}</Alert.Description

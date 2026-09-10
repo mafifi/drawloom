@@ -31,6 +31,13 @@ export async function toolConformance(
   const tool = defineTool({
     name: "text.count",
     description: "Count characters",
+    annotations: {
+      title: "Character count",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     input: z.strictObject({ text: z.string() }),
     output: z.strictObject({ count: z.number().int().nonnegative() }),
     execute: ({ text }) => {
@@ -45,6 +52,11 @@ export async function toolConformance(
     evidence,
     nextInvocationId: () => String(++id),
   });
+  check(
+    JSON.stringify(gateway.exposure.tools[0]?.annotations) ===
+      '{"title":"Character count","readOnlyHint":true,"destructiveHint":false,"idempotentHint":true,"openWorldHint":false}',
+    "tool annotations round trip through exposure",
+  );
   const binding = gateway.bind("operation-a");
   const signal = new AbortController().signal;
   const ok = await gateway.invoke(
@@ -82,7 +94,7 @@ export async function toolConformance(
     denied.outcome.status === "failed" &&
       denied.outcome.code === "denied" &&
       count === 1,
-    "live denial",
+    "read-only hint does not grant a denied invocation",
   );
   allowed = true;
   mode = "start_fail";
@@ -120,7 +132,7 @@ export async function toolConformance(
     revoked.outcome.status === "failed" &&
       revoked.outcome.code === "denied" &&
       count === 2,
-    "revocation recheck",
+    "read-only hint does not preserve a revoked grant",
   );
   mode = "normal";
   const other = gateway.bind("operation-b");

@@ -5,8 +5,8 @@ channel is the only UI command ingress; cookies are host-only, HttpOnly and
 SameSite=Strict. Mutations require the exact Origin and JSON content type.
 Tauri launches the same host and opens its one-use bootstrap URL. No filesystem
 or shell API is exposed through a frontend plugin. Operator commands are not
-agent tools; the private proof's MCP server exposes reading and navigation only,
-not the broader trusted operator channel.
+agent tools. The private plugin's MCP App exposes narrow reading, navigation and
+direct passage-save tools, not the broader trusted operator command union.
 
 `OperatorController` owns workbench presentation snapshots and bounded commands:
 select a candidate, record a review decision, configure non-secret fields, and
@@ -107,14 +107,17 @@ are obtained through the MCP client, not a second discovery protocol.
 
 `AppBridge` forwards standard tool calls only to app-visible tools on the bound
 server. Payloads are plugin-owned; the host imposes no shared snapshot shape.
-The private server exposes only reading and candidate inspection and validates
-these through its existing controller. Inspection persists a navigation bookmark,
-not approval or output selection. Review, settings, grants and agent commands
+The private server validates reading, candidate inspection and direct passage
+Save through its existing controller. Inspection persists a navigation bookmark;
+Save creates an unaccepted working draft. Neither changes business approval or
+output selection. Review, settings, grants and the whole operator command union
 are not exposed by this server. Unsupported or stale requests fail without retry.
 The parent supports standard text messaging and text/structured model context.
 Context replaces ephemeral selected reference material without agent invocation;
 explicit messaging requests a reply in the current conversation. It does not
-grant acceptance, save the reply, start a new task or silently steer a busy turn.
+grant acceptance, automatically save the reply, start a new task or silently
+steer a busy turn. The agent may invoke installed editing tools subject to native
+review and independent Drawloom grants; direct human Save invokes no model.
 The private view clears hidden passage context when changing review groups.
 Theme uses standard host context. Closing keeps the iframe mounted for a 300ms
 outro window while standard resource teardown has a 250ms timeout, then closes

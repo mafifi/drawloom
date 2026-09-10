@@ -262,6 +262,10 @@ export async function agentConformance(
       "execution without observer",
     );
     const read = observer(session);
+    check(Array.isArray(session.reviewerModes) && session.reviewerModes.includes('human'), 'explicit human reviewer support');
+    if (!session.reviewerModes.includes('delegated')) {
+      check((await session.execute({ operationId: 'unsupported-review', text: 'work', reviewer: 'delegated' })).status === 'rejected', 'unsupported reviewer must not silently downgrade');
+    }
     const firstSignal = read.next();
     const accepting = session.execute({
       operationId: "a",

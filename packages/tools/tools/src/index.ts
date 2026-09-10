@@ -1,11 +1,20 @@
 import { z } from "zod";
 import { JsonValueSchema, type JsonValue } from "@drawloom/host";
+export const ToolAnnotationsSchema = z.strictObject({
+  title: z.string().optional(),
+  readOnlyHint: z.boolean().optional(),
+  destructiveHint: z.boolean().optional(),
+  idempotentHint: z.boolean().optional(),
+  openWorldHint: z.boolean().optional(),
+});
+export type ToolAnnotations = z.infer<typeof ToolAnnotationsSchema>;
 export const ToolExposureSchema = z.strictObject({
   id: z.string().min(1),
   tools: z.array(
     z.strictObject({
       name: z.string().min(1),
       description: z.string(),
+      annotations: ToolAnnotationsSchema.optional(),
       inputSchema: JsonValueSchema,
       outputSchema: JsonValueSchema,
     }),
@@ -20,6 +29,7 @@ export type ToolContext = {
 export type ToolDefinition = {
   readonly name: string;
   readonly description: string;
+  readonly annotations?: ToolAnnotations;
   readonly inputSchema: JsonValue;
   readonly outputSchema: JsonValue;
   parseInput(value: unknown): unknown;
@@ -33,6 +43,7 @@ export function defineTool<
 >(definition: {
   name: string;
   description: string;
+  annotations?: ToolAnnotations;
   input: I;
   output: O;
   execute: (
@@ -51,6 +62,13 @@ export function defineTool<
   return Object.freeze({
     name,
     description: z.string().parse(definition.description),
+    ...(definition.annotations !== undefined
+      ? {
+          annotations: Object.freeze(
+            ToolAnnotationsSchema.parse(definition.annotations),
+          ),
+        }
+      : {}),
     inputSchema,
     outputSchema,
     parseInput: (value: unknown) =>

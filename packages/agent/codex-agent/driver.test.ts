@@ -256,7 +256,7 @@ export function recorded() {
       requests.push({ method, params });
       if (method === "initialize") return { userAgent: "codex/0.153.4" };
       if (method === "thread/start" || method === "thread/resume")
-        return { thread: { id: "private-thread" } };
+        return { thread: { id: "private-thread" }, approvalsReviewer: 'user' };
       if (method === "turn/start") return { turn: { id: "private-turn" } };
       return {};
     },
@@ -316,8 +316,10 @@ test("Codex preserves private continuity, fresh context, approval choices and in
   if (o.status !== "ok") throw Error("open");
   const s = o.value;
   const events: unknown[] = [];
+  let receivedInput!: () => void;
+  const inputReady = new Promise<void>(resolve => { receivedInput = resolve; });
   const drain = (async () => {
-    for await (const e of s.signals()) events.push(e);
+    for await (const e of s.signals()) { events.push(e); if (e.kind === 'input.requested') receivedInput(); }
   })();
   await s.execute({
     operationId: "a",
@@ -354,10 +356,13 @@ test("Codex preserves private continuity, fresh context, approval choices and in
       },
     },
   });
-  await Promise.resolve();
-  await Promise.resolve();
+  await inputReady;
+  const parsedEvents = events as import('@drawloom/agent').AgentSessionSignal[];
+  const approval = parsedEvents.find(event => event.kind === 'approval.requested');
+  const elicitation = parsedEvents.find(event => event.kind === 'input.requested');
+  if (approval?.kind !== 'approval.requested' || elicitation?.kind !== 'input.requested') throw Error('Missing interactions');
   expect(
-    await s.resolveApproval({ approvalId: "approval-1", optionId: "option-1" }),
+    await s.resolveApproval({ approvalId: approval.request.approvalId, optionId: "option-1" }),
   ).toMatchObject({ status: "ok" });
   expect(f.replies[0]).toEqual({
     id: 10,
@@ -369,14 +374,14 @@ test("Codex preserves private continuity, fresh context, approval choices and in
   });
   expect(
     await s.respondToInput({
-      requestId: "input-2",
+      requestId: elicitation.request.requestId,
       action: "submit",
       value: { text: 3 },
     }),
   ).toMatchObject({ status: "rejected" });
   expect(
     await s.respondToInput({
-      requestId: "input-2",
+      requestId: elicitation.request.requestId,
       action: "submit",
       value: { text: "yes" },
     }),
