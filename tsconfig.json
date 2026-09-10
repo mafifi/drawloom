@@ -12,5 +12,9 @@
     "packages/**/*.test.ts",
     "scripts/**/*.ts",
     "spikes/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "spikes/adr-0017-orchestration/temporal*.ts"
   ]
 }

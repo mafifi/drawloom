@@ -75,6 +75,19 @@ export default {
       to: { path: "^(?:\\.\\./|/|[A-Za-z]:[/\\\\])" },
     },
     {
+      name: "orchestration-spike-portable-authoring",
+      severity: "error",
+      comment:
+        "ADR 0017 plugin definitions use only candidate interfaces, portable agent schemas and Zod. Keep Temporal, handlers and host APIs in the proof adapter.",
+      from: {
+        path: "^spikes/adr-0017-orchestration/(?:contract|fixtures|owned-agent)\\.ts$",
+      },
+      to: {
+        pathNot:
+          "^(?:spikes/adr-0017-orchestration/(?:contract|fixtures|owned-agent)\\.ts$|@drawloom/agent$|packages/agent/agent/|node_modules/(?:zod/|@drawloom/agent/))",
+      },
+    },
+    {
       name: "no-import-from-spikes",
       severity: "error",
       comment:
@@ -93,7 +106,7 @@ export default {
     },
     exclude: {
       // Keep known private imports visible to the rule even when installed.
-      path: `(^|/)node_modules/(?!${privatePackagePath})|^apps/desktop/(?:build/|\.svelte-kit/|src-tauri/(?:target/|binaries/))`,
+      path: `(^|/)node_modules/(?!${privatePackagePath})|^spikes/adr-0017-orchestration/dist/|^apps/desktop/(?:build/|\.svelte-kit/|src-tauri/(?:target/|binaries/))`,
     },
     tsConfig: {
       fileName: "tsconfig.json",

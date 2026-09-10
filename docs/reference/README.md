@@ -3,6 +3,8 @@
 Current API, package, protocol, operational and external-reference material.
 
 - [Foundation API](foundation-api.md)
+- [Orchestration interface design](../design/orchestration-contract.md) — Accepted
+  ADR 0017; retained proof only, not a supported package.
 - [Discovery and resource API](discovery-and-resources.md)
 - [Conversation history API and operation](conversation-history.md)
 - [Conversation history implementation evidence](conversation-history-evidence.md)

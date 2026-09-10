@@ -4,7 +4,7 @@ id: drawloom-knowledge-index
 title: Drawloom knowledge index
 status: active
 created: 2026-09-02
-updated: 2026-09-09
+updated: 2026-09-10
 ---
 
 # Drawloom knowledge index
@@ -18,6 +18,8 @@ updated: 2026-09-09
 - No assumption records yet.
 
 ## Evidence and computations
+
+- [Orchestration interface and local Temporal proof](evidence/adr-0017-orchestration.md)
 
 - [Codex session tool exposure and operation authority](evidence/adr-0005-tool-exposure.md)
 - [Codex app-server evidence for provider-neutral agent execution](evidence/adr-0007-codex-app-server.md)

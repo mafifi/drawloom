@@ -48,6 +48,11 @@
       "@internationalized/date": "^3.12.0",
       "@lucide/svelte": "^1.43.0",
       "bits-ui": "^2.16.3",
+      "@temporalio/client": "1.23.0",
+      "@temporalio/worker": "1.23.0",
+      "@temporalio/workflow": "1.23.0",
+      "@temporalio/activity": "1.23.0",
+      "@temporalio/common": "1.23.0",
       "tailwind-variants": "^3.3.0"
     }
   },
@@ -77,13 +82,19 @@
     "check:architecture": "bun run check:ui-policy && depcruise --config .dependency-cruiser.mjs .",
     "check:dependency-policy": "bun run scripts/check-dependency-policy.ts",
     "check:design": "designmd lint DESIGN.md && designmd lint publishing/DESIGN.md",
-    "check:types": "tsc --noEmit -p tsconfig.json",
+    "check:types": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p spikes/adr-0017-orchestration/tsconfig.portable.json && tsc --noEmit -p spikes/adr-0017-orchestration/tsconfig.temporal.json",
     "test": "bun test",
     "spike:adr-0005": "bun run spikes/adr-0005-tool-exposure/run-live-spike.ts",
     "spike:adr-0007": "bun run spikes/adr-0007-codex-app-server/run-live.ts",
-    "spike:adr-0008": "bun run spikes/adr-0008-tool-execution/run-live.ts"
+    "spike:adr-0008": "bun run spikes/adr-0008-tool-execution/run-live.ts",
+    "spike:adr-0017": "bun run build:packages && bun build spikes/adr-0017-orchestration/temporal-host.test.ts --target node --packages external --outfile spikes/adr-0017-orchestration/dist/temporal-host.check.mjs && node --test spikes/adr-0017-orchestration/dist/temporal-host.check.mjs && bun build spikes/adr-0017-orchestration/temporal-run.ts spikes/adr-0017-orchestration/temporal-worker.ts --target node --packages external --outdir spikes/adr-0017-orchestration/dist && node spikes/adr-0017-orchestration/dist/temporal-run.js"
   },
   "devDependencies": {
+    "@temporalio/client": "catalog:",
+    "@temporalio/worker": "catalog:",
+    "@temporalio/workflow": "catalog:",
+    "@temporalio/activity": "catalog:",
+    "@temporalio/common": "catalog:",
     "svelte": "catalog:",
     "astro": "catalog:",
     "@astrojs/check": "catalog:",

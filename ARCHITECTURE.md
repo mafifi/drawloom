@@ -64,6 +64,13 @@ The existing desktop and private video plugin implement this boundary; the
 [verification record](docs/reference/adr-0015-native-edit-review.md) distinguishes
 live results, deterministic tests and remaining integration questions.
 
+[ADR 0017](docs/adr/0017-orchestration-interfaces.md) accepts the demonstrated
+orchestration interface for trusted TypeScript workflows, explicit step retries,
+durable run management and workflow-owned agent conversations. Executable
+contracts and conformance remain retained spike evidence, not supported packages.
+Temporal is the local proof backend only. No production backend, live Codex
+recovery guarantee or broader plugin authority is selected by acceptance.
+
 Public editorial publishing is established separately through Accepted
 [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md). Its Astro and
 Remotion spike consumes piece-owned `publishing/` sources without introducing

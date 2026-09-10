@@ -14,6 +14,14 @@ links back.
 
 ## Latest decision
 
+- [ADR 0017: Orchestration interfaces](0017-orchestration-interfaces.md) is
+  Accepted. Typed workflow/run/agent boundaries are demonstrated by a retained
+  local Temporal proof; no supported package or production backend is selected.
+
+- [ADR 0016: Discoverable plugins, skills, tools and resources](0016-discoverable-contributions-and-resources.md)
+  is Accepted. Registered contributions, native selections, attachments and
+  standard tool resources are implemented; see its linked verification record.
+
 - [ADR 0015: Keep working material with its owner and approve AI tool invocations](0015-working-material-ownership-and-edit-approval.md)
   is Accepted. It records lightweight provider files, plugin-owned editing and
   preservation, optional previews and native invocation-scoped AI review. The
