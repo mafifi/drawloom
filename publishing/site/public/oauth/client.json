@@ -1,0 +1,9 @@
+{
+  "client_id": "https://mafifi.github.io/drawloom/oauth/client.json",
+  "client_name": "Drawloom",
+  "client_uri": "https://mafifi.github.io/drawloom/",
+  "redirect_uris": ["http://127.0.0.1/oauth/callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none"
+}
