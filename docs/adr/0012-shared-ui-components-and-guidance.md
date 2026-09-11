@@ -72,6 +72,20 @@ tests, package builds and browser checks of alignment, composer shape,
 responsive navigation, focus, system themes and real pending feedback.
 Passing type checks alone is not visual acceptance.
 
+## Maintainer-approved refinement — 2026-09-11
+
+The maintainer approved organising the existing desktop theme into four layers:
+primitive values, semantic aliases, reusable presentation, and screen composition.
+This refines the existing shared-theme ownership without changing the original
+component decision or approved appearance. The exact contract and file map live
+in [DESIGN.md](../../DESIGN.md#four-layer-theme-contract). The journal is excluded.
+
+Keep the existing public stylesheet import and shadcn semantic token names.
+Consolidate recurring typography and sizing, not every one-off layout value.
+Extend the current UI checker and its advisory hook with token guidance instead
+of introducing another lint framework. Verify rendered equivalence in both
+system themes and narrow layouts, in addition to structural checks.
+
 ## References
 
 - [shadcn-svelte Sidebar](https://www.shadcn-svelte.com/docs/components/sidebar)

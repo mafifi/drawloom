@@ -356,7 +356,11 @@ export function createDesktopViewModel() {
     get primaryView() { return primaryView; }, set primaryView(v: typeof primaryView) { if (v !== primaryView) { cancelUploads(); cancelDirectoryChooser(); } primaryView = v; pickerOpen = false; if (v === 'plugins') void refreshCatalogue(); },
     get contextOpen() { return contextOpen; }, set contextOpen(v: boolean) { contextOpen = v; },
     get attachmentKeys() { return attachmentKeys; }, get contextIds() { return contextIds; },
-    attachmentName(key: string) { return attachmentNames[key] ?? 'Attachment'; },
+    attachmentName(key: string) {
+      return attachmentNames[key]
+        ?? state?.operator.artifacts.find(item => item.content.kind === 'asset' && item.content.asset.key === key)?.title
+        ?? 'Attachment';
+    },
     get candidateId() { return candidateId; }, set candidateId(v: string) { cancelEdit(); candidateId = v; artifactId = ''; },
     get artifactId() { return artifact?.id ?? ''; }, set artifactId(v: string) { cancelEdit(); artifactId = v; const owners = candidates.filter(c => c.artifactIds.includes(v)); candidateId = owners.find(c => c.selectedForOutput)?.id ?? owners.at(-1)?.id ?? ''; },
     contextLabel,

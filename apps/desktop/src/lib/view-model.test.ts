@@ -18,6 +18,13 @@ test('a fresh desktop opens the conversation rather than replacing it with narro
   expect(vm.primaryView).toBe('conversation');
   expect(vm.detailsOpen).toBe(false);
 });
+test('attachment labels recover from existing artifact metadata after reconnect', async () => {
+  const initial = snapshot();
+  initial.operator.artifacts.push({ id: 'imported', title: 'research-notes.txt', content: { kind: 'asset', asset: { key: 'research-key', size: 24, mediaType: 'text/plain' } } });
+  const h = await harness(initial);
+  expect(h.vm.attachmentName('research-key')).toBe('research-notes.txt');
+  expect(h.vm.attachmentName('missing')).toBe('Attachment');
+});
 test('an empty app requires a project and does not request history or discovery', async () => {
   const h = await harness({ ...snapshot(), projects: [], selectedProjectId: undefined, conversations: [], selectedId: '' });
   expect(h.vm.canSend).toBe(false);

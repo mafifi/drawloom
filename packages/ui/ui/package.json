@@ -33,12 +33,13 @@
     "@lucide/svelte": "catalog:",
     "bits-ui": "catalog:",
     "clsx": "catalog:",
+    "shadcn-svelte": "catalog:",
     "svelte": "catalog:",
+    "svelte-sonner": "catalog:",
     "tailwind-merge": "catalog:",
     "tailwind-variants": "catalog:",
     "tailwindcss": "catalog:",
-    "tw-animate-css": "catalog:",
-    "svelte-sonner": "catalog:"
+    "tw-animate-css": "catalog:"
   },
   "devDependencies": {
     "@sveltejs/package": "catalog:",

@@ -87,13 +87,14 @@ test("primary destinations are main-content views while artifact details remain 
   expect(details).not.toContain('vm.pane === "settings"');
 });
 
-test("sent non-image references use compact closed previews and user badges keep bubble contrast", async () => {
+test("sent non-image references use compact closed previews and selection badges stay outside the bubble", async () => {
   const conversation = await source("./Conversation.svelte");
   const resource = await source("./ResourceCard.svelte");
   const attachment = await source("./AttachmentCard.svelte");
 
   expect(conversation).toContain("<AttachmentCard");
-  expect(conversation).toContain("text-primary-foreground");
+  expect(conversation).toContain("<Message.Footer");
+  expect(conversation.indexOf("<Message.Footer")).toBeGreaterThan(conversation.indexOf("</Bubble.Root>"));
   expect(attachment).toContain("<Collapsible.Root>");
   expect(attachment).toContain("Preview attachment");
   expect(resource).toContain("Preview resource");

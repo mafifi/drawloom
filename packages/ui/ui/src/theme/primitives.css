@@ -1,0 +1,43 @@
+/* Layer 1: exact approved values. Consumed only by semantic.css. */
+:root {
+  --dl-black: #000000;
+  --dl-white: #ffffff;
+  --dl-neutral-800: #262626;
+  --dl-blue-600: #2563eb;
+  --dl-neutral-50: #fafafa;
+  --dl-neutral-100: #f5f5f5;
+  --dl-neutral-600-readable: #666666;
+  --dl-neutral-200: #e5e5e5;
+  --dl-red-700: #b91c1c;
+  --dl-neutral-300: #d4d4d4;
+  --dl-canvas-dark: #181818;
+  --dl-surface-dark: #2a2a2a;
+  --dl-neutral-400: #a3a3a3;
+  --dl-selection-dark: #494949;
+  --dl-red-300: #fca5a5;
+  --dl-rule-dark: #393939;
+  --dl-neutral-600: #525252;
+  --dl-blue-400: #60a5fa;
+  --dl-sidebar-dark: #383838;
+  --dl-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --dl-font-mono: ui-monospace, SFMono-Regular, monospace;
+  --dl-type-xs: 12px;
+  --dl-type-caption: 13px;
+  --dl-type-sm: 14px;
+  --dl-type-body: 15px;
+  --dl-type-heading: 16px;
+  --dl-type-small-control: 0.8rem;
+  --dl-weight-normal: 400;
+  --dl-weight-medium: 500;
+  --dl-leading-heading: 1.3;
+  --dl-leading-chrome: 1.5;
+  --dl-leading-prose: 1.55;
+  --dl-leading-body: 1.65;
+  --dl-leading-document: 1.7;
+  --dl-tracking-heading: -0.2px;
+  --dl-radius-control: 0.5rem;
+  --dl-radius-bubble: 18px;
+  --dl-space-gutter: 20px;
+  --dl-space-section: 28px;
+  --dl-shadow-popover: 0 14px 34px rgb(0 0 0 / 0.16);
+}

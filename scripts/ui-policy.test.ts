@@ -6,17 +6,48 @@ import { fileURLToPath } from "node:url";
 import { checkUiSource, isMaintainedUiSource, scanUiPolicy } from "./ui-policy.ts";
 
 describe("shared UI boundary", () => {
+  test('theme guidance rejects local raw colours and arbitrary typography without scanning content', () => {
+    for (const source of ['<p class="bg-[#fff]">Hi</p>', '<p class="hover:text-blue-600">Hi</p>', '<p style="color: rgb(1 2 3)">Hi</p>', '<p class="text-[15px]">Hi</p>', '<style>p { font-size: 15px; }</style>', '<style>p { color: #fff; }</style>']) {
+      expect(checkUiSource('apps/demo/src/View.svelte', source)).toEqual(expect.arrayContaining([expect.objectContaining({kind:'theme-token', message:expect.stringContaining('semantic')})]));
+    }
+    expect(checkUiSource('apps/demo/src/View.svelte', '<p class="text-body bg-background p-4" style="color:var(--foreground)">Example #fff</p>')).toEqual([]);
+    expect(checkUiSource('apps/demo/src/View.svelte', '<script>const content="#fff";</script><p>{content}</p><!-- color: red -->')).toEqual([]);
+  });
+  test('CSS is checked; only primitive definitions may hold raw palette values', () => {
+    expect(isMaintainedUiSource('apps/demo/src/app.css')).toBe(true);
+    expect(checkUiSource('apps/demo/src/app.css', '.panel { color: #fff; }')[0]).toMatchObject({kind:'theme-token',line:1});
+    expect(checkUiSource('packages/ui/ui/src/theme/primitives.css', ':root { --dl-white: #fff; }')).toEqual([]);
+    expect(checkUiSource('packages/ui/ui/src/theme/semantic.css', ':root { --background: var(--dl-white); }')).toEqual([]);
+    expect(checkUiSource('apps/demo/src/app.css', '.panel { color: var(--dl-white); }')[0]?.kind).toBe('theme-token');
+    expect(checkUiSource('apps/demo/src/app.css', '.panel {color:var(--foreground);padding:17px;}')).toEqual([]);
+    expect(checkUiSource('publishing/site/src/app.css', '.panel {color:#fff;}')).toEqual([]);
+  });
+  test('conversation primitives cannot be recreated as native data-slot markup in consumers', () => {
+    for (const [slot, component] of [['attachment', 'Attachment'], ['message', 'Message'], ['bubble', 'Bubble'], ['marker', 'Marker']]) {
+      const issues = checkUiSource('apps/example/src/View.svelte', `<div data-slot="${slot}">Content</div>`);
+      expect(issues).toHaveLength(1);
+      expect(issues[0]?.message).toContain(component!);
+    }
+    expect(checkUiSource('apps/example/src/View.svelte', '<article>Ordinary editorial content</article>')).toEqual([]);
+    expect(checkUiSource('packages/ui/ui/src/components/bubble/bubble.svelte', '<div data-slot="bubble">Content</div>')).toEqual([]);
+    expect(checkUiSource('apps/example/src/View.svelte', '<script>import { Bubble } from "@drawloom/ui";</script><Bubble.Root>Text</Bubble.Root>')).toEqual([]);
+  });
   test("scans maintained source and ignores generated and journal trees", async () => {
     const root = await mkdtemp(join(tmpdir(), "drawloom-ui-policy-"));
     try {
       for (const path of ["apps/demo/src", "apps/demo/build", "publishing/site/src"])
         await mkdir(join(root, path), { recursive: true });
       await writeFile(join(root, "apps/demo/src/View.svelte"), '<button>Send</button>');
+      await writeFile(join(root, "apps/demo/src/app.css"), '.panel { color: #fff; }');
       await writeFile(join(root, "apps/demo/build/View.svelte"), '<button>Generated</button>');
       await writeFile(join(root, "publishing/site/src/View.svelte"), '<button>Journal</button>');
       const result = await scanUiPolicy(root);
-      expect(result.files).toBe(1);
-      expect(result.issues).toEqual([expect.objectContaining({ path: "apps/demo/src/View.svelte" })]);
+      expect(result.files).toBe(2);
+      expect(result.issues).toEqual(expect.arrayContaining([
+        expect.objectContaining({ path: "apps/demo/src/View.svelte" }),
+        expect.objectContaining({ path: "apps/demo/src/app.css", kind: 'theme-token' }),
+      ]));
+      expect(result.issues).toHaveLength(2);
     } finally { await rm(root, { recursive: true, force: true }); }
   });
   test.each([
@@ -179,7 +210,7 @@ describe("shared UI boundary", () => {
     'publishing/site/src/Example.svelte', 'spikes/example/Example.svelte',
     'apps/example/node_modules/ui/Button.svelte', 'apps/example/.svelte-kit/generated/View.svelte',
     'apps/example/build/View.svelte', 'packages/example/view/dist/View.svelte',
-    'packages/example/view/.generated/View.svelte', 'apps/example/src/style.css',
+    'packages/example/view/.generated/View.svelte',
   ])("excludes unmaintained source %s", (path) => {
     expect(isMaintainedUiSource(path)).toBe(false);
     expect(checkUiSource(path, '<button />')).toEqual([]);

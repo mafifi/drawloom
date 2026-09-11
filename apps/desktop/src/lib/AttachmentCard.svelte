@@ -1,14 +1,16 @@
 <script lang="ts">
-  import { Badge, Button, Collapsible } from '@drawloom/ui';
+  import { Attachment, Button, Collapsible, DocumentIcon } from '@drawloom/ui';
   import type { Asset } from '@drawloom/host';
   import ArtifactViewer from './ArtifactViewer.svelte';
-  export let asset: Asset;
-  export let title = 'Attachment';
-  $: image = asset.mediaType.startsWith('image/');
+  let { asset, title = 'Attachment' }: { asset: Asset; title?: string } = $props();
+  const image = $derived(asset.mediaType.startsWith('image/'));
 </script>
 
-<section class="reference-card" aria-label={title}>
-  <div class="flex flex-wrap items-center gap-2"><span>{title}</span><Badge variant="outline" class="text-inherit">{asset.mediaType}</Badge><span class="text-xs opacity-85">{asset.size.toLocaleString()} bytes</span></div>
+<section class="conversation-attachment flex w-full min-w-0 flex-col gap-2" aria-label={title}>
+  <Attachment.Root class="w-full">
+    <Attachment.Media><DocumentIcon /></Attachment.Media>
+    <Attachment.Content><Attachment.Title>{title}</Attachment.Title><Attachment.Description>{asset.mediaType} · {(asset.size / 1024).toFixed(1)} KB</Attachment.Description></Attachment.Content>
+  </Attachment.Root>
   {#if image}
     <ArtifactViewer artifact={{ id: asset.key, title, content: { kind: 'asset', asset } }} />
   {:else}

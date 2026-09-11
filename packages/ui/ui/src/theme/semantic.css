@@ -1,0 +1,83 @@
+/* Layer 2: purpose and system appearance, retaining shadcn token names. */
+:root {
+  --overlay: var(--dl-black);
+  color-scheme: light dark;
+  --font-interface: var(--dl-font-sans);
+  --font-sans: var(--font-interface);
+  --font-code: var(--dl-font-mono);
+  --type-note-size: var(--dl-type-xs);
+  --type-caption-size: var(--dl-type-caption);
+  --type-chrome-size: var(--dl-type-sm);
+  --type-body-size: var(--dl-type-body);
+  --type-heading-size: var(--dl-type-heading);
+  --type-small-control-size: var(--dl-type-small-control);
+  --weight-normal: var(--dl-weight-normal);
+  --weight-heading: var(--dl-weight-medium);
+  --leading-heading: var(--dl-leading-heading);
+  --leading-chrome: var(--dl-leading-chrome);
+  --leading-prose: var(--dl-leading-prose);
+  --leading-body: var(--dl-leading-body);
+  --leading-document: var(--dl-leading-document);
+  --tracking-heading: var(--dl-tracking-heading);
+  --radius-bubble-value: var(--dl-radius-bubble);
+  --space-gutter: var(--dl-space-gutter);
+  --space-section: var(--dl-space-section);
+  --elevation-popover: var(--dl-shadow-popover);
+  --radius: var(--dl-radius-control);
+  --background: var(--dl-white);
+  --foreground: var(--dl-neutral-800);
+  --card: var(--dl-white);
+  --card-foreground: var(--dl-neutral-800);
+  --popover: var(--dl-white);
+  --popover-foreground: var(--dl-neutral-800);
+  --primary: var(--dl-blue-600);
+  --primary-foreground: var(--dl-neutral-50);
+  --secondary: var(--dl-neutral-100);
+  --secondary-foreground: var(--dl-neutral-800);
+  --muted: var(--dl-neutral-100);
+  --muted-foreground: var(--dl-neutral-600-readable);
+  --accent: var(--dl-neutral-200);
+  --accent-foreground: var(--dl-neutral-800);
+  --destructive: var(--dl-red-700);
+  --border: var(--dl-neutral-200);
+  --input: var(--dl-neutral-300);
+  --ring: var(--dl-blue-600);
+  --sidebar: var(--dl-neutral-100);
+  --sidebar-foreground: var(--dl-neutral-800);
+  --sidebar-primary: var(--dl-blue-600);
+  --sidebar-primary-foreground: var(--dl-neutral-50);
+  --sidebar-accent: var(--dl-neutral-200);
+  --sidebar-accent-foreground: var(--dl-neutral-800);
+  --sidebar-border: var(--dl-neutral-200);
+  --sidebar-ring: var(--dl-blue-600);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: var(--dl-canvas-dark);
+    --foreground: var(--dl-neutral-100);
+    --card: var(--dl-canvas-dark);
+    --card-foreground: var(--dl-neutral-100);
+    --popover: var(--dl-surface-dark);
+    --popover-foreground: var(--dl-neutral-100);
+    --primary: var(--dl-blue-600);
+    --primary-foreground: var(--dl-white);
+    --secondary: var(--dl-surface-dark);
+    --secondary-foreground: var(--dl-neutral-100);
+    --muted: var(--dl-surface-dark);
+    --muted-foreground: var(--dl-neutral-400);
+    --accent: var(--dl-selection-dark);
+    --accent-foreground: var(--dl-neutral-100);
+    --destructive: var(--dl-red-300);
+    --border: var(--dl-rule-dark);
+    --input: var(--dl-neutral-600);
+    --ring: var(--dl-blue-400);
+    --sidebar: var(--dl-sidebar-dark);
+    --sidebar-foreground: var(--dl-neutral-100);
+    --sidebar-primary: var(--dl-blue-600);
+    --sidebar-primary-foreground: var(--dl-white);
+    --sidebar-accent: var(--dl-selection-dark);
+    --sidebar-accent-foreground: var(--dl-neutral-100);
+    --sidebar-border: var(--dl-selection-dark);
+    --sidebar-ring: var(--dl-blue-400);
+  }
+}

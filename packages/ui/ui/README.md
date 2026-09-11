@@ -63,6 +63,63 @@ The component does not infer success from a resolved handler, catch errors,
 schedule status timers, or implement hold-to-confirm. Those behaviours are
 deliberately outside this small controlled presentation contract.
 
+### Conversation primitives
+
+`Attachment`, `Message`, `Bubble` and `Marker` are namespace exports that retain
+the upstream shadcn-svelte part names and prop-forwarding contract. `Spinner` is
+a direct component export. Consumers compose these presentational parts and own
+message records, file transfer state, commands, status text and accessibility
+labels:
+
+- `Attachment.Root` accepts `state` (`idle`, `uploading`, `processing`, `error`
+  or `done`), `size` and `orientation`; compose it with `Media`, `Content`,
+  `Title`, `Description`, `Actions`, `Action` and optional `Trigger`. `Group`
+  provides horizontal scrolling; add `tabindex={0}`, `role="group"` and an
+  accessible label when the cards themselves have no interactive controls.
+- `Message.Root` accepts `align="start" | "end"` and composes `Avatar`,
+  `Content`, `Header`, `Footer` and `Group`. It is a layout primitive and does
+  not assign conversation semantics to its children.
+- `Bubble.Root` accepts the upstream semantic variants and alignment, composing
+  `Content`, `Reactions` and `Group`. Its 15px body type, 18px radius, 10px by
+  16px padding and 85% maximum width preserve Drawloom conversation typography
+  and density; `ghost` remains the unboxed assistant-content treatment.
+- `Marker.Root` accepts `default`, `border` and `separator` variants and
+  composes `Icon` and `Content`. Add `role="status"` for live progress; `Icon`
+  is decorative. `Spinner` forwards SVG attributes and has a default status
+  role and `Loading` accessible label.
+
+Importing `@drawloom/ui/styles.css` also makes the upstream `scroll-fade*` and
+`shimmer*` utility classes available. Scroll fade is a mask tied to scroll
+position. Shimmer uses the element's current semantic colour and its upstream
+reduced-motion fallback removes the animation. No new theme or motion preference
+is introduced.
+
+## Four-layer theme ownership
+
+The public stylesheet import is unchanged. Internally, `theme/primitives.css`
+owns raw approved values; `theme/semantic.css` owns their meaning and system
+light/dark mappings; `styles.css` and shared components supply reusable
+presentation; application Views compose it. Consumers use semantic names, not
+`--dl-*` primitive values. See the authoritative
+[four-layer contract](../../../DESIGN.md#four-layer-theme-contract).
+
+Use `text-body` for conversation body type, `text-chrome` for control copy, and
+the existing shadcn semantic colours. Repeated typography in scoped CSS uses
+`--type-*-size`, `--leading-*` and `--weight-*`. Layout may still use Tailwind's
+standard scale and narrow one-off measurements. Imported media is not recoloured.
+The internal `cn` and configured `tv` helpers share the same class-merging theme.
+Use that `tv` helper when adding variant components: semantic text sizes must
+not be mistaken for foreground colours or prevent consumer overrides.
+
+The existing policy checker now includes maintained CSS and statically visible
+Svelte class/style attributes. It flags hex/function colour literals, named
+Tailwind palettes, direct primitive consumption outside semantic mapping, and
+consumer arbitrary typography. Shared upstream component geometry stays valid.
+It ignores content strings, generated output, publishing and spikes. It does not
+evaluate computed classes, script-built style strings, every CSS named colour,
+or prove that all repeated patterns have been extracted. Semantic review remains
+necessary. No blanket suppression or separate lint framework is introduced.
+
 ## Verification scope
 
 Command and Dialog are upstream shadcn-svelte 1.6.1 Nova compositions added on
@@ -75,6 +132,11 @@ checks source imports in maintained JavaScript and TypeScript. It reports file
 and line with replacement advice and fails on Svelte parse errors. Dependency,
 generated and build directories are excluded. The journal under `publishing/`
 and retained `spikes/` have separate ownership and are outside this check.
+
+Native `data-slot` markup for Attachment, Message, Bubble and Marker roots and
+parts outside the shared UI source is also rejected with replacement guidance.
+This catches copied primitive markup while keeping semantic consumer HTML valid;
+it does not claim to detect every CSS-only imitation.
 
 This is a focused structural check, not a full accessibility or styling audit.
 Computed imports, arbitrary runtime roles or tags, injected HTML, CSS-only
@@ -99,6 +161,22 @@ Sidebar uses its standard responsive composition rather than a parallel drawer.
 `StatefulButton` is a locally authored wrapper around the generated Button;
 its controlled pending presentation adds no separate command lifecycle.
 This is not a new platform capability or an alternative component framework.
+
+Attachment, Message, Bubble, Marker and Spinner were generated on 2026-09-11
+with the same shadcn-svelte CLI 1.6.1 official registry. Their generated source
+is retained with relative package-internal imports. Deliberate local adjustments
+preserve Drawloom's 15px conversation body, 14px normal-weight chrome and the
+existing bubble radius, padding and width. The upstream shared Tailwind utility
+stylesheet supplies scroll-fade and shimmer without replacing Drawloom's tokens
+or base theme.
+
+Upstream references: [Attachment](https://shadcn-svelte.com/docs/components/attachment),
+[Message](https://shadcn-svelte.com/docs/components/message),
+[Bubble](https://shadcn-svelte.com/docs/components/bubble),
+[Marker](https://shadcn-svelte.com/docs/components/marker),
+[Spinner](https://shadcn-svelte.com/docs/components/spinner),
+[scroll-fade](https://shadcn-svelte.com/docs/utils/scroll-fade) and
+[shimmer](https://shadcn-svelte.com/docs/utils/shimmer).
 
 ### Sonner notifications
 

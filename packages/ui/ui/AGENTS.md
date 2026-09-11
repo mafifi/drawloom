@@ -14,6 +14,9 @@ Read [README.md](README.md) before changing the component boundary and
   and binding support. Add shared primitives before adding a consumer.
 - Keep layout and commands with consumers; use the shared theme and component
   variants for control styling. Do not introduce application-specific variants.
+- Keep raw theme values in src/theme/primitives.css and map them in semantic.css.
+  Components consume semantic names and reusable type utilities from styles.css;
+  do not introduce a second palette or change appearance during token refactors.
 - Native media playback and sandboxed document viewers remain platform
   facilities. A file picker uses the shared Input with `type="file"`; it is not
   an application exception to the control boundary.

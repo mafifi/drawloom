@@ -12,6 +12,10 @@
     Textarea,
     Sidebar,
     Select,
+    Message,
+    Bubble,
+    Marker,
+    Spinner,
   } from "@drawloom/ui";
   import { PanelIcon, DocumentIcon } from "@drawloom/ui";
   import Composer from "./Composer.svelte";
@@ -77,8 +81,8 @@
     {#if vm.history.error || vm.history.status?.message}<Alert.Root role="status"><Alert.Description>{vm.history.error || vm.history.status?.message}</Alert.Description></Alert.Root>{/if}
     {#if vm.history.hasOlder}<StatefulButton variant="ghost" disabled={vm.history.loading} pending={vm.history.loading && vm.history.loadingEarlier} onclick={earlier}>Load earlier</StatefulButton>{/if}
     {#if !vm.history.atLatest}<StatefulButton variant="ghost" disabled={vm.history.loading} pending={vm.history.loading && !vm.history.loadingEarlier} onclick={() => vm.loadLatest()}>Back to latest</StatefulButton>{/if}
-    {#if vm.history.status?.sync === 'syncing'}<p role="status" class="text-muted-foreground">Synchronizing saved history…</p>{/if}
-    {#if vm.history.loading}<p role="status" class="text-muted-foreground">Loading conversation…</p>{/if}
+    {#if vm.history.status?.sync === 'syncing'}<Marker.Root role="status"><Marker.Icon><Spinner /></Marker.Icon><Marker.Content>Synchronizing saved history…</Marker.Content></Marker.Root>{/if}
+    {#if vm.history.loading}<Marker.Root role="status"><Marker.Icon><Spinner /></Marker.Icon><Marker.Content>Loading conversation…</Marker.Content></Marker.Root>{/if}
     {#if !vm.history.entries.length && !vm.history.loading}
       <Empty.Root class="welcome"
         ><Empty.Header
@@ -100,15 +104,15 @@
       >
     {/if}
     {#each vm.history.entries as message (message.id)}
-      <article class="message" data-history-id={message.id} class:user-message={message.role === 'user'} aria-label={message.role === 'user' ? 'Your message' : 'Drawloom message'}>
-        <div class="message-content">
+      <Message.Root role="article" class="mb-7" data-history-id={message.id} align={message.role === 'user' ? 'end' : 'start'} aria-label={message.role === 'user' ? 'Your message' : 'Drawloom message'}>
+        <Message.Content>
           <h2 class="sr-only">{message.role === "user" ? "You" : "Drawloom"}</h2>
-          <p>{message.text}</p>
-          {#if message.selections?.length}<div class="flex flex-wrap gap-2 py-2">{#each message.selections as selection}<Badge variant="outline" class={message.role === 'user' ? 'border-primary-foreground/50 text-primary-foreground' : ''}>{selection.title} · {selection.source}</Badge>{/each}</div>{/if}
-          {#each message.assets as asset}<AttachmentCard {asset} />{/each}
+          {#if message.text}<Bubble.Root variant={message.role === 'user' ? 'default' : 'ghost'} align={message.role === 'user' ? 'end' : 'start'}><Bubble.Content><p class="conversation-text">{message.text}</p></Bubble.Content></Bubble.Root>{/if}
+          {#if message.selections?.length}<Message.Footer class="flex-wrap gap-2">{#each message.selections as selection}<Badge variant="outline">{selection.title} · {selection.source}</Badge>{/each}</Message.Footer>{/if}
+          {#each message.assets as asset}<AttachmentCard {asset} title={vm.attachmentName(asset.key)} />{/each}
           {#each message.resources ?? [] as resource}<ResourceCard {vm} entryId={message.id} reference={resource} />{/each}
-        </div>
-      </article>
+        </Message.Content>
+      </Message.Root>
     {/each}
     {#each vm.state?.activity ?? [] as result}
       <Collapsible.Root class="tool-row"
@@ -117,10 +121,10 @@
               {...props}
               variant="ghost"
               class="w-full justify-between"
-              ><span
+              ><Marker.Root class="flex-1"><Marker.Content
                 >{vm.conversation?.workbenchId === "text"
                   ? "Count words"
-                  : "Tool result"}</span
+                  : "Tool result"}</Marker.Content></Marker.Root
               ><Badge variant="secondary"
                 >{result.outcome.status === "ok"
                   ? "Complete"
@@ -227,24 +231,15 @@
           ></Alert.Root
         >
       {:else if signal.kind === 'provider.observation' && signal.name === 'approval-review'}
-        <Alert.Root role="status"><Alert.Title>Automatic review</Alert.Title><Alert.Description>{signal.summary}</Alert.Description></Alert.Root>
+        <Marker.Root role="status"><Marker.Content>Automatic review: {signal.summary}</Marker.Content></Marker.Root>
       {:else if signal.kind === "operation.failed"}<Alert.Root
           variant="destructive"
           ><Alert.Description>{signal.failure.summary}</Alert.Description
           ></Alert.Root
         >
-      {:else if signal.kind === "operation.interrupted"}<p
-          class="text-muted-foreground"
-        >
-          Operation stopped.
-        </p>{/if}
+      {:else if signal.kind === "operation.interrupted"}<Marker.Root><Marker.Content>Operation stopped.</Marker.Content></Marker.Root>{/if}
     {/each}
-    {#if vm.state?.activeOperation}<p
-        class="working text-muted-foreground"
-        role="status"
-      >
-        Working… You can continue editing your message.
-      </p>{/if}
+    {#if vm.state?.activeOperation}<Marker.Root role="status"><Marker.Content><span class="shimmer">Working…</span> You can continue editing your message.</Marker.Content></Marker.Root>{/if}
   </div>
   <Composer {vm} />
 </main>

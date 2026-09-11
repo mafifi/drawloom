@@ -7,7 +7,7 @@ import ts from "typescript";
 export interface UiPolicyIssue {
   path: string;
   line: number;
-  kind: "native-control" | "widget-role" | "import-boundary" | "stateful-control" | "parse-error";
+  kind: "native-control" | "widget-role" | "import-boundary" | "stateful-control" | "conversation-composition" | "theme-token" | "parse-error";
   message: string;
 }
 
@@ -28,6 +28,9 @@ const roleReplacements: Readonly<Record<string, string>> = {
   menu: "DropdownMenu", menuitem: "DropdownMenu.Item", menuitemcheckbox: "DropdownMenu.CheckboxItem",
   menuitemradio: "DropdownMenu.RadioItem", separator: "Separator",
 };
+const conversationSlots: Readonly<Record<string, string>> = {
+  attachment: 'Attachment', message: 'Message', bubble: 'Bubble', marker: 'Marker',
+};
 
 function normalisePath(path: string): string {
   return posix.normalize(path.replaceAll("\\", "/"));
@@ -40,7 +43,7 @@ function excludedDirectory(name: string): boolean {
 export function isMaintainedUiSource(path: string): boolean {
   const normalised = normalisePath(path);
   return /^(apps|packages)\//.test(normalised)
-    && /\.(svelte|[cm]?[jt]sx?)$/.test(normalised)
+    && /\.(css|svelte|[cm]?[jt]sx?)$/.test(normalised)
     && !normalised.split("/").slice(0, -1).some(excludedDirectory);
 }
 
@@ -98,7 +101,9 @@ function bypassesUiBoundary(path: string, specifier: string): boolean {
 
 export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
   path = normalisePath(path);
-  if (!isMaintainedUiSource(path) || path.startsWith("packages/ui/ui/src/")) return [];
+  if (!isMaintainedUiSource(path)) return [];
+  const themeIssues = checkThemeSource(path, source);
+  if (path.endsWith('.css') || path.startsWith("packages/ui/ui/src/")) return themeIssues;
   const issues: UiPolicyIssue[] = [];
   function report(kind: UiPolicyIssue["kind"], start: unknown, message: string): void {
     const line = source.slice(0, typeof start === "number" ? start : 0).split("\n").length;
@@ -125,7 +130,7 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
       ts.forEachChild(node, inspect);
     }
     inspect(file);
-    return issues;
+    return [...issues, ...themeIssues];
   }
   let ast;
   try { ast = parse(source, { modern: true, filename: path }); }
@@ -167,6 +172,14 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
     if (!Array.isArray(node.attributes)) return;
     for (const attribute of node.attributes) {
       const attr = record(attribute);
+      if (attr?.type === 'Attribute' && attr.name === 'data-slot') {
+        visit(attr.value, (part) => {
+          const slot = part.type === 'Text' ? part.data : part.type === 'Literal' ? part.value : undefined;
+          const component = typeof slot === 'string' ? conversationSlots[slot.split('-')[0]!] : undefined;
+          if (component) report('conversation-composition', attr.start,
+            `Compose ${component} from @drawloom/ui instead of recreating data-slot="${String(slot)}" markup; keep application state and commands in the consumer.`);
+        });
+      }
       if (attr?.type !== "Attribute" || attr.name !== "role") continue;
       visit(attr.value, (part) => {
         const role = part.type === "Text" ? part.data : part.type === "Literal" ? part.value : undefined;
@@ -176,6 +189,47 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
           `Replace native role="${widget}" implementation with ${roleReplacements[widget]} from @drawloom/ui.`);
       });
     }
+  });
+  return [...issues, ...themeIssues];
+}
+
+/** Narrow static guidance, not a CSS evaluator or a ban on authored media colours. */
+function checkThemeSource(path: string, source: string): UiPolicyIssue[] {
+  if (!/\.(svelte|css)$/.test(path) || path === 'packages/ui/ui/src/theme/primitives.css') return [];
+  const shared = path.startsWith('packages/ui/ui/src/');
+  const semantics = path === 'packages/ui/ui/src/theme/semantic.css';
+  const issues: UiPolicyIssue[] = [];
+  const css = path.endsWith('.css');
+  let ast;
+  try { ast = parse(css ? `<style>${source}</style>` : source, {modern:true}); }
+  catch { return css ? [{path,line:1,kind:'parse-error',message:'Cannot verify theme CSS. Fix its syntax and rerun check:ui-policy.'}] : []; }
+  function check(value: string, start: unknown, property?: string): void {
+    const rawColour = /#[\da-f]{3,8}\b/i.test(value)
+      || /\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color)\(/i.test(value) && !value.includes('var(');
+    const palette = /(?:^|[\s:])(?:bg|text|border|ring|fill|stroke|shadow|outline|decoration)-(?:white|black|(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3})(?:\b|\/)/.test(value);
+    const primitiveBypass = !semantics && /(?:var\(|\()[\s]*--dl-/.test(value);
+    const arbitraryType = !shared && (/\b(?:text|leading|tracking)-\[[-.\d]/.test(value)
+      || property !== undefined && /^(font-size|font-family|font-weight|line-height|letter-spacing)$/.test(property)
+      && !/var\(|^(inherit|initial|unset|normal)$/.test(value));
+    if (!rawColour && !palette && !primitiveBypass && !arbitraryType) return;
+    const offset = Math.max(0, (typeof start === 'number' ? start : 0) - (css ? 7 : 0));
+    issues.push({path,line:source.slice(0,offset).split('\n').length,kind:'theme-token',message:
+      'Use semantic theme tokens or shared typography (for example bg-background, text-primary, text-body). Define raw values in packages/ui/ui/src/theme/primitives.css and map their purpose in theme/semantic.css; Views compose the system, not a local palette or type scale.'});
+  }
+  visit(ast.css, node => {
+    if (node.type === 'Declaration' && typeof node.value === 'string') check(node.value,node.start,String(node.property));
+  });
+  if (!css) visit(ast, node => {
+    if (node.type === 'Attribute' && ['class','style'].includes(String(node.name))) visit(node.value, part => {
+      const value = part.type === 'Text' ? part.data : part.type === 'Literal' ? part.value : undefined;
+      if (typeof value === 'string') {
+        check(value,part.start);
+        if (node.name === 'style') for (const declaration of value.split(';')) {
+          const colon = declaration.indexOf(':');
+          if (colon >= 0 && /^(font-size|font-family|font-weight|line-height|letter-spacing)$/.test(declaration.slice(0,colon).trim())) check(declaration.slice(colon+1).trim(),part.start,declaration.slice(0,colon).trim());
+        }
+      }
+    });
   });
   return issues;
 }

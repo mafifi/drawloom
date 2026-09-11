@@ -64,8 +64,9 @@ components:
 `@drawloom/ui` in `packages/ui/ui` is the shared shadcn-svelte component library.
 Use its buttons, fields, selects, checkboxes, tabs, disclosures, badges, alerts,
 empty states and Sidebar/Sheet components instead of bespoke native controls.
-`packages/ui/ui/src/styles.css` owns the semantic theme tokens; application CSS
-owns layout, not a competing button/input theme. Versions belong in the root
+`packages/ui/ui/src/styles.css` is the shared theme entry point; the four-layer
+file map below identifies token ownership. Application CSS owns layout, not a
+competing button/input theme. Versions belong in the root
 Bun catalog. `check:ui-policy` enforces the control and import boundary.
 Semantic HTML, ordinary links and native media/document viewers remain valid.
 See [ADR 0012](docs/adr/0012-shared-ui-components-and-guidance.md) for the decision.
@@ -96,7 +97,7 @@ Conversation and document content use 15px
 with generous line height. Outline icons use the shared Lucide components and
 their consistent sizing. Avatar initials are deliberate original identifiers,
 not a borrowed logo. Conversation rows omit decorative avatars: assistant content
-stays left and user messages sit right in a quiet neutral bubble.
+stays left and user messages sit right in the primary-blue bubble described below.
 Focus uses the blue theme accent. Secondary text stays legible.
 
 The user's 2026-09-08 neutral-colour amendment supersedes green in the original
@@ -135,3 +136,46 @@ composer-anchored suggestion surface, preserving draft focus and keyboard
 selection. Reduced-motion preferences disable nonessential animation.
 Views receive state and commands from the shell ViewModel. They never consume
 provider messages, secrets or private business types.
+
+## Four-layer theme contract
+
+The desktop theme has four layers, not four colours. Preserve the approved
+appearance when reorganising styling; the journal keeps its independent theme.
+
+1. **Primitives:** `packages/ui/ui/src/theme/primitives.css` defines the raw
+   palette, type scale, shared spacing and radii once. These are implementation
+   values, not names for application Views to consume.
+2. **Semantics:** `theme/semantic.css` maps those values to purpose: background,
+   foreground, primary, border, typography and spacing roles. System light/dark
+   differences belong here. Existing shadcn token names remain compatible.
+3. **Reusable presentation:** `styles.css` exposes semantic Tailwind utilities;
+   shared components consume them. Repeated body, heading and control styling
+   belongs here, not in each screen. Standard Tailwind layout scales remain valid.
+4. **Composition:** application Views and CSS assemble the shared system. Keep
+   one-off grids, viewport constraints and media dimensions local; do not turn
+   every layout measurement into a token. Scoped styling consumes semantic tokens.
+
+Raw colours belong only in primitives. Shared components and Views use semantic
+colour utilities rather than named palette steps. Views use the shared type scale
+instead of arbitrary text sizes. Neutral surfaces and blue user bubbles are
+unchanged; no theme selector, provider contract or plugin permission is added.
+
+The existing UI-policy check and advisory hook provide actionable guidance for
+CSS declarations and statically visible Svelte styling. Runtime-computed styling
+and arbitrary content colours still require review; this is not a complete
+visual-consistency proof. Tokens describe application chrome, not imported media.
+
+### Conversation composition
+
+Use shared Message for row alignment and Bubble for text surfaces: primary for
+the user, ghost for the assistant. Attachments and resource previews sit alongside
+the text bubble inside Message.Content, not inside the blue text surface. Keep
+stable history anchors and source-bound viewers; presentation does not own paging,
+uploads, permissions or asset preservation.
+
+Use Attachment for file metadata and actions, and its Group for bounded composer
+attachment rows. Marker presents concise activity/status with existing disclosures
+for details. Shimmer is limited to ongoing work, never settled text or approval
+choices; respect reduced motion. Scroll fades hint at overflowing attachment rows,
+not a decorative overlay across the conversation. Existing theme values remain
+authoritative; component adoption does not select a new palette.

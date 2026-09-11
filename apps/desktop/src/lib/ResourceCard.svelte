@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Alert, Badge, Button, Collapsible, StatefulButton } from '@drawloom/ui';
+  import { Alert, Attachment, Badge, Button, Collapsible, DocumentIcon, Marker, StatefulButton } from '@drawloom/ui';
   import type { ResourceReference } from '@drawloom/host';
   import ArtifactViewer from './ArtifactViewer.svelte';
   import FileViewer from './FileViewer.svelte';
@@ -18,8 +18,7 @@
 </script>
 
 <section class="flex flex-col gap-2 py-3" aria-label={resource.title || 'Resource'}>
-  <div class="flex flex-wrap items-center gap-2"><span>{resource.title || 'Resource'}</span><Badge variant="outline">{workingFile ? 'working file' : resource.status}</Badge></div>
-  <p class="text-sm text-muted-foreground">{resource.source}{resource.mimeType ? ` · ${resource.mimeType}` : ''}</p>
+  <Attachment.Root class="w-full"><Attachment.Media><DocumentIcon /></Attachment.Media><Attachment.Content><Attachment.Title>{resource.title || 'Resource'}</Attachment.Title><Attachment.Description>{resource.source}{resource.mimeType ? ` · ${resource.mimeType}` : ''}</Attachment.Description></Attachment.Content><Badge variant="outline">{workingFile ? 'working file' : resource.status}</Badge></Attachment.Root>
   {#if resource.uri}<Collapsible.Root><Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost" size="sm">Source reference</Button>{/snippet}</Collapsible.Trigger><Collapsible.Content><p class="break-all text-sm text-muted-foreground">{resource.uri}</p></Collapsible.Content></Collapsible.Root>{/if}
   {#if resource.asset}
     {#if resource.asset.mediaType.startsWith('image/')}
@@ -36,7 +35,7 @@
       <Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost" size="sm">{remotePreviewOpen ? 'Close remote preview' : 'Preview remote media'}</Button>{/snippet}</Collapsible.Trigger>
       <Collapsible.Content>
         {#if remotePreviewOpen}
-          {#if remotePreviewLoading}<p class="text-sm text-muted-foreground" role="status">Loading remote preview…</p>{/if}
+          {#if remotePreviewLoading}<Marker.Root role="status"><Marker.Content class="shimmer">Loading remote preview…</Marker.Content></Marker.Root>{/if}
           {#if remotePreviewError}<Alert.Root variant="destructive"><Alert.Description>{remotePreviewError}</Alert.Description></Alert.Root>{/if}
           <iframe src={remotePreviewUrl} title={`Remote preview: ${resource.title || 'Resource'}`} sandbox="allow-scripts" referrerpolicy="no-referrer" class="min-h-80 w-full border-0" onload={() => { remotePreviewLoading = false; }} onerror={() => { remotePreviewLoading = false; remotePreviewError = 'The remote preview could not load. Close and reopen it to try again.'; }}></iframe>
         {/if}

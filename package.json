@@ -70,7 +70,8 @@
       "@temporalio/activity": "1.23.0",
       "@temporalio/common": "1.23.0",
       "tailwind-variants": "^3.3.0",
-      "svelte-sonner": "^1.1.0"
+      "svelte-sonner": "^1.1.0",
+      "shadcn-svelte": "1.6.1"
     }
   },
   "scripts": {

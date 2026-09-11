@@ -1,11 +1,12 @@
 @import "@drawloom/ui/styles.css";
 @source "../**/*.svelte";
 
+/* Layer 4: desktop composition. Reusable values come from the shared theme. */
 @layer base {
-  body { margin: 0; font-size: 15px; }
-  p { line-height: 1.55; }
-  h1, h2 { font-size: 16px; font-weight: 500; letter-spacing: -0.2px; line-height: 1.3; }
-  h3, h4 { font-size: 14px; font-weight: 500; }
+  body { margin: 0; font-size: var(--type-body-size); }
+  p { line-height: var(--leading-prose); }
+  h1, h2 { font-size: var(--type-heading-size); font-weight: var(--weight-heading); letter-spacing: var(--tracking-heading); line-height: var(--leading-heading); }
+  h3, h4 { font-size: var(--type-chrome-size); font-weight: var(--weight-heading); }
   h1, h2, h3, h4, p { margin-top: 0; }
   h3 { margin-bottom: 14px; }
   a { text-underline-offset: 3px; }
@@ -14,65 +15,57 @@
 @layer components {
   .app-shell { display: grid; grid-template-columns: minmax(0, 1fr); height: 100dvh; flex: 1; min-width: 0; overflow: hidden; }
   .app-shell.with-details { grid-template-columns: minmax(0, 1fr) 360px; }
-  .conversation { display: flex; flex-direction: column; min-height: 0; min-width: 0; padding: 0 20px; background: var(--background); }
+  .conversation { display: flex; flex-direction: column; min-height: 0; min-width: 0; padding: 0 var(--space-gutter); background: var(--background); }
   .conversation-header { display: flex; align-items: center; gap: 12px; min-height: 80px; flex-shrink: 0; }
   .conversation-header > div { min-width: 0; flex: 1; }
   .conversation-header h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 4px; }
-  .conversation-header p { color: var(--muted-foreground); margin: 0; font-size: 13px; }
+  .conversation-header p { color: var(--muted-foreground); margin: 0; font-size: var(--type-caption-size); }
   .conversation-scroll { flex: 1; overflow: auto; min-height: 0; padding: 27px 6px 24px; scrollbar-width: thin; }
   .welcome { padding: 48px 28px 28px; max-width: 580px; }
-  .message { display: flex; justify-content: flex-start; margin-bottom: 28px; }
-  .message-content { min-width: 0; max-width: 100%; }
-  .user-message { justify-content: flex-end; }
-  .user-message .message-content { max-width: 85%; background: var(--primary); color: var(--primary-foreground); border-radius: 18px; padding: 10px 16px; }
-  .message p:last-child { margin-bottom: 0; }
-  .message h2 { font-size: 14px; margin: 1px 0 8px; }
-  .message p { font-size: 15px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; margin-bottom: 12px; }
+  .conversation-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+  .conversation-attachment .artifact-viewer img { max-height: 220px; object-fit: contain; }
   .tool-row, .artifact-row { margin: 0 0 16px; width: 100%; }
   .artifact-row { height: auto; min-height: 40px; justify-content: flex-start; white-space: normal; padding: 10px 12px; }
   .artifact-row > span:first-of-type { flex: 1; min-width: 0; text-align: left; overflow-wrap: anywhere; }
-  pre { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; max-height: 250px; overflow: auto; background: var(--muted); }
+  pre { font-family: var(--font-code); font-size: var(--type-note-size); line-height: var(--leading-chrome); white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; max-height: 250px; overflow: auto; background: var(--muted); }
   .composer-area { flex-shrink: 0; padding: 12px 0 14px; }
   .composer { padding: 0; }
-  .discovery-suggestions { position: absolute; z-index: 30; inset-inline: 0; bottom: calc(100% + 8px); max-height: min(440px, 60vh); overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--popover); color: var(--popover-foreground); box-shadow: 0 14px 34px rgb(0 0 0 / 0.16); }
+  .discovery-suggestions { position: absolute; z-index: 30; inset-inline: 0; bottom: calc(100% + 8px); max-height: min(440px, 60vh); overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--popover); color: var(--popover-foreground); box-shadow: var(--elevation-popover); }
   .discovery-suggestions [aria-selected="true"] { background: var(--accent); color: var(--accent-foreground); }
   .composer-toolbar { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
   .composer-spacer { flex: 1; }
-  .composer-note { color: var(--muted-foreground); text-align: center; font-size: 12px; margin: 12px 0 0; }
+  .composer-note { color: var(--muted-foreground); text-align: center; font-size: var(--type-note-size); margin: 12px 0 0; }
   .muted { color: var(--muted-foreground); }
-  .working { color: var(--muted-foreground); font-size: 13px; padding-left: 48px; }
   .attachment-list { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
   .context-picker { padding: 12px 0; max-height: 170px; overflow: auto; }
   .context-picker p { margin-bottom: 8px; }
-  .details-pane { padding: 0 20px 20px; overflow: auto; min-height: 0; width: 100%; height: 100%; font-size: 14px; background: var(--background); }
+  .details-pane { padding: 0 var(--space-gutter) var(--space-gutter); overflow: auto; min-height: 0; width: 100%; height: 100%; font-size: var(--type-chrome-size); background: var(--background); }
   .details-pane > header { min-height: 75px; display: flex; align-items: center; gap: 8px; justify-content: space-between; }
   .details-pane > header h2 { margin: 0; overflow: hidden; text-overflow: ellipsis; }
   .preview { padding: 24px 0; min-height: 160px; }
-  .document-content { font-size: 15px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .document-content { font-size: var(--type-body-size); line-height: var(--leading-document); white-space: pre-wrap; overflow-wrap: anywhere; }
   .artifact-viewer img, .artifact-viewer video { max-width: 100%; border-radius: var(--radius); }
   .artifact-viewer audio { width: 100%; }
-  .reference-card { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; padding: 10px 12px; border: 1px solid color-mix(in srgb, currentColor 24%, transparent); border-radius: var(--radius); }
-  .reference-card .artifact-viewer img { max-height: 220px; object-fit: contain; }
-  .artifact-viewer a { display: block; margin-top: 12px; font-size: 13px; text-decoration: underline; }
+  .artifact-viewer a { display: block; margin-top: 12px; font-size: var(--type-caption-size); text-decoration: underline; }
   .document-frame { border: 1px solid var(--border); height: 350px; width: 100%; background: var(--background); }
   .edit-document { margin-top: 22px; }
-  .candidate-section { padding: 20px 0; }
+  .candidate-section { padding: var(--space-gutter) 0; }
   .candidate-row { width: 100%; justify-content: space-between; gap: 8px; padding: 12px 8px; height: auto; min-height: 44px; text-align: left; white-space: normal; flex-wrap: wrap; }
   .candidate-row > span { overflow-wrap: anywhere; }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
   .actions > * { flex: 1; }
-  .inspector-section { padding: 20px 0; }
+  .inspector-section { padding: var(--space-gutter) 0; }
   .inspector-section p { margin-top: 14px; }
   .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
   .document-editor { min-height: 280px; }
   .grant { display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; margin-top: 12px; }
   .plugin-row { padding-bottom: 16px; margin-bottom: 20px; }
   .plugin-row p { margin-top: 14px; }
-  .comparison { padding: 20px 0; }
+  .comparison { padding: var(--space-gutter) 0; }
   .comparison .artifact-viewer { margin-bottom: 24px; }
   .interaction { padding: 15px; margin: 16px 0; }
   .primary-view { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100dvh; background: var(--background); }
-  .primary-view-header { display: flex; align-items: center; gap: 16px; min-height: 80px; padding: 0 20px; flex-shrink: 0; }
+  .primary-view-header { display: flex; align-items: center; gap: 16px; min-height: 80px; padding: 0 var(--space-gutter); flex-shrink: 0; }
   .primary-view-header h1 { margin: 0; }
   .primary-view-content { width: min(100%, 880px); margin: 0 auto; padding: 32px 24px 56px; overflow: auto; }
   .primary-view > .details-pane { flex: 1; max-width: 880px; margin: 0 auto; padding-top: 20px; }
@@ -91,9 +84,7 @@
     .conversation-header { min-height: 72px; gap: 9px; }
     .provider-label { display: none; }
     .welcome { padding: 32px 6px; }
-    .message { gap: 11px; }
     .tool-row, .artifact-row { margin-left: 0; width: 100%; }
     .composer-toolbar { gap: 4px; }
-    .working { padding-left: 0; }
   }
 }

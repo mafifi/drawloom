@@ -8,6 +8,9 @@
     InputGroup,
     StatefulButton,
     Select,
+    Attachment,
+    DocumentIcon,
+    Spinner,
   } from "@drawloom/ui";
   import { CloseIcon, PlusIcon, StopIcon, ArrowIcon } from "@drawloom/ui";
   import type { DesktopViewModel } from "./view-model.svelte.js";
@@ -68,14 +71,23 @@
             }}
           />
       <DiscoveryPicker {vm} />
-      {#if vm.attachments.length}<ol class="flex w-full flex-wrap gap-2 px-3" aria-label="Attachments">
-        {#each vm.attachments as attachment (attachment.id)}<li class="flex w-48 flex-col gap-1 rounded-lg border p-2">
-          <div class="flex items-center justify-between gap-1"><span class="truncate text-sm" title={attachment.name}>{attachment.name}</span><Button variant="ghost" size="icon-sm" aria-label={`Remove ${attachment.name}`} onclick={() => vm.removeAttachment(attachment.id)}><CloseIcon aria-hidden="true" /></Button></div>
-          <p class="text-xs text-muted-foreground">{(attachment.size / 1024).toFixed(1)} KB · {attachment.mediaType}</p>
-          {#if attachment.asset?.mediaType.startsWith('image/')}<img class="h-20 w-full object-contain" src={'/api/assets/' + encodeURIComponent(attachment.asset.key)} alt={attachment.name} />{:else if attachment.asset}<Collapsible.Root><Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost" size="sm">Preview file</Button>{/snippet}</Collapsible.Trigger><Collapsible.Content><ArtifactViewer artifact={{ id: attachment.id, title: attachment.name, content: { kind: 'asset', asset: attachment.asset } }} /></Collapsible.Content></Collapsible.Root>{/if}
-          {#if attachment.status !== 'ready'}{#if attachment.error}<p role="status" class="text-xs text-muted-foreground">{attachment.error}</p>{/if}<StatefulButton variant="ghost" size="sm" pending={attachment.status === 'pending'} pendingLabel="Importing attachment" disabled={vm.importing || !vm.canRetryAttachment(attachment.id)} onclick={() => vm.retryAttachment(attachment.id)}>Retry</StatefulButton>{:else if !attachment.mediaType.startsWith('image/') && !attachment.mediaType.startsWith('text/')}<p class="text-xs text-muted-foreground">Preview available; not a direct model input. Remove before sending.</p>{/if}
-        </li>{/each}
-      </ol>{/if}
+      {#if vm.attachments.length}<Attachment.Group class="w-full px-3" role="list" aria-label="Attachments" tabindex={0}>
+        {#each vm.attachments as attachment (attachment.id)}<div role="listitem" class="flex w-56 shrink-0 snap-start flex-col gap-2">
+          <Attachment.Root state={attachment.status === 'pending' ? 'uploading' : attachment.status === 'failed' ? 'error' : 'done'} class="w-full" aria-busy={attachment.status === 'pending'}>
+            <Attachment.Media variant={attachment.asset?.mediaType.startsWith('image/') ? 'image' : 'icon'}>
+              {#if attachment.asset?.mediaType.startsWith('image/')}<img src={'/api/assets/' + encodeURIComponent(attachment.asset.key)} alt={attachment.name} />{:else if attachment.status === 'pending'}<Spinner />{:else}<DocumentIcon />{/if}
+            </Attachment.Media>
+            <Attachment.Content>
+              <Attachment.Title title={attachment.name}>{attachment.name}</Attachment.Title>
+              <Attachment.Description>{(attachment.size / 1024).toFixed(1)} KB · {attachment.mediaType}</Attachment.Description>
+              {#if attachment.status === 'pending'}<Attachment.Description role="status">Importing attachment</Attachment.Description>{/if}
+            </Attachment.Content>
+            <Attachment.Actions><Attachment.Action type="button" aria-label={`Remove ${attachment.name}`} onclick={() => vm.removeAttachment(attachment.id)}><CloseIcon aria-hidden="true" /></Attachment.Action></Attachment.Actions>
+          </Attachment.Root>
+          {#if attachment.asset && !attachment.asset.mediaType.startsWith('image/')}<Collapsible.Root><Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost" size="sm">Preview file</Button>{/snippet}</Collapsible.Trigger><Collapsible.Content><ArtifactViewer artifact={{ id: attachment.id, title: attachment.name, content: { kind: 'asset', asset: attachment.asset } }} /></Collapsible.Content></Collapsible.Root>{/if}
+          {#if attachment.status === 'failed'}<p role="status" class="text-xs text-muted-foreground">{attachment.error}</p><StatefulButton variant="ghost" size="sm" disabled={vm.importing || !vm.canRetryAttachment(attachment.id)} onclick={() => vm.retryAttachment(attachment.id)}>Retry</StatefulButton>{:else if attachment.status === 'ready' && !attachment.mediaType.startsWith('image/') && !attachment.mediaType.startsWith('text/')}<p class="text-xs text-muted-foreground">Preview available; not a direct model input. Remove before sending.</p>{/if}
+        </div>{/each}
+      </Attachment.Group>{/if}
       <div class="flex w-full flex-wrap gap-2 px-3">
         {#each vm.selectedDiscoveries as selection}<Button variant="secondary" size="sm" aria-label={`Remove ${selection.name} from ${selection.origin}`} onclick={() => vm.removeDiscovery(selection.id)}>{selection.name} · {selection.origin}{selection.unavailable ? ' · unavailable' : ''}<CloseIcon aria-hidden="true" /></Button>{/each}
         {#each vm.contextIds as id}<Button variant="secondary" size="sm" aria-label={`Remove ${vm.contextLabel(id)}`} onclick={() => vm.toggleContext(id)}>{vm.contextLabel(id)}<CloseIcon aria-hidden="true" /></Button>{/each}
