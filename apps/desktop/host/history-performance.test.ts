@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createSqliteConversationHistory } from '@drawloom/sqlite-conversation-history';
 import { HistoryPageSchema, HistoryChangesSchema } from '@drawloom/conversation-history';
-import { createDesktopApplication } from './application.js';
+import { createTestDesktopApplication as createDesktopApplication } from './test-project.fixture.js';
 import { serveDesktop } from './server.js';
 
 test('10,000-entry public history uses bounded pages, no-body unchanged polls and single-record updates', async () => {

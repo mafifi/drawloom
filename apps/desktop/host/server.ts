@@ -1,5 +1,5 @@
 import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
-import { resolve, sep } from 'node:path';
+import { extname, resolve, sep } from 'node:path';
 import { lstat, realpath } from 'node:fs/promises';
 import { ImportSchema, ResourceReadSchema, ResourceOpenSchema, DiscoveryResourceReadSchema, DiscoveryAuthenticationSchema } from '../src/lib/protocol.js';
 import type { createDesktopApplication } from './application.js';
@@ -7,17 +7,28 @@ import { createStateFeed } from './state-feed.js';
 import { HistoryStoreError } from '@drawloom/conversation-history';
 import { observedHttp } from './telemetry.js';
 import type { createTelemetryRelay } from './telemetry-relay.js';
+import { fileResponse } from './file-response.js';
+import { browserImportByteLimit } from './assets.js';
+import { ProjectDirectoryError } from './projects.js';
+import { remoteMediaResponse } from './remote-media-response.js';
 type Application = Awaited<ReturnType<typeof createDesktopApplication>>;
-export function serveDesktop(app: Application, webRoot: string, port = 0, telemetry?: ReturnType<typeof createTelemetryRelay>) {
+export function serveDesktop(app: Application, webRoot: string, port = 0, telemetry?: ReturnType<typeof createTelemetryRelay>, options: {pickDirectory?:(signal:AbortSignal)=>Promise<string|undefined>}={}) {
   const token = randomBytes(32).toString('hex');
   let bootstrap = true;
   let commandQueue: Promise<unknown> = Promise.resolve();
   let stateQueue: Promise<unknown> = Promise.resolve();
   const stateFeed = createStateFeed();
+  let viewFiles: { token:string; mountId:string; conversationId:string; viewId:string } | undefined;
+  async function workingResponse(request:Request,conversationId:string,path:string,headers?:Record<string,string>) {
+    const reader=await app.openWorkingFile(conversationId,path);
+    const types:Record<string,string>={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.mp4':'video/mp4','.webm':'video/webm','.mov':'video/quicktime','.mp3':'audio/mpeg','.wav':'audio/wav','.ogg':'audio/ogg','.pdf':'application/pdf','.txt':'text/plain','.md':'text/plain'};
+    const mediaType=types[extname(path).toLowerCase()]??'application/octet-stream';
+    return fileResponse(request,reader,{mediaType,immutable:false,...(headers?{headers}:{}),disposition:new URL(request.url).searchParams.has('download')||mediaType==='application/octet-stream'||mediaType==='video/quicktime'?'attachment':'inline'});
+  }
   const secure = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Cache-Control': 'no-store', 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob:; media-src 'self' blob:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'" };
   const json = (data: unknown, status = 200) => Response.json(data, { status, headers: secure });
   const valid = (value: string) => value.length === token.length && timingSafeEqual(Buffer.from(value), Buffer.from(token));
-  const server = Bun.serve({ hostname: '127.0.0.1', port, maxRequestBodySize: 25 * 1024 * 1024,
+  const server = Bun.serve({ hostname: '127.0.0.1', port, maxRequestBodySize: browserImportByteLimit,
     async fetch(request): Promise<Response> {
       const url = new URL(request.url); const origin = `http://127.0.0.1:${server.port}`;
       const cookieName = `drawloom_${server.port}`;
@@ -31,13 +42,32 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
       if (url.pathname === '/bootstrap' && bootstrap && request.method === 'GET' && valid(url.searchParams.get('token') ?? '')) {
         bootstrap = false; return new Response(null, { status: 303, headers: { ...secure, Location: '/', 'Set-Cookie': `${cookieName}=${token}; HttpOnly; SameSite=Strict; Path=/` } });
       }
+      if(url.pathname.startsWith('/api/view-files/')) {
+        // A short-lived read scope, never the authenticated command cookie.
+        // Opaque-origin frames may request media without access to host credentials.
+        if(!['GET','HEAD'].includes(request.method))return json({error:'View file unavailable'},403);
+        try {
+          const parts=url.pathname.slice('/api/view-files/'.length).split('/');
+          const scope=viewFiles;
+          if(!scope || parts.shift()!==scope.token)throw Error('Invalid file scope');
+          const presentation=await app.viewPresentation({conversationId:scope.conversationId,viewId:scope.viewId});
+          if(presentation.mountId!==scope.mountId)throw Error('Expired file scope');
+          return await workingResponse(request,scope.conversationId,decodeURIComponent(parts.join('/')),{'Access-Control-Allow-Origin':'null'});
+        }catch{return json({error:'View file unavailable'},403);}
+      }
       const cookie = request.headers.get('cookie')?.split(';').map(v => v.trim()).find(v => v.startsWith(cookieName + '='))?.slice(cookieName.length + 1) ?? '';
       if (!valid(cookie)) return json({ error: 'Open the host startup URL to authenticate this local app.' }, 401);
-      if (!['GET', 'HEAD'].includes(request.method) && (request.headers.get('origin') !== origin || request.headers.get('content-type') !== 'application/json')) return json({ error: 'Invalid command channel' }, 403);
+      const upload = url.pathname === '/api/import' && request.method === 'POST' && request.headers.get('content-type') === 'application/octet-stream';
+      if (!['GET', 'HEAD'].includes(request.method) && (request.headers.get('origin') !== origin || (!upload && request.headers.get('content-type') !== 'application/json'))) return json({ error: 'Invalid command channel' }, 403);
       if (url.pathname === '/api/telemetry' && request.method === 'GET') return json({ enabled: telemetry?.enabled === true });
       if (url.pathname === '/api/telemetry/v1/traces' && request.method === 'POST') return telemetry ? telemetry.handle(request) : new Response(null, { status: 404, headers: secure });
       return observedHttp(request, async () => {
       try {
+        if(url.pathname==='/api/project-directory' && request.method==='POST') {
+          if(!options.pickDirectory)return json({error:'Native folder selection is unavailable. Enter a local path instead.'},501);
+          const next=commandQueue.then(()=>options.pickDirectory!(request.signal));commandQueue=next.catch(()=>{});
+          const directory=await next;return json(directory?{directory}:{});
+        }
         if (url.pathname === '/api/packages' && request.method === 'GET') return json(await app.installedPackages());
         if (url.pathname === '/api/packages' && request.method === 'POST') {
           const raw: unknown = await request.json();
@@ -114,10 +144,21 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
           return json(await next);
         }
         if (url.pathname.startsWith('/api/views/') && request.method === 'GET') {
-          const html = app.viewHtml({ viewId: decodeURIComponent(url.pathname.slice('/api/views/'.length)), conversationId: url.searchParams.get('conversationId') });
+          const target={ viewId: decodeURIComponent(url.pathname.slice('/api/views/'.length)), conversationId: url.searchParams.get('conversationId')??'' };
+          const presentation=await app.viewPresentation(target);
+          if(viewFiles?.mountId!==presentation.mountId)viewFiles={...target,mountId:presentation.mountId,token:randomBytes(32).toString('hex')};
+          const base=origin+'/api/view-files/'+viewFiles.token+'/';
+          const baseElement=`<base href="${base}">`;
+          const html=/<head(?:\s[^>]*)?>/i.test(presentation.html)?presentation.html.replace(/<head(?:\s[^>]*)?>/i,match=>match+baseElement):baseElement+presentation.html;
+          const resourceSources=[base,...presentation.resourceDomains.filter(value=>value!==origin)].join(' ');
+          const styleSources=presentation.styleDomains.filter(value=>value!==origin).join(' ');
           // No same-origin, forms, popups, downloads or top navigation. Self-navigation
           // is a browser limitation, not an asserted total network isolation boundary.
-          return new Response(html, { headers: { ...secure, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': `sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors ${origin}` } });
+          return new Response(html, { headers: { ...secure, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': `sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' ${styleSources}; font-src ${base} ${styleSources}; connect-src 'none'; img-src ${resourceSources}; media-src ${resourceSources}; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri ${base}; frame-ancestors ${origin}` } });
+        }
+        if(url.pathname==='/api/remote-media' && request.method==='GET') {
+          try {const media=await app.remoteMedia({conversationId:url.searchParams.get('conversationId'),entryId:url.searchParams.get('entryId'),resourceId:url.searchParams.get('resourceId')});return remoteMediaResponse(media,origin,media.resourceDomains);}
+          catch {return new Response('This media reference is unavailable or its source has not been declared.',{status:404,headers:{...secure,'Content-Type':'text/plain; charset=utf-8'}});}
         }
         if (url.pathname === '/api/command' && request.method === 'POST') {
           const raw: unknown = await request.json();
@@ -125,25 +166,35 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
           return json(await next);
         }
         if (url.pathname === '/api/import' && request.method === 'POST') {
-          const input = ImportSchema.parse(await request.json());
-          if (!/^[A-Za-z0-9+/]+={0,2}$/.test(input.base64)) return json({ error: 'Invalid file encoding' }, 400);
-          const next = commandQueue.then(() => app.importAsset(Buffer.from(input.base64, 'base64'), input.mediaType, input.name, input.conversationId)); commandQueue = next.catch(() => {});
-          return json(await next);
+          if (!upload || !request.body) return json({ error: 'Use streamed file upload' }, 400);
+          const input = ImportSchema.parse({ conversationId:url.searchParams.get('conversationId'),name:url.searchParams.get('name'),mediaType:url.searchParams.get('mediaType') });
+          const body = request.body;
+          async function* chunks() {
+            const reader=body!.getReader();
+            let completed=false;
+            try {
+              while(true){const next=await reader.read();if(next.done){completed=true;return;}yield next.value;}
+            } finally {
+              if(!completed)await reader.cancel();
+              // This reader exclusively owns the request body. EOF/cancel closes
+              // it; Bun 1.2.23 can throw internally on releaseLock after this path.
+            }
+          }
+          // The captured conversation owns this import. Network backpressure
+          // must never hold up Stop or navigation. Application persistence and
+          // controller mutations retain their own ordered writes.
+          return json(await app.importAssetStream(chunks(), input.mediaType, input.name, input.conversationId!, request.signal));
         }
-        if (url.pathname.startsWith('/api/assets/') && request.method === 'GET') {
+        if (url.pathname === '/api/files' && ['GET','HEAD'].includes(request.method)) {
+          const path = url.searchParams.get('path') ?? '';
+          return await workingResponse(request,url.searchParams.get('conversationId') ?? '',path);
+        }
+        if (url.pathname.startsWith('/api/assets/') && ['GET','HEAD'].includes(request.method)) {
           const asset = await app.authorizedAsset(decodeURIComponent(url.pathname.slice('/api/assets/'.length)));
-          const bytes = await app.assets.read(asset.key);
+          const reader = await app.assets.open(asset.key);
           // Documents use a separate sandboxed browsing context. SVG/HTML are never accepted.
           const disposition = asset.mediaType === 'video/quicktime' ? `attachment; filename="${asset.key}.mov"` : url.searchParams.has('download') ? 'attachment' : 'inline';
-          const headers = { ...secure, 'Content-Type': asset.mediaType, 'Content-Disposition': disposition, 'Content-Security-Policy': "sandbox; default-src 'none'; style-src 'unsafe-inline'" };
-          const range = request.headers.get('range');
-          if (range) {
-            const match = /^bytes=(\d+)-(\d*)$/.exec(range); if (!match) return new Response(null, { status: 416, headers });
-            const start = Number(match[1]), end = match[2] ? Math.min(Number(match[2]), bytes.length - 1) : bytes.length - 1;
-            if (start > end || start >= bytes.length) return new Response(null, { status: 416, headers });
-            return new Response(bytes.slice(start, end + 1), { status: 206, headers: { ...headers, 'Content-Range': `bytes ${start}-${end}/${bytes.length}`, 'Accept-Ranges': 'bytes' } });
-          }
-          return new Response(new Uint8Array(bytes), { headers: { ...headers, 'Accept-Ranges': 'bytes' } });
+          return fileResponse(request,reader,{mediaType:asset.mediaType,immutable:true,disposition});
         }
         if (request.method !== 'GET' && request.method !== 'HEAD') return json({ error: 'Not found' }, 404);
         if (url.pathname === '/favicon.ico') return new Response(null, { status: 204, headers: secure });
@@ -161,6 +212,7 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
         }
         return new Response(request.method === 'HEAD' ? null : file, { headers: secure });
       } catch (error) {
+        if (error instanceof ProjectDirectoryError) return json({error:error.message},400);
         if (error instanceof HistoryStoreError) return json({ error: error.message, code: error.code }, error.code === 'invalid_cursor' ? 409 : 503);
         const known = error instanceof Error && !('issues' in error) ? error.message : 'Invalid request';
         const safe = ['Conversation unavailable', 'Workbench unavailable', 'Controller unavailable', 'Candidate unavailable', 'Document revision unavailable', 'Attachment unavailable', 'Asset unavailable', 'Only text documents can be attached as context', 'Unsupported or oversized file', 'This provider does not support interruption', 'Steering unavailable', 'provider unavailable', 'provider rejected', 'invalid state', 'Artifact title must be 1–120 characters', 'Synthetic mode accepts text. Attachments remain available as artifacts; choose Codex to send images.'];

@@ -1,0 +1,77 @@
+[
+  {
+    "bytes": 30592406,
+    "cached": false,
+    "milliseconds": 30.8735
+  },
+  {
+    "bytes": 20008342,
+    "cached": false,
+    "milliseconds": 22.270583
+  },
+  {
+    "bytes": 7425430,
+    "cached": false,
+    "milliseconds": 8.725042
+  },
+  {
+    "bytes": 13238272,
+    "cached": false,
+    "outcome": "cancelled",
+    "milliseconds": 10.79875
+  },
+  {
+    "bytes": 524288,
+    "cached": false,
+    "outcome": "cancelled",
+    "milliseconds": 0.97525
+  },
+  {
+    "bytes": 4456448,
+    "cached": false,
+    "outcome": "cancelled",
+    "milliseconds": 7.007458
+  },
+  {
+    "bytes": 851968,
+    "cached": false,
+    "outcome": "cancelled",
+    "milliseconds": 1.550292
+  },
+  {
+    "bytes": 2936214,
+    "cached": false,
+    "milliseconds": 4.06575
+  },
+  {
+    "bytes": 30,
+    "cached": false,
+    "milliseconds": 0.246375
+  },
+  {
+    "bytes": 20,
+    "cached": false,
+    "milliseconds": 0.179417
+  },
+  {
+    "bytes": 15532032,
+    "cached": true,
+    "outcome": "cancelled",
+    "milliseconds": 13.049417
+  },
+  {
+    "bytes": 30592406,
+    "cached": true,
+    "milliseconds": 19.018
+  },
+  {
+    "bytes": 30592406,
+    "cached": false,
+    "milliseconds": 23.807917
+  },
+  {
+    "bytes": 30592406,
+    "cached": true,
+    "milliseconds": 19.990458
+  }
+]

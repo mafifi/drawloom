@@ -32,6 +32,21 @@ context or treated as memory.
 See the [desktop host boundary](docs/design/desktop-host.md) for exact authority,
 project, asset and startup boundaries. No private plugin is needed for public CI.
 
+The implementation under Accepted [ADR 0020](docs/adr/0020-directory-backed-projects-and-file-delivery.md)
+separates the internal data directory from directory-backed projects. Installation
+and authentication are global; backend activation and workbench state are scoped
+to the project. Working files stream from their bound directory without import;
+plugin-owned material and captured history media keep their existing owners.
+Opened-handle range delivery and streamed imports replace whole-buffer media
+transport without changing model-input limits or adding remote storage.
+
+The same ADR assigns declared remote media to one host-owned policy module.
+Installation/activation and recognised tool results supply declarations; shared
+viewers and MCP Apps consume one source list. Sources are shared across Drawloom,
+not duplicated by workbenches. This permits media loading, not script execution,
+credential sharing or automatic preservation. A changed policy offers an explicit
+UI reopen rather than discarding unsaved work or restarting running agents.
+
 The public `@drawloom/ui` package owns shadcn-svelte controls and shared neutral
 theme tokens with a blue action accent, following
 [ADR 0012](docs/adr/0012-shared-ui-components-and-guidance.md).

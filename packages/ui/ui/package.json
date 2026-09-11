@@ -37,7 +37,8 @@
     "tailwind-merge": "catalog:",
     "tailwind-variants": "catalog:",
     "tailwindcss": "catalog:",
-    "tw-animate-css": "catalog:"
+    "tw-animate-css": "catalog:",
+    "svelte-sonner": "catalog:"
   },
   "devDependencies": {
     "@sveltejs/package": "catalog:",

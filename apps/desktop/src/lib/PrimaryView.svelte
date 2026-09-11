@@ -2,6 +2,7 @@
   import { Button, Checkbox, Field, Input, Separator, StatefulButton } from '@drawloom/ui';
   import DiscoveryInventory from './DiscoveryInventory.svelte';
   import DetailsPane from './DetailsPane.svelte';
+  import Projects from './Projects.svelte';
   import type { DesktopViewModel } from './view-model.svelte.js';
   let { vm, artifact = false }: { vm: DesktopViewModel; artifact?: boolean } = $props();
 </script>
@@ -9,17 +10,30 @@
 <main class="primary-view">
   <header class="primary-view-header">
     <Button variant="ghost" onclick={() => { vm.primaryView = 'conversation'; if (artifact) vm.detailsOpen = false; }}>← Back to conversation</Button>
-    <h1>{artifact ? (vm.artifact?.title ?? 'Artifacts') : vm.primaryView === 'plugins' ? 'Plugins' : 'Settings'}</h1>
+    <h1>{artifact ? (vm.artifact?.title ?? 'Artifacts') : vm.primaryView === 'plugins' ? 'Plugins' : vm.primaryView === 'projects' ? 'Projects' : 'Settings'}</h1>
   </header>
   <Separator />
   {#if artifact}
     <DetailsPane {vm} embedded />
   {:else if vm.primaryView === 'plugins'}
     <div class="primary-view-content"><DiscoveryInventory {vm} /></div>
+  {:else if vm.primaryView === 'projects'}
+    <Projects {vm} />
   {:else}
     <section class="primary-view-content preview">
-      <h2>Local workspace</h2>
-      <p>Project records stay in the host’s selected data directory.</p>
+      <h2>Project</h2>
+      <p class="break-all text-muted-foreground">{vm.conversationProject?.directory ?? 'Select a project to use working files.'}</p>
+      <h2>Shared media sources</h2>
+      <p class="text-muted-foreground">Activated integrations and recognised media resources declare these sources once for all workbenches. Shared access does not expose credentials or make media model context.</p>
+      {#if vm.state?.mediaPolicy.sources.length}
+        <dl class="flex flex-col gap-3">
+          {#each vm.state.mediaPolicy.sources as source}
+            <div><dt class="break-all">{source.origin}</dt><dd class="text-sm text-muted-foreground">Declared by {source.sources.join(', ')}</dd></div>
+          {/each}
+        </dl>
+      {:else}
+        <p class="text-muted-foreground">No shared remote media sources are active.</p>
+      {/if}
       <h2>Workbench configuration</h2>
       <p class="text-muted-foreground">{vm.state?.operator.summary}</p>
       <h2>Experimental native plugin catalogue</h2>

@@ -11,7 +11,7 @@ Cloudflare and Tauri compatibility are not claimed.
 | Package | Public surface |
 | --- | --- |
 | `@drawloom/context` | `CompiledContextSchema`, `CompiledContext` (text and source references) |
-| `@drawloom/host` | `JsonValueSchema`, `JsonValue`, `RpcTransport`, `RpcMessage`, `RpcRequestError`, `JsonStore`, `AssetStore`, `AssetSchema`, `Asset`; `/conformance`: `hostConformance` |
+| `@drawloom/host` | `JsonValueSchema`, `JsonValue`, `RpcTransport`, `RpcMessage`, `RpcRequestError`, `JsonStore`, `AssetStore`, `AssetLibrary`, `AssetReader`, `AssetReadOptions`, `AssetSchema`, `Asset`; `/conformance`: `hostConformance` |
 | `@drawloom/tools` | `defineTool`, `ToolDefinition`, `ToolContext`, `ToolExposureSchema`, `ToolExposure`, `ToolResultSchema`, `ToolResult`, `ToolBinding`, `ToolGateway`, `ToolEvidenceSink`, `ToolEvidence`, `ToolPolicy`; `/conformance`: `toolConformance` |
 | `@drawloom/local-tools` | `createLocalToolGateway` |
 | `@drawloom/agent` | schemas and types for `AgentDriver`, `AgentSession`, session open, operation, steering, approval/input resolutions, safe signals and results; `/conformance`: `agentConformance` |
@@ -73,6 +73,24 @@ Failure projection also preserves `execution` knowledge in `_meta`; evidence
 failure always sets MCP `isError`, even when the canonical outcome is known.
 
 ## Agents and hosts
+
+Accepted [ADR 0020](../adr/0020-directory-backed-projects-and-file-delivery.md)
+adds implemented byte-stream APIs: `AssetStore.open(key)` and
+`AssetLibrary.open(key)` return `{size, stream({start?, endExclusive?, signal?}),
+close()}`. The caller must close the reader, including on error. Storage reads
+are confined and bounded; metadata and bytes describe the same opened handle.
+`AssetStore.writeStream(key, chunks, {maxBytes, signal?})` publishes atomically.
+`AssetLibrary.putStream(chunks, mediaType, {signal?})` hashes and publishes a
+complete managed asset, retaining existing content identities. `read`, `write`
+and `put` remain bounded helpers, not large-file delivery paths. Host-specific
+implementations remain outside the portable contract.
+
+The desktop backend context includes a fixed optional `project: {id,directory}`;
+the desktop supplies it, while headless consumers need not. Installation is
+global, activation and backend JSON storage are per project. The Codex adapter's
+optional `workingDirectory` verifies existing native continuity before resume,
+then supplies the same directory for start/resume. It is host configuration, not
+a browser-supplied native continuation credential.
 
 `driver.openSession({sessionId,context,tools})` returns `AgentResult<AgentSession>`.
 Call `signals()` once before `execute({operationId,text,additionalContext?,reviewer?})`.

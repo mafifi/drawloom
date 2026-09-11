@@ -53,7 +53,7 @@ try {
       await remove.click();
     }
     let fail = true;
-    await page.route('**/api/import',route => fail ? route.fulfill({status:400,json:{error:'Synthetic upload failure'}}) : route.continue());
+    await page.route('**/api/import?*',route => fail ? route.fulfill({status:400,json:{error:'Synthetic upload failure'}}) : route.continue());
     await input.setInputFiles({name:'retry.txt',mimeType:'text/plain',buffer:Buffer.from('Retry reference')});
     await page.getByRole('list',{name:'Attachments',exact:true}).getByText('Synthetic upload failure',{exact:true}).waitFor();
     fail = false;
@@ -61,7 +61,7 @@ try {
     await page.getByRole('button',{name:'Importing attachment',exact:true}).waitFor({state:'hidden'});
     assert.equal(await page.getByText('Synthetic upload failure',{exact:true}).count(),0);
     await page.getByRole('button',{name:'Remove retry.txt',exact:true}).click();
-    await page.unroute('**/api/import');
+    await page.unroute('**/api/import?*');
   }
   await text.fill('');
   assert.deepEqual(errors, []);

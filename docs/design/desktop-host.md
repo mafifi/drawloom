@@ -2,7 +2,8 @@
 
 The public app composes providers. Its authenticated same-origin loopback HTTP
 channel is the only UI command ingress; cookies are host-only, HttpOnly and
-SameSite=Strict. Mutations require the exact Origin and JSON content type.
+SameSite=Strict. Mutations require the exact Origin and JSON content type, except
+the bounded octet-stream file-upload endpoint.
 Tauri launches the same host and opens its one-use bootstrap URL. No filesystem
 or shell API is exposed through a frontend plugin. Operator commands are not
 agent tools. The private plugin's MCP App exposes narrow reading, navigation and
@@ -41,7 +42,7 @@ offline, and history errors do not retry or rewrite provider outcomes. See
 
 Trusted package backends use `PluginBackendFactory` from `@drawloom/desktop-host`.
 The operator explicitly activates and trusts each installed package. A backend
-receives its declared public capabilities, including an installation-scoped
+receives its declared public capabilities, including an installation/project-scoped
 `JsonStore` and `AssetLibrary` when requested, and returns contributions,
 controllers, named MCP connections and cleanup. AssetLibrary.put stores bytes and registers
 the resulting media identity for authenticated viewing; raw AssetStore.write
@@ -57,14 +58,16 @@ The previous startup factory route has been removed without a compatibility path
 host OAuth ownership, independent permissions and standard MCP Apps placement.
 This implementation does not imply the migration or ADR has been accepted.
 
-The trusted desktop AssetLibrary accepts supported media up to 256 MiB per asset.
-This is a bounded whole-buffer contract, not a streaming API: producers must
-materialize bytes, serialize large registrations and budget for additional host
-and response copies. Reads and range responses currently load the whole asset.
-Browser imports remain limited to 16 MiB decoded bytes, with a 25 MiB HTTP body
-cap and a 24 MiB base64 schema cap. Native image attachment input and captured
-image results have their own 16 MiB bound; a larger generated video being
-registered never grants browser upload or agent-input authority.
+Under Accepted [ADR 0020](../adr/0020-directory-backed-projects-and-file-delivery.md),
+the implemented AssetLibrary supports streamed writes and opened, ranged reads.
+The desktop and browser imports accept supported media up to 256 MiB per asset;
+actual received bytes are checked. Browser uploads send File bytes rather than
+JSON/base64. Whole-buffer helpers remain bounded compatibility APIs; large-file
+delivery uses at most 64 KiB per storage read. GET, HEAD and single/suffix ranges
+share the validated file handle. Unknown working-file formats are downloadable;
+active content is not executed in the application origin.
+Native image attachment input and captured image results retain their separate
+16 MiB bound. A viewable video does not become a supported native model input.
 
 Desktop native RPC frames are bounded to 32 MiB, covering one 16 MiB image
 encoded as base64 plus a bounded envelope. Native history requests one item per
@@ -81,10 +84,17 @@ session-local if storage is unavailable. Unfinished persisted starts remain
 unresolved after restart and confer no success or retry authority. This uses the
 JSON store's existing durability boundary, not a transcript or logging service.
 
-One selected data directory is one project. Different project inputs use distinct
-directories and installation-owned persisted configuration; no episode identity
-is hardcoded in the public application. Each backend store is namespaced by its
-installation, away from host navigation records. Native artifact intake remains host-only and idempotent
+The selected Drawloom data directory stores global installation records, assets,
+history and project bindings. It is not a working project. Each project binds a
+validated working directory; conversations retain that project identity across
+navigation. Global installs, trust, configuration and credentials are shared;
+controllers, connections and backend storage are activated per project. The
+backend receives its fixed `project: {id, directory}` context. Headless consumers
+may omit that context; the desktop supplies it. A temporarily absent directory
+does not start installed code; it can activate once the original folder returns.
+Already-running Stop and pending responses remain reachable when a folder vanishes.
+Each backend store is namespaced by installation/project, away from host navigation
+records. Native artifact intake remains host-only and idempotent
 per operation-plus-asset identity; different operations may yield identical bytes.
 
 Execution order is foundation, public desktop shell, private plugin skeleton,
@@ -102,8 +112,14 @@ contributions and build pipeline, not another shell or bridge implementation.
 
 The existing authenticated loopback host serves only registered, composition-
 supplied HTML to the selected conversation's workbench. The frame runs with
-scripts allowed but no same-origin privilege. Its resource CSP denies network
-connections and subresources, nested frames, forms and base URLs. It does not
+scripts allowed but no same-origin privilege. Its resource CSP denies general
+network connections, nested frames and forms. One host-owned declared-media
+policy supplies shared image/audio/video origins. Standard `resourceDomains`
+also supply the declaring UI's fonts/styles, never additional scripts.
+The host supplies a mount-scoped base URL for relative project-file media; it
+grants neither command authentication nor access to another project. Closing or
+navigating invalidates it. See ADR 0020 for the deliberately narrow CSP profile
+and global declaration/reopen rules. It does not
 grant Tauri, filesystem or process APIs. Upstream `PostMessageTransport` checks
 the message source window; the backend validates captured view/conversation
 ownership in the same queue as navigation. Assistance callbacks additionally use

@@ -10,14 +10,16 @@ export function createResourceContent(options: {
   existing(id: string): Promise<Entry | undefined>;
   save(entry: Entry): Promise<void>;
   knownAsset(key: string): Asset | undefined;
+  declaredMedia?(source: string, content: unknown): Promise<void>;
 }) {
   return {
     async capture(input: { id: string; source: string; operationId?: string; content: unknown;
       readable?: (uri: string) => boolean; save?: boolean;
       resourceSelections?: Record<string, NonNullable<ResourceReference['retrieval']>> }): Promise<Entry> {
+      const content = ToolContentSchema.max(256).parse(input.content);
+      await options.declaredMedia?.(input.source,content);
       const previous = await options.existing(input.id);
       if (previous) return previous;
-      const content = ToolContentSchema.max(256).parse(input.content);
       let capturedBytes = 0;
       const resources: ResourceReference[] = [];
       const texts: string[] = [];

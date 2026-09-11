@@ -21,7 +21,7 @@ test('managed MOV export is authenticated, byte exact and offered as an attachme
 import { mkdtemp, readFile, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { createDesktopApplication } from './application.js';
+import { createTestDesktopApplication as createDesktopApplication } from './test-project.fixture.js';
 import { serveDesktop } from './server.js';
 import { assetLibraryConformance } from '@drawloom/host/conformance';
 import { createDesktopAssets } from './assets.js';
@@ -90,7 +90,7 @@ test('trusted large image registration does not raise the native image-input bou
   const image = await assets.put(new Uint8Array(17 * 1024 * 1024), 'image/png');
   await expect(assets.imageInput(image)).rejects.toThrow('Unsupported or oversized file');
 });
-test('browser imports still reject a 17 MiB decoded asset before registering it', async () => {
+test('legacy JSON/base64 upload transport is refused without registering assets', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-upload-limit-test-'));
   const app = await createDesktopApplication(root);
   const server = serveDesktop(app, resolve('apps/desktop/build'));
@@ -102,7 +102,7 @@ test('browser imports still reject a 17 MiB decoded asset before registering it'
       body: JSON.stringify({ name: 'too-large.mp4', mediaType: 'video/mp4', base64: Buffer.alloc(17 * 1024 * 1024).toString('base64') }),
     });
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: 'Unsupported or oversized file' });
+    expect(await response.json()).toEqual({ error: 'Use streamed file upload' });
     expect((await app.snapshot()).operator.artifacts).toEqual([]);
   } finally { await server.close(); }
 });
@@ -124,7 +124,7 @@ test('authenticated UI channel, durable revisions and no duplicate transcript', 
     expect((await fetch(server.origin + '/api/command', { method: 'POST', headers, body })).status).toBe(200);
     for (let n = 0; n < 20 && !(await app.snapshot()).operator.candidates.length; n++) await new Promise(r => setTimeout(r, 5));
     const draft = await app.snapshot(); const candidate = draft.operator.candidates[0]!;
-    await app.command({ kind: 'operator', workbenchId: 'text', command: { kind: 'revise_document', candidateId: candidate.id, artifactId: candidate.artifactIds[0], text: 'Second revision' } });
+    await app.command({ kind: 'operator', conversationId: before.selectedId, workbenchId: 'text', command: { kind: 'revise_document', candidateId: candidate.id, artifactId: candidate.artifactIds[0], text: 'Second revision' } });
     const saved = await app.snapshot(); expect(saved.operator.candidates.length).toBe(2);
     expect(saved.operator.artifacts[0]?.content).toEqual({ kind: 'text', text: 'First revision' });
     const reopened = await createDesktopApplication(root);

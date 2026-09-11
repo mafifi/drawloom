@@ -42,6 +42,14 @@ area you change.
 
 ## Area guides
 
+- Project/file work follows Accepted
+  [ADR 0020](docs/adr/0020-directory-backed-projects-and-file-delivery.md) and its
+  implemented [host boundary](docs/design/desktop-host.md). Installation and
+  authentication are global; activation and controller state are project-scoped.
+  Never resolve files through whichever project happens to be selected. Use the
+  conversation's fixed binding and opened-handle streaming APIs for large files;
+  viewing must not become an import or override ADR 0014 capture-once history.
+
 - Operational instrumentation follows [ADR 0019](docs/adr/0019-useful-observability.md)
   and its [measurement record](knowledge/evidence/adr-0019-observability.md).
   Use standard OpenTelemetry APIs, host-owned configuration and content-free

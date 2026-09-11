@@ -18,6 +18,8 @@ export interface PluginBackendCapabilities {
   readonly orchestration?: Orchestrator;
 }
 export interface PluginBackendContext {
+  /** Fixed for this activation. Desktop hosts always supply it; headless proofs may omit it. */
+  readonly project?: { readonly id: string; readonly directory: string };
   readonly installationId: string;
   readonly packageRoot: string;
   readonly dataDirectory: string;

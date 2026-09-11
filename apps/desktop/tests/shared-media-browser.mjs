@@ -1,0 +1,85 @@
+// Opt-in real browser check; paths supplied by the local launcher/operator.
+import assert from 'node:assert/strict';
+import { readFile,writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+const fixture=JSON.parse(await readFile(process.env.DRAWLOOM_FILE_TEST_METADATA,'utf8'));
+const {chromium}=await import(pathToFileURL(process.env.DRAWLOOM_PLAYWRIGHT_PATH).href);
+const browser=await chromium.launch({headless:true,channel:'chrome'});
+const page=await browser.newPage({viewport:{width:1440,height:1000}});
+await page.context().addCookies([{name:'drawloom_'+new URL(fixture.origin).port,value:new URL(fixture.url).searchParams.get('token'),url:fixture.origin}]);
+page.setDefaultTimeout(12000);
+await page.addInitScript(()=>{const animate=Element.prototype.animate;window.animationProbe=[];Element.prototype.animate=function(...args){const result=animate.apply(this,args);window.animationProbe.push({animation:result,element:this});return result;};});
+const errors=[];page.on('pageerror',e=>{errors.push(e.message);console.error('Browser exception',e.stack);});
+const consoleMessages=[];page.on('console',m=>{if(['error','warning'].includes(m.type()))consoleMessages.push(m.text());});
+const report={themes:[],errors,browser:'Chrome via Playwright; Browser plugin not available',viewports:['1440x1000','390x844']};
+try{
+  await page.goto(fixture.origin);
+  await page.getByRole('button',{name:'Toggle artifact pane'}).waitFor();
+  assert.equal(new URL(page.url()).origin,fixture.origin);
+  assert.match(await page.title(),/Drawloom/i);
+  await page.getByRole('button',{name:'Toggle artifact pane'}).click();
+  await page.getByRole('button',{name:'Open consumer',exact:true}).click();
+  const selector='iframe[title="consumer"]:not([inert])';
+  const appFrame=async()=>await (await page.locator(selector).elementHandle()).contentFrame();
+  await page.frameLocator(selector).getByText('Connected',{exact:true}).waitFor();
+  console.log('Initial MCP App connected');
+  let frame=await appFrame();
+  await frame.waitForFunction(()=>document.querySelector('#initial').naturalWidth===1);
+  assert.equal(await frame.locator('#returned').evaluate(n=>n.naturalWidth),0);
+  assert.equal(await frame.locator('#blocked').evaluate(n=>n.naturalWidth),0);
+  await frame.getByLabel('Unsaved note').fill('Keep this until I choose to reopen');
+  await frame.getByRole('button',{name:'Return media source'}).click();
+  await page.getByText('Shared media sources changed',{exact:true}).waitFor();
+  assert.equal(await frame.getByLabel('Unsaved note').inputValue(),'Keep this until I choose to reopen');
+  assert.equal(await frame.locator('#returned').evaluate(n=>n.naturalWidth),0,'existing frame was not silently reloaded');
+  report.explicitReopen={notice:true,unsavedPreserved:true};
+  console.log('Notice shown without losing draft');
+  await page.screenshot({path:join(fixture.root,'shared-media-notice.png'),fullPage:true,animations:'disabled'});
+  await page.getByRole('button',{name:'Reopen workbench',exact:true}).focus();await page.keyboard.press('Enter');
+  await page.frameLocator(selector).getByText('Connected',{exact:true}).waitFor();
+  frame=await appFrame();
+  console.log('Reopened MCP App connected');
+  await frame.waitForFunction(()=>document.querySelector('#returned').naturalWidth===1);
+  assert.equal(await frame.getByLabel('Unsaved note').inputValue(),'');
+  assert.equal(await frame.locator('#blocked').evaluate(n=>n.naturalWidth),0);
+  assert.equal(await frame.evaluate(()=>Boolean(window.remoteScriptRan)),false);
+  report.sharedCsp={initialOtherPlugin:true,returnedSource:true,undeclaredBlocked:true,scriptsBlocked:true};
+  console.log('New source loads in reopened App');
+  await page.getByRole('button',{name:'Toggle artifact pane'}).click();
+  // Change theme during bounded teardown to exercise the closing-frame guard,
+  // but wait for removal before taking a settled layout screenshot.
+  await page.emulateMedia({colorScheme:'dark'});
+  await page.waitForFunction(()=>document.querySelectorAll('iframe[title="consumer"]').length===0);
+  const card=page.getByRole('region',{name:'Shared returned image',exact:true});
+  await card.getByRole('button',{name:'Preview remote media'}).click();
+  const preview=page.frameLocator('iframe[title="Remote preview: Shared returned image"]');
+  await preview.locator('#media').waitFor();
+  await (await (await card.locator('iframe').elementHandle()).contentFrame()).waitForFunction(()=>document.querySelector('#media').naturalWidth===1);
+  console.log('Shared viewer followed declared CDN redirect');
+  for(const theme of ['light','dark']){
+    await page.emulateMedia({colorScheme:theme});
+    await card.scrollIntoViewIfNeeded();
+    await page.screenshot({path:join(fixture.root,`shared-media-${theme}.png`),fullPage:true,animations:'disabled'});
+    report.themes.push(theme);
+  }
+  await card.getByRole('button',{name:'Close remote preview'}).click();
+  assert.equal(await card.locator('iframe').count(),0);
+  const expired=page.getByRole('region',{name:'Expired image',exact:true});
+  await expired.getByRole('button',{name:'Preview remote media'}).click();
+  await page.frameLocator('iframe[title="Remote preview: Expired image"]').getByText('This media could not be loaded.',{exact:false}).waitFor();
+  report.expiryFeedback=true;
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:join(fixture.root,'shared-media-narrow.png'),fullPage:true,animations:'disabled'});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));report.narrow=true;
+  await page.reload();await card.waitFor();
+  await card.getByRole('button',{name:'Preview remote media'}).click();await preview.locator('#media').waitFor();
+  report.historyRetained=true;
+  assert.equal(await page.locator('vite-error-overlay').count(),0);
+  report.pageIdentity=true;report.meaningfulContent=true;report.noFrameworkOverlay=true;
+  const unexpected=consoleMessages.filter(message=>!/Content Security Policy|Content-Security-Policy|Failed to load resource|violates.*directive/i.test(message));
+  report.console={expectedCspOrExpiredResourceMessages:consoleMessages.length,unexpected};
+  assert.deepEqual(unexpected,[]);
+  assert.deepEqual(errors,[]);
+  await writeFile(join(fixture.root,'shared-media-results.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));
+}catch(error){console.error('Animation state',await page.evaluate(()=>window.animationProbe.filter(x=>x.element.tagName==='IFRAME').map(({animation:a,element})=>({state:a.playState,current:a.currentTime,timing:a.effect?.getTiming(),connected:element.isConnected,inert:element.inert}))));await page.screenshot({path:join(fixture.root,'shared-media-failure.png'),fullPage:true});console.error(await page.locator('body').innerText());throw error;}finally{await browser.close();}

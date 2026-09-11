@@ -20,6 +20,19 @@ test('server choices retain removed selections and configure sends the exact new
   expect(submitted).toEqual({ action: 'configure', id: installation.id, settings: { enabled: true, trustedBackend: false, servers: ['new'] } });
 });
 
+test('resource origin settings use the shared exact-origin contract before submitting', async () => {
+  const submitted: unknown[] = [];
+  globalThis.fetch = (async (_url, input) => { if (input?.body) submitted.push(JSON.parse(String(input.body))); return Response.json([installation]); }) as typeof fetch;
+  const vm = createPackageViewModel(); await vm.refresh();
+  await vm.configure(installation.id, true, false, ['new'], ['https://media.example', 'http://localhost:8080']);
+  expect(submitted).toEqual([{ action: 'configure', id: installation.id, settings: { enabled: true, trustedBackend: false, servers: ['new'], approvedResourceOrigins: ['https://media.example', 'http://localhost:8080'] } }]);
+  for (const origin of ['https://*.example', 'https://media.example/path', 'http://untrusted.example']) {
+    await vm.configure(installation.id, true, false, ['new'], [origin]);
+    expect(vm.error).toContain('exact HTTPS media origin');
+  }
+  expect(submitted).toHaveLength(1);
+});
+
 test('cancel prevents an older authorization installation refresh from replacing newer state', async () => {
   let gets = 0; let release!: (response: Response) => void; let started!: () => void;
   const readStarted = new Promise<void>(resolve => { started = resolve; });

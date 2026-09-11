@@ -1,0 +1,42 @@
+[
+  {
+    "origin": "initial",
+    "path": "/image.png",
+    "referer": null
+  },
+  {
+    "origin": "initial",
+    "path": "/image.png",
+    "referer": null
+  },
+  {
+    "origin": "returned",
+    "path": "/image.png",
+    "referer": null
+  },
+  {
+    "origin": "returned",
+    "path": "/redirect.png",
+    "referer": null
+  },
+  {
+    "origin": "initial",
+    "path": "/image.png",
+    "referer": null
+  },
+  {
+    "origin": "returned",
+    "path": "/expired.png",
+    "referer": null
+  },
+  {
+    "origin": "returned",
+    "path": "/redirect.png",
+    "referer": null
+  },
+  {
+    "origin": "initial",
+    "path": "/image.png",
+    "referer": null
+  }
+]

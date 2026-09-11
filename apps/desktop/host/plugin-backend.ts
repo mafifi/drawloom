@@ -55,6 +55,7 @@ export function createBackendLoader() {
       const module: unknown = await import(pathToFileURL(entry).href);
       const factory = z.object({ default: z.custom<PluginBackendFactory>(v => typeof v === 'function') }).parse(module).default;
       backend = await factory(Object.freeze({ installationId: options.installationId, packageRoot: root,
+        ...(options.project ? { project: Object.freeze({ ...options.project }) } : {}),
         dataDirectory: options.dataDirectory, configuration: options.configuration,
         dependencies: Object.freeze([...new Map([...(definition.requires ?? []), ...(definition.optional ?? [])]
           .filter((r): r is { kind: 'tool' | 'skill'; id: string } => r.kind !== 'capability')
@@ -79,9 +80,10 @@ export function createBackendLoader() {
     async activate(inventory: PackageInventory, options: BackendActivationOptions): Promise<BackendActivation> {
       if (closing) return { status: 'failed', code: 'backend_host_closed' };
       if (!inventory.drawloom?.backend) return { status: 'absent' };
-      const key = options.installationId;
-      if (!key || !/^[A-Za-z0-9._-]+$/.test(key) || key === '.' || key === '..')
+      const id = options.installationId;
+      if (!id || !/^[A-Za-z0-9._-]+$/.test(id) || id === '.' || id === '..')
         return { status: 'failed', code: 'invalid_installation' };
+      const key = JSON.stringify([id, options.project?.id ?? null]);
       let promise = active.get(key);
       if (!promise) { promise = start(inventory, options); active.set(key, promise); }
       const result = await promise;

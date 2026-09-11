@@ -28,7 +28,7 @@
   {#if vm.error}<Alert.Root variant="destructive"
       ><Alert.Description>{vm.error}</Alert.Description></Alert.Root
     >{/if}
-  {#if !vm.canSend}<p class="composer-note text-muted-foreground">
+  {#if vm.canExecute && !vm.canSend}<p class="composer-note text-muted-foreground">
       Synthetic agent supports Text studio only. Local artifacts and review
       remain available. Select Codex for a model conversation; sending uses your
       account.
@@ -49,6 +49,7 @@
             id="message-draft"
             class="min-h-20 max-h-60 px-3 pt-3"
             placeholder="Ask or make a change…"
+            disabled={!vm.canExecute}
             bind:value={vm.draft}
             bind:ref={messageInput}
             oninput={typedReference}
@@ -101,12 +102,13 @@
           size="icon"
           iconOnly
           pending={vm.importing}
+          disabled={!vm.canExecute}
           pendingLabel="Importing attachments"
           aria-label="Attach files"
           onclick={() => fileInput?.click()}><PlusIcon aria-hidden="true" /></StatefulButton
         >
-        <Button variant="ghost" aria-label="Choose a skill" onclick={() => vm.openPicker('skill')}>$ Skills</Button>
-        <Button variant="ghost" aria-label="Choose integrations and context" onclick={() => vm.openPicker('context')}>@ Context</Button>
+        <Button variant="ghost" disabled={!vm.canExecute} aria-label="Choose a skill" onclick={() => vm.openPicker('skill')}>$ Skills</Button>
+        <Button variant="ghost" disabled={!vm.canExecute} aria-label="Choose integrations and context" onclick={() => vm.openPicker('context')}>@ Context</Button>
         <div class="composer-spacer"></div>
         <Select.Root
           type="single"

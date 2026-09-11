@@ -38,7 +38,7 @@
     <div class="px-5 pt-4"><Button variant="outline" onclick={() => showPluginView = !showPluginView}>{showPluginView ? 'Show shared viewer' : `Open ${pluginView.title}`}</Button></div>
   {/if}
   {#if showPluginView && pluginView && vm.state}
-    {#key vm.state.selectedId + ':' + pluginView.id}<PluginView view={pluginView} conversationId={vm.state.selectedId} />{/key}
+    {#key vm.state.selectedId + ':' + pluginView.id}<PluginView view={pluginView} conversationId={vm.state.selectedId} mediaRevision={vm.state.mediaPolicy.revision} />{/key}
   {:else}
     <Tabs.Root
       value={vm.pane}

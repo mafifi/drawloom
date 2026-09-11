@@ -1,12 +1,18 @@
 import { test, expect } from 'bun:test';
+import type { AssetLibrary } from '@drawloom/host';
 import { createResourceContent } from './resource-content.js';
+
+function assetsWith(overrides: Pick<AssetLibrary, 'put' | 'read'>): AssetLibrary {
+  const unused = async (): Promise<never> => { throw Error('unused'); };
+  return { ...overrides, open: unused, putStream: unused };
+}
 
 test('one result cannot multiply the inline capture allowance across content blocks', async () => {
   let writes = 0, bytesStored = 0;
-  const collector = createResourceContent({ assets: {
+  const collector = createResourceContent({ assets: assetsWith({
     put: async (bytes, mediaType) => { writes++; bytesStored += bytes.length; return {key:`asset-${writes}`,size:bytes.length,mediaType}; },
     read: async () => new Uint8Array(),
-  }, existing:async()=>undefined,save:async()=>{},knownAsset:()=>undefined });
+  }), existing:async()=>undefined,save:async()=>{},knownAsset:()=>undefined });
   const result = await collector.capture({ id:'large',source:'public',content:Array.from({length:3},(_,i)=>({
     type:'resource',resource:{uri:`doc://${i}`,mimeType:'text/plain',text:'x'.repeat(8*1024*1024)},
   })) });
@@ -17,14 +23,14 @@ test('one result cannot multiply the inline capture allowance across content blo
 
 test('capture storage failure is explicit and never advertises a saved result', async () => {
   let saved = false;
-  const collector = createResourceContent({ assets: { put: async () => { throw Error('Disk full'); }, read: async () => new Uint8Array() },
+  const collector = createResourceContent({ assets: assetsWith({ put: async () => { throw Error('Disk full'); }, read: async () => new Uint8Array() }),
     existing: async () => undefined, save: async () => { saved = true; }, knownAsset: () => undefined });
   await expect(collector.capture({ id: 'failed', source: 'test', content: [{ type: 'resource', resource: { uri: 'doc://a', text: 'hello', mimeType: 'text/plain' } }] })).rejects.toThrow('Disk full');
   expect(saved).toBe(false);
 });
 
 test('provider-owned opaque receipts make returned links readable without revealing their native mapping', async () => {
-  const collector = createResourceContent({assets:{put:async()=>{throw Error('No download');},read:async()=>new Uint8Array()},existing:async()=>undefined,save:async()=>{},knownAsset:()=>undefined});
+  const collector = createResourceContent({assets:assetsWith({put:async()=>{throw Error('No download');},read:async()=>new Uint8Array()}),existing:async()=>undefined,save:async()=>{},knownAsset:()=>undefined});
   const entry = await collector.capture({id:'receipt',source:'codex:docs',content:[{type:'resource_link',uri:'doc://returned',name:'Returned'}],resourceSelections:{'doc://returned':{id:'opaque-id',revision:'opaque-revision'}}});
   expect(entry.resources?.[0]).toMatchObject({status:'readable',retrieval:{id:'opaque-id',revision:'opaque-revision'}});
 });
@@ -33,7 +39,7 @@ test('standard resources retain provenance and capture inline bytes once, withou
   let writes = 0;
   const captured = new Map<string, unknown>();
   const collector = createResourceContent({
-    assets: { put: async (bytes, mediaType) => { writes++; return { key: `key-${writes}`, size: bytes.length, mediaType }; }, read: async () => new Uint8Array() },
+    assets: assetsWith({ put: async (bytes, mediaType) => { writes++; return { key: `key-${writes}`, size: bytes.length, mediaType }; }, read: async () => new Uint8Array() }),
     existing: async id => captured.get(id) as never,
     save: async entry => { captured.set(entry.id, entry); },
     knownAsset: () => undefined,
@@ -51,7 +57,7 @@ test('standard resources retain provenance and capture inline bytes once, withou
 });
 
 test('arbitrary structured output is not a file or skill; invalid links never become readable', async () => {
-  const collector = createResourceContent({ assets: { put: async () => { throw Error('must not capture'); }, read: async () => new Uint8Array() },
+  const collector = createResourceContent({ assets: assetsWith({ put: async () => { throw Error('must not capture'); }, read: async () => new Uint8Array() }),
     existing: async () => undefined, save: async () => {}, knownAsset: () => undefined });
   const entry = await collector.capture({ id: 'call', source: 'x', content: [{ type: 'text', text: '{"skill":"trusted","file":"/etc/passwd"}' },
     { type: 'resource_link', uri: 'file:///etc/passwd', name: 'Private file' }] });

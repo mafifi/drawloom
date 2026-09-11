@@ -5,6 +5,26 @@ import { tmpdir } from 'node:os';
 import { createBackendLoader } from './plugin-backend.js';
 import type { PackageInventory } from '@drawloom/plugins';
 
+test('one installation has a distinct fixed activation in each project', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-backend-project-'));
+  const loader = createBackendLoader();
+  try {
+    await writeFile(join(root, 'backend.mjs'), `export default context => ({
+      contributions: { skills: [{id:'where',title:context.project.id,description:context.project.directory,instructions:'test'}] }, dispose:async()=>{}
+    });`);
+    const inventory: PackageInventory = {root,name:'sample',skills:[],servers:[],diagnostics:[],extensions:{},drawloom:{version:1,backend:{entrypoint:'./backend.mjs'}}};
+    const options = {installationId:'same',dataDirectory:join(root,'data'),configuration:{},capabilities:{},available:[],trusted:true};
+    const a = await loader.activate(inventory,{...options,project:{id:'a',directory:join(root,'a')}});
+    const b = await loader.activate(inventory,{...options,project:{id:'b',directory:join(root,'b')}});
+    expect(a.status).toBe('ready'); expect(b.status).toBe('ready'); expect(b).not.toBe(a);
+    if (a.status==='ready' && b.status==='ready') {
+      expect(a.backend.contributions?.skills?.[0]?.title).toBe('a');
+      expect(b.backend.contributions?.skills?.[0]?.title).toBe('b');
+    }
+    expect(await loader.activate(inventory,{...options,project:{id:'a',directory:join(root,'a')}})).toBe(a);
+  } finally {await loader.close();await rm(root,{recursive:true,force:true});}
+});
+
 test('optional dependencies do not block activation and backend sees only declared availability', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-backend-optional-'));
   const loader = createBackendLoader();

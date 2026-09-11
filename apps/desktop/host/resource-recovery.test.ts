@@ -4,7 +4,7 @@ import { createResourceRecovery } from './resource-recovery.js';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createDesktopApplication } from './application.js';
+import { createTestDesktopApplication as createDesktopApplication } from './test-project.fixture.js';
 import { createDesktopEvidence } from './evidence.js';
 import { createNodeJsonStore } from '@drawloom/node-host';
 

@@ -1,0 +1,70 @@
+{
+  "videoBytes": 30592406,
+  "themes": [
+    {
+      "theme": "light",
+      "metadata": true,
+      "seek": true,
+      "playback": true,
+      "closed": true
+    },
+    {
+      "theme": "dark",
+      "metadata": true,
+      "seek": true,
+      "playback": true,
+      "closed": true
+    }
+  ],
+  "requests": [
+    {
+      "url": "/api/files",
+      "range": "bytes=0-"
+    },
+    {
+      "url": "/api/files",
+      "range": "bytes=10584064-"
+    },
+    {
+      "url": "/api/files",
+      "range": "bytes=23166976-"
+    },
+    {
+      "url": "/api/files",
+      "range": "bytes=0-"
+    },
+    {
+      "url": "/api/files",
+      "range": "bytes=10584064-"
+    },
+    {
+      "url": "/api/files",
+      "range": "bytes=10846208-"
+    },
+    {
+      "url": "/api/files",
+      "range": "bytes=14188544-"
+    },
+    {
+      "url": "/api/files",
+      "range": "bytes=27656192-"
+    },
+    {
+      "url": "/api/files",
+      "range": "bytes=0-"
+    }
+  ],
+  "errors": [],
+  "unknownDownload": true,
+  "invalidMediaFeedback": true,
+  "uploadAndReload": true,
+  "projectSwitch": true,
+  "mcpMedia": {
+    "approvedOrigin": true,
+    "projectMedia": true,
+    "blockedOrigin": true,
+    "remoteScriptBlocked": true,
+    "revokedAfterNavigation": true
+  },
+  "narrow": true
+}

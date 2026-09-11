@@ -3,7 +3,7 @@ import { Database } from 'bun:sqlite';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createDesktopApplication } from './application.js';
+import { createTestDesktopApplication as createDesktopApplication } from './test-project.fixture.js';
 import { createNodeJsonStore } from '@drawloom/node-host';
 import { createSqliteConversationHistory } from '@drawloom/sqlite-conversation-history';
 import { ProjectSchema } from '../src/lib/protocol.js';

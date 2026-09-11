@@ -4,7 +4,7 @@
   import type { DesktopViewModel } from './view-model.svelte.js';
   let { vm }: { vm: DesktopViewModel } = $props();
   const sidebar = Sidebar.useSidebar();
-  function showPane(pane: 'settings' | 'plugins') { vm.primaryView = pane; sidebar.setOpenMobile(false); }
+  function showPane(pane: 'settings' | 'plugins' | 'projects') { vm.primaryView = pane; sidebar.setOpenMobile(false); }
 </script>
 
 {#snippet navigation()}
@@ -17,8 +17,13 @@
   </Sidebar.Header>
   <Sidebar.Content>
     <Sidebar.Group>
-      <Sidebar.GroupLabel>Workspaces</Sidebar.GroupLabel>
-      <Sidebar.Menu><Sidebar.MenuItem><Sidebar.MenuButton onclick={() => showPane('settings')}><FolderIcon aria-hidden="true" /><span>{vm.state?.workspace ?? 'Local workspace'}</span></Sidebar.MenuButton></Sidebar.MenuItem></Sidebar.Menu>
+      <Sidebar.GroupLabel>Projects</Sidebar.GroupLabel>
+      <Sidebar.Menu>
+        {#each vm.state?.projects ?? [] as project}<Sidebar.MenuItem><Sidebar.MenuButton title={project.directory} aria-current={project.id === vm.state?.selectedProjectId ? 'true' : undefined}>
+          {#snippet child({ props })}<StatefulButton {...props} variant="ghost" disabled={vm.busy} pending={vm.pendingCommand?.kind === 'select_project' && vm.pendingCommand.projectId === project.id} pendingLabel="Opening" onclick={async () => { if (await vm.selectProject(project.id)) sidebar.setOpenMobile(false); }}><FolderIcon aria-hidden="true" /><span>{project.name}{project.available ? '' : ' · unavailable'}</span></StatefulButton>{/snippet}
+        </Sidebar.MenuButton></Sidebar.MenuItem>{/each}
+        <Sidebar.MenuItem><Sidebar.MenuButton onclick={() => showPane('projects')}><PlusIcon aria-hidden="true" /><span>Add project</span></Sidebar.MenuButton></Sidebar.MenuItem>
+      </Sidebar.Menu>
     </Sidebar.Group>
     <Sidebar.Group>
       <Sidebar.GroupLabel>Workbenches</Sidebar.GroupLabel>
@@ -28,7 +33,7 @@
     </Sidebar.Group>
     <Sidebar.Group>
       <Sidebar.GroupLabel>Conversations</Sidebar.GroupLabel>
-      <Sidebar.Menu>{#each vm.state?.conversations ?? [] as conversation}<Sidebar.MenuItem><Sidebar.MenuButton class="justify-start" isActive={conversation.id === vm.state?.selectedId} title={conversation.title}>
+      <Sidebar.Menu>{#each vm.state?.conversations ?? [] as conversation}<Sidebar.MenuItem><Sidebar.MenuButton class="justify-start" isActive={conversation.id === vm.state?.selectedId} title={conversation.title + ' · ' + (vm.state?.projects.find(project => project.id === conversation.projectId)?.name ?? 'Unassigned')}>
         {#snippet child({ props })}<StatefulButton {...props} variant="ghost" disabled={vm.busy} pending={vm.pendingCommand?.kind === 'select_conversation' && vm.pendingCommand.conversationId === conversation.id} pendingLabel="Opening" onclick={async () => { if (await vm.select(conversation.id)) sidebar.setOpenMobile(false); }}><ChatIcon aria-hidden="true" /><span>{conversation.title}</span></StatefulButton>{/snippet}
       </Sidebar.MenuButton></Sidebar.MenuItem>{/each}</Sidebar.Menu>
     </Sidebar.Group>

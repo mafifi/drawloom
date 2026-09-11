@@ -1,4 +1,4 @@
-import { InstalledPackagesSchema, PackageInspectionSchema, PackageOAuthStatusSchema, type PackageAction, type PackageOAuthActionSchema } from './package-protocol.js';
+import { InstalledPackagesSchema, PackageInspectionSchema, PackageOAuthStatusSchema, PackageSettingsSchema, type PackageAction, type PackageOAuthActionSchema } from './package-protocol.js';
 import type { z } from 'zod';
 export function createPackageViewModel() {
   let root = $state(''), error = $state(''), pending = $state('');
@@ -41,9 +41,10 @@ export function createPackageViewModel() {
     refresh: () => run('refresh', async () => { installations = InstalledPackagesSchema.parse(await request()); }),
     inspect: () => run('inspect', async () => { inspection = PackageInspectionSchema.parse(await request({ action: 'inspect', root })); root = inspection.root; }),
     add: () => run('add', async () => { if (!inspection || inspection.root !== root) throw Error('Inspect this package first.'); installations = InstalledPackagesSchema.parse(await request({ action: 'add', root })); inspection = undefined; root = ''; }),
-    configure: (id: string, enabled: boolean, trustedBackend: boolean, servers?: string[]) => run(id, async () => {
+    configure: (id: string, enabled: boolean, trustedBackend: boolean, servers?: string[], approvedResourceOrigins?: string[]) => run(id, async () => {
       const current = installations.find(i => i.id === id); if (!current) throw Error('Installation unavailable');
-      installations = InstalledPackagesSchema.parse(await request({ action: 'configure', id, settings: { enabled, trustedBackend, servers: servers ?? current.servers } }));
+      const settings = PackageSettingsSchema.parse({ enabled, trustedBackend, servers: servers ?? current.servers, ...(approvedResourceOrigins ? { approvedResourceOrigins } : {}) });
+      installations = InstalledPackagesSchema.parse(await request({ action: 'configure', id, settings }));
     }),
   };
 }

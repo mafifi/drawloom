@@ -6,7 +6,7 @@ import { observed, observedRpc, observedToolGateway, instrumentApplication, obse
 import { createLocalToolGateway } from '@drawloom/local-tools';
 import { defineTool } from '@drawloom/tools';
 import { z } from 'zod';
-import { createDesktopApplication } from './application.js';
+import { createTestDesktopApplication as createDesktopApplication } from './test-project.fixture.js';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -14,6 +14,15 @@ import { activatePackage } from '@drawloom/local-plugin-packages';
 import { connectMcpApp } from './mcp-app.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import {fileResponse} from './file-response.js';
+test('file delivery records transferred bytes without file paths or content',async()=>{
+  exporter.reset();
+  const response=await fileResponse(new Request('http://localhost/api/files?path=SECRET'),{size:100,async *stream(){yield new Uint8Array(100);},async close(){}},{mediaType:'video/mp4',immutable:false});
+  await response.arrayBuffer();
+  const span=exporter.getFinishedSpans().find(s=>s.name==='host.file.deliver');
+  expect(span?.attributes['drawloom.file.bytes']).toBe(100);
+  expect(JSON.stringify(span?.attributes)).not.toContain('SECRET');
+});
 
 test('direct MCP App calls receive host trace context in standard metadata, never arguments', async () => {
   exporter.reset();

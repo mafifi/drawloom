@@ -17,6 +17,8 @@ import type { JsonStore, RpcTransport, JsonValue } from "@drawloom/host";
 import type { ToolExposure, ToolGateway, ToolBinding } from "@drawloom/tools";
 import { ToolContentSchema, type ToolContent } from '@drawloom/tools';
 export type CodexDriverOptions = {
+  /** Host-validated fixed project directory. Existing native continuity must match. */
+  workingDirectory?: string;
   /** Trusted display capture, separate from tool authority and native execution. */
   onToolContent?: CaptureToolContent;
   /** Read-only experimental plugin/list; disabled by default. */
@@ -85,6 +87,14 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             ? undefined
             : z.strictObject({ threadId: identifier, materialized: z.boolean().optional() }).parse(saved);
         const resume = previous && previous.materialized !== false;
+        if (resume && options.workingDirectory) {
+          const metadata = z.object({thread:z.object({cwd:z.string()})}).parse(
+            await rpc.request('thread/read',{threadId:previous.threadId,includeTurns:false}));
+          if(metadata.thread.cwd !== options.workingDirectory) {
+            await rpc.close();sessions.delete(input.sessionId);
+            return reject('provider_rejected','This native conversation belongs to a different project directory.');
+          }
+        }
         const config = {
           mcp_servers: options.projection?.(input.tools) ?? {},
           plugins: {},
@@ -99,6 +109,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               ? { threadId: previous.threadId, excludeTurns: true }
               : { ephemeral: false }),
             approvalPolicy: "on-request",
+            ...(options.workingDirectory ? { cwd: options.workingDirectory } : {}),
             ...(nativeReview ? { approvalsReviewer: 'user' } : {}),
             sandbox: "read-only",
             developerInstructions: input.context.text,
@@ -108,6 +119,10 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         const threadId = z
           .object({ thread: z.object({ id: identifier }) })
           .parse(opened).thread.id;
+        if(options.workingDirectory && z.object({thread:z.object({cwd:z.string()})}).parse(opened).thread.cwd !== options.workingDirectory) {
+          await rpc.close();sessions.delete(input.sessionId);
+          return reject('provider_rejected','Codex did not confirm the selected project directory.');
+        }
         if (nativeReview && record.parse(opened).approvalsReviewer !== 'user') {
           await rpc.close(); sessions.delete(input.sessionId);
           return reject('provider_rejected', 'Codex did not confirm the requested native reviewer. No operation was started.');

@@ -4,7 +4,7 @@ import type { JsonValue, JsonStore } from "@drawloom/host";
 import { defineTool } from "@drawloom/tools";
 import { createLocalToolGateway } from "@drawloom/local-tools";
 import { createDesktopEvidence } from "./evidence.js";
-import { createDesktopApplication } from "./application.js";
+import { createTestDesktopApplication as createDesktopApplication } from './test-project.fixture.js';
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";

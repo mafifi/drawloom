@@ -37,6 +37,15 @@ refers to the package, and `PLUGIN_DATA` to that installation's data directory.
 The host does not install executables, dependencies or models on the user's behalf.
 Package authors own executable prerequisites and their configuration contract.
 
+Proposed [ADR 0020](../adr/0020-directory-backed-projects-and-file-delivery.md)
+keeps installation/trust/configuration and OAuth global while activating
+connections and backend instances for each selected project. `PLUGIN_DATA` and
+backend JSON keys are installation/project-scoped. The backend's fixed
+`project` context supplies the validated working directory. Standard server
+launch declarations are not silently rewritten; authors still own their paths
+and explicit working-folder configuration. Global OAuth disconnect/client
+replacement closes the server connection in every already-created project.
+
 Tool input schemas are validated before dispatch. Model-visible tools still need
 Drawloom grants and native review; app-only tools remain outside model exposure.
 An MCP error result is failed execution evidence, not a successful output merely
@@ -106,6 +115,25 @@ The browser receives only MCP Apps messages and resources. Compiled Svelte HTML
 is suitable, but it must not import these host capability objects or rely on a
 Drawloom-specific browser protocol. Build artifacts must work outside the source
 checkout; workspace imports do not demonstrate distributable packages.
+
+The ADR 0020 host collects exact `resourceDomains` during activation and origins
+from recognised MCP image/audio/video resource links into one global media policy.
+No second workbench approval is required. Existing installation media settings
+and `DRAWLOOM_MEDIA_ORIGINS` provide explicit seeds. Inspection executes nothing
+and does not change the list. The policy stores origins and declaring identities,
+not signed file URLs. It persists declarations for cached/offline references.
+Its revision changes only when the effective origin set changes. Every workbench
+can load media from these origins; reference sharing still belongs to the workflow.
+An outdated open UI offers an explicit reopen action, never a silent restart.
+Shared permission does not allow external scripts, network API connections, frame
+origins or new iframe permissions. Fonts/styles remain limited to the UI's own
+declarations. The integration owns URL renewal, credentials and preservation.
+Relative media URLs resolve through the open view's project-only base URL;
+ordinary standard MCP resource reads remain bounded whole-content reads. Neither
+a returned URI nor a declared origin creates a general host proxy. Unknown prose
+URLs and arbitrary JSON do not register sources. “Declared” is not a content-safety
+certification. The shared-domain policy is a Drawloom host choice, not an MCP
+Apps portability guarantee.
 
 ### Preconfigured OAuth clients
 

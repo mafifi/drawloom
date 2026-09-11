@@ -1,10 +1,10 @@
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { mkdir } from 'node:fs/promises';
 import { z } from 'zod';
 import { createInstallationStore } from './plugin-installations.js';
 import { loadInstalledPackages } from './plugin-packages.js';
 import { createElicitationPresenter } from './elicitation.js';
-import { PackageActionSchema, PackageInspectionSchema } from '../src/lib/package-protocol.js';
+import { PackageActionSchema, PackageInspectionSchema, ResourceOriginSchema } from '../src/lib/package-protocol.js';
 import { createPluginCredentialStore } from './plugin-credentials.js';
 import { createPluginOAuthManager } from './plugin-oauth.js';
 import { readClientRegistration } from './plugin-registration.js';
@@ -13,9 +13,11 @@ import { PackageOAuthActionSchema } from '../src/lib/package-protocol.js';
 import { createSqliteConversationHistory } from '@drawloom/sqlite-conversation-history';
 import { HistoryPageOptionsSchema, HistoryChangeOptionsSchema, type HistoryEntry, type HistoryPageOptions, type HistoryChangeOptions } from '@drawloom/conversation-history';
 import { createHistoryCoordinator } from './history-coordinator.js';
+import { bindProjectDirectory, verifyProjectDirectory } from './projects.js';
 import { createResourceRecovery } from './resource-recovery.js';
 import {
   createNodeJsonStore,
+  createNodeAssetStore,
   createStdioTransport,
   codexCommand,
   createMcpToolServer,
@@ -44,8 +46,10 @@ import {
   DesktopViewInteractionSchema,
   DesktopViewSessionSchema,
   DesktopCatalogueSchema,
+  ResourceReadSchema,
   type DesktopCatalogue,
   type DesktopSnapshot,
+  type DirectoryProject,
 } from "../src/lib/protocol.js";
 import { createTextController } from "./text-controller.js";
 import {
@@ -62,6 +66,7 @@ import { createDesktopEvidence } from "./evidence.js";
 import type { ConnectedMcpApp } from './mcp-app.js';
 import { createViewContext } from './view-context.js';
 import { createResourceContent } from './resource-content.js';
+import { createMediaPolicy, remoteMediaUrl } from './media-policy.js';
 import { observed, observeOutcome, observedRpc, observedToolGateway, observedTools, observedAssets, instrumentApplication, createOperationTelemetry, observeCache } from './telemetry.js';
 
 type Live = {
@@ -70,11 +75,24 @@ type Live = {
   active?: string;
   close: () => Promise<void>;
 };
+export async function retireCreatedRuntimes<T>(
+  runtimes: ReadonlyMap<string, Promise<T>>,
+  retire: (runtime: T) => Promise<void>,
+) {
+  const retired = new Map<string, Promise<T>>();
+  while (true) {
+    const created = [...runtimes].filter(([key, runtime]) => retired.get(key) !== runtime);
+    if (!created.length) return;
+    await Promise.all(created.map(async ([, runtime]) => retire(await runtime)));
+    for (const [key, runtime] of created) retired.set(key, runtime);
+  }
+}
 export async function createDesktopApplication(
   root: string,
-  options: { experimentalPluginDiscovery?: boolean } = {},
+  options: { experimentalPluginDiscovery?: boolean; mediaOrigins?: readonly string[] } = {},
 ) {
   const operationTelemetry = createOperationTelemetry();
+  const mediaOrigins = z.array(ResourceOriginSchema).parse(options.mediaOrigins ?? []);
   await mkdir(root, { recursive: true, mode: 0o700 });
   const history = createSqliteConversationHistory(join(root, 'history.sqlite'));
   const writers = new Map<string, ReturnType<typeof createHistoryCoordinator>>();
@@ -84,26 +102,18 @@ export async function createDesktopApplication(
     return found;
   }
   const store = createNodeJsonStore(join(root, "state"));
+  const mediaPolicy = await createMediaPolicy(store,mediaOrigins);
   const assets = observedAssets(createDesktopAssets(join(root, "assets")));
-  const text = await createTextController(store);
-  const controllers = new Map<string, OperatorController>([["text", text]]);
   let project = ProjectSchema.parse(
     (await store.get("project")) ?? {
       version: 1,
-      conversations: [
-        {
-          id: crypto.randomUUID(),
-          title: "A clearer introduction",
-          workbenchId: "text",
-          provider: "synthetic",
-        },
-      ],
-      selectedId: "pending",
+      conversations: [],
+      selectedId: "",
       assets: [],
     },
   );
   if (project.selectedId === "pending")
-    project.selectedId = project.conversations[0]!.id;
+    project.selectedId = project.conversations[0]?.id ?? '';
   const live = new Map<string, Live>();
   const discoveryConnections = new Map<string, ReturnType<typeof createDiscoveryCache<Live>>>();
   const submissions = new Map<string, { text: string; assets: Asset[]; selections: NonNullable<HistoryEntry['selections']>; resources: NonNullable<HistoryEntry['resources']> }[]>();
@@ -130,6 +140,7 @@ export async function createDesktopApplication(
       recovery = evidenceFor(id).then(sink => createResourceRecovery(sink.activity(), async result => {
         if (result.outcome.status !== 'ok' || !result.outcome.content) return;
         const tool = sink.toolFor(result.invocationId);
+        const { packages } = await runtimeForConversation(id);
         const source = tool ? packages.toolSources.get(tool) ?? 'drawloom' : 'drawloom';
         await resourceCollector(id).capture({ id: 'tool-resource:' + result.invocationId, source,
           readable: () => packages.canReadSource(source),
@@ -149,23 +160,23 @@ export async function createDesktopApplication(
     if (await recoverResources(id)) await writer(id).synchronize(reader, direction);
   }
   const opening = new Map<string, Promise<Live>>();
-  const grants = new Map<string, Set<string>>();
   let notice = 'Conversation display is saved locally. Provider transcripts and execution remain with the provider.';
   let projectWrites: Promise<unknown> = Promise.resolve();
   const persist = () => {
-    const copy = structuredClone(project);
+    const copy = JSON.parse(JSON.stringify(project)) as JsonValue;
     const next = projectWrites.then(() => store.set('project', copy));
     projectWrites = next.catch(() => {}); return next;
   };
   await persist();
   function resourceCollector(conversationId: string) {
     return createResourceContent({
-      assets: { read: assets.read, put: async (bytes, mediaType) => {
+      assets: { ...assets, put: async (bytes, mediaType) => {
         const asset = await assets.put(bytes, mediaType);
         if (!project.assets.some(a => a.key === asset.key)) project.assets.push(asset);
         await persist(); return asset;
       } },
       knownAsset: key => project.assets.find(a => a.key === key),
+      declaredMedia: (source,content) => mediaPolicy.capture(source,content),
       existing: id => history.get(conversationId, id),
       save: async entry => {
         await writer(conversationId).write(entry);
@@ -179,7 +190,12 @@ export async function createDesktopApplication(
             set: (key: string, value: JsonValue) => store.set(key, value),
           },
           assets: {
-            read: assets.read,
+            ...assets,
+            putStream: async (chunks: AsyncIterable<Uint8Array>, mediaType: string, options?: { signal?: AbortSignal }) => {
+              const asset = await assets.putStream(chunks, mediaType, options);
+              if (!project.assets.some(a => a.key === asset.key)) project.assets.push(asset);
+              await persist(); return asset;
+            },
             put: async (bytes: Uint8Array, mediaType: string) => {
               const asset = await assets.put(bytes, mediaType);
               if (!project.assets.some((a) => a.key === asset.key))
@@ -193,13 +209,59 @@ export async function createDesktopApplication(
   let oauthRedirect = '';
   const oauth = createPluginOAuthManager({ credentials: await createPluginCredentialStore(), redirectUrl: () => oauthRedirect });
   async function oauthConnection(id: string, serverName: string) {
+    const { packages } = await selectedRuntime();
     const server = packages.activeServer(id, serverName);
     if (!server) throw Error('Activate this installation and restart before connecting');
     if (server.config.type !== 'streamable-http') throw Error('This server does not use Drawloom HTTP authentication');
     return oauth.connection({ installationId: id, serverName, serverUrl: server.config.url });
   }
   const elicitation = createElicitationPresenter(operationId => project.conversations.find(c => live.get(c.id)?.active === operationId)?.id);
-  const packages = await loadInstalledPackages({ root, installations: installations.startup, host: compositionContext,
+  const runtimes = new Map<string, Promise<Awaited<ReturnType<typeof createRuntime>>>>();
+  function runtimeFor(binding?: DirectoryProject) {
+    const key = binding?.id ?? 'legacy';
+    let runtime = runtimes.get(key);
+    if (!runtime) { runtime = createRuntime(binding); runtimes.set(key, runtime); }
+    const current = runtime;
+    return current.then(async value => {
+      if (!binding || value.activated || !await verifyProjectDirectory(binding, root).then(() => true, () => false)) return value;
+      // An offline display placeholder has never activated installed code.
+      // Activate it once the original directory returns, not by replacing an
+      // already-running project. Concurrent callers share the same startup.
+      const latest = runtimes.get(key)!;
+      if (latest !== current) return latest;
+      const starting = value.packages.close().then(() => createRuntime(binding));
+      runtimes.set(key, starting);
+      return starting;
+    });
+  }
+  function selectedRuntime() { return runtimeFor(project.projects.find(p => p.id === project.selectedProjectId)); }
+  async function disconnectPackageRuntimes(installationId: string, serverName: string) {
+    await retireCreatedRuntimes(runtimes, runtime => runtime.packages.disconnect(installationId, serverName));
+  }
+  function runtimeForConversation(id: string) {
+    const conversation = project.conversations.find(c => c.id === id);
+    if (!conversation) throw Error('Conversation unavailable');
+    return runtimeFor(project.projects.find(p => p.id === conversation.projectId));
+  }
+  async function requireProject(id: string) {
+    const conversation = project.conversations.find(c => c.id === id);
+    const binding = project.projects.find(p => p.id === conversation?.projectId);
+    if (!binding) throw Error('Assign a project directory before continuing this conversation');
+    await verifyProjectDirectory(binding, root);
+    return binding;
+  }
+  async function createRuntime(binding?: DirectoryProject) {
+    const runtimeRoot = binding ? join(root, 'projects', binding.id) : root;
+    const runtimeStore = binding ? createNodeJsonStore(join(runtimeRoot, 'state')) : store;
+    const text = await createTextController(runtimeStore);
+    const controllers = new Map<string, OperatorController>([['text', text]]);
+    const grants = new Map<string, Set<string>>();
+    // Installing remains global. Only connections and working state are scoped.
+    const available = binding ? await verifyProjectDirectory(binding, root).then(() => true, () => false) : false;
+    const packages = await loadInstalledPackages({ root: runtimeRoot, installations: available ? installations.startup : [],
+    ...(binding ? { project: { id: binding.id, directory: binding.directory } } : {}),
+    mediaPolicy,
+    host: { ...compositionContext, store: runtimeStore },
     builtins: [{ plugin: textPlugin, config: {} }],
     elicitation: elicitation.request,
     authProviderFor: installation => server => oauth.connection({ installationId: installation.id, serverName: server.name, serverUrl: server.config.url }).provider,
@@ -207,19 +269,19 @@ export async function createDesktopApplication(
       nextInvocationId: () => crypto.randomUUID(),
       policy: (operationId, name) => {
         const owner = project.conversations.find(c => live.get(c.id)?.active === operationId);
-        return Boolean(owner && workbenchIds.includes(owner.workbenchId) && grants.get(owner.workbenchId)?.has(name));
+        return Boolean(owner && owner.projectId === binding?.id && workbenchIds.includes(owner.workbenchId) && grants.get(owner.workbenchId)?.has(name));
       },
       evidence: { record: async record => {
         const operationId = record.kind === 'started' ? record.operationId : record.result.operationId;
         const owner = project.conversations.find(c => live.get(c.id)?.active === operationId);
-        if (!operationId || !owner || !workbenchIds.includes(owner.workbenchId)) throw Error('No active operation owns this tool invocation');
+        if (!operationId || !owner || owner.projectId !== binding?.id || !workbenchIds.includes(owner.workbenchId)) throw Error('No active operation owns this tool invocation');
         await (await evidenceFor(owner.id)).record(record);
         if (record.kind === 'finished') await (await recoveryFor(owner.id)).record(record.result);
       } },
     }), operationTelemetry),
   });
   const packageToolIds = packages.toolIds;
-  let packageGrants = z.record(z.string(), z.array(z.string())).parse((await store.get('package-grants')) ?? {});
+  const packageGrants = z.record(z.string(), z.array(z.string())).parse((await runtimeStore.get('package-grants')) ?? {});
   const registry = createPluginRegistry(
     [{ plugin: textPlugin, config: {} }, ...packages.installs],
     ["agent", "host"],
@@ -244,15 +306,19 @@ export async function createDesktopApplication(
       // to arbitrary startup transports.
     }
   } catch (error) { await Promise.all([...mcpApps.values()].map(app => app.close())); throw error; }
-  function viewTarget(raw: unknown) {
+    return { packages, packageToolIds, packageGrants, registry, controllers, grants, text, mcpApps, store: runtimeStore, activated: available };
+  }
+  async function viewTarget(raw: unknown) {
     const target = ViewTargetSchema.parse(raw);
     const conversation = project.conversations.find(c => c.id === project.selectedId);
+    const { registry } = await runtimeForConversation(target.conversationId);
     const view = registry.views.find(v => v.id === target.viewId);
     if (target.conversationId !== conversation?.id || !view || view.workbenchId !== conversation.workbenchId)
       throw Error('View unavailable');
     return view;
   }
-  async function refreshGrants(workbenchId: string) {
+  async function refreshGrants(workbenchId: string, runtime: Awaited<ReturnType<typeof createRuntime>>) {
+    const { controllers, grants, packageGrants, packageToolIds } = runtime;
     const state = OperatorSnapshotSchema.parse(
       await controllers.get(workbenchId)!.snapshot(),
     );
@@ -263,6 +329,7 @@ export async function createDesktopApplication(
     return state;
   }
   async function connect(conversationId: string): Promise<Live> {
+    const binding = await requireProject(conversationId);
     const existing = live.get(conversationId);
     if (existing) return existing;
     const pending = opening.get(conversationId);
@@ -272,6 +339,8 @@ export async function createDesktopApplication(
         (c) => c.id === conversationId,
       );
       if (!conversation) throw Error("Conversation unavailable");
+      const runtime = await runtimeForConversation(conversationId);
+      const { registry, controllers, packageToolIds, grants, text } = runtime;
       const workbench = registry.workbenches.find(
         (w) => w.id === conversation.workbenchId,
       );
@@ -281,7 +350,7 @@ export async function createDesktopApplication(
         throw Error(
           "Synthetic mode is available only in Text studio. Choose Codex for this workbench.",
         );
-      await refreshGrants(workbench.id);
+      await refreshGrants(workbench.id, runtime);
       const messages = new Map<string, Omit<HistoryEntry, 'position'>>();
       const signals: DesktopSnapshot["signals"] = [];
       const historyWriter = writer(conversationId);
@@ -318,6 +387,7 @@ export async function createDesktopApplication(
               return "Saved your text as a draft. You can edit, compare and review it in the artifact pane.";
             })
           : createCodexDriver({
+              workingDirectory: binding.directory,
               experimentalPluginDiscovery: options.experimentalPluginDiscovery === true,
               onToolContent: async result => {
                 // Our gateway already captured its correlated execution result.
@@ -328,7 +398,7 @@ export async function createDesktopApplication(
               connect: async () =>
                 observedRpc(createStdioTransport({
                   ...codexCommand(),
-                  cwd: root,
+                  cwd: binding.directory,
                   maxMessageBytes: nativeRpcMessageByteLimit,
                 })),
               store,
@@ -510,12 +580,15 @@ export async function createDesktopApplication(
     bindOAuthRedirect: (url: string) => { oauthRedirect = url; },
     oauthCallback: (url: URL) => oauth.callback(url),
     async packageOAuth(raw: unknown) {
+      const { packages } = await selectedRuntime();
       const input = PackageOAuthActionSchema.parse(raw);
       const connection = await oauthConnection(input.id, input.server);
       if (input.action === 'configure-client') {
         if ([...live.values()].some(session => session.active)) throw Error('Wait for current work to finish before configuring authentication');
         const registration = await readClientRegistration(input.registrationFile);
-        await packages.disconnect(input.id, input.server);
+        const disconnected = await connection.disconnect();
+        await disconnectPackageRuntimes(input.id, input.server);
+        if (disconnected.state === 'failed') throw Error('Disconnect existing credentials before replacing registration');
         return connection.configureClient(registration);
       }
       if (input.action === 'status') return connection.status();
@@ -524,13 +597,14 @@ export async function createDesktopApplication(
       if (input.action === 'disconnect') {
         // Drop the authenticated MCP session as well as credentials.
         try { return await connection.disconnect(); }
-        finally { await packages.disconnect(input.id, input.server); }
+        finally { await disconnectPackageRuntimes(input.id, input.server); }
       }
       if ([...live.values()].some(session => session.active)) throw Error('Wait for current work to finish before reconnecting');
       return { ...connection.status(), ...await packages.reconnect(input.id, input.server) };
     },
-    packageStatuses: () => packages.statuses,
+    packageStatuses: async () => (await selectedRuntime()).packages.statuses,
     async installedPackages() {
+      const { packages } = await selectedRuntime();
       return Promise.all(installations.list().map(async ({ configuration: _configuration, ...installation }) => {
         const current = packages.statuses.find(s => s.id === installation.id);
         let availableServers = installation.servers.map(name => ({ name, transport: 'unknown' }));
@@ -558,6 +632,7 @@ export async function createDesktopApplication(
       return this.installedPackages();
     },
     async discover(conversationId: string, refresh = false, cursor?: string): Promise<DesktopCatalogue> {
+      const { packages, registry, packageToolIds, mcpApps } = await runtimeForConversation(conversationId);
       const conversation = project.conversations.find(c => c.id === conversationId);
       if (!conversation) throw Error('Conversation unavailable');
       const workbench = registry.workbenches.find(w => w.id === conversation.workbenchId)!;
@@ -625,6 +700,7 @@ export async function createDesktopApplication(
       const entry = catalogue.entries.find(e => e.id === selection.id && e.revision === selection.revision && e.kind === 'resource' && e.readable);
       if (!entry) throw Error('Resource unavailable');
       if (entry.id.startsWith('package-resource:')) {
+        const { packages } = await runtimeForConversation(conversationId);
         const result = await packages.readDiscoveredResource(selection);
         return resourceCollector(conversationId).capture({ id, source: entry.origin, content: result.contents.map(resource => ({ type: 'resource' as const, resource })) });
       }
@@ -633,6 +709,11 @@ export async function createDesktopApplication(
       return resourceCollector(conversationId).capture({ id, source: entry.origin, content: result.value });
     },
     assets,
+    async openWorkingFile(conversationId: string, path: string) {
+      const binding = await requireProject(conversationId);
+      // This is a read-only store operation; viewing never registers an asset.
+      return createNodeAssetStore(binding.directory, binding).open(path);
+    },
     async historyPage(conversationId: string, raw: HistoryPageOptions = {}) {
       if (!project.conversations.some(c => c.id === conversationId)) throw Error('Conversation unavailable');
       const options = HistoryPageOptionsSchema.parse(raw);
@@ -653,14 +734,14 @@ export async function createDesktopApplication(
       const error = writer(conversationId).error;
       return error ? { ...changes, status: { ...changes.status, sync: 'error' as const, message: error } } : writer(conversationId).syncing ? { ...changes, status: { ...changes.status, sync: 'syncing' as const } } : changes;
     },
-    viewSession(raw: unknown) {
+    async viewSession(raw: unknown) {
       const input = DesktopViewSessionSchema.parse(raw);
       const target = { conversationId: input.conversationId, viewId: input.viewId };
       if (input.action === 'open') {
-        viewTarget(target);
+        await viewTarget(target);
         viewContext.clear();
         viewMount = { ...target, mountId: crypto.randomUUID() };
-        return { mountId: viewMount.mountId };
+        return { mountId: viewMount.mountId, mediaRevision: mediaPolicy.snapshot().revision };
       }
       // A late teardown must not clear a replacement mount's reference material.
       if (viewMount?.mountId === input.mountId && viewMount.conversationId === input.conversationId && viewMount.viewId === input.viewId) {
@@ -669,13 +750,37 @@ export async function createDesktopApplication(
       }
       return {};
     },
-    viewHtml(raw: unknown) {
-      const view = viewTarget(raw);
+    async viewHtml(raw: unknown) {
+      const target = ViewTargetSchema.parse(raw);
+      const view = await viewTarget(target);
+      const { mcpApps } = await runtimeForConversation(target.conversationId);
       return mcpApps.get(view.id)!.html;
+    },
+    async viewPresentation(raw: unknown) {
+      const target=ViewTargetSchema.parse(raw);
+      const view=await viewTarget(target);
+      if(!viewMount || viewMount.conversationId!==target.conversationId || viewMount.viewId!==target.viewId)throw Error('View unavailable');
+      await requireProject(target.conversationId);
+      const {mcpApps}=await runtimeForConversation(target.conversationId);
+      const app=mcpApps.get(view.id);
+      if(!app)throw Error('View unavailable');
+      return {html:app.html,resourceDomains:mediaPolicy.snapshot().sources.map(s=>s.origin),styleDomains:app.resourceDomains,mountId:viewMount.mountId};
+    },
+    async remoteMedia(raw: unknown) {
+      const input=ResourceReadSchema.parse(raw);
+      if(!project.conversations.some(c=>c.id===input.conversationId))throw Error('Resource unavailable');
+      const entry=await history.get(input.conversationId,input.entryId);
+      const resource=entry?.resources?.find(r=>r.id===input.resourceId);
+      if(!resource || resource.asset || !resource.uri)throw Error('Resource unavailable');
+      const url=remoteMediaUrl(resource.uri,resource.mimeType);
+      if(!url || !mediaPolicy.allows(url.href))throw Error('Resource unavailable');
+      return {url:url.href,mediaType:resource.mimeType!,title:resource.title,resourceDomains:mediaPolicy.snapshot().sources.map(s=>s.origin)};
     },
     async viewRequest(raw: unknown) {
       const { request, ...target } = DesktopViewRequestSchema.parse(raw);
-      const view = viewTarget(target);
+      await requireProject(target.conversationId);
+      const view = await viewTarget(target);
+      const { mcpApps } = await runtimeForConversation(target.conversationId);
       const app = mcpApps.get(view.id)!;
       const result = await app.callTool(request);
       if (result.content.some(b => b.type !== 'text')) {
@@ -687,11 +792,13 @@ export async function createDesktopApplication(
       return result;
     },
     async resourcePage(conversationId: string, viewId: string, cursor?: string) {
-      viewTarget({ conversationId, viewId });
+      await viewTarget({ conversationId, viewId });
+      const { mcpApps } = await runtimeForConversation(conversationId);
       return mcpApps.get(viewId)!.listResources(cursor);
     },
     async openListedResource(conversationId: string, viewId: string, uri: string) {
-      viewTarget({ conversationId, viewId });
+      await viewTarget({ conversationId, viewId });
+      const { mcpApps } = await runtimeForConversation(conversationId);
       const app = mcpApps.get(viewId)!;
       if (!app.canRead(uri)) throw Error('Resource unavailable');
       const id = `listed-resource:${Bun.hash(viewId + ':' + uri).toString(16)}`;
@@ -702,6 +809,7 @@ export async function createDesktopApplication(
         content: result.contents.filter(r => r.uri === uri).map(r => ({ type: 'resource', resource: r })) });
     },
     async readResource(conversationId: string, entryId: string, resourceId: string) {
+      const { packages, mcpApps } = await runtimeForConversation(conversationId);
       if (!project.conversations.some(c => c.id === conversationId)) throw Error('Conversation unavailable');
       const entry = await history.get(conversationId, entryId);
       const resource = entry?.resources?.find(r => r.id === resourceId);
@@ -715,7 +823,7 @@ export async function createDesktopApplication(
         content = result.value;
       } else if (resource.source.startsWith('app:')) {
         const viewId = resource.source.slice(4);
-        viewTarget({ conversationId, viewId });
+        await viewTarget({ conversationId, viewId });
         const result = await mcpApps.get(viewId)!.readResource(resource.uri, true);
         content = result.contents.filter(r => r.uri === resource.uri).map(r => ({ type: 'resource', resource: r }));
       } else if (resource.source.startsWith('package:')) {
@@ -732,7 +840,7 @@ export async function createDesktopApplication(
     },
     async viewInteraction(raw: unknown): Promise<{ isError?: boolean }> {
       const { request, mountId, ...target } = DesktopViewInteractionSchema.parse(raw);
-      viewTarget(target);
+      await viewTarget(target);
       if (viewMount?.mountId !== mountId || viewMount.conversationId !== target.conversationId || viewMount.viewId !== target.viewId) throw Error('View unavailable');
       if (request.method === 'ui/update-model-context') {
         viewContext.set(target, request.params);
@@ -751,26 +859,31 @@ export async function createDesktopApplication(
       } catch { return { isError: true }; }
     },
     async snapshot() {
+      const { packages, registry, controllers, packageToolIds, packageGrants } = await selectedRuntime();
       const conversation = project.conversations.find(
         (c) => c.id === project.selectedId,
-      )!;
+      );
       const state = live.get(project.selectedId);
-      const controller = controllers.get(conversation.workbenchId);
+      const controller = conversation ? controllers.get(conversation.workbenchId) : undefined;
       const original = controller ? await controller.snapshot() : unavailable;
-      const operator = { ...original, grants: [...original.grants, ...[...packageToolIds].map(toolName => ({ toolName, allowed: packageGrants[conversation.workbenchId]?.includes(toolName) ?? false }))] };
-      const retained = await evidenceFor(conversation.id);
+      const operator = { ...original, grants: [...original.grants, ...[...packageToolIds].map(toolName => ({ toolName, allowed: conversation ? packageGrants[conversation.workbenchId]?.includes(toolName) ?? false : false }))] };
+      const retained = conversation ? await evidenceFor(conversation.id) : undefined;
       return DesktopSnapshotSchema.parse({
+        mediaPolicy: mediaPolicy.snapshot(),
         toolLabels: [...packages.toolPresentation].filter(([, tool]) => tool.available).map(([toolName, tool]) => ({ toolName, title: tool.name, origin: tool.origin })),
-        workspace: "Local workspace",
+        workspace: project.projects.find(p => p.id === project.selectedProjectId)?.name ?? 'Choose a project',
+        projects: await Promise.all(project.projects.map(async ({ device: _device, inode: _inode, ...p }) => ({ ...p,
+          available: await verifyProjectDirectory({ ...p, device: _device, inode: _inode }, root).then(() => true, () => false) }))),
+        ...(project.selectedProjectId ? { selectedProjectId: project.selectedProjectId } : {}),
         conversations: project.conversations,
         workbenches: registry.workbenches,
         views: registry.views,
         selectedId: project.selectedId,
         signals: state?.signals ?? [],
-        activity: retained.activity().map(result => result.outcome.status === 'ok'
+        activity: (retained?.activity() ?? []).map(result => result.outcome.status === 'ok'
           ? { ...result, outcome: { status: 'ok', text: result.outcome.text, value: result.outcome.value } } : result),
-        pendingTools: retained.pending(),
-        elicitations: elicitation.pending(conversation.id),
+        pendingTools: retained?.pending() ?? [],
+        elicitations: conversation ? elicitation.pending(conversation.id) : [],
         operator,
         ...(state?.active ? { activeOperation: state.active } : {}),
         controls: {
@@ -784,12 +897,12 @@ export async function createDesktopApplication(
           summary: "Registered at startup. Tool grants are separate.",
         })),
         notice,
-        activeContext: viewContext.forConversation(conversation.id),
+        activeContext: conversation ? viewContext.forConversation(conversation.id) : '',
       });
     },
     async restore() {
       const c = project.conversations.find((c) => c.id === project.selectedId);
-      if (c?.provider === "codex") {
+      if (c?.provider === "codex" && c.projectId) {
         void connect(c.id).catch(async () => {
           await writer(c.id).unavailable();
           notice =
@@ -799,7 +912,36 @@ export async function createDesktopApplication(
     },
     async command(raw: unknown) {
       const command = DesktopCommandSchema.parse(raw);
-      if (command.kind === "create_conversation") {
+      if (command.kind === 'add_project') {
+        const binding = await bindProjectDirectory(command.directory, root);
+        const existing = project.projects.find(p => p.directory === binding.directory && p.device === binding.device && p.inode === binding.inode);
+        const selected = existing ?? { ...binding, id: crypto.randomUUID(), name: command.name ?? basename(binding.directory) };
+        if (!existing) project.projects.push(selected);
+        project.selectedProjectId = selected.id;
+        project.selectedId = project.conversations.find(c => c.projectId === selected.id)?.id ?? '';
+        viewContext.clear(); viewMount = undefined; await persist();
+      } else if (command.kind === 'select_project') {
+        if (!project.projects.some(p => p.id === command.projectId)) throw Error('Project unavailable');
+        project.selectedProjectId = command.projectId;
+        project.selectedId = project.conversations.find(c => c.projectId === command.projectId)?.id ?? '';
+        viewContext.clear(); viewMount = undefined; await persist(); await this.restore();
+      } else if (command.kind === 'assign_project') {
+        const conversation = project.conversations.find(c => c.id === command.conversationId);
+        const binding = project.projects.find(p => p.id === command.projectId);
+        if (!conversation || conversation.projectId || !binding) throw Error('Only an unassigned conversation can be assigned');
+        await verifyProjectDirectory(binding, root);
+        // Assignment does not manufacture native continuity. The adapter checks
+        // saved native cwd before any resume and confirms cwd on opening.
+        conversation.projectId = binding.id;
+        try { if (conversation.provider === 'codex') await connect(conversation.id); }
+        catch(error) {delete conversation.projectId;throw error;}
+        project.selectedId = conversation.id; project.selectedProjectId = binding.id;
+        viewContext.clear(); viewMount = undefined; await persist();
+      } else if (command.kind === "create_conversation") {
+        const binding = project.projects.find(p => p.id === project.selectedProjectId);
+        if (!binding) throw Error('Choose a project directory before starting a conversation');
+        await verifyProjectDirectory(binding, root);
+        const { registry } = await runtimeFor(binding);
         if (!registry.workbenches.some((w) => w.id === command.workbenchId))
           throw Error("Workbench unavailable");
         const id = crypto.randomUUID();
@@ -807,6 +949,7 @@ export async function createDesktopApplication(
           id,
           title: "New conversation",
           workbenchId: command.workbenchId,
+          projectId: binding.id,
           provider: command.provider,
           reviewer: 'human',
         });
@@ -819,6 +962,9 @@ export async function createDesktopApplication(
         if (!project.conversations.some((c) => c.id === command.conversationId))
           throw Error("Conversation unavailable");
         project.selectedId = command.conversationId;
+        const selected = project.conversations.find(c => c.id === command.conversationId)!;
+        if (selected.projectId) project.selectedProjectId = selected.projectId;
+        else delete project.selectedProjectId;
         viewContext.clear();
         viewMount = undefined;
         await persist();
@@ -826,13 +972,18 @@ export async function createDesktopApplication(
       } else if (command.kind === 'elicitation') {
         elicitation.resolve(command.conversationId, command.requestId, command.result);
       } else if (command.kind === "operator") {
+        if(command.conversationId!==project.selectedId || project.conversations.find(c=>c.id===command.conversationId)?.workbenchId!==command.workbenchId)
+          throw Error('Conversation unavailable');
+        await requireProject(project.selectedId);
+        const runtime = await selectedRuntime();
+        const { controllers, packageToolIds, packageGrants } = runtime;
         if (command.command.kind === 'set_tool_grant' && packageToolIds.has(command.command.toolName)) {
           if (!controllers.has(command.workbenchId)) throw Error('Workbench unavailable');
           const selected = new Set(packageGrants[command.workbenchId] ?? []);
           if (command.command.allowed) selected.add(command.command.toolName); else selected.delete(command.command.toolName);
           const next = { ...packageGrants, [command.workbenchId]: [...selected] };
-          await store.set('package-grants', next); packageGrants = next;
-          await refreshGrants(command.workbenchId);
+          await runtime.store.set('package-grants', next); Object.assign(packageGrants, next);
+          await refreshGrants(command.workbenchId, runtime);
           return this.snapshot();
         }
         const controller = controllers.get(command.workbenchId);
@@ -841,12 +992,18 @@ export async function createDesktopApplication(
           await controller.dispatch(command.command),
         );
         if (result.status === "rejected") throw Error(result.message);
-        await refreshGrants(command.workbenchId);
+        await refreshGrants(command.workbenchId, runtime);
       } else {
-        const state = await connect(command.conversationId);
+        // Existing-operation controls must remain usable if a drive vanishes.
+        // They never open a new session; new work still verifies the directory.
+        const existingControl = command.kind === 'stop' || command.kind === 'approval' || command.kind === 'input';
+        const state = existingControl ? live.get(command.conversationId) : await connect(command.conversationId);
+        if (!state) throw Error('No active session for this conversation');
         const conversation = project.conversations.find(
           (c) => c.id === command.conversationId,
         )!;
+        const runtime = await runtimeForConversation(conversation.id);
+        const { registry } = runtime;
         if (command.kind === 'set_reviewer') {
           if (state.active) throw Error('Review mode can change only while idle');
           if (!state.session.reviewerModes.includes(command.reviewer)) throw Error('This provider does not support the selected review mode');
@@ -868,7 +1025,7 @@ export async function createDesktopApplication(
           if (result.status !== "ok") throw Error(result.failure.message);
         } else {
           const op = state.active ?? crypto.randomUUID();
-          const operator = await refreshGrants(conversation.workbenchId);
+          const operator = await refreshGrants(conversation.workbenchId, runtime);
           const catalogue = command.selections.length ? await this.discover(conversation.id) : undefined;
           const selected = [...new Map(command.selections.map(s => [s.id, s])).values()].map(selection => {
             const entry = catalogue?.entries.find(e => e.id === selection.id && e.revision === selection.revision);
@@ -974,16 +1131,21 @@ export async function createDesktopApplication(
       return this.snapshot();
     },
     async importAsset(bytes: Uint8Array, mediaType: string, name: string, conversationId = project.selectedId) {
+      async function* chunks() { yield bytes; }
+      return this.importAssetStream(chunks(), mediaType, name, conversationId);
+    },
+    async importAssetStream(chunks: AsyncIterable<Uint8Array>, mediaType: string, name: string, conversationId: string, signal?: AbortSignal) {
+      await requireProject(conversationId);
+      const { text, controllers } = await runtimeForConversation(conversationId);
       const workbenchId = project.conversations.find(
         (c) => c.id === conversationId,
       )?.workbenchId;
       if (!workbenchId) throw Error('Conversation unavailable');
       if (
-        bytes.length > browserImportByteLimit ||
         !browserImportTypes.has(mediaType)
       )
         throw Error("Unsupported or oversized file");
-      const asset = await assets.put(bytes, mediaType);
+      const asset = await assets.putStream(chunks, mediaType, { ...(signal ? { signal } : {}) });
       if (!project.assets.some((a) => a.key === asset.key))
         project.assets.push(asset);
       await persist();
@@ -1005,8 +1167,11 @@ export async function createDesktopApplication(
       await Promise.allSettled([...opening.values()]);
       await Promise.all([...live.values()].map((s) => s.close()));
       await Promise.all([...pumps]);
-      await Promise.all([...mcpApps.values()].map(app => app.close()));
-      await packages.close();
+      await Promise.all([...runtimes.values()].map(async pending => {
+        const runtime = await pending;
+        await Promise.all([...runtime.mcpApps.values()].map(app => app.close()));
+        await runtime.packages.close();
+      }));
       await Promise.all([...writers.values()].map(w => w.close()));
       await projectWrites;
       await history.close();

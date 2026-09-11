@@ -1,9 +1,9 @@
 import { expect, test, spyOn } from 'bun:test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, rename } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createNodeJsonStore } from '@drawloom/node-host';
-import { createDesktopApplication } from './application.js';
+import { createTestDesktopApplication as createDesktopApplication, addTestProject } from './test-project.fixture.js';
 import { ConversationSchema } from '../src/lib/protocol.js';
 import * as composition from './composition.js';
 import * as synthetic from '@drawloom/synthetic-agent';
@@ -28,6 +28,8 @@ test('conversation review mode persists separately and unsupported delegated sel
   ] });
   let app = await createDesktopApplication(root);
   try {
+    const selected=await addTestProject(app);
+    await app.command({kind:'assign_project',conversationId:'local',projectId:selected.selectedProjectId!});
     await expect(app.command({ kind: 'set_reviewer', conversationId: 'local', reviewer: 'delegated' })).rejects.toThrow('review');
     expect((await app.snapshot()).conversations.find(c => c.id === 'local')?.reviewer).toBe('human');
     await app.command({ kind: 'set_reviewer', conversationId: 'local', reviewer: 'human' });
@@ -83,8 +85,39 @@ test('rejected execute releases the startup lock for reviewer correction', async
   ] });
   const app = await createDesktopApplication(root);
   try {
+    const selected=await addTestProject(app);
+    await app.command({kind:'assign_project',conversationId:'local',projectId:selected.selectedProjectId!});
     await expect(app.command({ kind: 'send', conversationId: 'local', text: 'Rejected mode', attachmentKeys: [], contextArtifactIds: [] })).rejects.toThrow('provider rejected');
     expect((await app.snapshot()).activeOperation).toBeUndefined();
     await app.command({ kind: 'set_reviewer', conversationId: 'local', reviewer: 'human' });
   } finally { await app.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test('a missing project directory blocks new work but not stopping an existing operation',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'drawloom-missing-project-stop-'));
+  let finish!:()=>void;const completion=new Promise<void>(resolve=>{finish=resolve;});
+  const original=synthetic.createSyntheticDriver;
+  let interrupted=0;
+  const replacement=spyOn(synthetic,'createSyntheticDriver').mockImplementation(respond=>{
+    const driver=original(async(text,context)=>{await completion;return respond(text,context);});
+    const open=driver.openSession.bind(driver);
+    driver.openSession=async input=>{const result=await open(input);return result.status==='ok'?{...result,value:{...result.value,interrupt:async()=>{interrupted++;finish();return {status:'ok' as const,value:undefined};}}}:result;};
+    return driver;
+  });
+  let app:Awaited<ReturnType<typeof createDesktopApplication>>|undefined;
+  let working='';
+  try{
+    app=await createDesktopApplication(root);
+    const state=await app.snapshot();working=state.projects[0]!.directory;
+    const started=await app.command({kind:'send',conversationId:state.selectedId,text:'Synthetic delayed task',attachmentKeys:[],contextArtifactIds:[]});
+    expect(started.activeOperation).toBeTruthy();
+    await rename(working,working+'-offline');
+    await expect(app.command({kind:'send',conversationId:state.selectedId,text:'Do not run',attachmentKeys:[],contextArtifactIds:[]})).rejects.toThrow();
+    await app.command({kind:'stop',conversationId:state.selectedId});
+    expect(interrupted).toBe(1);
+    finish();
+    for(let i=0;i<100&&(await app.snapshot()).activeOperation;i++)await Bun.sleep(5);
+    expect((await app.snapshot()).activeOperation).toBeUndefined();
+    expect((await app.historyPage(state.selectedId)).entries.length).toBeGreaterThan(0);
+  }finally{finish();await app?.close();replacement.mockRestore();if(working)await rename(working+'-offline',working).catch(()=>{});await rm(root,{recursive:true,force:true});}
 });

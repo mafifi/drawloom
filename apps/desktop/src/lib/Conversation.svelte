@@ -11,6 +11,7 @@
     Separator,
     Textarea,
     Sidebar,
+    Select,
   } from "@drawloom/ui";
   import { PanelIcon, DocumentIcon } from "@drawloom/ui";
   import Composer from "./Composer.svelte";
@@ -21,6 +22,7 @@
   import type { DesktopViewModel } from "./view-model.svelte.js";
   let { vm }: { vm: DesktopViewModel } = $props();
   let inputValue = $state("{}");
+  let assignmentProjectId = $state('');
   let scroll: HTMLDivElement;
   async function earlier() {
     const anchor = [...scroll.querySelectorAll<HTMLElement>('[data-history-id]')].find(element => element.getBoundingClientRect().bottom >= scroll.getBoundingClientRect().top);
@@ -43,11 +45,11 @@
         {vm.state?.workbenches.find(
           (w) => w.id === vm.conversation?.workbenchId,
         )?.title ?? "Local workspace"}
-        <Badge variant="outline"
+        {#if vm.conversation}<Badge variant="outline"
           >{vm.conversation?.provider === "codex"
             ? "Codex"
             : "Synthetic mode"}</Badge
-        >
+        >{/if}
       </p>
     </div>
     <Button
@@ -62,6 +64,16 @@
   </header>
   <Separator />
   <div class="conversation-scroll" bind:this={scroll} aria-live="polite">
+    {#if vm.conversation && !vm.conversation.projectId}
+      <div class="flex flex-col items-start gap-3 py-4">
+        <p>This saved conversation has no project. Select a project to continue; its history remains available.</p>
+        <Select.Root type="single" bind:value={assignmentProjectId}><Select.Trigger aria-label="Project for saved conversation">{vm.state?.projects.find(project => project.id === assignmentProjectId)?.name ?? 'Select a project'}</Select.Trigger><Select.Content>{#each vm.state?.projects ?? [] as project}<Select.Item value={project.id} label={project.name} disabled={!project.available} />{/each}</Select.Content></Select.Root>
+        <StatefulButton disabled={vm.busy || !assignmentProjectId} pending={vm.pendingCommand?.kind === 'assign_project'} pendingLabel="Assigning project" onclick={() => vm.assignProject(assignmentProjectId)}>Assign project</StatefulButton>
+        <Button variant="ghost" onclick={() => { vm.primaryView = 'projects'; }}>Add project</Button>
+      </div>
+    {:else if vm.conversation && !vm.conversationProject?.available}
+      <Alert.Root><Alert.Description>This project folder is unavailable. Saved history remains readable; reconnect the folder to continue working.</Alert.Description></Alert.Root>
+    {/if}
     {#if vm.history.error || vm.history.status?.message}<Alert.Root role="status"><Alert.Description>{vm.history.error || vm.history.status?.message}</Alert.Description></Alert.Root>{/if}
     {#if vm.history.hasOlder}<StatefulButton variant="ghost" disabled={vm.history.loading} pending={vm.history.loading && vm.history.loadingEarlier} onclick={earlier}>Load earlier</StatefulButton>{/if}
     {#if !vm.history.atLatest}<StatefulButton variant="ghost" disabled={vm.history.loading} pending={vm.history.loading && !vm.history.loadingEarlier} onclick={() => vm.loadLatest()}>Back to latest</StatefulButton>{/if}
@@ -70,17 +82,20 @@
     {#if !vm.history.entries.length && !vm.history.loading}
       <Empty.Root class="welcome"
         ><Empty.Header
-          ><Empty.Title>A place to do the work</Empty.Title><Empty.Description
-            >Bring a draft, inspect the details, and choose what to keep.</Empty.Description
+          ><Empty.Title>{vm.conversation ? 'A place to do the work' : vm.selectedProject ? vm.selectedProject.name : 'Select a project'}</Empty.Title><Empty.Description
+            >{vm.conversation ? 'Bring a draft, inspect the details, and choose what to keep.' : 'Choose a project folder before starting a conversation.'}</Empty.Description
           ></Empty.Header
         ><Empty.Content
-          ><p class="text-muted-foreground">
+          >{#if !vm.conversation}
+            {#if vm.canCreate}<StatefulButton disabled={vm.busy} pending={vm.creationSource === 'new'} onclick={() => vm.create()}>New conversation</StatefulButton>{/if}
+            <Button variant="ghost" onclick={() => { vm.primaryView = 'projects'; }}>Add project</Button>
+          {:else}<p class="text-muted-foreground">
             {vm.conversation?.provider === "codex"
               ? "Your conversation continues through the local Codex process."
               : vm.canSend
                 ? "Synthetic mode saves your text as a draft without calling a model."
                 : "Local review is available. Synthetic agent messaging supports Text studio only."}
-          </p></Empty.Content
+          </p>{/if}</Empty.Content
         ></Empty.Root
       >
     {/if}

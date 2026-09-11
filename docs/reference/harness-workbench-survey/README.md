@@ -104,7 +104,7 @@ Drawloom's [current API](../foundation-api.md), [desktop boundary](../../design/
 | Tools and approvals | Bound tool invocation, policy, typed execution knowledge and evidence; approval choices retain provider values. | Verify composition, cancellation uncertainty and unsupported provider interactions. | Existing tool/agent boundary; strengthen proof before adding abstractions. |
 | Plugins and UI | Trusted startup composition, shared public shell and standard MCP Apps proof. | Lifetime ownership, readiness and explicit renderer support. | Keep ADR 0013. No in-process dynamic UI or alternative contract proposed. |
 | Artifacts and review | Managed assets, candidate identity, explicit review and immutable revision targets. | Distinguish live file, historical evidence, preview and selected candidate. | Challenge with video replacement/revision scenarios; private review policy stays private. |
-| Large media | Bounded whole-buffer asset contract; range reads currently load whole asset. | Streaming file transport and provider-specific media admission are separate concerns. | **Measure early:** bytes copied, memory, seek latency. Streaming is a candidate, not an approved contract change. |
+| Large media | Directory-backed projects, streaming/ranges and shared media origins implemented under ADR 0020. | Streaming file transport and provider-specific media admission are separate concerns. | **Completed:** [Accepted ADR 0020](../../adr/0020-directory-backed-projects-and-file-delivery.md) and [measured evidence](../../../knowledge/evidence/adr-0020-projects-file-delivery.md). Remote storage remains separate. |
 | Context and memory | Compiled context and provider-owned conversation; no new memory substrate from this work. | Instructions, compaction, cross-session reference and long-term curation are distinct. | Native compaction stays provider-owned. Memory deserves its separate future decision. |
 | Orchestration | Architecture capability partition; no supported engine selected. | Goals, children, process-local jobs, workflow VMs and experimental teams have different guarantees. | [Accepted ADR 0017](../../adr/0017-orchestration-interfaces.md) establishes the demonstrated typed boundary with a retained local Temporal proof; this does not adopt a production engine. |
 | Spend and observability | Correlated tool evidence; private workbench requirements distinguish paid tools from native charges. | Attempt accounting and unknown usage are not money budgets; telemetry is separate again. | Prove approval-before-paid-submit and recovery without duplicates; do not promise unknown billing. |
@@ -176,6 +176,14 @@ measured. The [discovery follow-up](../../../knowledge/evidence/discovery-latenc
 removes blocking presentation and isolates category invalidation; provider-internal
 cold latency and native request cancellation are not claimed fixed. No new upstream
 execution claim is made.
+
+### Subsequent implementation: projects and large-file delivery
+
+[ADR 0020](../../adr/0020-directory-backed-projects-and-file-delivery.md) was
+accepted on 11 September 2026. Project bindings, streamed delivery and one shared
+declared-media policy replace Drawloom's whole-buffer media baseline. Its evidence
+separates public checks, private sample playback and untested remote providers.
+This updates Drawloom's follow-up status, not the upstream inspection claims.
 
 ### Refresh procedure
 

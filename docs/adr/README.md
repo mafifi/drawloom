@@ -14,6 +14,11 @@ links back.
 
 ## Latest decision
 
+- [ADR 0020: Directory-backed projects and efficient file delivery](0020-directory-backed-projects-and-file-delivery.md)
+  is Accepted. Directory-backed projects, project-scoped activation, streamed file
+  delivery and shared media origins are implemented and verified. Remote storage
+  and cross-machine synchronization remain excluded.
+
 - [ADR 0019: Useful observability through traces, logs and metrics](0019-useful-observability.md)
   is Accepted. Opt-in instrumentation, measured overhead and local diagnostic
   evidence establish the approach; discovery performance remains a separate fix.

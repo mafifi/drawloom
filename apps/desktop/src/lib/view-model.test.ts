@@ -18,6 +18,150 @@ test('a fresh desktop opens the conversation rather than replacing it with narro
   expect(vm.primaryView).toBe('conversation');
   expect(vm.detailsOpen).toBe(false);
 });
+test('an empty app requires a project and does not request history or discovery', async () => {
+  const h = await harness({ ...snapshot(), projects: [], selectedProjectId: undefined, conversations: [], selectedId: '' });
+  expect(h.vm.canSend).toBe(false);
+  expect(h.vm.canCreate).toBe(false);
+  expect(await h.vm.create()).toBe(false);
+  h.vm.draft = 'No project'; await h.vm.send();
+  await h.vm.importFiles([new File(['x'], 'file.txt')]);
+  expect(h.vm.primaryView).toBe('projects');
+  expect(h.commands).toHaveLength(0);
+  expect(h.imports).toHaveLength(0);
+  expect(h.discoveryRequests).toHaveLength(0);
+  expect(h.historyRequests).toHaveLength(0);
+});
+
+test('project actions retain exact identities and missing directories block only new execution', async () => {
+  const initial = snapshot(); initial.projects[0]!.available = false;
+  initial.projects.push({ id: 'project-b', name: 'B', directory: '/work/b', available: true });
+  initial.selectedProjectId = 'project-b';
+  const h = await harness(initial);
+  expect(h.vm.canCreate).toBe(true);
+  expect(h.vm.canSend).toBe(false);
+  expect(h.historyRequests.length).toBeGreaterThan(0);
+  h.vm.draft = 'Do not run in B'; await h.vm.send();
+  expect(h.commands).toHaveLength(0);
+  await h.vm.addProject(' /work/new ', ' New project ');
+  expect(h.commands.at(-1)).toEqual({ kind: 'add_project', directory: '/work/new', name: 'New project' });
+  await h.vm.selectProject('project-b');
+  expect(h.commands.at(-1)).toEqual({ kind: 'select_project', projectId: 'project-b' });
+});
+
+test('native folder selection fills only the form and exposes pending feedback', async () => {
+  const h = await harness();
+  const requests: RequestInit[] = [];
+  let release!: (value: Response) => void;
+  const previous = globalThis.fetch;
+  globalThis.fetch = (async (url, init) => {
+    if (url === '/api/project-directory') { requests.push(init!); return new Promise<Response>(resolve => { release = resolve; }); }
+    return previous(url, init);
+  }) as typeof fetch;
+  expect(h.vm.projectDirectoryPending).toBe(false);
+  const selection = h.vm.chooseProjectDirectory();
+  expect(h.vm.projectDirectoryPending).toBe(true);
+  expect(requests[0]).toMatchObject({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  expect(await h.vm.chooseProjectDirectory()).toBeUndefined();
+  expect(requests).toHaveLength(1);
+  release(Response.json({ directory: '/work/chosen' }));
+  expect(await selection).toBe('/work/chosen');
+  expect(h.vm.projectDirectoryPending).toBe(false);
+  expect(h.commands).toHaveLength(0);
+  expect(h.vm.selectedProject?.directory).toBe('/work/a');
+});
+
+test('cancelled or unavailable native selection leaves path entry available', async () => {
+  const h = await harness(); const previous = globalThis.fetch;
+  let result = Response.json({});
+  globalThis.fetch = (async (url, init) => url === '/api/project-directory' ? result : previous(url, init)) as typeof fetch;
+  expect(h.vm.projectDirectoryNote).toBe('');
+  expect(await h.vm.chooseProjectDirectory()).toBeUndefined();
+  expect(h.vm.projectDirectoryNote).toBe('');
+  result = Response.json({ error: 'Native chooser unavailable' }, { status: 501 });
+  expect(await h.vm.chooseProjectDirectory()).toBeUndefined();
+  expect(h.vm.projectDirectoryNote).toContain('Enter the project folder path');
+  expect(h.vm.projectDirectoryPending).toBe(false);
+  expect(h.commands).toHaveLength(0);
+});
+
+test('navigation and unmount abort the native chooser and discard a late selection', async () => {
+  const h = await harness(); const previous = globalThis.fetch;
+  let signal: AbortSignal | null | undefined;
+  let release!: (value: Response) => void;
+  globalThis.fetch = (async (url, init) => {
+    if (url === '/api/project-directory') { signal = init?.signal; return new Promise<Response>(resolve => { release = resolve; }); }
+    return previous(url, init);
+  }) as typeof fetch;
+  expect(h.vm.projectDirectoryPending).toBe(false);
+  for (const close of [() => { h.vm.primaryView = 'conversation'; }, () => h.vm.stopPolling()]) {
+    h.vm.primaryView = 'projects';
+    const selection = h.vm.chooseProjectDirectory();
+    close();
+    expect(signal?.aborted).toBe(true);
+    release(Response.json({ directory: '/work/late' }));
+    expect(await selection).toBeUndefined();
+    expect(h.vm.projectDirectoryPending).toBe(false);
+  }
+});
+
+test('legacy history stays readable and project assignment binds the displayed conversation', async () => {
+  const initial = snapshot(); delete initial.conversations[0]!.projectId;
+  const h = await harness(initial);
+  expect(h.vm.canSend).toBe(false);
+  expect(h.historyRequests.length).toBeGreaterThan(0);
+  await h.vm.assignProject('project-a');
+  expect(h.commands.at(-1)).toEqual({ kind: 'assign_project', conversationId: 'conversation-a', projectId: 'project-a' });
+});
+
+test('working-file presentation binds to the conversation project, not the selected project', async () => {
+  const initial = snapshot(); initial.projects.push({ id: 'project-b', name: 'B', directory: '/work/b', available: true }); initial.selectedProjectId = 'project-b';
+  const h = await harness(initial);
+  const reference = { id: 'file', title: 'Clip', source: 'native', status: 'unavailable' as const, uri: 'file:///work/a/clip.mp4', mimeType: 'video/mp4' };
+  expect(h.vm.workingFile(reference)?.url).toBe('/api/files?conversationId=conversation-a&path=clip.mp4');
+  expect(h.vm.workingFile({ ...reference, uri: 'file:///work/b/clip.mp4' })).toBeUndefined();
+  const unavailable = snapshot(); unavailable.projects[0]!.available = false;
+  h.setState(unavailable); await h.vm.select('conversation-a');
+  expect(h.vm.workingFile(reference)).toBeUndefined();
+});
+
+test('assigning a legacy conversation refreshes project discovery and retains its draft', async () => {
+  const initial = snapshot(); delete initial.conversations[0]!.projectId;
+  const h = await harness(initial); h.vm.draft = 'Saved draft';
+  const before = h.discoveryRequests.length;
+  h.setState(snapshot()); await h.vm.assignProject('project-a');
+  expect(h.discoveryRequests.length).toBeGreaterThan(before);
+  expect(h.vm.draft).toBe('Saved draft');
+  expect(h.vm.canSend).toBe(true);
+});
+
+test('leaving the conversation view cancels pending imports and never starts queued files', async () => {
+  const h = await harness(); const release = h.deferImport();
+  const uploading = h.vm.importFiles([new File(['a'], 'a.png'), new File(['b'], 'b.png')]);
+  h.vm.primaryView = 'projects';
+  await Promise.resolve();
+  expect(h.imports[0]?.signal?.aborted).toBe(true);
+  release(); await uploading;
+  expect(h.imports).toHaveLength(1);
+  expect(h.vm.attachments.every(item => item.status === 'failed')).toBe(true);
+});
+
+test('unmount cancels upload without registering a late completion', async () => {
+  const h = await harness(); const release = h.deferImport();
+  const uploading = h.vm.importFiles([new File(['a'], 'a.png', { type: 'image/png' })]);
+  h.vm.stopPolling();
+  await Promise.resolve();
+  expect(h.imports[0]?.signal?.aborted).toBe(true);
+  release(); await uploading;
+  expect(h.vm.attachmentKeys).toEqual([]);
+});
+
+test('browser media admission allows files above the separate model-input limit', async () => {
+  const h = await harness(); const file = new File(['video'], 'video.mp4', { type: 'video/mp4' });
+  Object.defineProperty(file, 'size', { value: 256 * 1024 * 1024 });
+  await h.vm.importFiles([file]);
+  expect(h.imports).toHaveLength(1);
+  expect(h.imports[0]!.body).toBe(file);
+});
 afterEach(() => {
   globalThis.fetch = originalFetch;
   if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage);
@@ -45,20 +189,22 @@ test('provider sign-in uses a catalogue identity and discards a late URL after n
 
 function snapshot(): DesktopSnapshot {
   return {
+    mediaPolicy: { revision: 'initial', sources: [] },
     toolLabels: [],
     elicitations: [],
     views: [],
     activeContext: '',
     pendingTools: [],
     workspace: 'Test workspace', selectedId: 'conversation-a',
-    conversations: [{ id: 'conversation-a', title: 'A', workbenchId: 'text', provider: 'synthetic', reviewer: 'human' }],
+    projects: [{ id: 'project-a', name: 'Project A', directory: '/work/a', available: true }], selectedProjectId: 'project-a',
+    conversations: [{ id: 'conversation-a', title: 'A', projectId: 'project-a', workbenchId: 'text', provider: 'synthetic', reviewer: 'human' }],
     workbenches: [{ id: 'text', title: 'Text', description: '', tools: [], skills: [] }],
     signals: [], activity: [], controls: { steer: false, interrupt: false, reviewerModes: ['human'] }, plugins: [], notice: '',
     operator: { artifacts: [{ id: 'artifact-a', editable: true, title: 'A', content: { kind: 'text', text: 'Original A' } }], candidates: [{ id: 'candidate-a', comparisonKey: 'document-a', label: 'A', artifactIds: ['artifact-a'], status: 'draft' }], reviews: [], readiness: 'ready', summary: '', configuration: [], grants: [] },
   };
 }
-async function harness() {
-  let current = snapshot();
+async function harness(initial = snapshot()) {
+  let current = initial;
   const stored = new Map<string, string>();
   Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
     getItem: (key: string) => stored.get(key) ?? null,
@@ -66,7 +212,8 @@ async function harness() {
     removeItem: (key: string) => { stored.delete(key); },
   } });
   const commands: DesktopCommand[] = [];
-  const imports: unknown[] = [];
+  const imports: { conversationId: string | null; body: RequestInit['body']; signal: RequestInit['signal']; contentType: string | null; name: string | null; mediaType: string | null }[] = [];
+  const historyRequests: string[] = [];
   let commandResponse: (() => Promise<Response>) | undefined;
   let importResponse: (() => Promise<Response>) | undefined;
   let stateResponse: (() => Promise<Response>) | undefined;
@@ -77,7 +224,7 @@ async function harness() {
   const resourceRequests: unknown[] = [];
   globalThis.fetch = (async (url: string | URL | Request, options?: RequestInit) => {
     if (String(url).startsWith('/api/discovery?')) { discoveryRequests.push(String(url)); return discoveryResponse ? discoveryResponse() : Response.json(catalogue); }
-    if (String(url).startsWith('/api/history')) return Response.json({ entries: historyEntries, hasOlder: false, changeCursor: 'c1', status: { revision: 0, sync: 'idle', hasOlder: false } });
+    if (String(url).startsWith('/api/history')) { historyRequests.push(String(url)); return Response.json({ entries: historyEntries, hasOlder: false, changeCursor: 'c1', status: { revision: 0, sync: 'idle', hasOlder: false } }); }
     if (url === '/api/resource/read') { resourceRequests.push(JSON.parse(String(options?.body))); return Response.json({ id: 'r1', source: 'source-a', title: 'Document', status: 'ready', asset: { key: 'text-asset', mediaType: 'text/plain', size: 1 } }); }
     if (String(url).startsWith('/api/resources')) { resourceRequests.push(String(url)); return Response.json({ resources: [{ uri: 'doc://one', name: 'One' }], nextCursor: 'next' }); }
     if (url === '/api/resource/open') { resourceRequests.push(JSON.parse(String(options?.body))); return Response.json({ id: 'opened', position: [1, 0], role: 'assistant', text: '', assets: [], state: 'complete', resources: [{ id: 'r1', source: 'source-a', title: 'Document', status: 'ready', asset: { key: 'text-asset', mediaType: 'text/plain', size: 1 } }] }); }
@@ -86,8 +233,9 @@ async function harness() {
       commands.push(JSON.parse(String(options?.body)) as DesktopCommand);
       return commandResponse ? commandResponse() : Response.json(current);
     }
-    if (url === '/api/import') {
-      imports.push(JSON.parse(String(options?.body)));
+    if (String(url).startsWith('/api/import')) {
+      const params = new URL(String(url), 'http://localhost').searchParams;
+      imports.push({ conversationId: params.get('conversationId'), body: options?.body, signal: options?.signal, contentType: new Headers(options?.headers).get('Content-Type'), name: params.get('name'), mediaType: params.get('mediaType') });
       return importResponse ? importResponse() : Response.json({ key: 'new-image', mediaType: 'image/png', size: 1 });
     }
     const state = stateResponse ? await stateResponse() : Response.json(current);
@@ -95,7 +243,7 @@ async function harness() {
   }) as typeof fetch;
   const vm = createDesktopViewModel();
   await vm.start(); vm.stopPolling();
-  return { vm, commands, imports, stored, discoveryRequests, resourceRequests, setHistory(value: HistoryEntry[]) { historyEntries = value; }, setCatalogue(value: DesktopCatalogue) { catalogue = value; },
+  return { vm, commands, imports, stored, discoveryRequests, historyRequests, resourceRequests, setHistory(value: HistoryEntry[]) { historyEntries = value; }, setCatalogue(value: DesktopCatalogue) { catalogue = value; },
     deferDiscovery() { let resolve!: (response: Response) => void; const promise = new Promise<Response>(r => { resolve = r; }); discoveryResponse = () => { discoveryResponse = undefined; return promise; }; return (response = Response.json(catalogue)) => resolve(response); },
     setState(value: DesktopSnapshot) { current = value; },
     deferCommand() { let resolve!: (response: Response) => void; const promise = new Promise<Response>(r => { resolve = r; }); commandResponse = () => promise; return (response = Response.json(current)) => resolve(response); },
@@ -190,19 +338,18 @@ test('selection returns success only when the command succeeds', async () => {
   expect(h.vm.pendingCommand).toBeUndefined();
 });
 
-test('import feedback spans file reading, upload and refresh while duplicate imports are rejected', async () => {
+test('imports stream the original File with scoped metadata and retain feedback through refresh', async () => {
   const h = await harness(); const resolveImport = h.deferImport();
   const refresh = h.deferState();
-  let resolveRead!: (data: ArrayBuffer) => void;
   const file = new File(['image'], 'next.png', { type: 'image/png' });
-  file.arrayBuffer = () => new Promise<ArrayBuffer>(resolve => { resolveRead = resolve; });
+  file.arrayBuffer = async () => { throw Error('Must not buffer the upload'); };
   const files = [file] as unknown as FileList;
   const importing = h.vm.importFiles(files);
   expect(h.vm.importing).toBe(true);
-  expect(h.imports).toHaveLength(0);
+  expect(h.imports).toHaveLength(1);
+  expect(h.imports[0]).toMatchObject({ conversationId: 'conversation-a', name: 'next.png', mediaType: 'image/png', contentType: 'application/octet-stream' });
+  expect(h.imports[0]!.body).toBe(file);
   await h.vm.importFiles(files);
-  resolveRead(new Uint8Array([1]).buffer);
-  await Promise.resolve();
   expect(h.imports).toHaveLength(1);
   expect(h.vm.importing).toBe(true);
   resolveImport(); await refresh.request;
@@ -212,13 +359,13 @@ test('import feedback spans file reading, upload and refresh while duplicate imp
   expect(h.vm.attachmentKeys).toEqual(['new-image']);
 });
 
-test('failed file reads and uploads report errors and always clear import feedback', async () => {
+test('oversize files and failed uploads report errors and clear import feedback', async () => {
   const h = await harness();
-  const unreadable = new File(['image'], 'unreadable.png');
-  unreadable.arrayBuffer = async () => { throw Error('File unreadable'); };
-  await h.vm.importFiles([unreadable] as unknown as FileList);
+  const oversized = new File(['image'], 'oversized.png');
+  Object.defineProperty(oversized, 'size', { value: 256 * 1024 * 1024 + 1 });
+  await h.vm.importFiles([oversized]);
   expect(h.vm.importing).toBe(false);
-  expect(h.vm.error).toBe('File unreadable');
+  expect(h.vm.error).toContain('256 MiB');
   expect(h.imports).toHaveLength(0);
   const resolve = h.deferImport();
   const importing = h.vm.importFiles([new File(['image'], 'next.png')] as unknown as FileList);
@@ -238,7 +385,7 @@ test('editing A is not retargeted when polling discovers document B', async () =
   h.setState(next);
   await h.vm.start(); h.vm.stopPolling();
   await h.vm.saveRevision();
-  expect(h.commands.at(-1)).toEqual({ kind: 'operator', workbenchId: 'text', command: { kind: 'revise_document', candidateId: 'candidate-a', artifactId: 'artifact-a', text: 'Edited A' } });
+  expect(h.commands.at(-1)).toEqual({ kind: 'operator', conversationId: 'conversation-a', workbenchId: 'text', command: { kind: 'revise_document', candidateId: 'candidate-a', artifactId: 'artifact-a', text: 'Edited A' } });
 });
 
 test('conversation navigation cancels the previous document editing session', async () => {
@@ -515,16 +662,20 @@ test('temporary discovery failure keeps cached references and draft, while openi
   expect(h.vm.selectedDiscoveries[0]?.id).toBe('native:skill:a'); expect(h.vm.draft).toBe('Keep this');
 });
 
-test('upload completion stays with its draft across navigation and failure can retry in place', async () => {
+test('navigation aborts upload and preserves a retryable cancelled reference in its original draft', async () => {
   const h = await harness(); h.vm.draft = 'Draft A';
   const release = h.deferImport(); const uploading = h.vm.importFiles([new File(['a'], 'a.png', { type: 'image/png' })]);
-  const next = snapshot(); next.selectedId = 'conversation-b'; h.setState(next); await h.vm.select('conversation-b');
+  const next = snapshot(); next.selectedId = 'conversation-b'; h.setState(next);
+  const previous=globalThis.fetch;
+  globalThis.fetch=(async (url,init)=>{if(url==='/api/command')expect(h.imports[0]?.signal?.aborted).toBe(true);return previous(url,init);}) as typeof fetch;
+  await h.vm.select('conversation-b');globalThis.fetch=previous;
   expect(h.vm.draft).toBe('');
-  release(Response.json({ error: 'Try again' }, { status: 500 })); await uploading;
+  expect(h.imports[0]?.signal?.aborted).toBe(true);
+  release(); await uploading;
   expect(h.imports[0]).toMatchObject({ conversationId: 'conversation-a' });
   expect(h.vm.attachments).toEqual([]);
   h.setState(snapshot()); await h.vm.select('conversation-a');
-  expect(h.vm.draft).toBe('Draft A'); expect(h.vm.attachments[0]).toMatchObject({ name: 'a.png', status: 'failed' });
+  expect(h.vm.draft).toBe('Draft A'); expect(h.vm.attachments[0]).toMatchObject({ name: 'a.png', status: 'failed', error: 'Import cancelled. Retry to attach this file.' });
   const retryRelease = h.deferImport(); const retrying = h.vm.retryAttachment(h.vm.attachments[0]!.id);
   retryRelease(); await retrying;
   expect(h.vm.attachments).toHaveLength(1); expect(h.vm.attachmentKeys).toEqual(['new-image']);
@@ -554,7 +705,10 @@ test('native resource opening submits its catalogue identity and displays the ca
 test('removing a pending attachment prevents its eventual upload from entering the draft', async () => {
   const h = await harness(); const release = h.deferImport();
   const uploading = h.vm.importFiles([new File(['a'], 'a.png', { type: 'image/png' })]);
-  h.vm.removeAttachment(h.vm.attachments[0]!.id); release(); await uploading;
+  h.vm.removeAttachment(h.vm.attachments[0]!.id);
+  await Promise.resolve();
+  expect(h.imports[0]?.signal?.aborted).toBe(true);
+  release(); await uploading;
   expect(h.vm.attachments).toEqual([]); expect(h.vm.attachmentKeys).toEqual([]);
 });
 

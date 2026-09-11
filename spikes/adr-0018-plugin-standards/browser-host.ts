@@ -18,12 +18,16 @@ await writeFile(join(pkg, 'mcp.json'), JSON.stringify({ $schema: 'https://agent-
   mcpServers: { notes: { type: 'stdio', command: 'node', args: ['${PLUGIN_ROOT}/server.mjs'], env: { PROOF_LITERAL: '${PLUGIN_DATA}' } } },
 }));
 const data = join(root, 'data');
+const working = join(root, 'working');
+await mkdir(working);
 const setup = await createDesktopApplication(data);
+await setup.command({ kind: 'add_project', directory: working, name: 'Public package proof' });
 const id = await setup.installations.add(pkg);
 await setup.installations.configure(id, { enabled: true, trustedBackend: false, servers: ['notes'], configuration: {} });
 await setup.close();
 const app = await createDesktopApplication(data);
-const status = app.packageStatuses()[0];
+await app.command({ kind: 'create_conversation', workbenchId: 'text', provider: 'synthetic' });
+const status = (await app.packageStatuses())[0];
 if (status?.status !== 'ready' || status.servers[0]?.status !== 'connected') { await app.close(); throw Error('Standard package failed activation'); }
 const host = serveDesktop(app, resolve(import.meta.dir, '../../apps/desktop/build'));
 console.log(JSON.stringify({ root, package: pkg, url: host.url, connected: true }));

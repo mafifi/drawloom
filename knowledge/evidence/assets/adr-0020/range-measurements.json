@@ -1,0 +1,163 @@
+{
+  "sourceBytes": 536870912,
+  "repetitions": 30,
+  "rangeBytes": 65536,
+  "coldMilliseconds": 8.088042000000087,
+  "medianMilliseconds": 0.8276250000000118,
+  "p95Milliseconds": 1.9466249999999263,
+  "baselineRss": 223068160,
+  "peakRss": 233848832,
+  "scope": "Bun host and HTTP measurement client in the same process; RSS sampled every 5 ms",
+  "deliverySpans": [
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 1.440292
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.197125
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.181625
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.170041
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.245917
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.223667
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.194583
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.194542
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.169292
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.156209
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.125166
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.213083
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.221792
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.1685
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 1.276375
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.198666
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.161917
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.233791
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.141
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.134
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.128416
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.186709
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.166458
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.136
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.116792
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.137
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.125667
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.183417
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.125625
+    },
+    {
+      "bytes": 65536,
+      "cached": false,
+      "milliseconds": 0.159042
+    }
+  ]
+}

@@ -100,6 +100,16 @@ Sidebar uses its standard responsive composition rather than a parallel drawer.
 its controlled pending presentation adds no separate command lifecycle.
 This is not a new platform capability or an alternative component framework.
 
+### Sonner notifications
+
+`Toaster` and `toast` expose the official shadcn-svelte Sonner pattern through
+the shared package. Applications mount one `Toaster` at their shell composition
+boundary and use `toast` for transient feedback. The shared component follows
+the operating-system light or dark preference and uses Drawloom's neutral
+popover, foreground and border tokens. Consumers own notification wording,
+action validity and any persistent visible fallback; a toast does not introduce
+a command lifecycle or replace durable status presentation.
+
 The root Bun catalog owns dependency versions. When adding a component, use
 the Svelte CLI (not the React CLI), preserve existing sources, convert newly
 added dependencies to catalog references and internal aliases to relative

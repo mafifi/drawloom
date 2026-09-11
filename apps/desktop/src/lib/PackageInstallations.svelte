@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Alert, Badge, Checkbox, Collapsible, Field, Input, Separator, StatefulButton } from '@drawloom/ui';
+  import { Alert, Badge, Checkbox, Collapsible, Field, Input, Separator, StatefulButton, Textarea } from '@drawloom/ui';
   import { createPackageViewModel } from './package-view-model.svelte.js';
   const vm = createPackageViewModel();
   const connectionActions = ['connect', 'status', 'cancel', 'reconnect', 'disconnect'] as const;
@@ -26,12 +26,13 @@
     <section class="flex flex-col gap-2 border-t py-3">
       <div class="flex items-center justify-between"><h3>{installation.name}</h3><Badge variant="outline">{installation.status}</Badge></div>
       <p class="break-all text-sm text-muted-foreground">{installation.root}</p>
-      <form onsubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); void vm.configure(installation.id, data.get('enabled') === 'on', data.get('backend') === 'on', data.getAll('server').map(String)); }} class="flex flex-col gap-3">
+      <form onsubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); void vm.configure(installation.id, data.get('enabled') === 'on', data.get('backend') === 'on', data.getAll('server').map(String), String(data.get('approvedResourceOrigins') ?? '').split(/\r?\n/).map(origin => origin.trim()).filter(Boolean)); }} class="flex flex-col gap-3">
         <Field.Field orientation="horizontal"><Checkbox id={'enable-' + installation.id} name="enabled" checked={installation.enabled} /><Field.Label for={'enable-' + installation.id}>Activate configured servers and skills on next restart</Field.Label></Field.Field>
         <Field.Field orientation="horizontal"><Checkbox id={'trust-' + installation.id} name="backend" checked={installation.trustedBackend} /><Field.Label for={'trust-' + installation.id}>Trust this package’s backend to execute in the host process</Field.Label></Field.Field>
         {#each vm.serverChoices(installation.id) as server}
           <Field.Field orientation="horizontal"><Checkbox id={'server-' + installation.id + '-' + server.name} name="server" value={server.name} checked={installation.servers.includes(server.name)} disabled={server.transport === 'sse'} /><Field.Label for={'server-' + installation.id + '-' + server.name}>Server: {server.name}{server.transport === 'sse' ? ' (legacy SSE unsupported)' : ''}</Field.Label></Field.Field>
         {/each}
+        <Field.Field><Field.Label for={'media-origins-' + installation.id}>Shared media declaration seeds</Field.Label><Textarea id={'media-origins-' + installation.id} name="approvedResourceOrigins" value={installation.approvedResourceOrigins.join('\n')} placeholder="https://media.example.com" /><Field.Description>Compatibility seed for this package. After activation, each exact HTTPS origin joins the shared host media policy for all workbenches; localhost HTTP is also supported. This allows declared media, styles and fonts, not remote scripts or general network access. Restart Drawloom to activate changed package settings.</Field.Description></Field.Field>
         <StatefulButton class="w-fit" variant="outline" type="submit" pending={vm.pending === installation.id} disabled={Boolean(vm.pending)}>Save activation settings</StatefulButton>
       </form>
       {#if installation.pendingRestart}<p class="text-sm" role="status">Saved. Restart Drawloom to apply these changes.</p>{/if}

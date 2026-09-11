@@ -1,80 +1,57 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { z } from 'zod';
-  import { Alert } from '@drawloom/ui';
-  import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
-  import { McpUiMessageResultSchema, type McpUiMessageRequest, type McpUiUpdateModelContextRequest } from '@modelcontextprotocol/ext-apps';
-  import { PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge';
+  import { onDestroy } from 'svelte';
+  import { Alert, Button, toast } from '@drawloom/ui';
   import type { RegisteredWorkbenchView } from '@drawloom/plugins';
-  import { closePluginViewBridge, createPluginViewBridge } from './plugin-view-bridge.js';
-  export let view: RegisteredWorkbenchView;
-  export let conversationId: string;
-  let frame: HTMLIFrameElement;
-  let failed = false;
-  let teardown = (_node: Element) => ({ duration: 0 });
-  onMount(() => {
-    const source = frame.contentWindow!;
-    const target = { viewId: view.id, conversationId };
-    const appearance = matchMedia('(prefers-color-scheme: dark)');
-    const theme = () => appearance.matches ? 'dark' as const : 'light' as const;
-    const abort = new AbortController();
-    const mount = fetch('/api/view-session', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...target, action: 'open' }),
-    }).then(async response => {
-      if (!response.ok) throw Error('View unavailable');
-      return z.object({ mountId: z.string().uuid() }).parse(await response.json()).mountId;
+  import { isMountedMediaPolicyOutdated, samePluginViewGeneration, type PluginViewGeneration } from './media-ui.js';
+  import PluginViewFrame from './PluginViewFrame.svelte';
+
+  let { view, conversationId, mediaRevision }: { view: RegisteredWorkbenchView; conversationId: string; mediaRevision: string } = $props();
+  let generation = $state(0);
+  let mountedRevision = $state('');
+  let notificationKey = '';
+  let notificationId: string | number | undefined;
+  let live = true;
+  const outdated = $derived(isMountedMediaPolicyOutdated(mountedRevision, mediaRevision));
+  const currentGeneration = (): PluginViewGeneration => ({ conversationId, viewId: view.id, generation });
+
+  function reopen(captured?: PluginViewGeneration) {
+    if (!live || captured && !samePluginViewGeneration(captured, currentGeneration())) return;
+    mountedRevision = '';
+    generation += 1;
+  }
+
+  $effect(() => {
+    if (!outdated) {
+      if (notificationId !== undefined) toast.dismiss(notificationId);
+      notificationId = undefined;
+      notificationKey = '';
+      return;
+    }
+    const captured = currentGeneration();
+    const nextKey = [captured.conversationId, captured.viewId, captured.generation, mountedRevision, mediaRevision].join(':');
+    if (notificationKey === nextKey) return;
+    if (notificationId !== undefined) toast.dismiss(notificationId);
+    notificationKey = nextKey;
+    notificationId = toast('Shared media sources changed', {
+      description: 'Reopen the workbench to apply them. Reopening discards unsaved UI edits.',
+      action: { label: 'Reopen', onClick: () => { if (live && outdated) reopen(captured); } },
     });
-    const release = () => { void mount.then(mountId => fetch('/api/view-session', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
-      body: JSON.stringify({ ...target, mountId, action: 'close' }),
-    })).catch(() => {}); };
-    const interact = async (request: McpUiMessageRequest | McpUiUpdateModelContextRequest) => {
-      const mountId = await mount;
-      const response = await fetch('/api/view-interaction', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        signal: abort.signal,
-        body: JSON.stringify({ ...target, mountId, request }),
-      });
-      if (!response.ok) throw Error('Conversation request failed');
-      return McpUiMessageResultSchema.parse(await response.json());
-    };
-    const bridge = createPluginViewBridge({ theme: theme(),
-      message: params => interact({ method: 'ui/message', params }),
-      updateContext: params => interact({ method: 'ui/update-model-context', params }),
-      callTool: async request => {
-        const response = await fetch('/api/view-request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: abort.signal, body: JSON.stringify({ ...target, request }) });
-        if (!response.ok) throw Error('View request failed');
-        return CallToolResultSchema.parse(await response.json());
-      },
-    });
-    // Keep the iframe alive for the bounded standard cleanup exchange, including
-    // when an ancestor pane/conversation is removed. No new calls while closing.
-    teardown = () => {
-      abort.abort();
-      release();
-      frame.style.pointerEvents = 'none';
-      void closePluginViewBridge(bridge);
-      return { duration: 300 };
-    };
-    const updateTheme = () => bridge.setHostContext({ theme: theme(), displayMode: 'inline', availableDisplayModes: ['inline'] });
-    let loads = 0;
-    const loaded = () => {
-      if (++loads > 1) {
-        failed = true; void bridge.close(); abort.abort();
-        release();
-      }
-      else updateTheme();
-    };
-    appearance.addEventListener('change', updateTheme);
-    frame.addEventListener('load', loaded);
-    // Install parent checks before navigation can execute the plugin's script.
-    void mount.then(() => bridge.connect(new PostMessageTransport(source, source))).then(() => {
-      if (!abort.signal.aborted) frame.src = '/api/views/' + encodeURIComponent(view.id) + '?conversationId=' + encodeURIComponent(conversationId);
-    }).catch(() => { failed = true; });
-    return () => { void bridge.close(); abort.abort(); release(); appearance.removeEventListener('change', updateTheme); frame.removeEventListener('load', loaded); };
+  });
+
+  onDestroy(() => {
+    live = false;
+    if (notificationId !== undefined) toast.dismiss(notificationId);
   });
 </script>
 
-{#if failed}<Alert.Root variant="destructive"><Alert.Description>The view navigated away and was disconnected. Reopen it to inspect current state.</Alert.Description></Alert.Root>{/if}
-<iframe bind:this={frame} out:teardown|global title={view.title} sandbox="allow-scripts" referrerpolicy="no-referrer" class="min-h-[32rem] w-full border-0" hidden={failed}></iframe>
+{#if outdated}
+  <Alert.Root>
+    <Alert.Description class="flex flex-wrap items-center justify-between gap-2">
+      <span>Shared media sources changed. Reopening applies them and discards unsaved UI edits.</span>
+      <Button variant="outline" size="sm" onclick={() => reopen()}>Reopen workbench</Button>
+    </Alert.Description>
+  </Alert.Root>
+{/if}
+{#key generation}
+  <PluginViewFrame {view} {conversationId} {generation} onmounted={(revision, mountedGeneration) => { if (mountedGeneration === generation) mountedRevision = revision; }} />
+{/key}

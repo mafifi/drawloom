@@ -1,0 +1,32 @@
+{
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "errors": [],
+  "browser": "Chrome via Playwright; Browser plugin not available",
+  "viewports": [
+    "1440x1000",
+    "390x844"
+  ],
+  "explicitReopen": {
+    "notice": true,
+    "unsavedPreserved": true
+  },
+  "sharedCsp": {
+    "initialOtherPlugin": true,
+    "returnedSource": true,
+    "undeclaredBlocked": true,
+    "scriptsBlocked": true
+  },
+  "expiryFeedback": true,
+  "narrow": true,
+  "historyRetained": true,
+  "pageIdentity": true,
+  "meaningfulContent": true,
+  "noFrameworkOverlay": true,
+  "console": {
+    "expectedCspOrExpiredResourceMessages": 9,
+    "unexpected": []
+  }
+}

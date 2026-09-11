@@ -6,7 +6,9 @@ import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { z } from 'zod';
 import { context, propagation } from '@opentelemetry/api';
 import { observed, observeOutcome } from './telemetry.js';
+import { mediaPolicy } from './mcp-media-policy.js';
 export interface ConnectedMcpApp {
+  resourceDomains: string[];
   html: string;
   tools: Tool[];
   canRead(uri: string): boolean;
@@ -45,14 +47,13 @@ export async function connectMcpAppClient(client: Client, toolName: string, uri:
     const html = resource.contents.find(content => content.uri === uri && content.mimeType === RESOURCE_MIME_TYPE && 'text' in content);
     if (!html || !('text' in html) || !html.text.length || html.text.length > 8 * 1024 * 1024)
       throw Error('Invalid MCP HTML resource');
-    const policy = z.object({ csp: z.record(z.string(), z.unknown()).optional(), permissions: z.record(z.string(), z.unknown()).optional() }).passthrough().parse(html._meta?.ui ?? {});
-    if (Object.keys(policy.permissions ?? {}).length || Object.values(policy.csp ?? {}).some(value => !Array.isArray(value) || value.length))
-      throw Error('MCP resource requests unsupported permissions or external origins');
+    const resourceDomains = mediaPolicy(html._meta?.ui);
     const allowed = new Set(tools.filter(tool => !isToolVisibilityModelOnly(tool)).map(tool => tool.name));
     const readable = new Set<string>();
     const resourceSupport = Boolean(client.getServerCapabilities()?.resources);
     const cursors = new Set<string>();
     return {
+      resourceDomains,
       html: html.text,
       tools,
       canRead: value => resourceSupport && readable.has(value),

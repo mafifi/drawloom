@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { MediaQuery } from 'svelte/reactivity';
-  import { Sidebar as SidebarUI } from '@drawloom/ui';
+  import { Sidebar as SidebarUI, Toaster } from '@drawloom/ui';
   import { createDesktopViewModel } from '$lib/view-model.svelte.js';
   import Sidebar from '$lib/Sidebar.svelte';
   import Conversation from '$lib/Conversation.svelte';
@@ -14,6 +14,7 @@
 </script>
 
 <svelte:head><title>Drawloom — Local workbench</title></svelte:head>
+<Toaster />
 <SidebarUI.Provider class="h-dvh min-h-0" style="--sidebar-width: 240px">
   <Sidebar {vm}/>
   <div class="app-shell" class:with-details={vm.primaryView === 'conversation' && vm.detailsOpen && !drawer.current}>

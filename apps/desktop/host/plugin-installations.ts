@@ -2,9 +2,11 @@ import { z } from 'zod';
 import { JsonValueSchema, type JsonStore } from '@drawloom/host';
 import type { PackageInventory } from '@drawloom/plugins';
 import { inspectPackage } from '@drawloom/local-plugin-packages';
+import { ResourceOriginSchema } from '../src/lib/package-protocol.js';
 
 // Host configuration, not a plugin capability or a browser credential envelope.
 export const InstallationSchema = z.strictObject({
+  approvedResourceOrigins: z.array(ResourceOriginSchema).max(32).default([]),
   id: z.string().uuid(), root: z.string().min(1), name: z.string().min(1),
   enabled: z.boolean(), trustedBackend: z.boolean(), servers: z.array(z.string()),
   configuration: z.record(z.string(), JsonValueSchema).default({}),
@@ -36,11 +38,11 @@ export async function createInstallationStore(store: JsonStore) {
         if (existing) { id = existing.id; return; }
         id = crypto.randomUUID();
         next.installations.push({ id, root: inventory.root, name: inventory.name,
-          enabled: false, trustedBackend: false, servers: inventory.servers.filter(s => s.config.type !== 'sse').map(s => s.name), configuration: {} });
+          approvedResourceOrigins: [], enabled: false, trustedBackend: false, servers: inventory.servers.filter(s => s.config.type !== 'sse').map(s => s.name), configuration: {} });
       });
       return id;
     },
-    async configure(id: string, input: Pick<Installation, 'enabled' | 'trustedBackend' | 'servers' | 'configuration'>) {
+    async configure(id: string, input: Pick<Installation, 'enabled' | 'trustedBackend' | 'servers' | 'configuration'> & {approvedResourceOrigins?:string[]|undefined}) {
       const current = state.installations.find(i => i.id === id);
       if (!current) throw Error('Installation unavailable');
       const parsed = InstallationSchema.parse({ ...current, ...input });

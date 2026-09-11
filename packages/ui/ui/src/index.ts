@@ -19,6 +19,7 @@ export * as Sheet from "./components/sheet/index.js";
 export * as Tooltip from "./components/tooltip/index.js";
 export * as Sidebar from "./components/sidebar/index.js";
 export * as Field from "./components/field/index.js";
+export { Toaster, toast } from "./components/sonner/index.js";
 export { default as PlusIcon } from "@lucide/svelte/icons/plus";
 export { default as PanelIcon } from "@lucide/svelte/icons/panel-left";
 export { default as FolderIcon } from "@lucide/svelte/icons/folder";

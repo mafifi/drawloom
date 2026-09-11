@@ -69,7 +69,8 @@
       "@temporalio/workflow": "1.23.0",
       "@temporalio/activity": "1.23.0",
       "@temporalio/common": "1.23.0",
-      "tailwind-variants": "^3.3.0"
+      "tailwind-variants": "^3.3.0",
+      "svelte-sonner": "^1.1.0"
     }
   },
   "scripts": {
@@ -99,7 +100,7 @@
     "check:dependency-policy": "bun run scripts/check-dependency-policy.ts",
     "check:design": "designmd lint DESIGN.md && designmd lint publishing/DESIGN.md",
     "check:types": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p spikes/adr-0017-orchestration/tsconfig.portable.json && tsc --noEmit -p spikes/adr-0017-orchestration/tsconfig.temporal.json",
-    "test": "bun test",
+    "test": "bun --conditions=svelte test",
     "spike:adr-0005": "bun run spikes/adr-0005-tool-exposure/run-live-spike.ts",
     "spike:adr-0007": "bun run spikes/adr-0007-codex-app-server/run-live.ts",
     "spike:adr-0008": "bun run spikes/adr-0008-tool-execution/run-live.ts",

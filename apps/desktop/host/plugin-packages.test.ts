@@ -9,11 +9,17 @@ import type { DrawloomPackageExtension } from '@drawloom/plugins';
 import type { Installation } from './plugin-installations.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { createLocalToolGateway } from '@drawloom/local-tools';
-import { createDesktopApplication } from './application.js';
+import { createTestDesktopApplication as createDesktopApplication } from './test-project.fixture.js';
 import { createPluginRegistry } from '@drawloom/startup-plugins';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { createElicitationPresenter } from './elicitation.js';
+import type { AssetLibrary } from '@drawloom/host';
+
+function unusedAssets(): AssetLibrary {
+  const unused = async (): Promise<never> => { throw Error('unused'); };
+  return { open: unused, putStream: unused, read: unused, put: unused };
+}
 
 function packageServer(label = 'owner', tools: Tool[] = [{ name: 'open', inputSchema: { type: 'object' }, _meta: { ui: { resourceUri: 'ui://owner/view.html' } } }], resource?: { revision: number; text: string }) {
   const events: string[] = [];
@@ -42,11 +48,11 @@ async function installedFixture(root: string, name: string, url: string, extensi
       views: [{ id: 'owner-view', workbenchId: 'owner', title: 'Owner view', entrypoint: 'ui://owner/view.html' }] } : {};
     await writeFile(join(pkg, 'backend.mjs'), `export default () => ({ contributions: ${JSON.stringify(contribution)}, dispose() {} });`);
   }
-  const installation: Installation = { id: crypto.randomUUID(), root: pkg, name, enabled: true, trustedBackend: true, servers: ['remote'], configuration: {} };
+  const installation: Installation = { approvedResourceOrigins: [], id: crypto.randomUUID(), root: pkg, name, enabled: true, trustedBackend: true, servers: ['remote'], configuration: {} };
   return installation;
 }
 function packageHost(root: string) {
-  return { store: createNodeJsonStore(join(root, 'state')), assets: { read: async () => { throw Error('unused'); }, put: async () => { throw Error('unused'); } } };
+  return { store: createNodeJsonStore(join(root, 'state')), assets: unusedAssets() };
 }
 const ownerPlacement = { id: 'owner', title: 'Owner', openingTool: { server: 'remote', tool: 'open' } };
 
@@ -85,7 +91,7 @@ test('backend collision with built-in workbench is isolated without losing stand
     await createNodeJsonStore(join(root, 'state')).set('plugin-installations', { version: 1, installations: [installation] });
     const app = await createDesktopApplication(root);
     try {
-      expect(app.packageStatuses()[0]?.codes).toContain('backend:invalid-contribution');
+      expect((await app.packageStatuses())[0]?.codes).toContain('backend:invalid-contribution');
       const catalogue = await app.discover((await app.snapshot()).selectedId);
       expect(catalogue.entries.some(e => e.kind === 'skill' && e.name === 'editing')).toBe(true);
     } finally { await app.close(); }
@@ -203,7 +209,7 @@ test('standard skills activate without extension; a missing sibling stays isolat
     await installations.configure(id, { enabled: true, trustedBackend: false, servers: [], configuration: {} });
     const entries = (await createInstallationStore(store)).startup;
     const loaded = await loadInstalledPackages({ root, installations: [...entries, { ...entries[0]!, id: crypto.randomUUID(), root: join(root, 'missing') }],
-      host: { store, assets: { read: async () => { throw Error('unused'); }, put: async () => { throw Error('unused'); } } } });
+      host: { store, assets: unusedAssets() } });
     try {
       expect(loaded.installs).toHaveLength(1);
       const skills = loaded.installs[0]!.plugin.prepare({})().skills;
@@ -224,7 +230,7 @@ test('invalid backend contributions do not poison standard package activation', 
     const installed = await createInstallationStore(store); const id = await installed.add(root);
     await installed.configure(id, { enabled: true, trustedBackend: true, servers: [], configuration: {} });
     const loaded = await loadInstalledPackages({ root, installations: (await createInstallationStore(store)).startup,
-      host: { store, assets: { read: async () => { throw Error('unused'); }, put: async () => { throw Error('unused'); } } } });
+      host: { store, assets: unusedAssets() } });
     try {
       expect(loaded.installs).toHaveLength(1);
       expect(loaded.statuses[0]?.codes).toContain('backend:invalid-contribution');

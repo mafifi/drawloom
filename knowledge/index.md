@@ -19,6 +19,8 @@ updated: 2026-09-11
 
 ## Evidence and computations
 
+- [Directory-backed projects and streamed file delivery](evidence/adr-0020-projects-file-delivery.md)
+
 - [Discovery latency follow-up](evidence/discovery-latency-fix.md)
 
 - [Operational observability and measured diagnostic value](evidence/adr-0019-observability.md)

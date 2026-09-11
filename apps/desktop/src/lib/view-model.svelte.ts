@@ -6,6 +6,7 @@ import { ListResourcesResultSchema, type ListResourcesResult } from '@modelconte
 import type { OperatorCommand } from '@drawloom/workbench';
 import { z } from 'zod';
 import { elicitationContent } from './elicitation-form.js';
+import { workingFileReference } from './working-file.js';
 import { initializeUiTelemetry, telemetryFetch as fetch } from './telemetry.js';
 type Discovery = DesktopCatalogue['entries'][number];
 type Attachment = { id: string; name: string; size: number; mediaType: string; status: 'pending' | 'ready' | 'failed'; error: string; asset?: Asset };
@@ -32,13 +33,17 @@ export function createDesktopViewModel() {
   // not replace it. Imports are independent so the next draft remains editable.
   let creationSource = $state<'new' | 'workbench' | 'provider'>();
   let importing = $state(false);
+  let projectDirectoryPending = $state(false), projectDirectoryNote = $state('');
+  let projectDirectoryRequest: AbortController | undefined;
   let detailsOpen = $state(false), contextOpen = $state(false);
   let pane = $state<'preview' | 'details'>('preview');
-  let primaryView = $state<'conversation' | 'plugins' | 'settings'>('conversation');
+  let primaryView = $state<'conversation' | 'projects' | 'plugins' | 'settings'>('conversation');
   let attachmentKeys = $state<string[]>([]), contextIds = $state<string[]>([]);
   let attachmentNames = $state<Record<string, string>>({});
   let attachments = $state<Attachment[]>([]), selections = $state<Discovery[]>([]);
   const drafts = new Map<string, SavedDraft>(), files = new Map<string, File>();
+  const uploads = new Map<string, AbortController>();
+  let importEpoch = 0;
   let selectionVersion = 0;
   let catalogue = $state<DesktopCatalogue>(), cataloguePending = $state(false), catalogueError = $state('');
   let catalogueQuery = $state('');
@@ -77,6 +82,9 @@ export function createDesktopViewModel() {
   let draftVersion = 0, attachmentVersion = 0, contextVersion = 0;
   let timer: ReturnType<typeof setInterval> | undefined;
   const conversation = $derived(state?.conversations.find(c => c.id === state?.selectedId));
+  const selectedProject = $derived(state?.projects.find(item => item.id === state?.selectedProjectId));
+  const conversationProject = $derived(state?.projects.find(item => item.id === conversation?.projectId));
+  const canExecute = $derived(Boolean(conversation && conversationProject?.available));
   const group = $derived(state?.operator.groups?.find(g => g.id === groupId));
   const candidates = $derived(state?.operator.candidates.filter(c => !group || group.candidateIds.includes(c.id)) ?? []);
   const artifacts = $derived(state?.operator.artifacts.filter(a => !group || group.artifactIds.includes(a.id) || candidates.some(c => c.artifactIds.includes(a.id))) ?? []);
@@ -85,6 +93,7 @@ export function createDesktopViewModel() {
   const comparableCandidates = $derived(candidate?.comparisonKey ? candidates.filter(c => c.id !== candidate.id && c.comparisonKey === candidate.comparisonKey && !c.reviewAction) : []);
   async function response(res: Response) { const data: unknown = await res.json(); if (!res.ok) throw Error(typeof data === 'object' && data && 'error' in data ? String(data.error) : 'Local host unavailable'); return data; }
   function cancelEdit() { editing = false; editText = ''; editTarget = undefined; reviewSummary = ''; }
+  function cancelDirectoryChooser() { projectDirectoryRequest?.abort(); projectDirectoryRequest = undefined; projectDirectoryPending = false; }
   function persistReferences(id: string, saved: SavedDraft) {
     try {
       const key = 'drawloom-composer-references:' + id;
@@ -107,8 +116,8 @@ export function createDesktopViewModel() {
     } catch { error = 'Saved draft references could not be restored. The message text is retained.'; return; }
   }
   function saveDraft(id: string) { const saved = { text: draft, attachments, contextIds, selections, resources: selectedResources }; drafts.set(id, saved); persistReferences(id, saved); }
-  function saveCurrentReferences() { if (state) saveDraft(state.selectedId); }
-  function setDraft(text: string) { draftVersion++; draft = text; if (state) localStorage.setItem('drawloom-composer:' + state.selectedId, text); }
+  function saveCurrentReferences() { if (state?.selectedId) saveDraft(state.selectedId); }
+  function setDraft(text: string) { draftVersion++; draft = text; if (state?.selectedId) localStorage.setItem('drawloom-composer:' + state.selectedId, text); }
   async function refreshCatalogue(force = false, cursor?: string, poll = false) {
     const id = state?.selectedId;
     if (!id || cataloguePending) return;
@@ -146,8 +155,9 @@ export function createDesktopViewModel() {
     const next = DesktopSnapshotSchema.parse(raw);
     if (editTarget && (editTarget.conversationId !== next.selectedId || next.conversations.find(c => c.id === next.selectedId)?.workbenchId !== editTarget.workbenchId)) cancelEdit();
     const navigation = state?.selectedId !== next.selectedId;
+    const bindingChanged = conversation?.projectId !== next.conversations.find(item => item.id === next.selectedId)?.projectId;
     const previousId = state?.selectedId;
-    if (navigation && previousId) saveDraft(previousId);
+    if (navigation && previousId) { cancelUploads(); saveDraft(previousId); }
     state = next;
     if (navigation) {
       const saved = drafts.get(next.selectedId) ?? restoreDraft(next.selectedId);
@@ -162,6 +172,10 @@ export function createDesktopViewModel() {
       integrationPending = {}; integrationUrls = {}; integrationErrors = {};
       catalogueQuery = ''; pickerQuery = ''; resetDiscoveryPages();
       void pager.open(next.selectedId); void refreshCatalogue();
+    } else if (bindingChanged) {
+      resourceEpoch++; resourceOverrides = {}; resourcePending = {}; resourceErrors = {}; resourceListings = {}; openedResources = [];
+      catalogueEpoch++; cataloguePending = false; catalogue = undefined; catalogueCache.delete(next.selectedId);
+      void refreshCatalogue(true);
     }
   }
   async function refresh() {
@@ -183,33 +197,44 @@ export function createDesktopViewModel() {
   }
   async function command(value: DesktopCommand) {
     if (busy) return false;
+    if (['select_conversation', 'select_project', 'add_project', 'create_conversation'].includes(value.kind)) cancelUploads();
+    cancelDirectoryChooser();
     busy = true; pendingCommand = value; error = '';
     stateRead.abort(); stateRead = new AbortController(); requestEpoch++; pager.invalidate();
     try { project(await response(await fetch('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) }))); return true; }
     catch (e) { error = e instanceof Error ? e.message : 'Operation failed'; return false; }
     finally { busy = false; pendingCommand = undefined; }
   }
-  async function operator(commandValue: OperatorCommand) { if (!conversation) return false; return command({ kind: 'operator', workbenchId: conversation.workbenchId, command: commandValue }); }
+  async function operator(commandValue: OperatorCommand) { if (!conversation || !canExecute) return false; return command({ kind: 'operator', conversationId: conversation.id, workbenchId: conversation.workbenchId, command: commandValue }); }
   function changeAttachments(id: string, change: (items: Attachment[]) => Attachment[]) {
     if (state?.selectedId === id) { attachments = change(attachments); attachmentKeys = [...new Set(attachments.flatMap(item => item.status === 'ready' && item.asset ? [item.asset.key] : []))]; attachmentVersion++; saveCurrentReferences(); }
     else { const saved = drafts.get(id); if (saved) { saved.attachments = change(saved.attachments); persistReferences(id, saved); } }
   }
+  function cancelUploads() {
+    importEpoch++; importing = false;
+    for (const controller of uploads.values()) controller.abort();
+    uploads.clear();
+    if (state?.selectedId) changeAttachments(state.selectedId, items => items.map(item => item.status === 'pending' ? { ...item, status: 'failed', error: 'Import cancelled. Retry to attach this file.' } : item));
+  }
   async function upload(id: string, item: Attachment) {
     const file = files.get(item.id); if (!file) return;
+    const controller = new AbortController(); uploads.set(item.id, controller);
     if (state?.selectedId === id && error === item.error) error = '';
     changeAttachments(id, items => items.map(a => a.id === item.id ? { ...a, status: 'pending', error: '' } : a));
     try {
-      if (file.size > 16 * 1024 * 1024) throw Error('Files must be smaller than 16 MB.');
-      const data = new Uint8Array(await file.arrayBuffer()); let binary = ''; for (const byte of data) binary += String.fromCharCode(byte);
-      const asset = AssetSchema.parse(await response(await fetch('/api/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversationId: id, name: file.name, mediaType: item.mediaType, base64: btoa(binary) }) })));
+      if (file.size > 256 * 1024 * 1024) throw Error('Files must be 256 MiB or smaller.');
+      const params = new URLSearchParams({ conversationId: id, name: file.name, mediaType: item.mediaType });
+      const asset = AssetSchema.parse(await response(await fetch('/api/import?' + params, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: file, signal: controller.signal })));
+      if (controller.signal.aborted) return;
       changeAttachments(id, items => items.map(a => a.id === item.id ? { ...a, status: 'ready', asset, error: '' } : a));
       attachmentNames[asset.key] = file.name;
       if (state?.selectedId === id) { await refresh(); if (!editing) candidateId = ''; }
     } catch (e) {
+      if (controller.signal.aborted) return;
       const message = e instanceof Error ? e.message : 'Import failed';
       changeAttachments(id, items => items.map(a => a.id === item.id ? { ...a, status: 'failed', error: message } : a));
       if (state?.selectedId === id) error = message;
-    }
+    } finally { if (uploads.get(item.id) === controller) uploads.delete(item.id); }
   }
   return {
     get catalogueQuery() { return catalogueQuery; }, set catalogueQuery(v: string) { catalogueQuery = v; catalogueLimit = discoveryPageSize; contributionLimits = {}; },
@@ -248,6 +273,7 @@ export function createDesktopViewModel() {
     },
     get selectedResources() { return selectedResources; }, get resourceListings() { return resourceListings; }, get openedResources() { return openedResources; },
     resource(entryId: string, value: ResourceReference) { return resourceOverrides[resourceKey(entryId, value.id)] ?? value; },
+    workingFile(value: ResourceReference) { return conversation && conversationProject?.available ? workingFileReference(value, conversation.id, conversationProject.directory) : undefined; },
     resourceIsPending(entryId: string, id: string) { return resourcePending[resourceKey(entryId, id)] ?? false; },
     resourceError(entryId: string, id: string) { return resourceErrors[resourceKey(entryId, id)] ?? ''; },
     toggleResource(entryId: string, value: ResourceReference) {
@@ -318,14 +344,16 @@ export function createDesktopViewModel() {
     get state() { return state; }, get conversation() { return conversation; }, get candidate() { return candidate; }, get artifact() { return artifact; },
     get candidates() { return candidates; }, get artifacts() { return artifacts; }, get comparableCandidates() { return comparableCandidates; },
     get groupId() { return groupId; }, set groupId(v: string) { cancelEdit(); groupId = v; candidateId = ''; artifactId = ''; compare = false; },
-    get canSend() { return conversation?.provider !== 'synthetic' || conversation.workbenchId === 'text'; },
+    get selectedProject() { return selectedProject; }, get conversationProject() { return conversationProject; },
+    get canCreate() { return Boolean(selectedProject?.available); }, get canExecute() { return canExecute; },
+    get canSend() { return canExecute && (conversation?.provider !== 'synthetic' || conversation.workbenchId === 'text'); },
     get draft() { return draft; }, set draft(v: string) { setDraft(v); },
     get error() { return error; }, get busy() { return busy; },
     get pendingCommand() { return pendingCommand; },
     get creationSource() { return creationSource; }, get importing() { return importing; },
     get detailsOpen() { return detailsOpen; }, set detailsOpen(v: boolean) { detailsOpen = v; },
     get pane() { return pane; }, set pane(v: typeof pane) { pane = v; detailsOpen = true; },
-    get primaryView() { return primaryView; }, set primaryView(v: typeof primaryView) { primaryView = v; pickerOpen = false; if (v === 'plugins') void refreshCatalogue(); },
+    get primaryView() { return primaryView; }, set primaryView(v: typeof primaryView) { if (v !== primaryView) { cancelUploads(); cancelDirectoryChooser(); } primaryView = v; pickerOpen = false; if (v === 'plugins') void refreshCatalogue(); },
     get contextOpen() { return contextOpen; }, set contextOpen(v: boolean) { contextOpen = v; },
     get attachmentKeys() { return attachmentKeys; }, get contextIds() { return contextIds; },
     attachmentName(key: string) { return attachmentNames[key] ?? 'Attachment'; },
@@ -347,7 +375,7 @@ export function createDesktopViewModel() {
       if (!busy) void refresh();
       if(!catalogueError && catalogue?.categories.some(category=>category.status==='loading'))void refreshCatalogue(false,undefined,true);
     }, 600); },
-    stopPolling() { clearInterval(timer); stateRead.abort(); stateRead = new AbortController(); requestEpoch++; catalogueEpoch++; cataloguePending=false; pager.invalidate(); },
+    stopPolling() { clearInterval(timer); cancelUploads(); cancelDirectoryChooser(); stateRead.abort(); stateRead = new AbortController(); requestEpoch++; catalogueEpoch++; cataloguePending=false; pager.invalidate(); },
     command, operator,
     elicitationChoice(requestId: string, name: string, fallback = '') { return elicitationChoices[JSON.stringify([requestId, name])] ?? fallback; },
     chooseElicitation(requestId: string, name: string, value: string) { elicitationChoices[JSON.stringify([requestId, name])] = value; },
@@ -362,7 +390,7 @@ export function createDesktopViewModel() {
       catch (cause) { error = cause instanceof Error ? cause.message : 'Complete the requested information.'; return false; }
     },
     async send() {
-      if (!state || !draft.trim() || (conversation?.provider === 'synthetic' && conversation.workbenchId !== 'text')) return;
+      if (!state || !canExecute || !draft.trim() || (conversation?.provider === 'synthetic' && conversation.workbenchId !== 'text')) return;
       if (attachments.some(item => item.status !== 'ready') || pickerOpen) return;
       const submitted = { draftVersion, attachmentVersion, contextVersion, selectionVersion, resourceVersion, conversationId: state.selectedId };
       if (await command({ kind: 'send', conversationId: submitted.conversationId, text: draft, attachmentKeys: [...attachmentKeys], contextArtifactIds: [...contextIds], selections: selections.map(({ id, revision }) => ({ id, revision })), resourceSelections: selectedResources.map(({ entryId, resourceId }) => ({ entryId, resourceId })) })) {
@@ -377,38 +405,68 @@ export function createDesktopViewModel() {
     },
     async create(workbenchId = conversation?.workbenchId ?? 'text', provider = conversation?.provider ?? 'synthetic', source: 'new' | 'workbench' | 'provider' = 'new') {
       if (busy) return false;
+      if (!selectedProject?.available) { primaryView = 'projects'; return false; }
       creationSource = source;
       try {
         const succeeded = await command({ kind: 'create_conversation', workbenchId, provider });
-        if (succeeded) { cancelEdit(); candidateId = ''; artifactId = ''; groupId = ''; }
+        if (succeeded) { cancelEdit(); candidateId = ''; artifactId = ''; groupId = ''; primaryView = 'conversation'; }
         return succeeded;
       } finally { creationSource = undefined; }
     },
     async select(id: string) {
       const succeeded = await command({ kind: 'select_conversation', conversationId: id });
-      if (succeeded) { cancelEdit(); candidateId = ''; artifactId = ''; groupId = ''; }
+      if (succeeded) { cancelEdit(); candidateId = ''; artifactId = ''; groupId = ''; primaryView = 'conversation'; }
       return succeeded;
     },
+    async addProject(directory: string, name = '') {
+      if (!directory.trim()) { error = 'Enter a project directory.'; return false; }
+      return command({ kind: 'add_project', directory: directory.trim(), ...(name.trim() ? { name: name.trim() } : {}) });
+    },
+    get projectDirectoryPending() { return projectDirectoryPending; },
+    get projectDirectoryNote() { return projectDirectoryNote; },
+    async chooseProjectDirectory() {
+      if (projectDirectoryPending || busy) return;
+      const controller = new AbortController(); projectDirectoryRequest = controller;
+      projectDirectoryPending = true; projectDirectoryNote = '';
+      try {
+        const res = await fetch('/api/project-directory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal: controller.signal });
+        if (controller.signal.aborted) return;
+        if (res.status === 501) { projectDirectoryNote = 'A native folder chooser is unavailable on this host. Enter the project folder path below.'; return; }
+        const selected = z.strictObject({ directory: z.string().min(1).optional() }).parse(await response(res));
+        if (!controller.signal.aborted) return selected.directory;
+      } catch (cause) {
+        if (!controller.signal.aborted) projectDirectoryNote = cause instanceof Error ? cause.message : 'The folder chooser could not open. Enter the project folder path below.';
+      } finally {
+        if (projectDirectoryRequest === controller) { projectDirectoryRequest = undefined; projectDirectoryPending = false; }
+      }
+    },
+    async selectProject(projectId: string) {
+      const succeeded = await command({ kind: 'select_project', projectId });
+      if (succeeded) { cancelEdit(); candidateId = ''; artifactId = ''; groupId = ''; detailsOpen = false; primaryView = 'conversation'; }
+      return succeeded;
+    },
+    async assignProject(projectId: string) { if (!conversation || conversation.projectId) return false; return command({ kind: 'assign_project', conversationId: conversation.id, projectId }); },
     toggleContext(id: string) { contextVersion++; contextIds = contextIds.includes(id) ? contextIds.filter(k => k !== id) : [...contextIds, id]; saveCurrentReferences(); },
     canRetryAttachment(id: string) { return files.has(id); },
-    removeAttachment(key: string) { const item = attachments.find(a => a.id === key || a.asset?.key === key); if (item) files.delete(item.id); if (state) changeAttachments(state.selectedId, items => items.filter(a => a.id !== key && a.asset?.key !== key)); },
-    async retryAttachment(id: string) { const item = attachments.find(a => a.id === id); if (!state || !item || importing) return; importing = true; try { await upload(state.selectedId, item); } finally { importing = false; } },
+    removeAttachment(key: string) { const item = attachments.find(a => a.id === key || a.asset?.key === key); if (item) { uploads.get(item.id)?.abort(); files.delete(item.id); } if (state) changeAttachments(state.selectedId, items => items.filter(a => a.id !== key && a.asset?.key !== key)); },
+    async retryAttachment(id: string) { const item = attachments.find(a => a.id === id); if (!state || !canExecute || !item || importing) return; const epoch = importEpoch; importing = true; try { await upload(state.selectedId, item); } finally { if (epoch === importEpoch) importing = false; } },
     async importFiles(input: FileList | File[] | null) {
       if (importing) return;
       const selected = Array.from(input ?? []);
-      if (!selected.length || !state) return;
+      if (!selected.length || !state?.selectedId || !canExecute) return;
       const id = state.selectedId;
+      const epoch = importEpoch;
       const items = selected.map(file => { const item: Attachment = { id: 'attachment-' + crypto.randomUUID(), name: file.name, size: file.size, mediaType: file.type || (file.name.endsWith('.md') ? 'text/markdown' : 'application/octet-stream'), status: 'pending', error: '' }; files.set(item.id, file); return item; });
       changeAttachments(id, current => [...current, ...items]);
       importing = true;
       try {
-        for (const item of items) await upload(id, item);
-      } finally { importing = false; }
+        for (const item of items) { if (epoch !== importEpoch) break; await upload(id, item); }
+      } finally { if (epoch === importEpoch) importing = false; }
     },
     async saveRevision() {
       const target = editTarget, text = editText;
-      if (!target || !editing || state?.selectedId !== target.conversationId) return;
-      if (await command({ kind: 'operator', workbenchId: target.workbenchId, command: { kind: 'revise_document', candidateId: target.candidateId, artifactId: target.artifactId, text } })) {
+      if (!target || !editing || !canExecute || state?.selectedId !== target.conversationId) return;
+      if (await command({ kind: 'operator', conversationId: target.conversationId, workbenchId: target.workbenchId, command: { kind: 'revise_document', candidateId: target.candidateId, artifactId: target.artifactId, text } })) {
         if (editTarget === target && editText === text) { cancelEdit(); candidateId = ''; artifactId = ''; }
       }
     },

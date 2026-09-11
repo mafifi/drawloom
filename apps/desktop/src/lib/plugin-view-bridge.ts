@@ -1,6 +1,15 @@
 import { AppBridge } from '@modelcontextprotocol/ext-apps/app-bridge';
 import type { CallToolRequest, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { McpUiMessageRequest, McpUiUpdateModelContextRequest } from '@modelcontextprotocol/ext-apps';
+export function updatePluginViewTheme(
+  bridge: AppBridge,
+  signal: AbortSignal,
+  theme: 'light' | 'dark',
+): boolean {
+  if (signal.aborted || !bridge.transport) return false;
+  bridge.setHostContext({ theme, displayMode: 'inline', availableDisplayModes: ['inline'] });
+  return true;
+}
 export async function closePluginViewBridge(bridge: AppBridge): Promise<void> {
   try { await bridge.teardownResource({}, { timeout: 250 }); }
   catch { /* An unresponsive or not-yet-initialized app must not block closing. */ }

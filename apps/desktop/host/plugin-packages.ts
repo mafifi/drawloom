@@ -17,9 +17,12 @@ import { createBackendLoader } from './plugin-backend.js';
 import { packageToolName, projectPackageServer } from './plugin-projection.js';
 import { connectMcpAppClient, type ConnectedMcpApp } from './mcp-app.js';
 import { createPackageResources } from './package-resources.js';
+import type { MediaPolicy } from './media-policy.js';
 
 export type InstalledPackageStatus = { id: string; name: string; status: 'disabled' | 'ready' | 'partial' | 'failed'; codes: string[]; servers: ActivePackage['statuses'] };
 export async function loadInstalledPackages(options: {
+  project?: { readonly id: string; readonly directory: string };
+  mediaPolicy?: MediaPolicy;
   root: string; installations: readonly Installation[]; host: DesktopCompositionContext;
   /** Composition-owned built-ins participate in collision checks, never package installation. */
   builtins?: readonly PluginInstaller[];
@@ -53,6 +56,7 @@ export async function loadInstalledPackages(options: {
     if (!installation.enabled) continue;
     try {
       const inventory = await observed('host.package.inspect', { 'drawloom.plugin.id': installation.id }, () => inspectPackage(installation.root));
+      await options.mediaPolicy?.declare(`package:${inventory.name}:${installation.id}`, installation.approvedResourceOrigins ?? []);
       const authProviderFor = options.authProviderFor?.(installation);
       const connections = await observed('host.package.connect', { 'drawloom.plugin.id': installation.id }, async () => {
         const connections = await activatePackage(inventory, { dataRoot: join(options.root, 'plugins'), installationId: installation.id,
@@ -142,6 +146,7 @@ export async function loadInstalledPackages(options: {
     const result = await observed('host.package.activate', { 'drawloom.plugin.id': installation.id }, async () => {
       const result = await backends.activate(inventory, {
       trusted: installation.trustedBackend, available,
+      ...(options.project ? { project: options.project } : {}),
       installationId: installation.id, dataDirectory: join(options.root, 'plugins', installation.id), configuration: installation.configuration,
       capabilities: { host: { ...options.host, store: {
         get: key => options.host.store.get(JSON.stringify(['plugin', installation.id, key])),
@@ -200,6 +205,7 @@ export async function loadInstalledPackages(options: {
         const uri = opening && getToolUiResourceUri(opening);
         if (!uri || uri !== view.entrypoint) throw Error('Opening resource unavailable');
         const app = await connectMcpAppClient(connection.client, placement.openingTool.tool, uri);
+        await options.mediaPolicy?.declare(`package:${inventory.name}:${installation.id}`,app.resourceDomains);
         mcpApps.set(placement.id, app);
         viewConnections.add(JSON.stringify([installation.id, placement.openingTool.server]));
       } catch { status.codes.push(`workbench:${placement.id}:view-unavailable`); }

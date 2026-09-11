@@ -103,7 +103,7 @@ const methods: Record<string, string> = {
   historyPage: 'host.history.page',
   readResource: 'host.resource.read', readDiscoveredResource: 'host.resource.read',
   openListedResource: 'host.resource.read', resourcePage: 'host.resource.read',
-  // viewSession is synchronous; its authenticated HTTP request is observed without changing that contract.
+  importAssetStream: 'host.asset.write',
   viewRequest: 'mcp.request', viewInteraction: 'host.command',
   inspectPackage: 'host.package.inspect', packageAction: 'host.package.activate',
 };
@@ -123,7 +123,7 @@ const routes = new Set(['/api/command', '/api/discovery', '/api/discovery/authen
 /** Called only after channel authentication. URLs, query strings and baggage are never captured. */
 export async function observedHttp(request: Request, run: () => Promise<Response>): Promise<Response> {
   const path = new URL(request.url).pathname;
-  const route = routes.has(path) ? path : path.startsWith('/api/assets/') ? '/api/assets/:id' : undefined;
+  const route = routes.has(path) ? path : path.startsWith('/api/assets/') ? '/api/assets/:id' : path === '/api/files' ? '/api/files' : undefined;
   if (!route) return run();
   const parent = propagation.extract(ROOT_CONTEXT, { traceparent: request.headers.get('traceparent') ?? '' });
   return context.with(parent, () => trace.getTracer('drawloom.desktop').startActiveSpan('http.request', { kind: SpanKind.SERVER, attributes: { 'http.route': route, 'http.request.method': request.method } }, async span => {

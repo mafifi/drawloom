@@ -2,7 +2,7 @@ import { test, expect } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createDesktopApplication } from './application.js';
+import { createTestDesktopApplication as createDesktopApplication } from './test-project.fixture.js';
 
 test('registered contributions are discoverable without executing a tool or disclosing instructions', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-discovery-'));

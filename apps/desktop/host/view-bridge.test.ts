@@ -1,10 +1,10 @@
 import { test, expect } from 'bun:test';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rename } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createNodeJsonStore } from '@drawloom/node-host';
 import { createInstallationStore } from './plugin-installations.js';
-import { createDesktopApplication } from './application.js';
+import { createTestDesktopApplication as createDesktopApplication } from './test-project.fixture.js';
 import { serveDesktop } from './server.js';
 
 async function openExample(root: string) {
@@ -46,9 +46,40 @@ test('returned and listed resources stay source-bound and cached across restart'
     const { createNodeJsonStore } = await import('@drawloom/node-host');
     const store = createNodeJsonStore(join(root, 'state'));
     const id = (await createInstallationStore(store)).startup[0]!.id;
-    expect(await store.get(JSON.stringify(['plugin', id, 'example.reads']))).toBe(2);
+    const scoped = createNodeJsonStore(join(root,'projects',(await app.snapshot()).selectedProjectId!,'state'));
+    expect(await scoped.get(JSON.stringify(['plugin', id, 'example.reads']))).toBe(2);
     expect((await app.snapshot()).activity).toEqual([]);
   } finally { await app.close(); }
+});
+
+test('a returning project directory activates its installed workbenches after offline display',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'drawloom-returning-project-'));
+  let app=await openExample(root);
+  const working=(await app.snapshot()).projects[0]!.directory;
+  await app.close();await rename(working,working+'-offline');
+  app=await openExample(root);
+  try {
+    const offline=await app.snapshot();expect(offline.projects[0]!.available).toBe(false);
+    expect(offline.workbenches.some(w=>w.id==='example')).toBe(false);
+    await rename(working+'-offline',working);
+    const online=await app.snapshot();expect(online.projects[0]!.available).toBe(true);
+    expect(online.workbenches.some(w=>w.id==='example')).toBe(true);
+  }finally{await app.close();}
+});
+
+test('a stale app-resource read is rejected before contacting the source',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'drawloom-stale-project-resource-'));
+  const app=await openExample(root);
+  try{
+    const original=await app.command({kind:'create_conversation',workbenchId:'example',provider:'synthetic'});
+    await app.viewRequest({conversationId:original.selectedId,viewId:'example.view',request:{name:'example.reference',arguments:{}}});
+    const entry=(await app.historyPage(original.selectedId)).entries[0]!;
+    await app.command({kind:'create_conversation',workbenchId:'text',provider:'synthetic'});
+    await expect(app.readResource(original.selectedId,entry.id,entry.resources![0]!.id)).rejects.toThrow();
+    const installation=(await app.installedPackages())[0]!;
+    const store=createNodeJsonStore(join(root,'projects',original.selectedProjectId!,'state'));
+    expect(await store.get(JSON.stringify(['plugin',installation.id,'example.reads']))).toBeUndefined();
+  }finally{await app.close();}
 });
 
 test('MCP view data stays with its active owner and persists without an OperatorController', async () => {
@@ -82,6 +113,7 @@ test('MCP HTML and calls require authenticated parent channel and retain sandbox
     expect((await fetch(server.origin + path)).status).toBe(401);
     const boot = await fetch(server.url, { redirect: 'manual' });
     const cookie = boot.headers.get('set-cookie')!.split(';')[0]!;
+    await app.viewSession({action:'open',conversationId:state.selectedId,viewId:'example.view'});
     const html = await fetch(server.origin + path, { headers: { cookie } });
     expect(html.status).toBe(200);
     expect(html.headers.get('content-security-policy')).toContain('sandbox allow-scripts;');
@@ -102,7 +134,7 @@ test('context updates do not start an agent and stale views cannot send conversa
   const previous = (await app.snapshot()).selectedId;
   await app.command({ kind: 'create_conversation', workbenchId: 'example', provider: 'synthetic' });
   const routing = { conversationId: (await app.snapshot()).selectedId, viewId: 'example.view' };
-  const target = { ...routing, ...app.viewSession({ ...routing, action: 'open' }) };
+  const target = { ...routing, mountId:(await app.viewSession({ ...routing, action: 'open' })).mountId };
   try {
     const before = await app.snapshot();
     expect(await app.viewInteraction({ ...target, request: { method: 'ui/update-model-context', params: { content: [{ type: 'text', text: 'A selected revision' }] } } })).toEqual({});
@@ -110,8 +142,8 @@ test('context updates do not start an agent and stale views cannot send conversa
     expect((await app.snapshot()).signals).toEqual(before.signals);
     expect(await app.viewInteraction({ ...target, request: { method: 'ui/message', params: { role: 'user', content: [{ type: 'text', text: 'Revise it' }] } } })).toEqual({ isError: true });
     expect((await app.historyPage(before.selectedId)).entries).toEqual([]);
-    const replacement = { ...routing, ...app.viewSession({ ...routing, action: 'open' }) };
-    app.viewSession({ ...target, action: 'close' });
+    const replacement = { ...routing, mountId:(await app.viewSession({ ...routing, action: 'open' })).mountId };
+    await app.viewSession({ ...target, action: 'close' });
     await expect(app.viewInteraction({ ...target, request: { method: 'ui/update-model-context', params: {} } })).rejects.toThrow();
     expect(await app.viewInteraction({ ...replacement, request: { method: 'ui/update-model-context', params: {} } })).toEqual({});
     await app.command({ kind: 'select_conversation', conversationId: previous });
@@ -121,4 +153,26 @@ test('context updates do not start an agent and stale views cannot send conversa
     await app.command({ kind: 'select_conversation', conversationId: routing.conversationId });
     await expect(app.viewInteraction({ ...replacement, request: { method: 'ui/update-model-context', params: {} } })).rejects.toThrow();
   } finally { await app.close(); }
+});
+
+test('opaque MCP frame receives a project-only media URL revoked on navigation',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'drawloom-mcp-files-'));
+  const app=await openExample(root);
+  const initial=await app.snapshot();
+  await writeFile(join(initial.projects[0]!.directory,'sample.txt'),'public project bytes');
+  await app.command({kind:'create_conversation',workbenchId:'example',provider:'synthetic'});
+  const state=await app.snapshot();const target={conversationId:state.selectedId,viewId:'example.view'};
+  await app.viewSession({...target,action:'open'});
+  const host=serveDesktop(app,resolve('apps/desktop/build'));
+  try{
+    const boot=await fetch(host.url,{redirect:'manual'});const cookie=boot.headers.get('set-cookie')!.split(';')[0]!;
+    const response=await fetch(host.origin+'/api/views/example.view?conversationId='+state.selectedId,{headers:{cookie}});
+    const html=await response.text();const base=/<base href="([^"]+)"/.exec(html)?.[1];
+    expect(base).toBeDefined();expect(base).toStartWith(host.origin+'/api/view-files/');
+    const file=await fetch(base+'sample.txt',{headers:{origin:'null',range:'bytes=0-5'}});
+    expect(file.status).toBe(206);expect(await file.text()).toBe('public');
+    expect((await fetch(base+'..%2Foutside.txt',{headers:{origin:'null'}})).status).toBe(403);
+    await app.command({kind:'select_conversation',conversationId:initial.selectedId});
+    expect((await fetch(base+'sample.txt',{headers:{origin:'null'}})).status).toBe(403);
+  }finally{await host.close();}
 });
