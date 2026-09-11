@@ -19,6 +19,8 @@ export interface ActivatePackageOptions {
   dataRoot: string;
   installationId: string;
   selectedServers: readonly string[];
+  /** Selected non-SSE servers that must not advertise or present interactive forms. */
+  elicitationDisabledServers?: readonly string[];
   handshakeTimeoutMs?: number;
   clientCapabilities?: ClientCapabilities;
   elicitation?: ToolElicitationHandler;
@@ -72,11 +74,23 @@ export async function activatePackage(inventory: PackageInventory, options: Acti
   if (!/^[A-Za-z0-9_-]{1,100}$/.test(options.installationId)) throw Error('Invalid installation identity');
   const timeout = options.handshakeTimeoutMs ?? 10_000;
   if (!Number.isFinite(timeout) || timeout < 1 || timeout > 60_000) throw Error('Handshake timeout must be between 1 and 60000ms');
+  const disabledNames = options.elicitationDisabledServers ?? [];
+  if (!Array.isArray(disabledNames) || disabledNames.length > 100 || new Set(disabledNames).size !== disabledNames.length || disabledNames.some(name => typeof name !== 'string' || name.length < 1 || name.length > 100))
+    throw Error('Elicitation-disabled servers must be at most 100 distinct bounded names');
+  const selectedNames = new Set(options.selectedServers);
+  for (const name of disabledNames) {
+    const selected = inventory.servers.find(server => server.name === name);
+    if (!selectedNames.has(name) || !selected) throw Error('Elicitation-disabled server must be selected and prepared');
+    const config = PackageServerConfigSchema.parse(selected.config);
+    if (config.type === 'sse') throw Error('Elicitation-disabled server must use a supported transport');
+  }
+  const elicitationDisabled = new Set(disabledNames);
   const servers = new Map<string, ActivePackageServer>(), statuses: PackageServerStatus[] = [];
   await Promise.all([...new Set(options.selectedServers)].map(async name => {
+    const allowsElicitation = Boolean(options.elicitation) && !elicitationDisabled.has(name);
     const { elicitation: _unsupportedCapability, ...capabilities } = options.clientCapabilities ?? {};
     const client = new Client({ name: 'drawloom-plugin-packages', version: '0.0.0' },
-      { capabilities: { ...capabilities, ...(options.elicitation ? { elicitation: { form: {} } } : {}) } });
+      { capabilities: { ...capabilities, ...(allowsElicitation ? { elicitation: { form: {} } } : {}) } });
     let transport: Transport | undefined;
     const abort = new AbortController();
     const contextStore = new AsyncLocalStorage<ToolContext>();
@@ -89,12 +103,12 @@ export async function activatePackage(inventory: PackageInventory, options: Acti
       const context = contextStore.getStore();
       const parent = otelContext.active();
       let started = false;
-      const run = queue.then(() => otelContext.with(parent, () => trace.getTracer('drawloom.mcp').startActiveSpan('mcp.request', { kind: SpanKind.CLIENT, attributes: { 'drawloom.plugin.id': options.installationId, 'rpc.method': telemetryMethods.has(args[0].method) ? args[0].method : 'other' } }, async span => {
+      const execute = () => otelContext.with(parent, () => trace.getTracer('drawloom.mcp').startActiveSpan('mcp.request', { kind: SpanKind.CLIENT, attributes: { 'drawloom.plugin.id': options.installationId, 'rpc.method': telemetryMethods.has(args[0].method) ? args[0].method : 'other' } }, async span => {
         const lifetime = new AbortController();
         const signal = AbortSignal.any([abort.signal, ...(args[2]?.signal ? [args[2].signal] : [])]);
         if (signal.aborted) { span.setAttribute('drawloom.outcome', 'cancelled'); span.end(); signal.throwIfAborted(); }
         started = true;
-        current = { ...(context ? { context } : {}), signal: AbortSignal.any([signal, lifetime.signal]), traceContext: otelContext.active() };
+        if (allowsElicitation) current = { ...(context ? { context } : {}), signal: AbortSignal.any([signal, lifetime.signal]), traceContext: otelContext.active() };
         const retire = () => { abort.abort(); void client.close().catch(() => {}); };
         signal.addEventListener('abort', retire, { once: true });
         try {
@@ -110,12 +124,13 @@ export async function activatePackage(inventory: PackageInventory, options: Acti
           span.setStatus({ code: SpanStatusCode.ERROR }); retire(); throw error;
         } finally {
           signal.removeEventListener('abort', retire);
-          current = undefined;
+          if (allowsElicitation) current = undefined;
           lifetime.abort();
           span.end();
         }
-      })));
-      queue = run.catch(() => {});
+      }));
+      const run = elicitationDisabled.has(name) ? execute() : queue.then(execute);
+      if (!elicitationDisabled.has(name)) queue = run.catch(() => {});
       const queuedSignal = args[2]?.signal;
       if (!queuedSignal) return run;
       let cancel: (() => void) | undefined;
@@ -131,7 +146,7 @@ export async function activatePackage(inventory: PackageInventory, options: Acti
       const status = statuses.find(status => status.name === name);
       if (status?.status === 'connected') { status.status = 'failed'; status.code = 'connection-closed'; }
     };
-    if (options.elicitation) client.setRequestHandler(ElicitRequestSchema, async (request, extra) => {
+    if (allowsElicitation) client.setRequestHandler(ElicitRequestSchema, async (request, extra) => {
       const params = ElicitRequestFormParamsSchema.parse(request.params);
       if (params.task || params._meta?.['io.modelcontextprotocol/related-task'])
         throw new McpError(ErrorCode.InvalidRequest, 'Task elicitation is unsupported');

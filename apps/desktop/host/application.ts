@@ -2,6 +2,11 @@ import { basename, join } from "node:path";
 import { mkdir } from 'node:fs/promises';
 import { z } from 'zod';
 import { createInstallationStore } from './plugin-installations.js';
+import { createOrchestrationHost } from './orchestration-host.js';
+import { createWorkflowAuthority } from './workflow-authority.js';
+import { createWorkflowToolScope } from './workflow-tools.js';
+import { createGrantRefresh } from './grant-refresh.js';
+import type { createLocalTemporalManager } from '@drawloom/temporal-orchestration';
 import { loadInstalledPackages } from './plugin-packages.js';
 import { createElicitationPresenter } from './elicitation.js';
 import { PackageActionSchema, PackageInspectionSchema, ResourceOriginSchema } from '../src/lib/package-protocol.js';
@@ -89,7 +94,8 @@ export async function retireCreatedRuntimes<T>(
 }
 export async function createDesktopApplication(
   root: string,
-  options: { experimentalPluginDiscovery?: boolean; mediaOrigins?: readonly string[] } = {},
+  options: { experimentalPluginDiscovery?: boolean; mediaOrigins?: readonly string[];
+    orchestration?: { temporalPath?: string; nodePath?: string; runtimeDirectory?: string; manager?: () => Promise<ReturnType<typeof createLocalTemporalManager>> } } = {},
 ) {
   const operationTelemetry = createOperationTelemetry();
   const mediaOrigins = z.array(ResourceOriginSchema).parse(options.mediaOrigins ?? []);
@@ -217,6 +223,22 @@ export async function createDesktopApplication(
   }
   const elicitation = createElicitationPresenter(operationId => project.conversations.find(c => live.get(c.id)?.active === operationId)?.id);
   const runtimes = new Map<string, Promise<Awaited<ReturnType<typeof createRuntime>>>>();
+  const workflowAuthority = createWorkflowAuthority();
+  const orchestration = createOrchestrationHost({ dataDirectory: root,
+    manager: options.orchestration?.manager ?? (async () => {
+      const { createLocalTemporalManager } = await import('@drawloom/temporal-orchestration');
+      return createLocalTemporalManager({ dataDirectory: root,
+        ...(options.orchestration?.temporalPath ? { temporalPath: options.orchestration.temporalPath } : {}),
+        ...(options.orchestration?.nodePath ? { nodePath: options.orchestration.nodePath } : {}),
+        ...(options.orchestration?.runtimeDirectory ? { runtimeDirectory: options.orchestration.runtimeDirectory } : {}) });
+    }),
+    ensureProject: async id => {
+      const binding = project.projects.find(p => p.id === id);
+      if (!binding) throw Error('Project unavailable');
+      await verifyProjectDirectory(binding, root);
+      await runtimeFor(binding);
+    },
+  });
   function runtimeFor(binding?: DirectoryProject) {
     const key = binding?.id ?? 'legacy';
     let runtime = runtimes.get(key);
@@ -256,6 +278,19 @@ export async function createDesktopApplication(
     const text = await createTextController(runtimeStore);
     const controllers = new Map<string, OperatorController>([['text', text]]);
     const grants = new Map<string, Set<string>>();
+    const refreshWorkbenchGrants = createGrantRefresh(grants,
+      async id => {
+        const controller = controllers.get(id);
+        if (!controller) throw Error('Workbench unavailable');
+        return OperatorSnapshotSchema.parse(await controller.snapshot());
+      },
+      (snapshot, id) => new Set([...snapshot.grants.filter(g => g.allowed).map(g => g.toolName), ...(packageGrants[id] ?? []).filter(name => packageToolIds.has(name))]));
+    const workflowScopes = new Map<string, ReturnType<typeof createWorkflowToolScope>>();
+    async function ready() {
+      const pending = binding && runtimes.get(binding.id);
+      if (!pending) throw Error('Project runtime unavailable');
+      await pending;
+    }
     // Installing remains global. Only connections and working state are scoped.
     const available = binding ? await verifyProjectDirectory(binding, root).then(() => true, () => false) : false;
     const packages = await loadInstalledPackages({ root: runtimeRoot, installations: available ? installations.startup : [],
@@ -265,20 +300,42 @@ export async function createDesktopApplication(
     builtins: [{ plugin: textPlugin, config: {} }],
     elicitation: elicitation.request,
     authProviderFor: installation => server => oauth.connection({ installationId: installation.id, serverName: server.name, serverUrl: server.config.url }).provider,
-    toolsFor: (_installation, tools, workbenchIds) => observedToolGateway(createLocalToolGateway({ tools: observedTools(tools),
+    ...(binding ? { prepareWorkflows: (installation, inventory) => orchestration.prepare(binding.id, installation, inventory,
+      handlers => workflowAuthority.wrap({ projectId: binding.id, installationId: installation.id }, handlers, async () => {
+        await ready(); await verifyProjectDirectory(binding, root);
+        await workflowScopes.get(installation.id)?.refresh();
+      })) } : {}),
+    toolsFor: (installation, tools, workbenchIds) => {
+      const ownedWorkbenchIds: string[] = [];
+      const workflow = createWorkflowToolScope({ authority: workflowAuthority, projectId: binding?.id ?? '', installationId: installation.id,
+        workbenchIds: ownedWorkbenchIds, grants, store: runtimeStore,
+        refreshGrants: async () => {
+          await ready();
+          if (!binding) throw Error('Project unavailable');
+          await verifyProjectDirectory(binding, root);
+          // No task/workbench association exists: every owned workbench must grant.
+          ownedWorkbenchIds.splice(0, ownedWorkbenchIds.length, ...registry.contributions.filter(c => c.kind === 'workbench' && c.pluginId === `package:${installation.id}:backend`).map(c => c.contributionId));
+          await refreshWorkbenchGrants(ownedWorkbenchIds);
+        },
+      });
+      workflowScopes.set(installation.id, workflow);
+      return workflow.wrap(observedToolGateway(createLocalToolGateway({ tools: observedTools(tools),
       nextInvocationId: () => crypto.randomUUID(),
       policy: (operationId, name) => {
+        if (workflowAuthority.current()) return workflow.allowed(operationId, name);
         const owner = project.conversations.find(c => live.get(c.id)?.active === operationId);
         return Boolean(owner && owner.projectId === binding?.id && workbenchIds.includes(owner.workbenchId) && grants.get(owner.workbenchId)?.has(name));
       },
       evidence: { record: async record => {
         const operationId = record.kind === 'started' ? record.operationId : record.result.operationId;
+        if (workflowAuthority.current()) { await workflow.record(record); return; }
         const owner = project.conversations.find(c => live.get(c.id)?.active === operationId);
         if (!operationId || !owner || owner.projectId !== binding?.id || !workbenchIds.includes(owner.workbenchId)) throw Error('No active operation owns this tool invocation');
         await (await evidenceFor(owner.id)).record(record);
         if (record.kind === 'finished') await (await recoveryFor(owner.id)).record(record.result);
       } },
-    }), operationTelemetry),
+    }), operationTelemetry));
+    },
   });
   const packageToolIds = packages.toolIds;
   const packageGrants = z.record(z.string(), z.array(z.string())).parse((await runtimeStore.get('package-grants')) ?? {});
@@ -306,7 +363,7 @@ export async function createDesktopApplication(
       // to arbitrary startup transports.
     }
   } catch (error) { await Promise.all([...mcpApps.values()].map(app => app.close())); throw error; }
-    return { packages, packageToolIds, packageGrants, registry, controllers, grants, text, mcpApps, store: runtimeStore, activated: available };
+    return { packages, packageToolIds, packageGrants, registry, controllers, grants, refreshWorkbenchGrants, text, mcpApps, store: runtimeStore, activated: available };
   }
   async function viewTarget(raw: unknown) {
     const target = ViewTargetSchema.parse(raw);
@@ -318,15 +375,7 @@ export async function createDesktopApplication(
     return view;
   }
   async function refreshGrants(workbenchId: string, runtime: Awaited<ReturnType<typeof createRuntime>>) {
-    const { controllers, grants, packageGrants, packageToolIds } = runtime;
-    const state = OperatorSnapshotSchema.parse(
-      await controllers.get(workbenchId)!.snapshot(),
-    );
-    grants.set(
-      workbenchId,
-      new Set([...state.grants.filter((g) => g.allowed).map((g) => g.toolName), ...(packageGrants[workbenchId] ?? []).filter(name => packageToolIds.has(name))]),
-    );
-    return state;
+    return (await runtime.refreshWorkbenchGrants([workbenchId])).get(workbenchId)!;
   }
   async function connect(conversationId: string): Promise<Live> {
     const binding = await requireProject(conversationId);
@@ -577,6 +626,10 @@ export async function createDesktopApplication(
   };
   const application = {
     installations,
+    workflowOwners: orchestration.owners,
+    workflowRuns: orchestration.list,
+    workflowSteps: orchestration.steps,
+    workflowCommand: orchestration.command,
     bindOAuthRedirect: (url: string) => { oauthRedirect = url; },
     oauthCallback: (url: URL) => oauth.callback(url),
     async packageOAuth(raw: unknown) {
@@ -627,7 +680,7 @@ export async function createDesktopApplication(
       else {
         const current = installations.list().find(i => i.id === action.id);
         if (!current) throw Error('Installation unavailable');
-        await installations.configure(action.id, { ...action.settings, configuration: action.settings.configuration ?? current.configuration });
+        await orchestration.changeInstallation(action.id, () => installations.configure(action.id, { ...action.settings, configuration: action.settings.configuration ?? current.configuration }),()=>installations.pendingRestart(action.id));
       }
       return this.installedPackages();
     },
@@ -901,6 +954,8 @@ export async function createDesktopApplication(
       });
     },
     async restore() {
+      const workflowReadiness = await orchestration.restore();
+      if (workflowReadiness?.message) notice = workflowReadiness.message;
       const c = project.conversations.find((c) => c.id === project.selectedId);
       if (c?.provider === "codex" && c.projectId) {
         void connect(c.id).catch(async () => {
@@ -1163,6 +1218,7 @@ export async function createDesktopApplication(
       return asset;
     },
     async close() {
+      await orchestration.close();
       operationTelemetry.close();
       await Promise.allSettled([...opening.values()]);
       await Promise.all([...live.values()].map((s) => s.close()));

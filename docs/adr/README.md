@@ -14,6 +14,12 @@ links back.
 
 ## Latest decision
 
+- [ADR 0021: Local Temporal orchestration](0021-local-temporal-orchestration.md)
+  is Accepted. It adds an installed workflow
+  entrypoint, local Temporal provider and deterministic video-workbench integration.
+  Local recovery and parallel media execution are verified; production-server
+  guarantees and automatic replay of uncertain effects remain excluded.
+
 - [ADR 0020: Directory-backed projects and efficient file delivery](0020-directory-backed-projects-and-file-delivery.md)
   is Accepted. Directory-backed projects, project-scoped activation, streamed file
   delivery and shared media origins are implemented and verified. Remote storage

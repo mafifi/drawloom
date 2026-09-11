@@ -64,9 +64,10 @@ and cleanup. Requested host storage is installation-scoped. Use
 `assets.put(bytes,mediaType)` to create assets the host can serve safely. Configuration
 is not a grant. Snapshot fields must be explicitly safe for display; credentials
 stay inside the connection owner. Plugin browser code runs only through MCP Apps.
-Trusted generated media may be up to 256 MiB per asset; browser imports and
-native image inputs remain 16 MiB. This is a whole-buffer, bounded-memory API,
-not streaming. See [memory and upload limits](../../docs/design/desktop-host.md).
+Managed media and streamed browser imports may be up to 256 MiB per asset;
+native model-input limits remain separate. Large-file paths use streaming readers
+and writers rather than the bounded whole-buffer helper. See
+[memory and upload limits](../../docs/design/desktop-host.md).
 
 The backend module is an explicit trusted-code choice by the local operator. No
 marketplace, auto-install, hot reload or arbitrary HTTP/file routes are supported.
@@ -81,8 +82,12 @@ PATH="$HOME/.cargo/bin:$PATH" bun run --cwd apps/desktop tauri build --bundles a
 
 The output is `src-tauri/target/release/bundle/macos/Drawloom.app`. The app includes
 the static frontend and a compiled Bun host; it does not depend on Bun being
-installed on the user's PATH. Codex remains an external, explicitly selected
-prerequisite. The native shell launches the host, accepts only its exact loopback
+installed on the user's PATH. The frozen Node worker dependencies are included
+as resources for optional local workflows; Node and Temporal themselves remain
+external prerequisites, as documented by the
+[local orchestration provider](../../packages/orchestration/temporal-orchestration/README.md).
+Codex remains an external, explicitly selected prerequisite.
+The native shell launches the host, accepts only its exact loopback
 origin, exposes no Tauri commands to web content, and closes the host on exit.
 Release builds and native synthetic transport are verified on macOS. Windows,
 Linux, signing, notarization and distribution are not claimed.

@@ -11,6 +11,8 @@ import { fileResponse } from './file-response.js';
 import { browserImportByteLimit } from './assets.js';
 import { ProjectDirectoryError } from './projects.js';
 import { remoteMediaResponse } from './remote-media-response.js';
+import { createOrchestrationHttp } from './orchestration-http.js';
+import { WorkflowControlError } from './orchestration-presentation.js';
 type Application = Awaited<ReturnType<typeof createDesktopApplication>>;
 export function serveDesktop(app: Application, webRoot: string, port = 0, telemetry?: ReturnType<typeof createTelemetryRelay>, options: {pickDirectory?:(signal:AbortSignal)=>Promise<string|undefined>}={}) {
   const token = randomBytes(32).toString('hex');
@@ -18,6 +20,7 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
   let commandQueue: Promise<unknown> = Promise.resolve();
   let stateQueue: Promise<unknown> = Promise.resolve();
   const stateFeed = createStateFeed();
+  const workflows = createOrchestrationHttp(app);
   let viewFiles: { token:string; mountId:string; conversationId:string; viewId:string } | undefined;
   async function workingResponse(request:Request,conversationId:string,path:string,headers?:Record<string,string>) {
     const reader=await app.openWorkingFile(conversationId,path);
@@ -63,6 +66,10 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
       if (url.pathname === '/api/telemetry/v1/traces' && request.method === 'POST') return telemetry ? telemetry.handle(request) : new Response(null, { status: 404, headers: secure });
       return observedHttp(request, async () => {
       try {
+        if (['/api/orchestration/owners', '/api/orchestration/runs', '/api/orchestration/steps'].includes(url.pathname)) {
+          const result = await workflows(request, url);
+          return json(result.body, result.status);
+        }
         if(url.pathname==='/api/project-directory' && request.method==='POST') {
           if(!options.pickDirectory)return json({error:'Native folder selection is unavailable. Enter a local path instead.'},501);
           const next=commandQueue.then(()=>options.pickDirectory!(request.signal));commandQueue=next.catch(()=>{});
@@ -212,6 +219,7 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
         }
         return new Response(request.method === 'HEAD' ? null : file, { headers: secure });
       } catch (error) {
+        if (error instanceof WorkflowControlError) return json({ error: error.message }, 400);
         if (error instanceof ProjectDirectoryError) return json({error:error.message},400);
         if (error instanceof HistoryStoreError) return json({ error: error.message, code: error.code }, error.code === 'invalid_cursor' ? 409 : 503);
         const known = error instanceof Error && !('issues' in error) ? error.message : 'Invalid request';

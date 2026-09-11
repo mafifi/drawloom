@@ -47,6 +47,7 @@
         "@drawloom/local-plugin-packages": "workspace:*",
         "@drawloom/local-tools": "workspace:*",
         "@drawloom/node-host": "workspace:*",
+        "@drawloom/orchestration": "workspace:*",
         "@drawloom/otel-host": "workspace:*",
         "@drawloom/plugins": "workspace:*",
         "@drawloom/sqlite-conversation-history": "workspace:*",
@@ -200,6 +201,23 @@
         "zod": "catalog:",
       },
     },
+    "packages/orchestration/temporal-orchestration": {
+      "name": "@drawloom/temporal-orchestration",
+      "version": "0.0.0",
+      "dependencies": {
+        "@drawloom/agent": "workspace:*",
+        "@drawloom/desktop-host": "workspace:*",
+        "@drawloom/host": "workspace:*",
+        "@drawloom/orchestration": "workspace:*",
+        "@opentelemetry/api": "catalog:",
+        "@temporalio/activity": "catalog:",
+        "@temporalio/client": "catalog:",
+        "@temporalio/common": "catalog:",
+        "@temporalio/worker": "catalog:",
+        "@temporalio/workflow": "catalog:",
+        "zod": "catalog:",
+      },
+    },
     "packages/plugins/local-plugin-packages": {
       "name": "@drawloom/local-plugin-packages",
       "version": "0.0.0",
@@ -253,6 +271,7 @@
       "name": "@drawloom/ui",
       "version": "0.0.0",
       "dependencies": {
+        "@drawloom/orchestration": "workspace:*",
         "@internationalized/date": "catalog:",
         "@lucide/svelte": "catalog:",
         "bits-ui": "catalog:",
@@ -465,6 +484,8 @@
     "@drawloom/synthetic-agent": ["@drawloom/synthetic-agent@workspace:packages/agent/synthetic-agent"],
 
     "@drawloom/synthetic-workbench": ["@drawloom/synthetic-workbench@workspace:packages/examples/synthetic-workbench"],
+
+    "@drawloom/temporal-orchestration": ["@drawloom/temporal-orchestration@workspace:packages/orchestration/temporal-orchestration"],
 
     "@drawloom/tools": ["@drawloom/tools@workspace:packages/tools/tools"],
 

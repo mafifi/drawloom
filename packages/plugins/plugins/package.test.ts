@@ -1,8 +1,9 @@
 import { test, expect } from 'bun:test';
 import { PackageManifestSchema, PackageServerConfigSchema, DrawloomPackageExtensionSchema, PLUGIN_SCHEMA } from './src/index.ts';
-test('optional dependencies describe tools and skills, never optional injected capabilities', () => {
+test('optional dependencies describe tools, skills and only the existing orchestration capability', () => {
   expect(DrawloomPackageExtensionSchema.safeParse({ version: 1, optional: [
     { kind: 'tool', id: 'package:media:media:inspect' }, { kind: 'skill', id: 'package:editor:skill:edit' },
+    { kind: 'capability', id: 'orchestration' },
   ] }).success).toBe(true);
   expect(DrawloomPackageExtensionSchema.safeParse({ version: 1, optional: [{ kind: 'capability', id: 'host' }] }).success).toBe(false);
 });
@@ -33,5 +34,15 @@ test('Drawloom metadata accepts existing requirements and opening-tool reference
   expect(DrawloomPackageExtensionSchema.safeParse({ version: 1, backend: { entrypoint: './dist/backend.mjs' }, requires: [{ kind: 'capability', id: 'orchestration' }], workbenches: [{ id: 'notes', title: 'Notes', openingTool: { server: 'backend', tool: 'open' } }] }).success).toBe(true);
   for (const entrypoint of ['../backend.js', '/backend.js', 'backend.ts', 'https://example.com/backend.js']) {
     expect(DrawloomPackageExtensionSchema.safeParse({ version: 1, backend: { entrypoint } }).success).toBe(false);
+  }
+});
+
+test('Drawloom metadata accepts only package-relative prebuilt JavaScript workflow modules', () => {
+  expect(DrawloomPackageExtensionSchema.safeParse({
+    version: 1,
+    workflows: { entrypoint: './dist/workflows.js' },
+  }).success).toBe(true);
+  for (const entrypoint of ['../workflows.js', '/workflows.js', 'workflows.ts', 'https://example.com/workflows.js']) {
+    expect(DrawloomPackageExtensionSchema.safeParse({ version: 1, workflows: { entrypoint } }).success).toBe(false);
   }
 });

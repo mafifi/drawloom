@@ -3,6 +3,18 @@ import { access, mkdir, mkdtemp, open, rename, rm, symlink, writeFile, stat } fr
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RpcRequestError } from "@drawloom/host";
+test('JSON readers tolerate atomic state replacement without accepting partial content', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-json-replacement-'));
+  const writer = createNodeJsonStore(root), reader = createNodeJsonStore(root);
+  await writer.set('state', { revision: 0 });
+  try {
+    await Promise.all([
+      (async () => { for (let revision = 1; revision <= 150; revision++) await writer.set('state', { revision }); })(),
+      (async () => { for (let n = 0; n < 150; n++) expect(await reader.get('state')).toMatchObject({ revision: expect.any(Number) }); })(),
+    ]);
+    expect(await reader.get('state')).toEqual({ revision: 150 });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
 test('a project-bound store rejects root replacement before its first read',async()=>{
   const root=await mkdtemp(join(tmpdir(),'drawloom-bound-root-'));
   const working=join(root,'working');await mkdir(working);

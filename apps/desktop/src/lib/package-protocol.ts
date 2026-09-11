@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { JsonValueSchema } from '@drawloom/host';
+export const ElicitationDisabledServersSchema = z.array(z.string().min(1).max(100)).max(100)
+  .refine(names => new Set(names).size === names.length, 'Choose each parallel server once');
 export const ResourceOriginSchema = z.string().max(2048).refine(value => {
   try { const url=new URL(value);return !value.includes('*') && !url.username && !url.password && url.origin===value &&
     (url.protocol==='https:' || url.protocol==='http:' && ['127.0.0.1','localhost','[::1]'].includes(url.hostname)); }
@@ -12,16 +14,19 @@ export const PackageInspectionSchema = z.strictObject({
   diagnostics: z.array(z.string()),
 });
 export const PackageSettingsSchema = z.strictObject({
+  elicitationDisabledServers: ElicitationDisabledServersSchema.optional(),
   approvedResourceOrigins: z.array(ResourceOriginSchema).max(32).optional(),
   enabled: z.boolean(), trustedBackend: z.boolean(), servers: z.array(z.string()).max(100),
   configuration: z.record(z.string(), JsonValueSchema).optional(),
-});
+}).refine(settings => settings.elicitationDisabledServers?.every(name => settings.servers.includes(name)) ?? true,
+  'Parallel calls require a selected server');
 export const PackageActionSchema = z.discriminatedUnion('action', [
   z.strictObject({ action: z.literal('inspect'), root: z.string().min(1).max(4096) }),
   z.strictObject({ action: z.literal('add'), root: z.string().min(1).max(4096) }),
   z.strictObject({ action: z.literal('configure'), id: z.string().uuid(), settings: PackageSettingsSchema }),
 ]);
 export const InstalledPackagesSchema = z.array(z.strictObject({
+  elicitationDisabledServers: ElicitationDisabledServersSchema.default([]),
   approvedResourceOrigins: z.array(ResourceOriginSchema).default([]),
   id: z.string().uuid(), root: z.string(), name: z.string(), enabled: z.boolean(), trustedBackend: z.boolean(),
   servers: z.array(z.string()), pendingRestart: z.boolean(), status: z.string(), diagnostics: z.array(z.string()),

@@ -47,10 +47,12 @@ test('inspection recognizes extension metadata without importing backend or fetc
   const schemaHost = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch() { fetched++; return Response.json({}); } });
   try {
     await local.write('backend.mjs', 'throw new Error("Must not execute on inspection");');
-    await local.write('plugin.json', JSON.stringify({ $schema: PLUGIN_SCHEMA, name: 'local', extensions: { 'io.github.mafifi.drawloom': { version: 1, backend: { entrypoint: 'backend.mjs' } } } }));
+    await local.write('workflows.mjs', 'throw new Error("Workflow module must not execute on inspection");');
+    await local.write('plugin.json', JSON.stringify({ $schema: PLUGIN_SCHEMA, name: 'local', extensions: { 'io.github.mafifi.drawloom': { version: 1, backend: { entrypoint: 'backend.mjs' }, workflows: { entrypoint: 'workflows.mjs' } } } }));
     await local.write('mcp.json', JSON.stringify({ $schema: schemaHost.url.href, mcpServers: {} }));
     const inventory = await inspector.inspectPackage(local.root);
     expect(inventory.drawloom?.backend?.entrypoint).toBe('backend.mjs');
+    expect(inventory.drawloom?.workflows?.entrypoint).toBe('workflows.mjs');
     expect(inventory.diagnostics).toContainEqual({ component: 'mcp', code: 'invalid' });
     expect(fetched).toBe(0);
     await local.write('plugin.json', JSON.stringify({ $schema: schemaHost.url.href, name: 'local' }));

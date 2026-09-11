@@ -83,10 +83,12 @@ live results, deterministic tests and remaining integration questions.
 orchestration interface for trusted TypeScript workflows, explicit step retries,
 durable run management and workflow-owned agent conversations. Executable
 contracts and shared conformance now live in `@drawloom/orchestration` for typed
-backend access under Accepted ADR 0018. Execution implementations remain retained
-spike evidence, not supported providers or desktop dependencies.
-Temporal is the local proof backend only. No production backend, live Codex
-recovery guarantee or broader plugin authority is selected by acceptance.
+backend access under Accepted ADR 0018. Accepted
+[ADR 0021](docs/adr/0021-local-temporal-orchestration.md) now has an implemented
+Node-hosted Temporal provider, local desktop lifecycle and installed workflow
+registration. It uses the persistent local
+development server, not a production deployment. The accepted ADR 0017 did not
+establish production guarantees, live Codex recovery or broader plugin authority.
 
 Public editorial publishing is established separately through Accepted
 [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md). Its Astro and

@@ -2,15 +2,16 @@ import { z } from 'zod';
 import { JsonValueSchema, type JsonStore } from '@drawloom/host';
 import type { PackageInventory } from '@drawloom/plugins';
 import { inspectPackage } from '@drawloom/local-plugin-packages';
-import { ResourceOriginSchema } from '../src/lib/package-protocol.js';
+import { ResourceOriginSchema, ElicitationDisabledServersSchema } from '../src/lib/package-protocol.js';
 
 // Host configuration, not a plugin capability or a browser credential envelope.
 export const InstallationSchema = z.strictObject({
+  elicitationDisabledServers: ElicitationDisabledServersSchema.default([]),
   approvedResourceOrigins: z.array(ResourceOriginSchema).max(32).default([]),
   id: z.string().uuid(), root: z.string().min(1), name: z.string().min(1),
   enabled: z.boolean(), trustedBackend: z.boolean(), servers: z.array(z.string()),
   configuration: z.record(z.string(), JsonValueSchema).default({}),
-});
+}).refine(value => value.elicitationDisabledServers.every(name => value.servers.includes(name)), 'Parallel calls require a selected server');
 export type Installation = z.infer<typeof InstallationSchema>;
 const State = z.strictObject({ version: z.literal(1), installations: z.array(InstallationSchema) });
 export async function createInstallationStore(store: JsonStore) {
@@ -38,11 +39,11 @@ export async function createInstallationStore(store: JsonStore) {
         if (existing) { id = existing.id; return; }
         id = crypto.randomUUID();
         next.installations.push({ id, root: inventory.root, name: inventory.name,
-          approvedResourceOrigins: [], enabled: false, trustedBackend: false, servers: inventory.servers.filter(s => s.config.type !== 'sse').map(s => s.name), configuration: {} });
+          approvedResourceOrigins: [], elicitationDisabledServers: [], enabled: false, trustedBackend: false, servers: inventory.servers.filter(s => s.config.type !== 'sse').map(s => s.name), configuration: {} });
       });
       return id;
     },
-    async configure(id: string, input: Pick<Installation, 'enabled' | 'trustedBackend' | 'servers' | 'configuration'> & {approvedResourceOrigins?:string[]|undefined}) {
+    async configure(id: string, input: Pick<Installation, 'enabled' | 'trustedBackend' | 'servers' | 'configuration'> & {approvedResourceOrigins?:string[]|undefined; elicitationDisabledServers?:string[]|undefined}) {
       const current = state.installations.find(i => i.id === id);
       if (!current) throw Error('Installation unavailable');
       const parsed = InstallationSchema.parse({ ...current, ...input });

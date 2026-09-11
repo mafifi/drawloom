@@ -22,6 +22,26 @@ test('disabled setup exports nothing and validates endpoint and bounds', async (
   assert.throws(() => initializeObservability({mode:'recording',serviceName:'test',maxQueueSize:0}));
 });
 
+test('supported orchestration stages retain safe names, state and receipt diagnostics', async () => {
+  const spans = new InMemorySpanExporter();
+  const sdk = initializeObservability({ mode: 'recording', serviceName: 'orchestration-test', exporters: { traces: spans } });
+  const names = ['startup','prepare','start','task','recovery','state','shutdown'].map(name => `drawloom.orchestration.${name}`);
+  try {
+    for (const name of names) {
+      const span = trace.getTracer('orchestration').startSpan(name);
+      span.setAttribute('drawloom.workflow.state', 'waiting');
+      span.setAttribute('drawloom.cache.hit', true);
+      span.setAttribute('drawloom.outcome', 'ok');
+      span.setAttribute('document', 'PRIVATE_MARKER');
+      span.end();
+    }
+    await sdk.flush();
+    assert.deepEqual(spans.getFinishedSpans().map(span => span.name), names);
+    assert.ok(spans.getFinishedSpans().every(span => span.attributes['drawloom.workflow.state'] === 'waiting'));
+    assert.equal(JSON.stringify(spans.getFinishedSpans()).includes('PRIVATE_MARKER'), false);
+  } finally { await sdk.shutdown(); }
+});
+
 test('real SDK preserves concurrent parent and log context and removes accidental content', async () => {
   const spans = new InMemorySpanExporter();
   const records = new InMemoryLogRecordExporter();

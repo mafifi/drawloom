@@ -6,7 +6,8 @@ import { RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
 import { getToolUiResourceUri, isToolVisibilityAppOnly } from '@modelcontextprotocol/ext-apps/app-bridge';
 import { activatePackage, inspectPackage, readSkill, type ActivePackage, type ActivePackageServer, type ActivatePackageOptions } from '@drawloom/local-plugin-packages';
 import { observed, observeOutcome } from './telemetry.js';
-import type { DesktopCompositionContext } from '@drawloom/desktop-host';
+import type { DesktopCompositionContext, PluginBackendCapabilities } from '@drawloom/desktop-host';
+import type { RegisteredTaskHandler } from '@drawloom/orchestration';
 import type { OperatorController } from '@drawloom/workbench';
 import type { PluginInstaller, PluginRequirement, PackageInventory, RegisteredWorkbenchView } from '@drawloom/plugins';
 import type { ToolDefinition, ToolGateway, ToolElicitationHandler } from '@drawloom/tools';
@@ -20,6 +21,11 @@ import { createPackageResources } from './package-resources.js';
 import type { MediaPolicy } from './media-policy.js';
 
 export type InstalledPackageStatus = { id: string; name: string; status: 'disabled' | 'ready' | 'partial' | 'failed'; codes: string[]; servers: ActivePackage['statuses'] };
+export interface InstalledWorkflowRegistration {
+  capabilities: Pick<PluginBackendCapabilities, 'orchestration' | 'orchestrationReadiness'>;
+  attach(handlers: readonly RegisteredTaskHandler[]): Promise<void>;
+  close(): Promise<void>;
+}
 export async function loadInstalledPackages(options: {
   project?: { readonly id: string; readonly directory: string };
   mediaPolicy?: MediaPolicy;
@@ -29,6 +35,7 @@ export async function loadInstalledPackages(options: {
   authProviderFor?: (installation: Installation) => ActivatePackageOptions['authProviderFor'];
   elicitation?: ToolElicitationHandler;
   toolsFor?: (installation: Installation, tools: readonly ToolDefinition[], workbenchIds: readonly string[]) => ToolGateway;
+  prepareWorkflows?: (installation: Installation, inventory: PackageInventory) => Promise<InstalledWorkflowRegistration>;
 }) {
   const installs: PluginInstaller[] = [];
   const toolIds = new Set<string>();
@@ -47,6 +54,7 @@ export async function loadInstalledPackages(options: {
   const active: ActivePackage[] = [];
   const backendClients: Client[] = [];
   const backends = createBackendLoader();
+  const workflowRegistrations: InstalledWorkflowRegistration[] = [];
   const prepared: { installation: Installation; inventory: PackageInventory; connections: ActivePackage; status: InstalledPackageStatus }[] = [];
   const available: PluginRequirement[] = [{ kind: 'capability', id: 'host' }];
   const dependencies: { packageName: string; requirement: PluginRequirement; alias?: string }[] = [];
@@ -61,6 +69,7 @@ export async function loadInstalledPackages(options: {
       const connections = await observed('host.package.connect', { 'drawloom.plugin.id': installation.id }, async () => {
         const connections = await activatePackage(inventory, { dataRoot: join(options.root, 'plugins'), installationId: installation.id,
         selectedServers: installation.servers, clientCapabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: [RESOURCE_MIME_TYPE] } } },
+        elicitationDisabledServers: installation.elicitationDisabledServers ?? [],
         ...(options.elicitation ? { elicitation: options.elicitation } : {}),
         ...(authProviderFor ? { authProviderFor } : {}) });
         if (connections.statuses.some(s => s.status !== 'connected')) observeOutcome('error');
@@ -138,6 +147,16 @@ export async function loadInstalledPackages(options: {
     };
     const present = new Set(available.map(r => `${r.kind}:${r.id}`));
     if (tools) present.add('capability:tools');
+    const prerequisites = (inventory.drawloom?.requires ?? []).filter(r => r.kind !== 'capability' || r.id !== 'orchestration');
+    let workflow: InstalledWorkflowRegistration | undefined;
+    if (installation.trustedBackend && inventory.drawloom?.backend && inventory.drawloom.workflows &&
+      prerequisites.every(r => present.has(`${r.kind}:${r.id}`)) && options.prepareWorkflows) {
+      try {
+        workflow = await options.prepareWorkflows(installation, inventory);
+        workflowRegistrations.push(workflow);
+        if (workflow.capabilities.orchestration) present.add('capability:orchestration');
+      } catch { status.codes.push('orchestration:unavailable'); }
+    }
     const requirementsResolved = (inventory.drawloom?.requires ?? []).every(r => present.has(`${r.kind}:${r.id}`) &&
       (r.kind !== 'tool' || !tools || aliases.has(r.id)));
     if (!requirementsResolved) {
@@ -151,7 +170,7 @@ export async function loadInstalledPackages(options: {
       capabilities: { host: { ...options.host, store: {
         get: key => options.host.store.get(JSON.stringify(['plugin', installation.id, key])),
         set: (key, value) => options.host.store.set(JSON.stringify(['plugin', installation.id, key]), value),
-      } }, ...(tools ? { tools } : {}) },
+      } }, ...(tools ? { tools } : {}), ...workflow?.capabilities },
       });
       if (result.status === 'untrusted') observeOutcome('denied');
       else if (result.status === 'failed' || result.status === 'unavailable') observeOutcome('error');
@@ -159,6 +178,10 @@ export async function loadInstalledPackages(options: {
     });
     if (result.status === 'ready') {
       const backend = result.backend;
+      if (workflow) {
+        try { await workflow.attach(backend.taskHandlers ?? []); }
+        catch { status.codes.push('orchestration:handlers-unavailable'); }
+      } else if (backend.taskHandlers?.length) status.codes.push('orchestration:unavailable');
       if (backend.contributions || backend.controllers) {
         try {
           const raw = backend.contributions ?? {};
@@ -238,6 +261,7 @@ export async function loadInstalledPackages(options: {
       const authProviderFor = options.authProviderFor?.(pkg.installation);
       const opened = await activatePackage(pkg.inventory, { dataRoot: join(options.root, 'plugins'), installationId,
         selectedServers: [serverName], clientCapabilities: { extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: [RESOURCE_MIME_TYPE] } } },
+        elicitationDisabledServers: (pkg.installation.elicitationDisabledServers ?? []).filter(name => name === serverName),
         ...(options.elicitation ? { elicitation: options.elicitation } : {}),
         ...(authProviderFor ? { authProviderFor } : {}) });
       const connection = opened.servers.get(serverName);
@@ -265,6 +289,8 @@ export async function loadInstalledPackages(options: {
     },
     async close() {
       return observed('host.package.close', {}, async () => {
+      // Stop dispatch while backend handlers and MCP connections still exist.
+      await Promise.allSettled(workflowRegistrations.map(workflow => workflow.close()));
       await Promise.allSettled([...mcpApps.values()].map(async app => app.close()));
       await Promise.allSettled(backendClients.map(async client => client.close()));
       try { await backends.close(); }

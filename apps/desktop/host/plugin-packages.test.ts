@@ -23,10 +23,12 @@ function unusedAssets(): AssetLibrary {
 
 function packageServer(label = 'owner', tools: Tool[] = [{ name: 'open', inputSchema: { type: 'object' }, _meta: { ui: { resourceUri: 'ui://owner/view.html' } } }], resource?: { revision: number; text: string }) {
   const events: string[] = [];
+  const handshakes: unknown[] = [];
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) {
     if (request.method !== 'POST') return new Response(null, { status: 405 });
-    const message = await request.json() as { method: string; id?: number; params?: { uri?: string; name?: string } };
+    const message = await request.json() as { method: string; id?: number; params?: { uri?: string; name?: string; capabilities?: unknown } };
     events.push(message.method);
+    if (message.method === 'initialize') handshakes.push(message.params?.capabilities);
     if (message.id === undefined) return new Response(null, { status: 202 });
     const result = message.method === 'initialize'
       ? { protocolVersion: '2025-03-26', capabilities: { tools: {}, resources: {} }, serverInfo: { name: label, version: '1' } }
@@ -36,8 +38,27 @@ function packageServer(label = 'owner', tools: Tool[] = [{ name: 'open', inputSc
       : { content: [{ type: 'text', text: `${label}:${message.params?.name}` }] };
     return Response.json({ jsonrpc: '2.0', id: message.id, result });
   } });
-  return { server, events };
+  return { server, events, handshakes };
 }
+
+test('installed connection policy survives reconnect without affecting consent-enabled peers', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-policy-reconnect-'));
+  const remote = packageServer('documents', [{ name: 'inspect', inputSchema: { type: 'object' } }]);
+  try {
+    const parallel = await installedFixture(root, 'parallel-documents', remote.server.url.href);
+    parallel.elicitationDisabledServers = ['remote'];
+    const consent = await installedFixture(root, 'consent-documents', remote.server.url.href);
+    const loaded = await loadInstalledPackages({ root, installations: [parallel, consent], host: packageHost(root), elicitation: async () => ({ action: 'cancel' }) });
+    try {
+      expect(remote.handshakes).toHaveLength(2);
+      expect(remote.handshakes[0]).not.toHaveProperty('elicitation');
+      expect(remote.handshakes[1]).toHaveProperty('elicitation');
+      await loaded.reconnect(parallel.id, 'remote');
+      expect(remote.handshakes[2]).not.toHaveProperty('elicitation');
+      expect(remote.events.filter(event => event === 'tools/call')).toHaveLength(0);
+    } finally { await loaded.close(); }
+  } finally { remote.server.stop(true); await rm(root, { recursive: true, force: true }); }
+});
 async function installedFixture(root: string, name: string, url: string, extension?: DrawloomPackageExtension, ownsView = false) {
   const pkg = join(root, name); await mkdir(pkg, { recursive: true });
   await writeFile(join(pkg, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name,
@@ -48,13 +69,43 @@ async function installedFixture(root: string, name: string, url: string, extensi
       views: [{ id: 'owner-view', workbenchId: 'owner', title: 'Owner view', entrypoint: 'ui://owner/view.html' }] } : {};
     await writeFile(join(pkg, 'backend.mjs'), `export default () => ({ contributions: ${JSON.stringify(contribution)}, dispose() {} });`);
   }
-  const installation: Installation = { approvedResourceOrigins: [], id: crypto.randomUUID(), root: pkg, name, enabled: true, trustedBackend: true, servers: ['remote'], configuration: {} };
+  const installation: Installation = { approvedResourceOrigins: [], elicitationDisabledServers: [], id: crypto.randomUUID(), root: pkg, name, enabled: true, trustedBackend: true, servers: ['remote'], configuration: {} };
   return installation;
 }
 function packageHost(root: string) {
   return { store: createNodeJsonStore(join(root, 'state')), assets: unusedAssets() };
 }
 const ownerPlacement = { id: 'owner', title: 'Owner', openingTool: { server: 'remote', tool: 'open' } };
+
+test('installed workflow preparation is trusted, precedes backend activation, and closes before backend cleanup', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-workflow-loading-'));
+  const remote = packageServer();
+  const events: string[] = [];
+  try {
+    const installation = await installedFixture(root, 'workflow-documents', remote.server.url.href, {
+      version: 1, backend: { entrypoint: './backend.mjs' }, workflows: { entrypoint: './workflows.mjs' },
+      optional: [{ kind: 'capability', id: 'orchestration' }],
+    });
+    await writeFile(join(installation.root, 'workflows.mjs'), 'export default {workflows:[],tasks:[]}');
+    await writeFile(join(installation.root, 'backend.mjs'), `export default async context => {
+      if (!context.capabilities.orchestrationReadiness) throw Error('Missing readiness');
+      return {taskHandlers:[],dispose(){}};
+    }`);
+    const base = { root, project: { id: 'project-a', directory: root }, installations: [installation], host: packageHost(root),
+      prepareWorkflows: async () => { events.push('prepare'); return {
+        capabilities: { orchestrationReadiness: async () => ({ status: 'configuration_required' as const, code: 'missing_cli', message: 'Install Temporal.' }) },
+        attach: async (handlers: readonly unknown[]) => { expect(handlers).toEqual([]); events.push('attach'); },
+        close: async () => { events.push('close'); },
+      }; },
+    };
+    const untrusted = await loadInstalledPackages({ ...base, installations: [{ ...installation, trustedBackend: false }] });
+    expect(events).toEqual([]); await untrusted.close();
+    const trusted = await loadInstalledPackages(base);
+    expect(events).toEqual(['prepare', 'attach']);
+    expect(trusted.statuses[0]?.codes).not.toContain('backend:failed');
+    await trusted.close(); expect(events).toEqual(['prepare', 'attach', 'close']);
+  } finally { remote.server.stop(true); await rm(root, { recursive: true, force: true }); }
+});
 
 test('desktop discovery shows friendly standard and app-only tools without executing them', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-package-discovery-'));

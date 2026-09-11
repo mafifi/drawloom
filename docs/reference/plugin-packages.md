@@ -37,7 +37,7 @@ refers to the package, and `PLUGIN_DATA` to that installation's data directory.
 The host does not install executables, dependencies or models on the user's behalf.
 Package authors own executable prerequisites and their configuration contract.
 
-Proposed [ADR 0020](../adr/0020-directory-backed-projects-and-file-delivery.md)
+Accepted [ADR 0020](../adr/0020-directory-backed-projects-and-file-delivery.md)
 keeps installation/trust/configuration and OAuth global while activating
 connections and backend instances for each selected project. `PLUGIN_DATA` and
 backend JSON keys are installation/project-scoped. The backend's fixed
@@ -84,11 +84,37 @@ a package-relative prebuilt `.js`/`.mjs` backend, required public capabilities o
 tool/skill identities, optional tool/skill identities, and workbench placement
 with an MCP App opening tool.
 
+[Accepted ADR 0021](../adr/0021-local-temporal-orchestration.md) adds optional
+`workflows: { entrypoint: "./dist/workflows.js" }` and an optional
+`{ kind: "capability", id: "orchestration" }` dependency. Other capabilities
+remain required-only. These fields are Drawloom extensions, not Agent Plugins
+fields. Their contract is implemented; supported desktop activation and recovery
+are still being integrated and must not be inferred from successful inspection.
+
+The workflow module's default export is a portable registry produced by
+`defineWorkflowModule` from `@drawloom/orchestration`. It contains typed workflow
+and task definitions, not task handlers or Temporal imports. The trusted backend
+may return `taskHandlers` made with `registerTaskHandler`; `matchTaskHandlers`
+requires exact identity/version matches and uses the module's schemas and task
+limits. Per-task `limits.startToCloseTimeoutMs` is validated, with the existing
+30-second default retained when omitted. See the
+[orchestration contract](../design/orchestration-contract.md) for exact signatures.
+
+An available, requested orchestrator will be scoped to installation and project.
+The separate optional `orchestrationReadiness` callback reports `ready`,
+`configuration_required` or `unavailable`; dependency presence grants neither
+service readiness nor execution permission. Inspection does not import the
+workflow module. Trusted activation must resolve package containment before
+loading it and validate definitions/handlers before dispatch. Bundle fingerprints,
+unfinished-run update protection and whole-host recovery are ADR 0021 delivery
+requirements, not guarantees established by the metadata parser alone.
+
 The default export has type `PluginBackendFactory` from `@drawloom/desktop-host`.
 Its context contains installation identity, package/data paths, non-secret
 configuration, a declared-dependency startup availability report and explicitly supplied `capabilities`. These may include existing
-host, tool or orchestration interfaces; the desktop does not install a Temporal
-provider. A backend returns contributions and cleanup, optionally contributing
+host, tool or orchestration interfaces. The desktop's local Temporal implementation
+under Accepted ADR 0021 reports missing external prerequisites explicitly; it
+does not install global tooling automatically. A backend returns contributions and cleanup, optionally contributing
 MCP server transports. It must not duplicate a standard server declaration.
 
 Required tools use `package:<package-name>:<server-name>:<tool-name>`; skills use
@@ -134,6 +160,22 @@ a returned URI nor a declared origin creates a general host proxy. Unknown prose
 URLs and arbitrary JSON do not register sources. “Declared” is not a content-safety
 certification. The shared-domain policy is a Drawloom host choice, not an MCP
 Apps portability guarantee.
+
+### Parallel calls and interactive forms
+
+Local package settings can explicitly allow parallel calls for a selected server
+by disabling its interactive forms. The host stores this as
+`elicitationDisabledServers` (default `[]`), not package metadata. Entries must be
+distinct selected server names using a supported transport. Configuration changes
+use the existing restart and unfinished-work guards; reconnect uses the active
+startup configuration, not partially applied settings.
+
+These connections omit MCP elicitation entirely and reject unexpected requests.
+Other connections retain serialized form handling so questions and consent remain
+bound to the originating invocation. Tool grants, native AI approvals, timeouts and
+execution evidence are unchanged. This is not an approval shortcut. A cancelled
+or broken connection can interrupt its concurrent siblings; their uncertain
+outcomes do not authorize retry. See [ADR 0021](../adr/0021-local-temporal-orchestration.md).
 
 ### Preconfigured OAuth clients
 

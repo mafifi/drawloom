@@ -3,6 +3,7 @@
   import DiscoveryInventory from './DiscoveryInventory.svelte';
   import DetailsPane from './DetailsPane.svelte';
   import Projects from './Projects.svelte';
+  import WorkflowRuns from './WorkflowRuns.svelte';
   import type { DesktopViewModel } from './view-model.svelte.js';
   let { vm, artifact = false }: { vm: DesktopViewModel; artifact?: boolean } = $props();
 </script>
@@ -36,6 +37,7 @@
       {/if}
       <h2>Workbench configuration</h2>
       <p class="text-muted-foreground">{vm.state?.operator.summary}</p>
+      <WorkflowRuns projectId={vm.conversationProject?.id ?? vm.selectedProject?.id} />
       <h2>Experimental native plugin catalogue</h2>
       <p class="text-muted-foreground">{vm.catalogue?.experimentalPluginDiscovery ? 'Enabled for this host.' : 'Off by default.'} This read-only catalogue does not grant execution permission. To change it, set <code>DRAWLOOM_EXPERIMENTAL_PLUGIN_DISCOVERY=1</code> at host startup and restart the local host; there is no in-app configuration toggle.</p>
       {#each vm.state?.operator.configuration ?? [] as field}

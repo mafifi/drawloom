@@ -29,6 +29,7 @@
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
+    "@drawloom/orchestration": "workspace:*",
     "@internationalized/date": "catalog:",
     "@lucide/svelte": "catalog:",
     "bits-ui": "catalog:",

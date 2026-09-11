@@ -41,6 +41,7 @@ export interface Observability {
 }
 const spanNames = new Set(['host.file.deliver','ui.request','http.request','host.command','host.discovery','host.connect','host.package.inspect','host.package.connect','host.package.activate','host.package.close','host.resource.read','host.history.page','host.history.changes','host.asset.read','host.asset.write','agent.operation','agent.request','agent.submit','agent.approval.wait','tool.invoke','tool.execute','mcp.request','mcp.elicitation.wait','workflow.activity','workflow.wait','workflow.resume']);
 const outcomes = new Set(['ok','error','denied','cancelled','unknown','timeout','cache_hit']);
+for (const stage of ['startup','prepare','start','task','recovery','state','shutdown']) spanNames.add(`drawloom.orchestration.${stage}`);
 const events = new Set(['operation.completed','operation.failed','telemetry.dropped']);
 const metricNames = new Set(['operation.duration','operation.count','telemetry.dropped']);
 const lossMetricNames = new Set(['otel.sdk.processor.span.processed','otel.sdk.processor.log.processed']);
@@ -56,6 +57,7 @@ function attributes(input: Record<string, unknown>, metric = false): Attributes 
     else if (key === 'drawloom.operation.name' && typeof value === 'string' && spanNames.has(value)) output[key] = value;
     else if(metric && key === 'error.type' && value === 'queue_full') output[key]=value;
     else if (key === 'drawloom.cache.hit' && typeof value === 'boolean') output[key] = value;
+    else if (!metric && key === 'drawloom.workflow.state' && typeof value === 'string' && ['running','waiting','cancellation_requested','completed','failed','cancelled','unknown'].includes(value)) output[key] = value;
     else if (!metric && key === 'drawloom.file.bytes' && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) output[key] = value;
     else if (!metric && key === 'drawloom.file.cached' && typeof value === 'boolean') output[key] = value;
     else if (!metric && key === 'drawloom.record.count' && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 1e9) output[key] = value;

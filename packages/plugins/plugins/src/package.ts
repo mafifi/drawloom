@@ -58,11 +58,16 @@ export const PackageMcpConfigSchema = z.strictObject({
 });
 const entrypoint = z.string().min(1).refine(value =>
   !value.startsWith('/') && !/[\\:\u0000]/u.test(value) && !value.split('/').includes('..') && /\.(?:mjs|js)$/.test(value));
+export const PackageOptionalRequirementSchema = z.union([
+  z.strictObject({ kind: z.enum(['tool', 'skill']), id: z.string().min(1) }),
+  z.strictObject({ kind: z.literal('capability'), id: z.literal('orchestration') }),
+]);
 /** Metadata only. The composition root owns loading and granting backend access. */
 export const DrawloomPackageExtensionSchema = z.strictObject({
   version: z.literal(1), backend: z.strictObject({ entrypoint }).optional(),
+  workflows: z.strictObject({ entrypoint }).optional(),
   requires: z.array(PluginRequirementSchema).optional(),
-  optional: z.array(z.strictObject({ kind: z.enum(['tool', 'skill']), id: z.string().min(1) })).optional(),
+  optional: z.array(PackageOptionalRequirementSchema).optional(),
   workbenches: z.array(z.strictObject({
     id: z.string().min(1), title: z.string().min(1), placement: z.literal('workbench').optional(),
     openingTool: z.strictObject({ server: z.string().min(1), tool: z.string().min(1) }),

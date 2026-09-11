@@ -9,6 +9,16 @@ same controls while owning their different state and commands.
 
 ## Consumer contract
 
+### WorkflowRun (ADR 0021 candidate)
+
+`WorkflowRun` presents an orchestration `RunSnapshot` without executing work.
+Consumers provide a title, optional cancel callback, pending/error feedback and an
+optional `input` snippet for their typed review controls. It shows bounded step
+summaries/attempts supplied by the host, never task arguments/results or media.
+Unresolved effects are reported separately from the workflow's terminal status.
+Cancellation requested is not cancellation completed. Consumer ViewModels own
+pagination, input validation, permissions, stale-response handling and recovery.
+
 Import controls through `@drawloom/ui` and its declared public exports. Preserve
 the upstream component props, bindings, events and accessibility behaviour;
 consumers supply their content, state and handlers. Add missing shadcn-svelte

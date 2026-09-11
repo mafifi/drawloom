@@ -18,6 +18,9 @@ export { createMcpToolServer } from "./mcp.js";
 
 const managedAssetByteLimit = 256 * 1024 * 1024;
 const assetChunkByteLimit = 64 * 1024;
+class AssetReplacedDuringOpen extends Error {
+  constructor() { super('Asset file changed during open'); }
+}
 
 function aborted(signal?: AbortSignal): void {
   if (!signal?.aborted) return;
@@ -122,7 +125,7 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
       if (!inside(canonical, canonicalTarget)) throw Error('Invalid asset file');
       const pathInfo = await lstat(canonicalTarget);
       if (!pathInfo.isFile() || pathInfo.dev !== info.dev || pathInfo.ino !== info.ino)
-        throw Error('Asset file changed during open');
+        throw new AssetReplacedDuringOpen();
       await canonicalRoot(false);
       let closed = false;
       let closing: Promise<void> | undefined;
@@ -256,14 +259,21 @@ export function createNodeJsonStore(root: string): JsonStore {
     encodeURIComponent(z.string().min(1).parse(value)) + ".json";
   return {
     async get(value) {
-      try {
-        return JsonValueSchema.parse(
-          JSON.parse(new TextDecoder().decode(await assets.read(key(value)))),
-        );
-      } catch (e) {
-        if ((e as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-        throw Error("Stored value unavailable");
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          return JsonValueSchema.parse(
+            JSON.parse(new TextDecoder().decode(await assets.read(key(value)))),
+          );
+        } catch (e) {
+          // A writer publishes JSON by rename. Retry only an open-time inode
+          // replacement; every attempt repeats containment and handle checks.
+          // Corrupt content, links and other storage failures remain explicit.
+          if (e instanceof AssetReplacedDuringOpen && attempt < 2) continue;
+          if ((e as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+          throw Error("Stored value unavailable");
+        }
       }
+      throw Error('Stored value unavailable');
     },
     async set(value, data) {
       const valid = JsonValueSchema.parse(data);

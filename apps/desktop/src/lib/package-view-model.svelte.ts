@@ -41,9 +41,9 @@ export function createPackageViewModel() {
     refresh: () => run('refresh', async () => { installations = InstalledPackagesSchema.parse(await request()); }),
     inspect: () => run('inspect', async () => { inspection = PackageInspectionSchema.parse(await request({ action: 'inspect', root })); root = inspection.root; }),
     add: () => run('add', async () => { if (!inspection || inspection.root !== root) throw Error('Inspect this package first.'); installations = InstalledPackagesSchema.parse(await request({ action: 'add', root })); inspection = undefined; root = ''; }),
-    configure: (id: string, enabled: boolean, trustedBackend: boolean, servers?: string[], approvedResourceOrigins?: string[]) => run(id, async () => {
+    configure: (id: string, enabled: boolean, trustedBackend: boolean, servers?: string[], approvedResourceOrigins?: string[], elicitationDisabledServers?: string[]) => run(id, async () => {
       const current = installations.find(i => i.id === id); if (!current) throw Error('Installation unavailable');
-      const settings = PackageSettingsSchema.parse({ enabled, trustedBackend, servers: servers ?? current.servers, ...(approvedResourceOrigins ? { approvedResourceOrigins } : {}) });
+      const settings = PackageSettingsSchema.parse({ enabled, trustedBackend, servers: servers ?? current.servers, ...(approvedResourceOrigins ? { approvedResourceOrigins } : {}), ...(elicitationDisabledServers ? { elicitationDisabledServers } : {}) });
       installations = InstalledPackagesSchema.parse(await request({ action: 'configure', id, settings }));
     }),
   };

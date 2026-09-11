@@ -5,27 +5,33 @@ import { join } from 'node:path';
 import { PLUGIN_SCHEMA, MCP_PACKAGE_SCHEMA } from '@drawloom/plugins';
 import type { ToolElicitationHandler, ToolElicitationRequest, ToolElicitationResult } from '@drawloom/tools';
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
+import { context as otelContext, propagation, trace } from '@opentelemetry/api';
+import { InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
 import { activatePackage, inspectPackage } from './src/index.ts';
 
 // Public synthetic stationery choice, using only standard MCP messages.
-const script = `import { writeFileSync } from 'node:fs'; let buffer = '', next = 0; const pending = new Map();
+const script = `import { writeFileSync, appendFileSync } from 'node:fs'; let buffer = '', next = 0, active = 0; const pending = new Map();
 const send = value => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', ...value }) + '\\n');
 process.stdin.on('data', chunk => { buffer += chunk; let end; while ((end = buffer.indexOf('\\n')) >= 0) {
  const m = JSON.parse(buffer.slice(0, end)); buffer = buffer.slice(end + 1);
  if (m.method === 'initialize') { writeFileSync(process.env.PLUGIN_DATA + '/capabilities.json', JSON.stringify(m.params.capabilities)); send({ id: m.id, result: { protocolVersion: '2025-11-25', capabilities: { tools: {}, resources: {} }, serverInfo: { name: 'stationery', version: '1' } } }); }
  else if (m.method === 'tools/list') send({ id: m.id, result: { tools: [{ name: 'choose', description: 'Choose paper', inputSchema: { type: 'object' } }] } });
- else if (m.method === 'tools/call' || m.method === 'resources/read') {
+ else if (m.method === 'tools/call' && m.params.arguments?.parallel) {
+   active++; appendFileSync(process.env.PLUGIN_DATA + '/calls.jsonl', JSON.stringify({ event: 'start', id: m.params.arguments.id, traceparent: m.params._meta?.traceparent }) + '\\n');
+   setTimeout(() => { send({ id: m.id, result: { content: [{ type: 'text', text: JSON.stringify({ id: m.params.arguments.id, active, traceparent: m.params._meta?.traceparent }) }] } }); active--; appendFileSync(process.env.PLUGIN_DATA + '/calls.jsonl', JSON.stringify({ event: 'end', id: m.params.arguments.id }) + '\\n'); }, m.params.arguments.delay ?? 40);
+ } else if (m.method === 'tools/call' || m.method === 'resources/read') {
    const id = 'form-' + (++next); pending.set(id, m.id);
    send({ id, method: 'elicitation/create', params: m.params.arguments?.url ? { mode: 'url', message: 'Open choice', url: 'https://example.com', elicitationId: 'url' } : { mode: 'form', message: 'Choose paper', requestedSchema: { type: 'object', properties: { paper: { type: 'string', enum: ['plain', 'lined'] } }, required: ['paper'] } } });
  } else if (pending.has(m.id)) { send({ id: pending.get(m.id), result: { content: [{ type: 'text', text: JSON.stringify(m.result ?? m.error) }] } }); pending.delete(m.id); }
 }}); process.stdin.on('end', () => process.exit(0));`;
 
-export async function fixture(handler?: ToolElicitationHandler) {
+export async function fixture(handler?: ToolElicitationHandler, elicitationDisabledServers?: readonly string[]) {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-elicitation-'));
   await writeFile(join(root, 'plugin.json'), JSON.stringify({ $schema: PLUGIN_SCHEMA, name: 'stationery' }));
   await writeFile(join(root, 'mcp.json'), JSON.stringify({ $schema: MCP_PACKAGE_SCHEMA, mcpServers: { stationery: { type: 'stdio', command: 'bun', args: ['./server.mjs'] } } }));
   await writeFile(join(root, 'server.mjs'), script);
-  const active = await activatePackage(await inspectPackage(root), { dataRoot: join(root, 'data'), installationId: 'one', selectedServers: ['stationery'], ...(handler ? { elicitation: handler } : {}) });
+  const active = await activatePackage(await inspectPackage(root), { dataRoot: join(root, 'data'), installationId: 'one', selectedServers: ['stationery'], ...(handler ? { elicitation: handler } : {}), ...(elicitationDisabledServers ? { elicitationDisabledServers } : {}) });
   return { root, active, server: active.servers.get('stationery')!, async close() { await active.close(); await rm(root, { recursive: true, force: true }); } };
 }
 const context = (id: string, signal = new AbortController().signal) => ({ operationId: 'operation-' + id, invocationId: id, signal });
@@ -129,4 +135,89 @@ test('queued cancellation sends zero call and active cancellation retires connec
     await expect(f.server.callTool({ name: 'choose', arguments: {} }, context('third'))).rejects.toThrow();
     expect(presentations).toBe(1);
   } finally { await f.close(); }
+});
+
+test('explicit elicitation opt-out overlaps requests without presenting or advertising forms', async () => {
+  let presentations = 0;
+  const f = await fixture(async () => { presentations++; return { action: 'cancel' }; }, ['stationery']);
+  try {
+    const capabilities = await Bun.file(join(f.root, 'data/one/capabilities.json')).json();
+    expect(capabilities.elicitation).toBeUndefined();
+    const results = await Promise.all([
+      f.server.callTool({ name: 'choose', arguments: { parallel: true, id: 'first', delay: 80 } }, context('first')),
+      f.server.callTool({ name: 'choose', arguments: { parallel: true, id: 'second', delay: 20 } }, context('second')),
+    ]);
+    expect(results.map(result => JSON.parse(result.content[0]!.type === 'text' ? result.content[0]!.text : '').active)).toEqual([1, 2]);
+    const unsolicited = await f.server.callTool({ name: 'choose', arguments: {} }, context('form'));
+    expect(unsolicited.content[0]).toMatchObject({ type: 'text', text: expect.stringContaining('Method not found') });
+    expect(presentations).toBe(0);
+  } finally { await f.close(); }
+});
+
+test('invalid elicitation opt-out names fail before any selected server executes', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-invalid-opt-out-'));
+  await writeFile(join(root, 'plugin.json'), JSON.stringify({ $schema: PLUGIN_SCHEMA, name: 'stationery' }));
+  await writeFile(join(root, 'mcp.json'), JSON.stringify({ $schema: MCP_PACKAGE_SCHEMA, mcpServers: { stationery: { type: 'stdio', command: 'bun', args: ['./server.mjs'] } } }));
+  await writeFile(join(root, 'server.mjs'), script);
+  try {
+    await expect(activatePackage(await inspectPackage(root), { dataRoot: join(root, 'data'), installationId: 'one', selectedServers: ['stationery'], elicitationDisabledServers: ['missing'] })).rejects.toThrow();
+    await expect(activatePackage(await inspectPackage(root), { dataRoot: join(root, 'data'), installationId: 'one', selectedServers: ['stationery'], elicitationDisabledServers: [42] as unknown as readonly string[] })).rejects.toThrow();
+    expect(await Bun.file(join(root, 'data/one/capabilities.json')).exists()).toBe(false);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('parallel cancellation never duplicates tool work', async () => {
+  const f = await fixture(undefined, ['stationery']);
+  try {
+    const abort = new AbortController();
+    const pending = f.server.callTool({ name: 'choose', arguments: { parallel: true, id: 'cancelled', delay: 200 } }, context('cancelled', abort.signal)).catch(error => error);
+    await new Promise(resolve => setTimeout(resolve, 30));
+    abort.abort();
+    expect(await pending).toBeInstanceOf(Error);
+    await new Promise(resolve => setTimeout(resolve, 40));
+    const lines = (await Bun.file(join(f.root, 'data/one/calls.jsonl')).text()).trim().split('\n').map(line => JSON.parse(line));
+    expect(lines.filter(line => line.event === 'start' && line.id === 'cancelled')).toHaveLength(1);
+    await expect(f.server.callTool({ name: 'choose', arguments: { parallel: true, id: 'after' } }, context('after'))).rejects.toThrow();
+  } finally { await f.close(); }
+});
+
+test('parallel requests retain distinct telemetry parents and propagate their own request spans', async () => {
+  const spans = new InMemorySpanExporter();
+  const provider = new NodeTracerProvider({ spanProcessors: [new SimpleSpanProcessor(spans)] });
+  provider.register();
+  let f: Awaited<ReturnType<typeof fixture>> | undefined;
+  try {
+    f = await fixture(undefined, ['stationery']);
+    const server = f.server;
+    const parentIds = new Map<string, string>();
+    const invoke = (id: string, delay: number) => trace.getTracer('test').startActiveSpan(`parent-${id}`, async parent => {
+      parentIds.set(id, parent.spanContext().spanId);
+      try { return await server.callTool({ name: 'choose', arguments: { parallel: true, id, delay } }, context(id)); }
+      finally { parent.end(); }
+    });
+    const results = await Promise.all([invoke('first', 80), invoke('second', 20)]);
+    await provider.forceFlush();
+    const requestSpans = spans.getFinishedSpans().filter(span => span.name === 'mcp.request' && span.attributes['rpc.method'] === 'tools/call');
+    expect(requestSpans).toHaveLength(2);
+    const payloads = results.map(result => JSON.parse(result.content[0]!.type === 'text' ? result.content[0]!.text : '') as { id: string; traceparent: string });
+    expect(payloads.map(payload => payload.id)).toEqual(['first', 'second']);
+    const requestBySpanId = new Map(requestSpans.map(span => [span.spanContext().spanId, span]));
+    for (const payload of payloads) {
+      expect(typeof payload.traceparent).toBe('string');
+      const [, traceId, spanId] = payload.traceparent.split('-');
+      const requestSpan = requestBySpanId.get(spanId!);
+      expect(requestSpan?.spanContext().traceId).toBe(traceId);
+      expect(requestSpan?.parentSpanContext?.spanId).toBe(parentIds.get(payload.id));
+    }
+    expect(new Set(requestSpans.map(span => span.parentSpanContext?.spanId)).size).toBe(2);
+    const exportedData = JSON.stringify(requestSpans.map(span => ({ name: span.name, attributes: span.attributes, events: span.events })));
+    expect(exportedData).not.toContain('first');
+    expect(exportedData).not.toContain('second');
+  } finally {
+    try { await f?.close(); }
+    finally {
+      try { await provider.shutdown(); }
+      finally { trace.disable(); otelContext.disable(); propagation.disable(); }
+    }
+  }
 });

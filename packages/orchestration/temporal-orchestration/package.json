@@ -1,0 +1,26 @@
+{
+  "name": "@drawloom/temporal-orchestration",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=22" },
+  "files": ["dist", "src"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./agent-bridge": { "types": "./dist/agent-bridge.d.ts", "import": "./dist/agent-bridge.js" }
+  },
+  "drawloom": { "role": "provider", "runtime": "node" },
+  "dependencies": {
+    "@drawloom/orchestration": "workspace:*",
+    "@drawloom/agent": "workspace:*",
+    "@drawloom/host": "workspace:*",
+    "@drawloom/desktop-host": "workspace:*",
+    "@opentelemetry/api": "catalog:",
+    "@temporalio/client": "catalog:",
+    "@temporalio/worker": "catalog:",
+    "@temporalio/workflow": "catalog:",
+    "@temporalio/activity": "catalog:",
+    "@temporalio/common": "catalog:",
+    "zod": "catalog:"
+  }
+}

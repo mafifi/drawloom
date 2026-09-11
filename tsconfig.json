@@ -15,6 +15,7 @@
   ],
   "exclude": [
     "node_modules",
-    "spikes/adr-0017-orchestration/temporal*.ts"
+    "spikes/adr-0017-orchestration/temporal*.ts",
+    "packages/orchestration/temporal-orchestration/manager.test.ts"
   ]
 }

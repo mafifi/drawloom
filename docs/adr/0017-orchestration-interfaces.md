@@ -4,6 +4,9 @@
 - **Date:** 2026-09-10
 - **Decision owners:** Drawloom maintainers
 - **Related:** ADRs 0005, 0007, 0008 and 0013–0016
+- **Amended by:** [ADR 0021](0021-local-temporal-orchestration.md) accepts a supported
+  local Temporal provider, superseding only this decision's proof-only backend
+  disposition. The interface, authority and explicit retry rules remain in force.
 
 ## Context
 

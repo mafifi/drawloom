@@ -3,7 +3,7 @@ import { resolve, relative, isAbsolute, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { DrawloomPackageExtensionSchema, type PackageInventory, type PluginRequirement } from '@drawloom/plugins';
-import type { PluginBackend, PluginBackendCapabilities, PluginBackendContext, PluginBackendFactory } from '@drawloom/desktop-host';
+import { OrchestrationReadinessSchema, type PluginBackend, type PluginBackendCapabilities, type PluginBackendContext, type PluginBackendDependency, type PluginBackendFactory } from '@drawloom/desktop-host';
 
 export type BackendActivation =
   | { status: 'ready'; backend: PluginBackend }
@@ -43,12 +43,22 @@ export function createBackendLoader() {
         throw Error('Outside package');
     } catch { return { status: 'failed', code: 'backend_path_unavailable' }; }
     if (closing) return { status: 'failed', code: 'backend_host_closed' };
-    const requested = new Set((definition.requires ?? []).filter(r => r.kind === 'capability').map(r => r.id));
+    const declared = [...(definition.requires ?? []), ...(definition.optional ?? [])];
+    const requested = new Set(declared.filter(r => r.kind === 'capability').map(r => r.id));
     const capabilities: PluginBackendCapabilities = {
       ...(requested.has('host') && options.capabilities.host ? { host: options.capabilities.host } : {}),
       ...(requested.has('tools') && options.capabilities.tools ? { tools: options.capabilities.tools } : {}),
       ...(requested.has('orchestration') && options.capabilities.orchestration ? { orchestration: options.capabilities.orchestration } : {}),
+      ...(requested.has('orchestration') && options.capabilities.orchestrationReadiness ? {
+        orchestrationReadiness: async () => OrchestrationReadinessSchema.parse(await options.capabilities.orchestrationReadiness!()),
+      } : {}),
     };
+    const dependencies = new Map<string, PluginBackendDependency>();
+    for (const item of declared) {
+      const available = present.has(`${item.kind}:${item.id}`);
+      if (item.kind === 'tool' || item.kind === 'skill') dependencies.set(`${item.kind}:${item.id}`, Object.freeze({ kind: item.kind, id: item.id, available }));
+      else if (item.id === 'orchestration') dependencies.set('capability:orchestration', Object.freeze({ kind: 'capability' as const, id: 'orchestration' as const, available }));
+    }
     let backend: PluginBackend | undefined;
     try {
       await mkdir(options.dataDirectory, { recursive: true, mode: 0o700 });
@@ -57,9 +67,7 @@ export function createBackendLoader() {
       backend = await factory(Object.freeze({ installationId: options.installationId, packageRoot: root,
         ...(options.project ? { project: Object.freeze({ ...options.project }) } : {}),
         dataDirectory: options.dataDirectory, configuration: options.configuration,
-        dependencies: Object.freeze([...new Map([...(definition.requires ?? []), ...(definition.optional ?? [])]
-          .filter((r): r is { kind: 'tool' | 'skill'; id: string } => r.kind !== 'capability')
-          .map(r => [`${r.kind}:${r.id}`, Object.freeze({ ...r, available: present.has(`${r.kind}:${r.id}`) })])).values()]),
+        dependencies: Object.freeze([...dependencies.values()]),
         capabilities: Object.freeze(capabilities) }));
       if (!method(backend, 'dispose')) throw Error('Missing cleanup');
       if (backend.servers !== undefined && !Array.isArray(backend.servers)) throw Error('Invalid servers');

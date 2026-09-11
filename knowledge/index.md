@@ -19,6 +19,8 @@ updated: 2026-09-11
 
 ## Evidence and computations
 
+- [Local Temporal orchestration implementation](evidence/adr-0021-local-temporal.md)
+
 - [Directory-backed projects and streamed file delivery](evidence/adr-0020-projects-file-delivery.md)
 
 - [Discovery latency follow-up](evidence/discovery-latency-fix.md)

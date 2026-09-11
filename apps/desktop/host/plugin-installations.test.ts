@@ -6,6 +6,34 @@ import { createNodeJsonStore } from '@drawloom/node-host';
 import { createInstallationStore } from './plugin-installations.js';
 import { createDesktopApplication } from './application.js';
 
+test('parallel connection policy is explicit, validated, durable and restart-only', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-install-parallel-'));
+  try {
+    await writeFile(join(root, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'reference' }));
+    await writeFile(join(root, 'mcp.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json', mcpServers: {
+      render: { type: 'stdio', command: 'must-not-execute' }, consent: { type: 'stdio', command: 'must-not-execute' },
+    } }));
+    const store = createNodeJsonStore(join(root, 'state'));
+    const initial = await createInstallationStore(store); const id = await initial.add(root);
+    const current = await createInstallationStore(store);
+    expect(current.list()[0]?.elicitationDisabledServers).toEqual([]);
+    const settings = { enabled: false, trustedBackend: false, servers: ['render', 'consent'], configuration: {} };
+    await current.configure(id, { ...settings, elicitationDisabledServers: ['render'] });
+    expect(current.startup[0]?.elicitationDisabledServers).toEqual([]);
+    expect(current.pendingRestart(id)).toBe(true);
+    expect(current.list()[0]?.elicitationDisabledServers).toEqual(['render']);
+    for (const names of [['unknown'], ['render', 'render']]) {
+      await expect(current.configure(id, { ...settings, elicitationDisabledServers: names })).rejects.toThrow();
+    }
+    await expect(current.configure(id, { ...settings, servers: ['consent'], elicitationDisabledServers: ['render'] })).rejects.toThrow();
+    const reopened = await createInstallationStore(store);
+    expect(reopened.startup[0]?.elicitationDisabledServers).toEqual(['render']);
+    expect(reopened.pendingRestart(id)).toBe(false);
+    await reopened.configure(id, settings); // Older clients must preserve the policy.
+    expect(reopened.list()[0]?.elicitationDisabledServers).toEqual(['render']);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
 test('desktop lists deselected servers for later activation without starting them', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-install-selection-'));
   try {

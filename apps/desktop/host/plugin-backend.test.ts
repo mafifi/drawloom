@@ -4,6 +4,38 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createBackendLoader } from './plugin-backend.js';
 import type { PackageInventory } from '@drawloom/plugins';
+import type { Orchestrator } from '@drawloom/orchestration';
+
+test('optional orchestration exposes declared presence and readiness without disabling editing', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-backend-orchestration-'));
+  const engine: Orchestrator = {
+    start: async () => 'never-started', get: async () => { throw Error('not called'); },
+    getSteps: async () => ({ steps: [] }), list: async () => ({ runs: [] }), result: async () => null,
+    respond: async () => {}, cancel: async () => {},
+  };
+  try {
+    await writeFile(join(root, 'backend.mjs'), `export default async context => ({ contributions: { skills: [{
+      id:'report', title:Object.keys(context.capabilities).sort().join(','), description:JSON.stringify(context.dependencies),
+      instructions:context.capabilities.orchestrationReadiness ? JSON.stringify(await context.capabilities.orchestrationReadiness()) : 'no readiness'
+    }] }, dispose:async()=>{} });`);
+    for (const enabled of [true, false]) {
+      const loader = createBackendLoader();
+      try {
+        const inventory: PackageInventory = { root, name:'sample',skills:[],servers:[],diagnostics:[],extensions:{},
+          drawloom:{version:1,backend:{entrypoint:'./backend.mjs'},optional:[{kind:'capability',id:'orchestration'}]} };
+        const result = await loader.activate(inventory, { installationId:'sample',dataDirectory:join(root,'data'),trusted:true,configuration:{},available:[],
+          capabilities:{...(enabled ? {orchestration:engine} : {}), orchestrationReadiness:async()=>({status:enabled?'ready':'configuration_required',message:'Local runtime'})} });
+        expect(result.status).toBe('ready');
+        if (result.status === 'ready') {
+          const report = result.backend.contributions?.skills?.[0]!;
+          expect(report.title).toBe(enabled?'orchestration,orchestrationReadiness':'orchestrationReadiness');
+          expect(JSON.parse(report.description!)).toEqual([{kind:'capability',id:'orchestration',available:enabled}]);
+          expect(JSON.parse(report.instructions).status).toBe(enabled?'ready':'configuration_required');
+        }
+      } finally { await loader.close(); }
+    }
+  } finally { await rm(root,{recursive:true,force:true}); }
+});
 
 test('one installation has a distinct fixed activation in each project', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-backend-project-'));

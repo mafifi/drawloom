@@ -20,6 +20,19 @@ test('server choices retain removed selections and configure sends the exact new
   expect(submitted).toEqual({ action: 'configure', id: installation.id, settings: { enabled: true, trustedBackend: false, servers: ['new'] } });
 });
 
+test('parallel connection choices submit only explicitly selected servers', async () => {
+  const submitted: unknown[] = [];
+  globalThis.fetch = (async (_url, input) => { if (input?.body) submitted.push(JSON.parse(String(input.body))); return Response.json([installation]); }) as typeof fetch;
+  const vm = createPackageViewModel(); await vm.refresh();
+  await vm.configure(installation.id, true, false, ['new'], [], ['new']);
+  expect(submitted).toEqual([{ action: 'configure', id: installation.id, settings: {
+    enabled: true, trustedBackend: false, servers: ['new'], approvedResourceOrigins: [], elicitationDisabledServers: ['new'],
+  } }]);
+  await vm.configure(installation.id, true, false, ['new'], [], ['old']);
+  expect(submitted).toHaveLength(1);
+  expect(vm.error).not.toBe('');
+});
+
 test('resource origin settings use the shared exact-origin contract before submitting', async () => {
   const submitted: unknown[] = [];
   globalThis.fetch = (async (_url, input) => { if (input?.body) submitted.push(JSON.parse(String(input.body))); return Response.json([installation]); }) as typeof fetch;

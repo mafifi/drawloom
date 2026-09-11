@@ -14,9 +14,11 @@
     "build": "vite build",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "tauri": "tauri",
-    "bundle:host": "bun build --compile host/main.ts --outfile src-tauri/binaries/drawloom-host"
+    "bundle:host": "bun run --cwd ../.. build:packages && bun run ../../scripts/stage-temporal-runtime.ts && bun build --compile host/main.ts --outfile src-tauri/binaries/drawloom-host"
   },
   "dependencies": {
+    "@drawloom/orchestration": "workspace:*",
+    "@drawloom/temporal-orchestration": "workspace:*",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",
     "@opentelemetry/sdk-trace-base": "catalog:",
