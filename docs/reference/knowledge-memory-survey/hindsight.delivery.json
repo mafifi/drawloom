@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/hindsight.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/hindsight.html",
+  "specification": {
+    "sha256": "0d70bc8f841811675f5e1df32284a30d122a810ecdb54d711a021f31958adfaf",
+    "bytes": 4356
+  },
+  "artifact": {
+    "sha256": "aca55bebd783b2dbba0bc35684573e708068363f9bb69b994e7f6756715cfcfa",
+    "bytes": 805894
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/vectorize-io/hindsight",
+    "revision": "48b62ee08170b464f4c42b6f133b7cb798a59b21",
+    "references": 6
+  }
+}

@@ -1,0 +1,825 @@
+{
+  "date": "2026-09-11T18:40:05.107Z",
+  "durationMs": 184201,
+  "bun": "1.2.23",
+  "codex": "codex-cli 0.153.4",
+  "phases": [
+    {
+      "name": "source-initial",
+      "milliseconds": 25949,
+      "instructionBytes": 661,
+      "promptBytes": 517,
+      "returnedToolBytes": 2238,
+      "calls": [
+        "memory.snapshot",
+        "memory.weave"
+      ],
+      "retrievals": [],
+      "answer": "I’ll read the source snapshot and any retained claims, assess the evidence, then save the claims against the snapshot’s waterline and through position.\nSaved two claims using waterline **0**, through position **3**:\n\n- `v1-native-transparency-black-fill`: Native export filled transparent pixels black in the recorded v1.0 test.\n- `v1-compatibility-preserves-transparency`: Compatibility preserved transparency in that test; its use remains a provisional lesson.\n\nBoth cite `[\"synthetic.reference\",\"export-guide\"]` revision `r1` as support. Agent notes at revision `1` are linked as qualifications, not independent tests. No contradictory evidence was present; present-day behavior remains unverified.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "source-plan-initial",
+      "milliseconds": 31073,
+      "instructionBytes": 943,
+      "promptBytes": 193,
+      "returnedToolBytes": 5936,
+      "calls": [
+        "memory.search",
+        "memory.search",
+        "memory.search",
+        "plan.save"
+      ],
+      "retrievals": [
+        {
+          "topic": "v1-compatibility-preserves-transparency",
+          "hits": 1,
+          "unreviewed": []
+        },
+        {
+          "topic": "v1-native-transparency-black-fill",
+          "hits": 1,
+          "unreviewed": []
+        },
+        {
+          "topic": "latest-recorded-setup",
+          "hits": 0,
+          "unreviewed": []
+        }
+      ],
+      "answer": "I’ll check the latest recorded setup and transparency evidence, then save a draft only if correctness is verified. I won’t render.\nSaved the draft as **defer**. Transparency was verified only for compatibility mode in the recorded v1.0 test (`synthetic.reference/export-guide`, r1); verification for the latest setup is missing. No render was performed.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "source-racing-assessment",
+      "milliseconds": 38243,
+      "instructionBytes": 661,
+      "promptBytes": 517,
+      "returnedToolBytes": 6350,
+      "calls": [
+        "memory.snapshot",
+        "memory.weave"
+      ],
+      "retrievals": [],
+      "answer": "I’ll read the snapshot and any relevant retained notes, assess a few evidence-backed claims, and save them against the waterline and through position returned by the source.\nSaved three assessed claims against waterline **3**, through **6**, preserving both existing claim IDs.\n\n- Kept v1.0 findings as historical evidence (`[\"synthetic.reference\",\"export-guide\"]`, `r1`).\n- Recorded v1.1 transparency and timing results with a provisional native-mode recommendation (`[\"synthetic.reference\",\"export-guide\"]`, `r2`).\n- Linked agent interpretations as qualifications, not independent tests.\n\nRevision `r2` supersedes `r1`; the different-version results do not directly contradict each other. Present-day behavior remains unverified.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "source-plan-withdrawn",
+      "milliseconds": 20559,
+      "instructionBytes": 1035,
+      "promptBytes": 193,
+      "returnedToolBytes": 17030,
+      "calls": [
+        "memory.search",
+        "memory.search",
+        "memory.search",
+        "plan.save"
+      ],
+      "retrievals": [
+        {
+          "topic": "v1-native-transparency-black-fill",
+          "hits": 1,
+          "unreviewed": [
+            "[\"synthetic.reference\",\"export-guide\"]@r3"
+          ]
+        },
+        {
+          "topic": "v1-1-native-transparency-and-speed",
+          "hits": 1,
+          "unreviewed": [
+            "[\"synthetic.reference\",\"export-guide\"]@r3"
+          ]
+        },
+        {
+          "topic": "v1-compatibility-preserves-transparency",
+          "hits": 1,
+          "unreviewed": [
+            "[\"synthetic.reference\",\"export-guide\"]@r3"
+          ]
+        }
+      ],
+      "answer": "I’ll check the recorded setup and transparency evidence, then save a draft only if correctness is verified. I won’t render.\nSaved the draft as **defer**. For the latest recorded setup, v1.1, transparency correctness remains unverified: the test was withdrawn due to an invalid fixture (export-guide r3). Speed therefore cannot determine the setting. Nothing was rendered.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "source-reassessment",
+      "milliseconds": 43974,
+      "instructionBytes": 661,
+      "promptBytes": 517,
+      "returnedToolBytes": 11762,
+      "calls": [
+        "memory.snapshot",
+        "memory.weave"
+      ],
+      "retrievals": [],
+      "answer": "I’ll read the snapshot and any relevant retained notes, assess a few evidence-backed claims, and save them against the snapshot’s waterline and through position.\nSaved four assessed claims against waterline **6**, through **9**, preserving the three existing claim IDs.\n\n- Kept v1.0 findings historical.\n- Removed withdrawn guide `export-guide@r2` as current support; `r3` invalidates its comparison.\n- Recorded `independent-qa@q1`: native failed transparency; compatibility preserved it in the tested v1.1 case.\n- Saved a provisional compatibility recommendation limited to that case.\n\nExact source keys, revisions, and support/contradiction/qualification links are preserved. Agent hypotheses were not counted as independent tests.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "source-plan-final",
+      "milliseconds": 24389,
+      "instructionBytes": 1135,
+      "promptBytes": 193,
+      "returnedToolBytes": 11778,
+      "calls": [
+        "memory.search",
+        "memory.search",
+        "plan.save"
+      ],
+      "retrievals": [
+        {
+          "topic": "v1-1-tested-compatibility-transparency",
+          "hits": 1,
+          "unreviewed": []
+        },
+        {
+          "topic": "v1-1-native-transparency-and-speed",
+          "hits": 1,
+          "unreviewed": []
+        }
+      ],
+      "answer": "I’ll check the latest recorded setup and transparency evidence, then save a draft if correctness is verified. I won’t render.\nSaved a **compatibility** draft for recorded v1.1. QA `independent-qa@q1` found it preserved clear pixels; faster native filled them black. The earlier comparison was withdrawn (`export-guide@r3`).\n\nThe draft is scoped to the tested transparent PNG case; other cases defer pending verification. Nothing was rendered.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    }
+  ],
+  "notes": [],
+  "foregroundNotes": [],
+  "savedPlans": [
+    {
+      "mode": "defer",
+      "sources": [
+        "[\"synthetic.reference\",\"export-guide\"]",
+        "[\"synthetic.agent\",\"attempt-note\"]",
+        "[\"synthetic.agent\",\"working-lesson\"]"
+      ],
+      "reason": "Transparent logo overlay requires clear pixels to remain transparent; speed is secondary to verified correctness. Available recorded evidence only verifies compatibility transparency and native black fill in a controlled renderer v1.0 test (export-guide r1). The attempt note and working lesson repeat or interpret that test, without independent verification. No evidence identifies or verifies the latest recorded setup (latest-recorded-setup lookup empty), so applying the v1.0 result to that setup is unverified. Defer renderer selection; do not render.",
+      "phase": "source-plan-initial"
+    },
+    {
+      "mode": "defer",
+      "sources": [
+        "[\"synthetic.reference\",\"export-guide\"]@r3",
+        "[\"synthetic.reference\",\"export-guide\"]@r2",
+        "[\"synthetic.reference\",\"export-guide\"]@r1"
+      ],
+      "reason": "Draft for a transparent logo overlay: empty pixels must remain clear; prefer speed only after correctness is established. Latest recorded renderer is v1.1, not verified as the present-day installation. Export-guide r3 withdraws the r2 v1.1 comparison because its fixture was invalid, leaving neither mode verified for transparency. Historical r1 v1.0 results do not establish v1.1 correctness; derivative notes are not independent corroboration. Defer mode selection pending valid correctness evidence. Do not render.",
+      "phase": "source-plan-withdrawn"
+    },
+    {
+      "mode": "compatibility",
+      "sources": [
+        "[\"synthetic.reference\",\"independent-qa\"]@q1",
+        "[\"synthetic.reference\",\"export-guide\"]@r3"
+      ],
+      "reason": "Draft for a transparent PNG logo overlay on latest recorded renderer v1.1, scoped to the tested case. Independent synthetic QA q1 reports compatibility preserved clear pixels (610 ms), whereas faster native filled them black (190 ms); correctness takes priority over speed. Export-guide r3 withdraws r2's invalid-fixture comparison, not proof of failure by itself. Present-day installation and correctness for other inputs or versions are unverified; defer if outside the tested case. Do not render.",
+      "phase": "source-plan-final"
+    }
+  ],
+  "organisedSnapshots": [],
+  "sourceSnapshots": [
+    {
+      "stage": "initial",
+      "state": {
+        "changes": [
+          {
+            "revision": "r1",
+            "kind": "source",
+            "state": "active",
+            "text": "Synthetic lab guide for recorded renderer v1.0: transparent PNG native export fills clear pixels black; compatibility preserves transparency. Controlled lab result, not a universal rule.",
+            "key": "[\"synthetic.reference\",\"export-guide\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "fibre",
+            "state": "active",
+            "text": "I saw black around a transparent logo with the v1.0 native export; this is a report of the guide test, not an independent test.",
+            "key": "[\"synthetic.agent\",\"attempt-note\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "thread",
+            "state": "active",
+            "text": "Working hypothesis from the recorded v1.0 guide: use compatibility for transparent logos. This is an interpretation, not a new measurement.",
+            "key": "[\"synthetic.agent\",\"working-lesson\"]"
+          }
+        ],
+        "claims": [
+          {
+            "id": "v1-native-transparency-black-fill",
+            "text": "In the recorded synthetic renderer v1.0 controlled lab test, native export of a transparent PNG filled clear pixels black. This is a bounded recorded result; behavior in other versions or present-day environments is unverified. The agent attempt note repeats the guide test and is not independent corroboration.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r1",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"attempt-note\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": false
+          },
+          {
+            "id": "v1-compatibility-preserves-transparency",
+            "text": "The recorded synthetic renderer v1.0 controlled lab guide reports that compatibility export preserved transparency. Using compatibility for transparent logos is a provisional operational lesson within that tested scope; the agent working lesson is an interpretation, not an independent verified test or evidence of current universal behavior.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r1",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"working-lesson\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": false
+          }
+        ],
+        "waterline": 3,
+        "through": 3,
+        "pending": 0,
+        "due": false
+      }
+    },
+    {
+      "stage": "linked-update",
+      "state": {
+        "changes": [
+          {
+            "revision": "r1",
+            "kind": "source",
+            "state": "active",
+            "text": "Synthetic lab guide for recorded renderer v1.0: transparent PNG native export fills clear pixels black; compatibility preserves transparency. Controlled lab result, not a universal rule.",
+            "key": "[\"synthetic.reference\",\"export-guide\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "fibre",
+            "state": "active",
+            "text": "I saw black around a transparent logo with the v1.0 native export; this is a report of the guide test, not an independent test.",
+            "key": "[\"synthetic.agent\",\"attempt-note\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "thread",
+            "state": "active",
+            "text": "Working hypothesis from the recorded v1.0 guide: use compatibility for transparent logos. This is an interpretation, not a new measurement.",
+            "key": "[\"synthetic.agent\",\"working-lesson\"]"
+          },
+          {
+            "revision": "r2",
+            "kind": "source",
+            "state": "active",
+            "text": "Revised synthetic lab guide: latest recorded installed renderer is v1.1. A reported lab check says native and compatibility both preserve transparent PNG pixels; native took 180 ms and compatibility 600 ms. The original v1.0 record remains historical.",
+            "key": "[\"synthetic.reference\",\"export-guide\"]"
+          }
+        ],
+        "claims": [
+          {
+            "id": "v1-native-transparency-black-fill",
+            "text": "In the recorded synthetic renderer v1.0 controlled lab test, native export of a transparent PNG filled clear pixels black. This is a bounded recorded result; behavior in other versions or present-day environments is unverified. The agent attempt note repeats the guide test and is not independent corroboration.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r1",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"attempt-note\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": true
+          },
+          {
+            "id": "v1-compatibility-preserves-transparency",
+            "text": "The recorded synthetic renderer v1.0 controlled lab guide reports that compatibility export preserved transparency. Using compatibility for transparent logos is a provisional operational lesson within that tested scope; the agent working lesson is an interpretation, not an independent verified test or evidence of current universal behavior.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r1",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"working-lesson\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": true
+          }
+        ],
+        "waterline": 3,
+        "through": 4,
+        "pending": 1,
+        "due": false
+      }
+    },
+    {
+      "stage": "after-racing-publication",
+      "state": {
+        "changes": [
+          {
+            "revision": "r1",
+            "kind": "source",
+            "state": "active",
+            "text": "Synthetic lab guide for recorded renderer v1.0: transparent PNG native export fills clear pixels black; compatibility preserves transparency. Controlled lab result, not a universal rule.",
+            "key": "[\"synthetic.reference\",\"export-guide\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "fibre",
+            "state": "active",
+            "text": "I saw black around a transparent logo with the v1.0 native export; this is a report of the guide test, not an independent test.",
+            "key": "[\"synthetic.agent\",\"attempt-note\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "thread",
+            "state": "active",
+            "text": "Working hypothesis from the recorded v1.0 guide: use compatibility for transparent logos. This is an interpretation, not a new measurement.",
+            "key": "[\"synthetic.agent\",\"working-lesson\"]"
+          },
+          {
+            "revision": "r2",
+            "kind": "source",
+            "state": "active",
+            "text": "Revised synthetic lab guide: latest recorded installed renderer is v1.1. A reported lab check says native and compatibility both preserve transparent PNG pixels; native took 180 ms and compatibility 600 ms. The original v1.0 record remains historical.",
+            "key": "[\"synthetic.reference\",\"export-guide\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "fibre",
+            "state": "active",
+            "text": "The guide now describes v1.1; I have not independently tested the reported result.",
+            "key": "[\"synthetic.agent\",\"release-note\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "thread",
+            "state": "active",
+            "text": "Hypothesis: the new guide may permit the faster native mode on v1.1, subject to that evidence remaining valid.",
+            "key": "[\"synthetic.agent\",\"release-lesson\"]"
+          },
+          {
+            "revision": "r3",
+            "kind": "source",
+            "state": "withdrawn",
+            "text": "Guide withdrawn: the v1.1 check reported in r2 used an invalid fixture and cannot establish correctness. Latest recorded version remains v1.1, but the guide has no valid comparison for it. This withdraws support; it does not prove either mode wrong.",
+            "key": "[\"synthetic.reference\",\"export-guide\"]"
+          }
+        ],
+        "claims": [
+          {
+            "id": "v1-native-transparency-black-fill",
+            "text": "Historical only: superseded export-guide r1 reported that native transparent PNG export filled clear pixels black in a controlled synthetic renderer v1.0 test. Revision r2 replaces r1 as current source content and retains the v1.0 record as history; its reported v1.1 success qualifies the version scope, rather than contradicting the v1.0 observation. The attempt note repeats the guide and is not an independent test. This historical result does not establish current native-export behavior.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r1",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r2",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"attempt-note\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": true
+          },
+          {
+            "id": "v1-compatibility-preserves-transparency",
+            "text": "Historical only: superseded export-guide r1 reported compatibility mode preserved transparency in the synthetic renderer v1.0 controlled test. The working lesson was a derived hypothesis, not an independent measurement. Current revision r2 reports both modes preserve transparency on v1.1, so the earlier compatibility recommendation is limited to its historical scope and does not establish that compatibility is necessary on v1.1. The different-version results do not directly contradict one another.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r1",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"working-lesson\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r2",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": true
+          },
+          {
+            "id": "v1-1-native-transparency-and-speed",
+            "text": "Current source assessment: export-guide r2 identifies v1.1 as the latest recorded installed renderer and reports a lab check in which native and compatibility both preserved transparent PNG pixels, taking 180 ms and 600 ms respectively. These are reported bounded results, not independently verified here or proof of present-day installation or general performance. The release note explicitly lacks independent testing; the release lesson is a hypothesis, not corroboration. Provisional operational lesson: native may be preferable for transparent PNG export in the recorded v1.1 setting because it reportedly preserved transparency and was faster; verify applicability before generalizing. Revision r2 supersedes r1, so r1 is not current support for a native black-fill prediction.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r2",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"release-note\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"release-lesson\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": true
+          }
+        ],
+        "waterline": 6,
+        "through": 7,
+        "pending": 1,
+        "due": false
+      }
+    },
+    {
+      "stage": "unlinked-arrival",
+      "state": {
+        "changes": [
+          {
+            "revision": "r1",
+            "kind": "source",
+            "state": "active",
+            "text": "Synthetic lab guide for recorded renderer v1.0: transparent PNG native export fills clear pixels black; compatibility preserves transparency. Controlled lab result, not a universal rule.",
+            "key": "[\"synthetic.reference\",\"export-guide\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "fibre",
+            "state": "active",
+            "text": "I saw black around a transparent logo with the v1.0 native export; this is a report of the guide test, not an independent test.",
+            "key": "[\"synthetic.agent\",\"attempt-note\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "thread",
+            "state": "active",
+            "text": "Working hypothesis from the recorded v1.0 guide: use compatibility for transparent logos. This is an interpretation, not a new measurement.",
+            "key": "[\"synthetic.agent\",\"working-lesson\"]"
+          },
+          {
+            "revision": "r2",
+            "kind": "source",
+            "state": "active",
+            "text": "Revised synthetic lab guide: latest recorded installed renderer is v1.1. A reported lab check says native and compatibility both preserve transparent PNG pixels; native took 180 ms and compatibility 600 ms. The original v1.0 record remains historical.",
+            "key": "[\"synthetic.reference\",\"export-guide\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "fibre",
+            "state": "active",
+            "text": "The guide now describes v1.1; I have not independently tested the reported result.",
+            "key": "[\"synthetic.agent\",\"release-note\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "thread",
+            "state": "active",
+            "text": "Hypothesis: the new guide may permit the faster native mode on v1.1, subject to that evidence remaining valid.",
+            "key": "[\"synthetic.agent\",\"release-lesson\"]"
+          },
+          {
+            "revision": "r3",
+            "kind": "source",
+            "state": "withdrawn",
+            "text": "Guide withdrawn: the v1.1 check reported in r2 used an invalid fixture and cannot establish correctness. Latest recorded version remains v1.1, but the guide has no valid comparison for it. This withdraws support; it does not prove either mode wrong.",
+            "key": "[\"synthetic.reference\",\"export-guide\"]"
+          },
+          {
+            "revision": "q1",
+            "kind": "source",
+            "state": "active",
+            "text": "New independent synthetic QA record for the same installed renderer v1.1: a valid transparent PNG test found native filled clear pixels black (190 ms), while compatibility preserved them (610 ms). This contradicts the native-success report in withdrawn guide r2. Only this tested case is established.",
+            "key": "[\"synthetic.reference\",\"independent-qa\"]"
+          }
+        ],
+        "claims": [
+          {
+            "id": "v1-native-transparency-black-fill",
+            "text": "Historical only: superseded export-guide r1 reported that native transparent PNG export filled clear pixels black in a controlled synthetic renderer v1.0 test. Revision r2 replaces r1 as current source content and retains the v1.0 record as history; its reported v1.1 success qualifies the version scope, rather than contradicting the v1.0 observation. The attempt note repeats the guide and is not an independent test. This historical result does not establish current native-export behavior.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r1",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r2",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"attempt-note\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": true
+          },
+          {
+            "id": "v1-compatibility-preserves-transparency",
+            "text": "Historical only: superseded export-guide r1 reported compatibility mode preserved transparency in the synthetic renderer v1.0 controlled test. The working lesson was a derived hypothesis, not an independent measurement. Current revision r2 reports both modes preserve transparency on v1.1, so the earlier compatibility recommendation is limited to its historical scope and does not establish that compatibility is necessary on v1.1. The different-version results do not directly contradict one another.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r1",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"working-lesson\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r2",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": true
+          },
+          {
+            "id": "v1-1-native-transparency-and-speed",
+            "text": "Current source assessment: export-guide r2 identifies v1.1 as the latest recorded installed renderer and reports a lab check in which native and compatibility both preserved transparent PNG pixels, taking 180 ms and 600 ms respectively. These are reported bounded results, not independently verified here or proof of present-day installation or general performance. The release note explicitly lacks independent testing; the release lesson is a hypothesis, not corroboration. Provisional operational lesson: native may be preferable for transparent PNG export in the recorded v1.1 setting because it reportedly preserved transparency and was faster; verify applicability before generalizing. Revision r2 supersedes r1, so r1 is not current support for a native black-fill prediction.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r2",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"release-note\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"release-lesson\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": true
+          }
+        ],
+        "waterline": 6,
+        "through": 8,
+        "pending": 2,
+        "due": false
+      }
+    },
+    {
+      "stage": "final",
+      "state": {
+        "changes": [
+          {
+            "revision": "r1",
+            "kind": "source",
+            "state": "active",
+            "text": "Synthetic lab guide for recorded renderer v1.0: transparent PNG native export fills clear pixels black; compatibility preserves transparency. Controlled lab result, not a universal rule.",
+            "key": "[\"synthetic.reference\",\"export-guide\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "fibre",
+            "state": "active",
+            "text": "I saw black around a transparent logo with the v1.0 native export; this is a report of the guide test, not an independent test.",
+            "key": "[\"synthetic.agent\",\"attempt-note\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "thread",
+            "state": "active",
+            "text": "Working hypothesis from the recorded v1.0 guide: use compatibility for transparent logos. This is an interpretation, not a new measurement.",
+            "key": "[\"synthetic.agent\",\"working-lesson\"]"
+          },
+          {
+            "revision": "r2",
+            "kind": "source",
+            "state": "active",
+            "text": "Revised synthetic lab guide: latest recorded installed renderer is v1.1. A reported lab check says native and compatibility both preserve transparent PNG pixels; native took 180 ms and compatibility 600 ms. The original v1.0 record remains historical.",
+            "key": "[\"synthetic.reference\",\"export-guide\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "fibre",
+            "state": "active",
+            "text": "The guide now describes v1.1; I have not independently tested the reported result.",
+            "key": "[\"synthetic.agent\",\"release-note\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "thread",
+            "state": "active",
+            "text": "Hypothesis: the new guide may permit the faster native mode on v1.1, subject to that evidence remaining valid.",
+            "key": "[\"synthetic.agent\",\"release-lesson\"]"
+          },
+          {
+            "revision": "r3",
+            "kind": "source",
+            "state": "withdrawn",
+            "text": "Guide withdrawn: the v1.1 check reported in r2 used an invalid fixture and cannot establish correctness. Latest recorded version remains v1.1, but the guide has no valid comparison for it. This withdraws support; it does not prove either mode wrong.",
+            "key": "[\"synthetic.reference\",\"export-guide\"]"
+          },
+          {
+            "revision": "q1",
+            "kind": "source",
+            "state": "active",
+            "text": "New independent synthetic QA record for the same installed renderer v1.1: a valid transparent PNG test found native filled clear pixels black (190 ms), while compatibility preserved them (610 ms). This contradicts the native-success report in withdrawn guide r2. Only this tested case is established.",
+            "key": "[\"synthetic.reference\",\"independent-qa\"]"
+          },
+          {
+            "revision": "1",
+            "kind": "fibre",
+            "state": "active",
+            "text": "An independent QA record arrived. I have no additional measurement to add.",
+            "key": "[\"synthetic.agent\",\"qa-note\"]"
+          }
+        ],
+        "claims": [
+          {
+            "id": "v1-native-transparency-black-fill",
+            "text": "Historical report only: export-guide r1 reported native PNG export filled transparent pixels black in a controlled synthetic renderer v1.0 test. Revision r2 superseded r1 and retained that record as history; r3 supersedes r2 and withdraws the guide after an invalid v1.1 fixture. No guide revision supplies current support. The attempt note repeats r1 rather than independently testing it. QA q1 concerns v1.1 and cannot establish v1.0 behavior or general behavior.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r1",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r2",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r3",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"attempt-note\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.reference\",\"independent-qa\"]",
+                "revision": "q1",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": false
+          },
+          {
+            "id": "v1-compatibility-preserves-transparency",
+            "text": "Historical report only: superseded export-guide r1 reported compatibility preserved transparent PNG pixels in its synthetic v1.0 test. The working lesson derives from that report and adds no independent measurement. Revision r2 retained the v1.0 record as history; latest revision r3 withdraws the guide, so it is not current support. Independent QA q1 reports compatibility success on v1.1, a distinct version and bounded case, not validation of every v1.0 or v1.1 export.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r1",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r2",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r3",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"working-lesson\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.reference\",\"independent-qa\"]",
+                "revision": "q1",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": false
+          },
+          {
+            "id": "v1-1-native-transparency-and-speed",
+            "text": "The prior assessment that native preserves transparency and is preferable on recorded v1.1 is no longer supported. Historical r2 reported both modes succeeded (native 180 ms, compatibility 600 ms), but r3 replaces r2 and withdraws that comparison because its fixture was invalid; withdrawal alone proves neither mode wrong. Active independent synthetic QA q1 reports a valid v1.1 case where native filled clear pixels black (190 ms) and compatibility preserved them (610 ms), directly contradicting r2's native-success report. Native was faster in q1 but failed transparency in that case. The r2 support link is historical only, not current evidence. Agent release-note and release-lesson provide no independent verification; qa-note adds no measurement. Latest recorded version is v1.1, not verified present-day installation. Provisional operational lesson from q1: use compatibility for the tested transparent PNG case; test applicability before generalizing to other inputs or versions. No universal mode correctness or performance conclusion is established.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r2",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r3",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.reference\",\"independent-qa\"]",
+                "revision": "q1",
+                "relation": "contradicts"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"release-note\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"release-lesson\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"qa-note\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": false
+          },
+          {
+            "id": "v1-1-tested-compatibility-transparency",
+            "text": "Active independent synthetic QA q1 supports compatibility preserving transparent PNG pixels in the tested recorded v1.1 case (610 ms), while native black-filled clear pixels (190 ms). This is a reported independent QA test, not an agent-performed verification or a universal result. Provisional lesson: prefer compatibility for this tested case; additional valid tests are needed to extend the conclusion. Withdrawn guide r3 leaves no valid guide comparison, and agent qa-note supplies no additional measurement.",
+            "links": [
+              {
+                "key": "[\"synthetic.reference\",\"independent-qa\"]",
+                "revision": "q1",
+                "relation": "supports"
+              },
+              {
+                "key": "[\"synthetic.reference\",\"export-guide\"]",
+                "revision": "r3",
+                "relation": "qualifies"
+              },
+              {
+                "key": "[\"synthetic.agent\",\"qa-note\"]",
+                "revision": "1",
+                "relation": "qualifies"
+              }
+            ],
+            "needsRecheck": false
+          }
+        ],
+        "waterline": 9,
+        "through": 9,
+        "pending": 0,
+        "due": false
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "phase": "below-threshold",
+      "pending": 2,
+      "due": false
+    },
+    {
+      "phase": "source-initial",
+      "pending": 3,
+      "due": true
+    },
+    {
+      "phase": "source-racing-assessment",
+      "pending": 3,
+      "due": true
+    },
+    {
+      "phase": "source-reassessment",
+      "pending": 3,
+      "due": true
+    }
+  ],
+  "interruptionProof": null,
+  "actionPassed": null,
+  "failure": null,
+  "limits": [
+    "Synthetic tool outcomes; real Codex maintenance and recall.",
+    "Exact-topic lookup, not semantic retrieval.",
+    "Single writer; atomic rename is not a power-loss durability claim.",
+    "Native reasoning and transcripts not captured; generic tool-use instructions are cooperative, not a sandbox guarantee.",
+    "No tokens, model internals or enterprise isolation measured."
+  ]
+}

@@ -18,6 +18,11 @@ type-only imports.
 
 Current spikes:
 
+- [`adr-0022-memory`](adr-0022-memory/): temporary JSON evidence, automatic
+  observation capture and maintenance, and fresh-agent recall through existing
+  Codex and tool contracts, plus an installed standard Git evidence plugin and
+  bounded code-knowledge retrieval.
+
 - [`adr-0005-tool-exposure`](adr-0005-tool-exposure/): immutable MCP exposure
   with operation-specific gateway authority.
 - [`adr-0007-codex-app-server`](adr-0007-codex-app-server/): contract-shaped

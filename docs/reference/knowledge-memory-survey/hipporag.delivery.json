@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/hipporag.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/hipporag.html",
+  "specification": {
+    "sha256": "c61e56e1dedead081a2769ed33ea960da4257e7844c1d74a089774720a7f99e3",
+    "bytes": 3901
+  },
+  "artifact": {
+    "sha256": "c98f120e34f141b33d022951cf270b1bd5435ed424a8b18f1c402ffb7470d4e3",
+    "bytes": 804306
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/OSU-NLP-Group/HippoRAG",
+    "revision": "1438aba3fc44ff10573e5a5e1e7cc3c7f9794aff",
+    "references": 7
+  }
+}

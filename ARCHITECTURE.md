@@ -90,6 +90,14 @@ registration. It uses the persistent local
 development server, not a production deployment. The accepted ADR 0017 did not
 establish production guarantees, live Codex recovery or broader plugin authority.
 
+Accepted [ADR 0022](docs/adr/0022-knowledge-memory-context-experiment.md) establishes
+the demonstrated cooperation between knowledge, memory and context: hybrid
+capture, automatic evidence-linked maintenance, simple claim/evidence retrieval,
+and plugin-owned source updates. Revision and progress tracking remain host-side,
+not agent-facing responsibilities. Its retained JSON experiments are not supported
+memory implementations or final contracts; retrieval quality, domain assessment,
+durability and efficiency follow-ups remain explicit in the ADR.
+
 Public editorial publishing is established separately through Accepted
 [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md). Its Astro and
 Remotion spike consumes piece-owned `publishing/` sources without introducing

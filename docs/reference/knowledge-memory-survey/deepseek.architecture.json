@@ -1,0 +1,193 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "DeepSeek · context and external memory",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "animation": "none",
+    "repository": {
+      "url": "https://github.com/deepseek-ai/deepseek-harness",
+      "revision": "c291e7961a515f6d7af9304e7fd1d257929aef26"
+    }
+  },
+  "components": [
+    {
+      "id": "input",
+      "type": "external",
+      "label": "Workspace / session references",
+      "sublabel": "Instruction versions and exact snapshots",
+      "pos": [
+        40,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/context/session-reference/src/index.ts",
+          "line": 290
+        }
+      ]
+    },
+    {
+      "id": "admit",
+      "type": "backend",
+      "label": "Context admission",
+      "sublabel": "Bounded previews and omission metadata",
+      "pos": [
+        475,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/context/agent-instructions/src/index.ts",
+          "line": 316
+        }
+      ]
+    },
+    {
+      "id": "agent",
+      "type": "backend",
+      "label": "Native agent execution",
+      "sublabel": "Provider requests and tool selection",
+      "pos": [
+        910,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/core/agent-loop/src/agent.ts",
+          "line": 350
+        }
+      ]
+    },
+    {
+      "id": "mcp",
+      "type": "external",
+      "label": "Optional memory server",
+      "sublabel": "Configured MCP; not built-in curation",
+      "pos": [
+        910,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/cli/config/examples/mcp-memory/mcp-reference-memory.cordis.yml",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "surface",
+      "type": "database",
+      "label": "Native session surface",
+      "sublabel": "Messages and settled context",
+      "pos": [
+        475,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/compaction/compaction-basic/src/index.ts",
+          "line": 195
+        }
+      ]
+    },
+    {
+      "id": "compact",
+      "type": "backend",
+      "label": "Compaction",
+      "sublabel": "Pressure / overflow, bounded retries",
+      "pos": [
+        40,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "packages/compaction/compaction-basic/src/index.ts",
+          "line": 148
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "input",
+      "to": "admit",
+      "label": "prepare"
+    },
+    {
+      "from": "admit",
+      "to": "agent",
+      "label": "enter step"
+    },
+    {
+      "from": "agent",
+      "to": "mcp",
+      "label": "MCP tools",
+      "labelAt": [
+        1045,
+        275
+      ]
+    },
+    {
+      "from": "agent",
+      "to": "surface",
+      "label": "settle"
+    },
+    {
+      "from": "surface",
+      "to": "compact",
+      "label": "measure / prune"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Two different meanings",
+      "items": [
+        "Session recall returns captured conversation text.",
+        "External memory owns its own learning policy."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Bounded first access",
+      "items": [
+        "Omitted source text may have a spill locator.",
+        "Cancellation prevents obsolete context admission."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Not a knowledge engine",
+      "items": [
+        "Compaction replaces the active session surface.",
+        "It does not establish evidence-backed beliefs."
+      ]
+    }
+  ]
+}

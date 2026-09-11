@@ -1,0 +1,214 @@
+{
+  "date": "2026-09-11T17:38:50.858Z",
+  "durationMs": 203194,
+  "bun": "1.2.23",
+  "codex": "codex-cli 0.153.4",
+  "phases": [
+    {
+      "name": "plan-baseline",
+      "milliseconds": 19322,
+      "instructionBytes": 501,
+      "promptBytes": 354,
+      "returnedToolBytes": 438,
+      "calls": [
+        "memory.search",
+        "plan.save"
+      ],
+      "answer": "I’ll check the recorded Fern version and export evidence, then save one draft plan without rendering.\nSaved one draft plan with **defer**. The `fern-renderer` evidence search returned no records, so the latest recorded version, transparency preservation, and faster correct mode could not be established. No evidence IDs were available to cite. No rendering performed.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "capture-defect",
+      "milliseconds": 13668,
+      "instructionBytes": 501,
+      "promptBytes": 87,
+      "returnedToolBytes": 953,
+      "calls": [
+        "inspection.run"
+      ],
+      "answer": "I’ll run the diagnostic once and report its result.\nDiagnostic `alpha-defect`: Fern 1.0’s native mode lost transparent PNG pixels (200 ms); compatibility mode preserved them (600 ms).\n\nThis synthetic observation is dated August 1, 2026, and applies only to transparent PNGs on that installed version.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "maintenance-2",
+      "milliseconds": 24160,
+      "instructionBytes": 501,
+      "promptBytes": 239,
+      "returnedToolBytes": 1188,
+      "calls": [
+        "memory.evidence",
+        "memory.publish"
+      ],
+      "answer": "I’ll find the captured fern-renderer evidence and use it to update the operational note, separating observations from supported conclusions and citing every source ID.\nSaved the fern-renderer operational note with every captured source ID: `alpha-defect`.\n\nObserved: On Fern 1.0, the August 1 diagnostic found native mode lost transparency (200 ms); compatibility mode preserved it (600 ms).\n\nConclusion: Compatibility preserved transparency but took longer in this test. Current behavior, other versions, and other image types remain unverified.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "plan-defect",
+      "milliseconds": 22923,
+      "instructionBytes": 501,
+      "promptBytes": 354,
+      "returnedToolBytes": 2341,
+      "calls": [
+        "memory.search",
+        "plan.save"
+      ],
+      "answer": "I’ll check the recorded Fern version and export evidence, then save one draft plan without rendering.\nSaved one draft plan using **compatibility** for **Fern 1.0**, the latest installed version recorded in the evidence.\n\nThe August 1 diagnostic observed compatibility preserving all transparent pixels (600 ms); native lost pixels (200 ms). Faster native therefore does not qualify. This finding is specific to the tested version and transparent PNGs; no newer verification was provided. [alpha-defect]\n\nNo rendering was performed.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "capture-irrelevant",
+      "milliseconds": 13550,
+      "instructionBytes": 501,
+      "promptBytes": 87,
+      "returnedToolBytes": 831,
+      "calls": [
+        "inspection.run"
+      ],
+      "answer": "I’ll run the diagnostic once and briefly report the result.\nDiagnostic passed: Fern 1.0 native mode exported an opaque JPEG correctly in 200 ms. This synthetic observation is dated August 2, 2026; transparent PNGs were not retested. Evidence: `opaque-success`.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "maintenance-5",
+      "milliseconds": 21309,
+      "instructionBytes": 501,
+      "promptBytes": 239,
+      "returnedToolBytes": 1814,
+      "calls": [
+        "memory.evidence",
+        "memory.publish"
+      ],
+      "answer": "I’ll find the captured fern-renderer evidence and use it to update the operational note, separating observations from conclusions and citing every source ID.\nSaved the provisional fern-renderer note with both source IDs: `alpha-defect` and `opaque-success`.\n\nIt separates observed results from conclusions: compatibility mode preserved transparency on tested Fern 1.0; the later opaque-JPEG success does not demonstrate a transparency fix. It flags the historical evidence and missing comparisons, without inventing confidence percentages.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "plan-irrelevant",
+      "milliseconds": 27785,
+      "instructionBytes": 501,
+      "promptBytes": 354,
+      "returnedToolBytes": 3588,
+      "calls": [
+        "memory.search",
+        "plan.save"
+      ],
+      "answer": "I’ll check the recorded Fern version and export evidence, then save one draft plan without rendering.\nSaved one draft plan using **compatibility** for **Fern 1.0**, the latest installed version recorded [opaque-success].\n\nCompatibility preserved all transparent pixels (600 ms); faster native mode lost them (200 ms) [alpha-defect]. The later opaque JPEG success did not retest transparency [opaque-success].\n\nThese are historical local observations; present-day installation evidence is absent. No rendering performed.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "capture-fixed",
+      "milliseconds": 15813,
+      "instructionBytes": 501,
+      "promptBytes": 87,
+      "returnedToolBytes": 1026,
+      "calls": [
+        "inspection.run"
+      ],
+      "answer": "I’ll run the diagnostic once and briefly report the result.\nThe synthetic diagnostic passed: Fern 1.1 preserved all transparent pixels in both native mode (200 ms) and compatibility mode (600 ms). This observation is dated August 3, 2026; version 1.0 results are historical. Evidence: `alpha-fixed`.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "maintenance-8",
+      "milliseconds": 24391,
+      "instructionBytes": 501,
+      "promptBytes": 239,
+      "returnedToolBytes": 2640,
+      "calls": [
+        "memory.evidence",
+        "memory.publish"
+      ],
+      "answer": "I’ll look up the fern-renderer evidence and save a concise assessment separating observations from supported conclusions.\nSaved the fern-renderer note with all source IDs: `alpha-defect`, `opaque-success`, and `alpha-fixed`.\n\nIt separates observations from conclusions: native mode preserved transparency in the tested PNG on version 1.1; the 1.0 failure remains historical. It adds no unsupported comparisons or confidence percentages and flags that the latest evidence is dated August 3, 2026.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "plan-fixed",
+      "milliseconds": 20266,
+      "instructionBytes": 501,
+      "promptBytes": 354,
+      "returnedToolBytes": 4737,
+      "calls": [
+        "memory.search",
+        "plan.save"
+      ],
+      "answer": "I’ll check the recorded Fern version and export evidence, then save one draft plan without rendering.\nSaved one draft plan using **native** for **Fern 1.1**, the latest recorded installation (2026-08-03).\n\nBoth modes preserved all transparent pixels in the tested PNG; native was faster: 200 ms versus 600 ms [alpha-fixed]. These are test-specific observations, not general guarantees. Present-day installation remains unverified.\n\nNo rendering was performed.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    }
+  ],
+  "notes": [
+    {
+      "topic": "fern-renderer",
+      "text": "Observations: On 2026-08-01, Fern 1.0 native mode lost transparent pixels in a transparent-PNG test (200 ms); compatibility preserved them (600 ms) [alpha-defect]. On 2026-08-02, Fern 1.0 native mode correctly exported an opaque JPEG (200 ms); transparency was not retested [opaque-success]. On 2026-08-03, after installing Fern 1.1, the same transparent-PNG test preserved all transparent pixels in both native (200 ms) and compatibility (600 ms) modes [alpha-fixed].\nConclusions: For this tested PNG on 1.1, native preserved transparency and completed faster than compatibility; the 1.0 transparency failure is historical, and the opaque-JPEG success did not resolve or retest it [alpha-defect, opaque-success, alpha-fixed]. These local synthetic tests do not establish behavior for other inputs or general performance. Version 1.1 is current according to the latest captured evidence (2026-08-03); no newer verification is available, so present installation status is unverified.",
+      "sources": [
+        {
+          "id": "alpha-defect",
+          "topic": "fern-renderer",
+          "outcome": "transparent_native_failed",
+          "detail": "Synthetic local diagnostic on 2026-08-01: installed Fern version 1.0. The transparent-PNG test lost transparent pixels in native mode (200 ms). Compatibility mode preserved all transparent pixels (600 ms). These results apply to transparent PNGs on this installed version."
+        },
+        {
+          "id": "opaque-success",
+          "topic": "fern-renderer",
+          "outcome": "opaque_native_passed",
+          "detail": "Synthetic local diagnostic on 2026-08-02: installed Fern version remains 1.0. Native mode exported an opaque JPEG correctly (200 ms). This test contained no transparent pixels and did not retest transparent PNGs."
+        },
+        {
+          "id": "alpha-fixed",
+          "topic": "fern-renderer",
+          "outcome": "transparent_native_passed",
+          "detail": "Synthetic local diagnostic on 2026-08-03 after installation of Fern version 1.1, now the current installed version. The same transparent-PNG test preserved all transparent pixels in native mode (200 ms) and compatibility mode (600 ms). Version 1.0 results remain historical observations of the earlier version."
+        }
+      ],
+      "stale": false
+    }
+  ],
+  "savedPlans": [
+    {
+      "mode": "defer",
+      "sources": [],
+      "reason": "The fern-renderer memory search returned no notes or evidence. The latest recorded installed version, transparency correctness of native and compatibility modes, and comparative speed cannot be established. Defer the draft export plan rather than assume a present-day installation or select an unsupported mode. No rendering performed.",
+      "phase": "plan-baseline"
+    },
+    {
+      "mode": "compatibility",
+      "sources": [
+        "alpha-defect"
+      ],
+      "reason": "Draft targets Fern 1.0, the latest installed version recorded in the available evidence (2026-08-01), not an unverified present-day installation. In the transparent-PNG diagnostic, compatibility preserved all transparent pixels (600 ms), while native lost transparent pixels (200 ms). Choose compatibility because only it is known correct for transparency; the preference for faster mode applies only when both are known correct. This is a version- and test-specific observation, not a general rule. No newer installation or verification evidence was provided. Do not render.",
+      "phase": "plan-defect"
+    },
+    {
+      "mode": "compatibility",
+      "sources": [
+        "alpha-defect",
+        "opaque-success"
+      ],
+      "reason": "Target the latest installed version recorded in the returned evidence: Fern 1.0, still installed on 2026-08-02 [opaque-success]. For transparent PNG export, compatibility preserved all transparent pixels (600 ms), while native lost transparent pixels (200 ms) on 2026-08-01 [alpha-defect]. Native's later opaque JPEG success did not retest transparency [opaque-success], so both modes are not known correct for this requirement and speed does not justify native. This draft uses historical local observations for recorded Fern 1.0, not a general reliability rule or a claim about the unverified present-day installation. The memory note is marked non-stale; evidence for other versions/current installation is absent. Do not render.",
+      "phase": "plan-irrelevant"
+    },
+    {
+      "mode": "native",
+      "sources": [
+        "alpha-fixed"
+      ],
+      "reason": "Draft targets Fern 1.1, the latest installed version recorded in evidence dated 2026-08-03, not the unverified present-day installation. In the local synthetic transparent-PNG test, both native and compatibility preserved all transparent pixels; native took 200 ms versus compatibility's 600 ms, so select native [alpha-fixed]. This observation is specific to the tested input and version, not a general correctness or performance guarantee. No newer installation verification is available. Do not render.",
+      "phase": "plan-fixed"
+    }
+  ],
+  "actionPassed": true,
+  "failure": null,
+  "limits": [
+    "Synthetic tool outcomes; real Codex maintenance and recall.",
+    "Exact-topic lookup, not semantic retrieval.",
+    "Single writer; atomic rename is not a power-loss durability claim.",
+    "Native reasoning and transcripts not captured; generic tool-use instructions are cooperative, not a sandbox guarantee.",
+    "No tokens, model internals or enterprise isolation measured."
+  ]
+}

@@ -1,0 +1,795 @@
+{
+  "date": "2026-09-11T20:38:26.152Z",
+  "durationMs": 274668,
+  "bun": "1.2.23",
+  "codex": "codex-cli 0.153.4",
+  "phases": [
+    {
+      "name": "git-maintain-initial",
+      "milliseconds": 111219,
+      "instructionBytes": 661,
+      "promptBytes": 434,
+      "returnedToolBytes": 31014,
+      "calls": [
+        "memory.snapshot",
+        "memory.weave",
+        "memory.weave"
+      ],
+      "retrievals": [],
+      "answer": "I’ll read the retained knowledge and evidence, update a compact set of claims while preserving their identities, and save them with citations and any disagreements made explicit.\n\nThe notebook has no existing claims. The recorded sidebar implementation, design intent and test assertion agree, but no test run is supplied. I also found a wording distinction: the failure-code comment says “unknown,” while unsupported inputs return `undefined`.\n\nThe save returned `invalid_input`. I’ll try a smaller, more concise set.\n\nSaved seven concise claims with stable IDs and original evidence citations. No prior claim identities existed.\n\nThe claims distinguish committed code, design intent and test assertions, record missing runtime evidence, and flag the “unknown” comment versus `undefined` return distinction. No test is reported as passing.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "git-read-initial",
+      "milliseconds": 20547,
+      "instructionBytes": 661,
+      "promptBytes": 234,
+      "returnedToolBytes": 16238,
+      "calls": [
+        "memory.search"
+      ],
+      "retrievals": [
+        {
+          "topic": "sidebar cookie retention committed code automated tests",
+          "hits": 3
+        }
+      ],
+      "answer": "I’ll check the available Drawloom records for the committed cookie setting and test evidence, without executing code or tests.\nThe recorded code at commit `4b8740d` configures `sidebar_state` for **seven days (604,800 seconds)**: `SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7`. This establishes the configured duration, not observed browser retention. [Evidence: e-fe85c75f50905951616489f21a10c00c9b19dddd5c4b6b7f201d1590f15e3340]\n\n**The available records do not establish that automated tests passed.** `checks/sidebar.test.ts` asserts `604800`, but explicitly states that no execution result was supplied. Test source shows an expectation, not a successful run. [Evidence: e-0e89179e0e82ff7f27e22bbb59092b78decc012894053c96b1eb2ba093b2d6f1]\n\nThere is no disagreement about duration: the code, test assertion, and fixture-only accepted decision all specify seven days. The decision’s “Accepted” status does not certify test success. [Evidence: e-0435edf6acb2174bbc9bf180b3581985b7881d3b0f7896d9250cfc7c91e10059]\n\nThese conclusions concern the recorded commit; current state is unverified. No commands or tests were executed.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "git-read-unrelated",
+      "milliseconds": 24507,
+      "instructionBytes": 661,
+      "promptBytes": 158,
+      "returnedToolBytes": 23672,
+      "calls": [
+        "memory.search",
+        "memory.search"
+      ],
+      "retrievals": [
+        {
+          "topic": "MCP Apps camera network permissions tests",
+          "hits": 1
+        },
+        {
+          "topic": "ResourceOriginSchema mcp-media-policy test execution results",
+          "hits": 3
+        }
+      ],
+      "answer": "I’ll look for the recorded implementation evidence and separate source findings from verified test results.\n**No—those declarations are rejected by the recorded policy implementation** at commit `4b8740d78629cae1729149da36ac745176507805`.\n\n- **Camera:** any nonempty `permissions` object, including `{camera:{}}`, throws “MCP permissions are unsupported.”\n- **Arbitrary connections:** nonempty `connectDomains` is rejected. Every CSP key other than `resourceDomains` must have an empty-array value.\n- **Resource origins:** `resourceDomains` is validated through `ResourceOriginSchema`, limited to 32 entries before deduplication. The imported schema’s implementation is missing from the supplied evidence.  \nSource: `mcp-media-policy.ts`, evidence `e-323b5960a3531f23078de153f004a7477374479160b67964b6eb22dc6455c8a6`.\n\n**Tests are recorded as source, not as passing executions.** They assert acceptance of an HTTPS resource origin and rejection of camera permissions, connection domains, wildcards, credentials, paths, and a CSP-injection string. No execution results were supplied; the test title’s “without a second approval” wording also does not establish an actual approval flow.  \nSource: `mcp-media-policy.test.ts`, evidence `e-ae10e1413ced6388c81398436d20e52ff59084cccc1784fb5573abc6997b7ac4`.\n\nThis supports a conclusion about the recorded declaration validator, not verified end-to-end browser enforcement or the present-day implementation.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "git-read-before-maintenance",
+      "milliseconds": 24282,
+      "instructionBytes": 661,
+      "promptBytes": 234,
+      "returnedToolBytes": 17807,
+      "calls": [
+        "memory.search"
+      ],
+      "retrievals": [
+        {
+          "topic": "sidebar cookie retention committed code automated tests passed",
+          "hits": 3
+        }
+      ],
+      "answer": "I’ll check the recorded evidence for the cookie lifetime and test results, without running code or tests.\nThe later recorded commit, `730be897`, defines `sidebar_state`’s maximum age as `60 * 60 * 24 * 1`: **86,400 seconds, or one day**. This establishes the configured lifetime, not actual browser retention or today’s repository state. [Evidence: `e-785539fd2f7152f28aa0430ce3a40c55fb27b7577e5c810d6607744227aab5a7`]\n\nThe disagreement is historical: commit `4b8740d` used **seven days**, matching the fixture-only design decision and test assertion of `604800`. The retained seven-day summary is therefore stale relative to the later code. [Evidence: `e-fe85c75f50905951616489f21a10c00c9b19dddd5c4b6b7f201d1590f15e3340`, `e-0435edf6acb2174bbc9bf180b3581985b7881d3b0f7896d9250cfc7c91e10059`, `e-0e89179e0e82ff7f27e22bbb59092b78decc012894053c96b1eb2ba093b2d6f1`]\n\n**The available records do not establish that automated tests passed.** They contain test source, explicitly without execution results. The recorded seven-day assertion would disagree with the later one-day constant if run unchanged, but that is an inference—not an observed test failure. No code or tests were run. [Evidence: `e-0e89179e0e82ff7f27e22bbb59092b78decc012894053c96b1eb2ba093b2d6f1`, `e-785539fd2f7152f28aa0430ce3a40c55fb27b7577e5c810d6607744227aab5a7`]\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "git-maintain-changed",
+      "milliseconds": 65504,
+      "instructionBytes": 661,
+      "promptBytes": 434,
+      "returnedToolBytes": 40328,
+      "calls": [
+        "memory.snapshot",
+        "memory.weave"
+      ],
+      "retrievals": [],
+      "answer": "I’ll read the retained knowledge and evidence, then save a small set of claims that distinguishes implementation, design intent, and test assertions while preserving identities and surfacing disagreements.\nThe later sidebar source defines a one-day lifetime, while the earlier design decision and test assertion specify seven days. I’ll retain that disagreement in `sidebar-persistence`; there’s no recorded test run or present-day verification. The other six claims remain supported by their recorded source snapshots.\nSaved seven evidence-cited claims, preserving all existing IDs.\n\nUpdated `sidebar-persistence` to surface the disagreement: later implementation specifies one day (`e-785539…`), while recorded design and test source specify seven days (`e-0435ed…`, `e-0e8917…`).\n\nClaims distinguish committed code, intended design, and test assertions. No passing test results or present-day verification were supplied. Source instructions were not treated as authority.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "git-read-after-restart",
+      "milliseconds": 25439,
+      "instructionBytes": 661,
+      "promptBytes": 234,
+      "returnedToolBytes": 21944,
+      "calls": [
+        "memory.search"
+      ],
+      "retrievals": [
+        {
+          "topic": "sidebar cookie retention committed code automated tests passed",
+          "hits": 3
+        }
+      ],
+      "answer": "I’ll check the recorded evidence for the cookie lifetime and test results, without executing code or tests.\nThe latest recorded committed code, **`730be89`, configures one day (86,400 seconds)** for `sidebar_state`: `SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 1`. This establishes the configured lifetime; actual cookie use and present-day behavior are unverified. Evidence: `e-785539fd2f7152f28aa0430ce3a40c55fb27b7577e5c810d6607744227aab5a7`.\n\nThe records disagree across versions:\n\n- Earlier code at `4b8740d` configured **seven days (604,800 seconds)**. Evidence: `e-fe85c75f50905951616489f21a10c00c9b19dddd5c4b6b7f201d1590f15e3340`.\n- The fixture-only accepted decision specifies seven days. Evidence: `e-0435edf6acb2174bbc9bf180b3581985b7881d3b0f7896d9250cfc7c91e10059`.\n- The sidebar test at that earlier commit asserts `604800`. Evidence: `e-0e89179e0e82ff7f27e22bbb59092b78decc012894053c96b1eb2ba093b2d6f1`.\n\n**The available records do not establish that automated tests passed.** They contain test source, not execution results. The later constant conflicts with the earlier assertion, but without an updated test snapshot or run result, this proves neither an observed failure nor revised design intent. Likewise, the OTel tests assert a zero exit status under Bun and Node; no execution results are supplied. Evidence: `e-7ef020a3a3bd6c490cd3ffae2ea0ae7ea4bd78979555d12a2211cb9279e142b7`.\n\nNo code or tests were executed.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    }
+  ],
+  "notes": [],
+  "foregroundNotes": [],
+  "savedPlans": [],
+  "organisedSnapshots": [],
+  "sourceSnapshots": [],
+  "triggers": [],
+  "capture": {
+    "exitCode": 0,
+    "complete": false,
+    "note": "Command output cut off inside the Git state appendix. All six phase results and the complete records listed here were recoverable. Missing suffix is not reconstructed."
+  },
+  "gitEvidence": {
+    "origin": "a186b2733c44f3c85449c3c56a0c642d649588c7",
+    "records": [
+      {
+        "stage": "initial",
+        "updates": 19,
+        "token": "4b8740d78629cae1729149da36ac745176507805",
+        "state": {
+          "changes": [
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/ui/ui/src/components/sidebar/constants.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nexport const SIDEBAR_COOKIE_NAME = \"sidebar_state\";\nexport const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;\nexport const SIDEBAR_WIDTH = \"16rem\";\nexport const SIDEBAR_WIDTH_MOBILE = \"18rem\";\nexport const SIDEBAR_WIDTH_ICON = \"3rem\";\nexport const SIDEBAR_KEYBOARD_SHORTCUT = \"b\";\n",
+              "key": "[\"git\",\"packages/ui/ui/src/components/sidebar/constants.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file apps/desktop/host/mcp-media-policy.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { z } from 'zod';\nimport { ResourceOriginSchema } from '../src/lib/package-protocol.js';\n/** Validate standard UI declarations. Shared permission is owned by media-policy.ts. */\nexport function mediaPolicy(raw:unknown):string[]{\n  const policy=z.object({csp:z.record(z.string(),z.unknown()).optional(),permissions:z.record(z.string(),z.unknown()).optional()}).passthrough().parse(raw??{});\n  if(Object.keys(policy.permissions??{}).length)throw Error('MCP permissions are unsupported');\n  for(const [key,value] of Object.entries(policy.csp??{}))\n    if(key!=='resourceDomains' && (!Array.isArray(value)||value.length))throw Error('MCP connection, frame and base permissions are unsupported');\n  const domains=z.array(ResourceOriginSchema).max(32).parse(policy.csp?.resourceDomains??[]);\n  return [...new Set(domains)];\n}\n",
+              "key": "[\"git\",\"apps/desktop/host/mcp-media-policy.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file apps/desktop/host/mcp-media-policy.test.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { test,expect } from 'bun:test';\nimport { mediaPolicy } from './mcp-media-policy.js';\ntest('MCP resource declarations are validated without a second approval or extra permissions',()=>{\n  const declaration={csp:{resourceDomains:['https://media.example']}};\n  expect(mediaPolicy(declaration)).toEqual(['https://media.example']);\n  expect(()=>mediaPolicy({csp:{connectDomains:['https://media.example']}})).toThrow();\n  expect(()=>mediaPolicy({permissions:{camera:{}}})).toThrow();\n  for(const domain of ['*','https://*.example','https://user:pass@example','https://example/path',\"https://example; script-src *\"])\n    expect(()=>mediaPolicy({csp:{resourceDomains:[domain]}})).toThrow();\n});\n",
+              "key": "[\"git\",\"apps/desktop/host/mcp-media-policy.test.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file apps/desktop/host/resource-recovery.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport type { ToolResult } from '@drawloom/tools';\n\n/** Retry display projection from the existing authoritative evidence, not tools. */\nexport function createResourceRecovery(retained: readonly ToolResult[], capture: (result: ToolResult) => Promise<void>) {\n  const pending = new Map<string, ToolResult>();\n  const add = (result: ToolResult) => {\n    if (result.outcome.status === 'ok' && result.outcome.content?.some(block => block.type !== 'text'))\n      pending.set(result.invocationId, result);\n  };\n  retained.forEach(add);\n  let queue: Promise<void> = Promise.resolve();\n  const recover = () => {\n    const next = queue.then(async () => {\n      for (const [id, result] of pending) {\n        await capture(result);\n        pending.delete(id);\n      }\n    });\n    queue = next.catch(() => {});\n    return next;\n  };\n  return { recover, record(result: ToolResult) { add(result); return recover(); } };\n}\n",
+              "key": "[\"git\",\"apps/desktop/host/resource-recovery.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file apps/desktop/host/grant-refresh.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\n/** Serialize authority refreshes and publish each complete group without awaits. */\nexport function createGrantRefresh<T>(\n  grants: Map<string, Set<string>>,\n  read: (id: string) => Promise<T>,\n  project: (state: T, id: string) => Set<string>,\n) {\n  let tail: Promise<unknown> = Promise.resolve();\n  return (ids: readonly string[]): Promise<Map<string, T>> => {\n    const selected = [...new Set(ids)];\n    const result = tail.then(async () => {\n      try {\n        const states = new Map<string, T>();\n        for (const id of selected) states.set(id, await read(id));\n        const next = selected.map(id => [id, project(states.get(id)!, id)] as const);\n        for (const [id, value] of next) grants.set(id, value);\n        return states;\n      } catch (error) {\n        for (const id of selected) grants.delete(id);\n        throw error;\n      }\n    });\n    tail = result.catch(() => {});\n    return result;\n  };\n}\n",
+              "key": "[\"git\",\"apps/desktop/host/grant-refresh.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file apps/desktop/host/folder-picker.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\n/** Native macOS dialog without exposing a Tauri capability to remote web content. */\nexport async function pickMacProjectDirectory(signal:AbortSignal):Promise<string|undefined>{\n  signal.throwIfAborted();\n  // The script is constant. Browser strings never become shell or AppleScript.\n  const child=Bun.spawn(['/usr/bin/osascript','-e','try\\nPOSIX path of (choose folder with prompt \"Choose a Drawloom project folder\")\\non error number -128\\nreturn \"\"\\nend try'],{stdout:'pipe',stderr:'ignore'});\n  const cancel=()=>child.kill();signal.addEventListener('abort',cancel,{once:true});\n  try{\n    const [text,status]=await Promise.all([new Response(child.stdout).text(),child.exited]);\n    signal.throwIfAborted();if(status!==0)throw Error('Native folder selection failed');\n    return text.trim()||undefined;\n  }finally{signal.removeEventListener('abort',cancel);}\n}\n",
+              "key": "[\"git\",\"apps/desktop/host/folder-picker.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/context/context/src/index.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { z } from \"zod\";\nexport const CompiledContextSchema = z.strictObject({\n  text: z.string(),\n  sources: z.array(z.string().min(1)).optional(),\n});\nexport type CompiledContext = z.infer<typeof CompiledContextSchema>;\n",
+              "key": "[\"git\",\"packages/context/context/src/index.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/plugins/plugins/src/requirements.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { z } from 'zod';\nexport const PluginRequirementSchema = z.strictObject({\n  kind: z.enum(['capability', 'tool', 'skill']), id: z.string().min(1),\n});\nexport type PluginRequirement = z.infer<typeof PluginRequirementSchema>;\n",
+              "key": "[\"git\",\"packages/plugins/plugins/src/requirements.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/orchestration/temporal-orchestration/src/failures.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { z } from 'zod';\nconst Code = z.enum(['retryable', 'denied', 'invalid', 'unknown']);\n/** Trusted backend bundles may carry a separate copy of the contract class.\n * Accept actual Error instances with only the contract's known code values;\n * arbitrary objects, transport error codes and non-errors remain unknown.\n */\nexport function stepFailureCode(error: unknown): z.infer<typeof Code> | undefined {\n  if (!(error instanceof Error) || !['Error', 'StepFailure'].includes(error.name)) return undefined;\n  const result = Code.safeParse(Reflect.get(error, 'code'));\n  return result.success ? result.data : undefined;\n}\n",
+              "key": "[\"git\",\"packages/orchestration/temporal-orchestration/src/failures.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/orchestration/temporal-orchestration/src/telemetry.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { trace } from '@opentelemetry/api';\n\n/** Small composition helper; OpenTelemetry remains the instrumentation API. */\nexport function observe<T>(stage: 'startup' | 'prepare' | 'recovery' | 'shutdown', work: () => Promise<T>): Promise<T> {\n  return trace.getTracer('@drawloom/temporal-orchestration').startActiveSpan(`drawloom.orchestration.${stage}`, async span => {\n    try { const result = await work(); span.setAttribute('drawloom.outcome', 'ok'); return result; }\n    catch (error) { span.setAttribute('drawloom.outcome', 'error'); throw error; }\n    finally { span.end(); }\n  });\n}\n",
+              "key": "[\"git\",\"packages/orchestration/temporal-orchestration/src/telemetry.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/orchestration/temporal-orchestration/src/signals.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\n/** Same-host abort reason. Not a wire value, workflow input or plugin protocol. */\nexport const LOCAL_EXECUTION_PAUSED = Symbol('drawloom.local-execution-paused');\n",
+              "key": "[\"git\",\"packages/orchestration/temporal-orchestration/src/signals.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/ui/ui/src/utils.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { clsx, type ClassValue } from \"clsx\";\nimport { extendTailwindMerge } from \"tailwind-merge\";\nimport { createTV } from \"tailwind-variants\";\n\n// Both merging paths must recognise semantic sizes as typography, not colours.\nconst themeMergeConfig = { extend: { theme: {\n  text: ['body', 'chrome', 'caption', 'small-control'],\n  radius: ['bubble'],\n} } };\nconst twMerge = extendTailwindMerge(themeMergeConfig);\nexport const tv = createTV({ twMergeConfig: themeMergeConfig });\n\nexport function cn(...inputs: ClassValue[]) {\n  return twMerge(clsx(inputs));\n}\nexport type WithoutChild<T> = T extends { child?: unknown } ? Omit<T, \"child\"> : T;\nexport type WithoutChildren<T> = T extends { children?: unknown } ? Omit<T, \"children\"> : T;\nexport type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;\nexport type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?: U | null };\n",
+              "key": "[\"git\",\"packages/ui/ui/src/utils.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/ui/ui/src/components/button/index.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport Root, {\n\ttype ButtonProps,\n\ttype ButtonSize,\n\ttype ButtonVariant,\n\tbuttonVariants,\n} from \"./button.svelte\";\n\nexport {\n\tRoot,\n\ttype ButtonProps as Props,\n\t//\n\tRoot as Button,\n\tbuttonVariants,\n\ttype ButtonProps,\n\ttype ButtonSize,\n\ttype ButtonVariant,\n};\n",
+              "key": "[\"git\",\"packages/ui/ui/src/components/button/index.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/ui/ui/src/components/input/index.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport Root from \"./input.svelte\";\n\nexport {\n\tRoot,\n\t//\n\tRoot as Input,\n};\n",
+              "key": "[\"git\",\"packages/ui/ui/src/components/input/index.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/ui/ui/src/components/spinner/index.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nexport { default as Spinner } from \"./spinner.svelte\";\n",
+              "key": "[\"git\",\"packages/ui/ui/src/components/spinner/index.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/ui/ui/src/hooks/is-mobile.svelte.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { MediaQuery } from \"svelte/reactivity\";\n\nconst DEFAULT_MOBILE_BREAKPOINT = 768;\n\nexport class IsMobile extends MediaQuery {\n\tconstructor(breakpoint: number = DEFAULT_MOBILE_BREAKPOINT) {\n\t\tsuper(`max-width: ${breakpoint - 1}px`);\n\t}\n}\n",
+              "key": "[\"git\",\"packages/ui/ui/src/hooks/is-mobile.svelte.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/observability/otel-host/otel.test.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { test, expect } from 'bun:test';\nimport { spawnSync } from 'node:child_process';\n\nfor (const runtime of ['bun','node']) {\n  test(`OTel host real context, privacy, loopback export and outage on ${runtime}`,()=>{\n    const result = spawnSync(runtime==='bun'?process.execPath:'node',[runtime==='bun'?'run':'--experimental-strip-types',new URL('./verify.ts',import.meta.url).pathname],{encoding:'utf8',timeout:10000});\n    expect(result.status,`${result.stdout}\\n${result.stderr}`).toBe(0);\n  });\n}\n",
+              "key": "[\"git\",\"packages/observability/otel-host/otel.test.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file checks/sidebar.test.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\n// Synthetic assertion fixture; no execution result has been supplied.\nimport { test, expect } from \"bun:test\";\nimport { SIDEBAR_COOKIE_MAX_AGE } from \"../packages/ui/ui/src/components/sidebar/constants.ts\";\ntest(\"sidebar cookie lifetime\", () => expect(SIDEBAR_COOKIE_MAX_AGE).toBe(604800));\n",
+              "key": "[\"git\",\"checks/sidebar.test.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file decisions/sidebar.md at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\n# Synthetic sidebar decision\nStatus: Accepted (fixture only, not a Drawloom ADR).\nIntent: remember the sidebar choice for seven days. This is a design decision, not evidence of implementation or test execution.\n",
+              "key": "[\"git\",\"decisions/sidebar.md\"]"
+            }
+          ],
+          "claims": [],
+          "waterline": 0,
+          "through": 19,
+          "pending": 19,
+          "due": true
+        }
+      },
+      {
+        "stage": "initial-claims",
+        "updates": 0,
+        "token": "4b8740d78629cae1729149da36ac745176507805",
+        "state": {
+          "changes": [
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/ui/ui/src/components/sidebar/constants.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nexport const SIDEBAR_COOKIE_NAME = \"sidebar_state\";\nexport const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;\nexport const SIDEBAR_WIDTH = \"16rem\";\nexport const SIDEBAR_WIDTH_MOBILE = \"18rem\";\nexport const SIDEBAR_WIDTH_ICON = \"3rem\";\nexport const SIDEBAR_KEYBOARD_SHORTCUT = \"b\";\n",
+              "key": "[\"git\",\"packages/ui/ui/src/components/sidebar/constants.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file apps/desktop/host/mcp-media-policy.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { z } from 'zod';\nimport { ResourceOriginSchema } from '../src/lib/package-protocol.js';\n/** Validate standard UI declarations. Shared permission is owned by media-policy.ts. */\nexport function mediaPolicy(raw:unknown):string[]{\n  const policy=z.object({csp:z.record(z.string(),z.unknown()).optional(),permissions:z.record(z.string(),z.unknown()).optional()}).passthrough().parse(raw??{});\n  if(Object.keys(policy.permissions??{}).length)throw Error('MCP permissions are unsupported');\n  for(const [key,value] of Object.entries(policy.csp??{}))\n    if(key!=='resourceDomains' && (!Array.isArray(value)||value.length))throw Error('MCP connection, frame and base permissions are unsupported');\n  const domains=z.array(ResourceOriginSchema).max(32).parse(policy.csp?.resourceDomains??[]);\n  return [...new Set(domains)];\n}\n",
+              "key": "[\"git\",\"apps/desktop/host/mcp-media-policy.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file apps/desktop/host/mcp-media-policy.test.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { test,expect } from 'bun:test';\nimport { mediaPolicy } from './mcp-media-policy.js';\ntest('MCP resource declarations are validated without a second approval or extra permissions',()=>{\n  const declaration={csp:{resourceDomains:['https://media.example']}};\n  expect(mediaPolicy(declaration)).toEqual(['https://media.example']);\n  expect(()=>mediaPolicy({csp:{connectDomains:['https://media.example']}})).toThrow();\n  expect(()=>mediaPolicy({permissions:{camera:{}}})).toThrow();\n  for(const domain of ['*','https://*.example','https://user:pass@example','https://example/path',\"https://example; script-src *\"])\n    expect(()=>mediaPolicy({csp:{resourceDomains:[domain]}})).toThrow();\n});\n",
+              "key": "[\"git\",\"apps/desktop/host/mcp-media-policy.test.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file apps/desktop/host/resource-recovery.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport type { ToolResult } from '@drawloom/tools';\n\n/** Retry display projection from the existing authoritative evidence, not tools. */\nexport function createResourceRecovery(retained: readonly ToolResult[], capture: (result: ToolResult) => Promise<void>) {\n  const pending = new Map<string, ToolResult>();\n  const add = (result: ToolResult) => {\n    if (result.outcome.status === 'ok' && result.outcome.content?.some(block => block.type !== 'text'))\n      pending.set(result.invocationId, result);\n  };\n  retained.forEach(add);\n  let queue: Promise<void> = Promise.resolve();\n  const recover = () => {\n    const next = queue.then(async () => {\n      for (const [id, result] of pending) {\n        await capture(result);\n        pending.delete(id);\n      }\n    });\n    queue = next.catch(() => {});\n    return next;\n  };\n  return { recover, record(result: ToolResult) { add(result); return recover(); } };\n}\n",
+              "key": "[\"git\",\"apps/desktop/host/resource-recovery.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file apps/desktop/host/grant-refresh.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\n/** Serialize authority refreshes and publish each complete group without awaits. */\nexport function createGrantRefresh<T>(\n  grants: Map<string, Set<string>>,\n  read: (id: string) => Promise<T>,\n  project: (state: T, id: string) => Set<string>,\n) {\n  let tail: Promise<unknown> = Promise.resolve();\n  return (ids: readonly string[]): Promise<Map<string, T>> => {\n    const selected = [...new Set(ids)];\n    const result = tail.then(async () => {\n      try {\n        const states = new Map<string, T>();\n        for (const id of selected) states.set(id, await read(id));\n        const next = selected.map(id => [id, project(states.get(id)!, id)] as const);\n        for (const [id, value] of next) grants.set(id, value);\n        return states;\n      } catch (error) {\n        for (const id of selected) grants.delete(id);\n        throw error;\n      }\n    });\n    tail = result.catch(() => {});\n    return result;\n  };\n}\n",
+              "key": "[\"git\",\"apps/desktop/host/grant-refresh.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file apps/desktop/host/folder-picker.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\n/** Native macOS dialog without exposing a Tauri capability to remote web content. */\nexport async function pickMacProjectDirectory(signal:AbortSignal):Promise<string|undefined>{\n  signal.throwIfAborted();\n  // The script is constant. Browser strings never become shell or AppleScript.\n  const child=Bun.spawn(['/usr/bin/osascript','-e','try\\nPOSIX path of (choose folder with prompt \"Choose a Drawloom project folder\")\\non error number -128\\nreturn \"\"\\nend try'],{stdout:'pipe',stderr:'ignore'});\n  const cancel=()=>child.kill();signal.addEventListener('abort',cancel,{once:true});\n  try{\n    const [text,status]=await Promise.all([new Response(child.stdout).text(),child.exited]);\n    signal.throwIfAborted();if(status!==0)throw Error('Native folder selection failed');\n    return text.trim()||undefined;\n  }finally{signal.removeEventListener('abort',cancel);}\n}\n",
+              "key": "[\"git\",\"apps/desktop/host/folder-picker.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/context/context/src/index.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { z } from \"zod\";\nexport const CompiledContextSchema = z.strictObject({\n  text: z.string(),\n  sources: z.array(z.string().min(1)).optional(),\n});\nexport type CompiledContext = z.infer<typeof CompiledContextSchema>;\n",
+              "key": "[\"git\",\"packages/context/context/src/index.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/plugins/plugins/src/requirements.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { z } from 'zod';\nexport const PluginRequirementSchema = z.strictObject({\n  kind: z.enum(['capability', 'tool', 'skill']), id: z.string().min(1),\n});\nexport type PluginRequirement = z.infer<typeof PluginRequirementSchema>;\n",
+              "key": "[\"git\",\"packages/plugins/plugins/src/requirements.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/orchestration/temporal-orchestration/src/failures.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { z } from 'zod';\nconst Code = z.enum(['retryable', 'denied', 'invalid', 'unknown']);\n/** Trusted backend bundles may carry a separate copy of the contract class.\n * Accept actual Error instances with only the contract's known code values;\n * arbitrary objects, transport error codes and non-errors remain unknown.\n */\nexport function stepFailureCode(error: unknown): z.infer<typeof Code> | undefined {\n  if (!(error instanceof Error) || !['Error', 'StepFailure'].includes(error.name)) return undefined;\n  const result = Code.safeParse(Reflect.get(error, 'code'));\n  return result.success ? result.data : undefined;\n}\n",
+              "key": "[\"git\",\"packages/orchestration/temporal-orchestration/src/failures.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/orchestration/temporal-orchestration/src/telemetry.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { trace } from '@opentelemetry/api';\n\n/** Small composition helper; OpenTelemetry remains the instrumentation API. */\nexport function observe<T>(stage: 'startup' | 'prepare' | 'recovery' | 'shutdown', work: () => Promise<T>): Promise<T> {\n  return trace.getTracer('@drawloom/temporal-orchestration').startActiveSpan(`drawloom.orchestration.${stage}`, async span => {\n    try { const result = await work(); span.setAttribute('drawloom.outcome', 'ok'); return result; }\n    catch (error) { span.setAttribute('drawloom.outcome', 'error'); throw error; }\n    finally { span.end(); }\n  });\n}\n",
+              "key": "[\"git\",\"packages/orchestration/temporal-orchestration/src/telemetry.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/orchestration/temporal-orchestration/src/signals.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\n/** Same-host abort reason. Not a wire value, workflow input or plugin protocol. */\nexport const LOCAL_EXECUTION_PAUSED = Symbol('drawloom.local-execution-paused');\n",
+              "key": "[\"git\",\"packages/orchestration/temporal-orchestration/src/signals.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/ui/ui/src/utils.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { clsx, type ClassValue } from \"clsx\";\nimport { extendTailwindMerge } from \"tailwind-merge\";\nimport { createTV } from \"tailwind-variants\";\n\n// Both merging paths must recognise semantic sizes as typography, not colours.\nconst themeMergeConfig = { extend: { theme: {\n  text: ['body', 'chrome', 'caption', 'small-control'],\n  radius: ['bubble'],\n} } };\nconst twMerge = extendTailwindMerge(themeMergeConfig);\nexport const tv = createTV({ twMergeConfig: themeMergeConfig });\n\nexport function cn(...inputs: ClassValue[]) {\n  return twMerge(clsx(inputs));\n}\nexport type WithoutChild<T> = T extends { child?: unknown } ? Omit<T, \"child\"> : T;\nexport type WithoutChildren<T> = T extends { children?: unknown } ? Omit<T, \"children\"> : T;\nexport type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;\nexport type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?: U | null };\n",
+              "key": "[\"git\",\"packages/ui/ui/src/utils.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/ui/ui/src/components/button/index.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport Root, {\n\ttype ButtonProps,\n\ttype ButtonSize,\n\ttype ButtonVariant,\n\tbuttonVariants,\n} from \"./button.svelte\";\n\nexport {\n\tRoot,\n\ttype ButtonProps as Props,\n\t//\n\tRoot as Button,\n\tbuttonVariants,\n\ttype ButtonProps,\n\ttype ButtonSize,\n\ttype ButtonVariant,\n};\n",
+              "key": "[\"git\",\"packages/ui/ui/src/components/button/index.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/ui/ui/src/components/input/index.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport Root from \"./input.svelte\";\n\nexport {\n\tRoot,\n\t//\n\tRoot as Input,\n};\n",
+              "key": "[\"git\",\"packages/ui/ui/src/components/input/index.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/ui/ui/src/components/spinner/index.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nexport { default as Spinner } from \"./spinner.svelte\";\n",
+              "key": "[\"git\",\"packages/ui/ui/src/components/spinner/index.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/ui/ui/src/hooks/is-mobile.svelte.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { MediaQuery } from \"svelte/reactivity\";\n\nconst DEFAULT_MOBILE_BREAKPOINT = 768;\n\nexport class IsMobile extends MediaQuery {\n\tconstructor(breakpoint: number = DEFAULT_MOBILE_BREAKPOINT) {\n\t\tsuper(`max-width: ${breakpoint - 1}px`);\n\t}\n}\n",
+              "key": "[\"git\",\"packages/ui/ui/src/hooks/is-mobile.svelte.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file packages/observability/otel-host/otel.test.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\nimport { test, expect } from 'bun:test';\nimport { spawnSync } from 'node:child_process';\n\nfor (const runtime of ['bun','node']) {\n  test(`OTel host real context, privacy, loopback export and outage on ${runtime}`,()=>{\n    const result = spawnSync(runtime==='bun'?process.execPath:'node',[runtime==='bun'?'run':'--experimental-strip-types',new URL('./verify.ts',import.meta.url).pathname],{encoding:'utf8',timeout:10000});\n    expect(result.status,`${result.stdout}\\n${result.stderr}`).toBe(0);\n  });\n}\n",
+              "key": "[\"git\",\"packages/observability/otel-host/otel.test.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file checks/sidebar.test.ts at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\n// Synthetic assertion fixture; no execution result has been supplied.\nimport { test, expect } from \"bun:test\";\nimport { SIDEBAR_COOKIE_MAX_AGE } from \"../packages/ui/ui/src/components/sidebar/constants.ts\";\ntest(\"sidebar cookie lifetime\", () => expect(SIDEBAR_COOKIE_MAX_AGE).toBe(604800));\n",
+              "key": "[\"git\",\"checks/sidebar.test.ts\"]"
+            },
+            {
+              "revision": "4b8740d78629cae1729149da36ac745176507805",
+              "kind": "source",
+              "state": "active",
+              "text": "Committed file decisions/sidebar.md at 4b8740d78629cae1729149da36ac745176507805. This is source content, not a test execution result.\n# Synthetic sidebar decision\nStatus: Accepted (fixture only, not a Drawloom ADR).\nIntent: remember the sidebar choice for seven days. This is a design decision, not evidence of implementation or test execution.\n",
+              "key": "[\"git\",\"decisions/sidebar.md\"]"
+            }
+          ],
+          "claims": [
+            {
+              "id": "sidebar-persistence",
+              "text": "At commit 4b8740d, implementation defines sidebar_state lifetime as 604800 seconds. The fixture-only accepted decision intends seven days, and test source asserts 604800: agreement, not proof of cookie use or a passing run. Current state unverified.",
+              "links": [
+                {
+                  "key": "[\"git\",\"packages/ui/ui/src/components/sidebar/constants.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                },
+                {
+                  "key": "[\"git\",\"checks/sidebar.test.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                },
+                {
+                  "key": "[\"git\",\"decisions/sidebar.md\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                }
+              ],
+              "needsRecheck": false
+            },
+            {
+              "id": "mcp-media-policy",
+              "text": "Recorded implementation rejects nonempty permissions and non-resourceDomains CSP values except empty arrays; validates up to 32 origins before deduplication. Tests assert HTTPS acceptance and rejection of extra permissions and unsafe origin forms. Imported origin schema and test results are missing; test-title wording does not verify approval flow.",
+              "links": [
+                {
+                  "key": "[\"git\",\"apps/desktop/host/mcp-media-policy.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                },
+                {
+                  "key": "[\"git\",\"apps/desktop/host/mcp-media-policy.test.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                }
+              ],
+              "needsRecheck": false
+            },
+            {
+              "id": "host-recovery-and-grants",
+              "text": "Recorded recovery code serializes capture of successful results with non-text content, keyed by invocationId; deletes after successful capture and retains pending work on failure. Grant refresh serializes groups, reads/projects before publishing without awaits, and deletes selected grants on error. Both allow later attempts after rejection. No execution results supplied.",
+              "links": [
+                {
+                  "key": "[\"git\",\"apps/desktop/host/resource-recovery.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                },
+                {
+                  "key": "[\"git\",\"apps/desktop/host/grant-refresh.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                }
+              ],
+              "needsRecheck": false
+            },
+            {
+              "id": "folder-picker",
+              "text": "Recorded macOS picker uses constant AppleScript, trims output, returns undefined for empty output, kills child on abort and throws on nonzero exit. Its comment intends no remote Tauri capability exposure; surrounding configuration and runtime verification are absent.",
+              "links": [
+                {
+                  "key": "[\"git\",\"apps/desktop/host/folder-picker.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                }
+              ],
+              "needsRecheck": false
+            },
+            {
+              "id": "context-plugin-schemas",
+              "text": "Recorded strict schemas require CompiledContext.text with optional nonempty source strings, and PluginRequirement.kind capability/tool/skill plus nonempty id. Schema declarations do not establish provenance verification or requirement enforcement.",
+              "links": [
+                {
+                  "key": "[\"git\",\"packages/context/context/src/index.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                },
+                {
+                  "key": "[\"git\",\"packages/plugins/plugins/src/requirements.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                }
+              ],
+              "needsRecheck": false
+            },
+            {
+              "id": "orchestration-contracts",
+              "text": "Recorded failure classifier accepts Error instances named Error/StepFailure with code retryable/denied/invalid/unknown; unsupported inputs return undefined, despite comment wording 'remain unknown'. Pause is a Symbol intended by comment for same-host abort only. Observe records stage spans, outcome and ends in finally. OTel test source asserts verify.ts exits zero under Bun/Node; verifier and passing results are absent.",
+              "links": [
+                {
+                  "key": "[\"git\",\"packages/orchestration/temporal-orchestration/src/failures.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                },
+                {
+                  "key": "[\"git\",\"packages/orchestration/temporal-orchestration/src/signals.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                },
+                {
+                  "key": "[\"git\",\"packages/orchestration/temporal-orchestration/src/telemetry.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                },
+                {
+                  "key": "[\"git\",\"packages/observability/otel-host/otel.test.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                }
+              ],
+              "needsRecheck": false
+            },
+            {
+              "id": "ui-utilities",
+              "text": "Recorded cn and tv share semantic text/radius merge configuration; typography classification is comment intent without runtime proof. IsMobile defaults to max-width 767px. Barrels export Root/Button with variants/types, Root/Input and Spinner; component internals absent. All observations are commit 4b8740d snapshots, not verified present-day behavior.",
+              "links": [
+                {
+                  "key": "[\"git\",\"packages/ui/ui/src/utils.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                },
+                {
+                  "key": "[\"git\",\"packages/ui/ui/src/hooks/is-mobile.svelte.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                },
+                {
+                  "key": "[\"git\",\"packages/ui/ui/src/components/button/index.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                },
+                {
+                  "key": "[\"git\",\"packages/ui/ui/src/components/input/index.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                },
+                {
+                  "key": "[\"git\",\"packages/ui/ui/src/components/spinner/index.ts\"]",
+                  "revision": "4b8740d78629cae1729149da36ac745176507805"
+                }
+              ],
+              "needsRecheck": false
+            }
+          ],
+          "waterline": 19,
+          "through": 19,
+          "pending": 0,
+          "due": false
+        }
+      }
+    ]
+  },
+  "observedTools": [
+    {
+      "operation": "git-maintain-initial",
+      "tool": "memory.snapshot",
+      "status": "ok",
+      "claims": [],
+      "evidence": [
+        {
+          "id": "e-fe85c75f50905951616489f21a10c00c9b19dddd5c4b6b7f201d1590f15e3340",
+          "source": "git / packages/ui/ui/src/components/sidebar/constants.ts"
+        },
+        {
+          "id": "e-323b5960a3531f23078de153f004a7477374479160b67964b6eb22dc6455c8a6",
+          "source": "git / apps/desktop/host/mcp-media-policy.ts"
+        },
+        {
+          "id": "e-ae10e1413ced6388c81398436d20e52ff59084cccc1784fb5573abc6997b7ac4",
+          "source": "git / apps/desktop/host/mcp-media-policy.test.ts"
+        },
+        {
+          "id": "e-dbda58313029437a0c04bb24b99445d24e123ae814d2a184f38d6a478c29f994",
+          "source": "git / apps/desktop/host/resource-recovery.ts"
+        },
+        {
+          "id": "e-a41e6b429c6eb7fdaf4328e44e9d7870c37c168d98c93cba170325571f5f8d22",
+          "source": "git / apps/desktop/host/grant-refresh.ts"
+        },
+        {
+          "id": "e-9b91712afa47da7fcade8ee6901aac19ddf2d8bccb50c5a0786a2b744edd4475",
+          "source": "git / apps/desktop/host/folder-picker.ts"
+        },
+        {
+          "id": "e-78301aac7aff9510dabfaa7a5757e9138e7efccd2467b638ae077157a04b520e",
+          "source": "git / packages/context/context/src/index.ts"
+        },
+        {
+          "id": "e-f9110a9d5b2a26a4a90d53f8e7c490b80ce0e7b1ac018a93a7723c93286f7772",
+          "source": "git / packages/plugins/plugins/src/requirements.ts"
+        },
+        {
+          "id": "e-decb615b1c1ce244b5e9b7bafc3583dc90b8dea0d77753c24636a163af7ba1ad",
+          "source": "git / packages/orchestration/temporal-orchestration/src/failures.ts"
+        },
+        {
+          "id": "e-1040c53d2c25b36f250015f6f97768156a842d73fecf18d712a158edb194343f",
+          "source": "git / packages/orchestration/temporal-orchestration/src/telemetry.ts"
+        },
+        {
+          "id": "e-c7637071b98b0ed1d7c1f3bd613ee1ef70af7b02e4edc9f2932379e76da5db09",
+          "source": "git / packages/orchestration/temporal-orchestration/src/signals.ts"
+        },
+        {
+          "id": "e-3733ea40b655815095fb47006f3ad61f926b4a5a249bc16874a9790ccfb25eb2",
+          "source": "git / packages/ui/ui/src/utils.ts"
+        },
+        {
+          "id": "e-c229728393b0de93452580d1bed4854863bdbf7fefcd14df2cb63d6773bd361a",
+          "source": "git / packages/ui/ui/src/components/button/index.ts"
+        },
+        {
+          "id": "e-69bd153df10fb55f417dc5e08d1c64c7a9fce6303e675ed694a5c8ff5cc049b8",
+          "source": "git / packages/ui/ui/src/components/input/index.ts"
+        },
+        {
+          "id": "e-d7921ad67454dff941ba8795ec4410664a37b0fcba56d7c98f1355f732851e4b",
+          "source": "git / packages/ui/ui/src/components/spinner/index.ts"
+        },
+        {
+          "id": "e-af8c637a4da4646dbf9943d03f13c102cf13bf8deb29932ca19f7e6dd801eee9",
+          "source": "git / packages/ui/ui/src/hooks/is-mobile.svelte.ts"
+        },
+        {
+          "id": "e-7ef020a3a3bd6c490cd3ffae2ea0ae7ea4bd78979555d12a2211cb9279e142b7",
+          "source": "git / packages/observability/otel-host/otel.test.ts"
+        },
+        {
+          "id": "e-0e89179e0e82ff7f27e22bbb59092b78decc012894053c96b1eb2ba093b2d6f1",
+          "source": "git / checks/sidebar.test.ts"
+        },
+        {
+          "id": "e-0435edf6acb2174bbc9bf180b3581985b7881d3b0f7896d9250cfc7c91e10059",
+          "source": "git / decisions/sidebar.md"
+        }
+      ]
+    },
+    {
+      "operation": "git-maintain-initial",
+      "tool": "memory.weave",
+      "status": "failed",
+      "code": "invalid_input"
+    },
+    {
+      "operation": "git-maintain-initial",
+      "tool": "memory.weave",
+      "status": "ok"
+    },
+    {
+      "operation": "git-read-initial",
+      "tool": "memory.search",
+      "status": "ok",
+      "claims": [
+        "sidebar-persistence",
+        "host-recovery-and-grants",
+        "mcp-media-policy"
+      ],
+      "evidence": [
+        {
+          "id": "e-fe85c75f50905951616489f21a10c00c9b19dddd5c4b6b7f201d1590f15e3340",
+          "source": "git / packages/ui/ui/src/components/sidebar/constants.ts"
+        },
+        {
+          "id": "e-323b5960a3531f23078de153f004a7477374479160b67964b6eb22dc6455c8a6",
+          "source": "git / apps/desktop/host/mcp-media-policy.ts"
+        },
+        {
+          "id": "e-ae10e1413ced6388c81398436d20e52ff59084cccc1784fb5573abc6997b7ac4",
+          "source": "git / apps/desktop/host/mcp-media-policy.test.ts"
+        },
+        {
+          "id": "e-dbda58313029437a0c04bb24b99445d24e123ae814d2a184f38d6a478c29f994",
+          "source": "git / apps/desktop/host/resource-recovery.ts"
+        },
+        {
+          "id": "e-a41e6b429c6eb7fdaf4328e44e9d7870c37c168d98c93cba170325571f5f8d22",
+          "source": "git / apps/desktop/host/grant-refresh.ts"
+        },
+        {
+          "id": "e-0e89179e0e82ff7f27e22bbb59092b78decc012894053c96b1eb2ba093b2d6f1",
+          "source": "git / checks/sidebar.test.ts"
+        },
+        {
+          "id": "e-0435edf6acb2174bbc9bf180b3581985b7881d3b0f7896d9250cfc7c91e10059",
+          "source": "git / decisions/sidebar.md"
+        }
+      ]
+    },
+    {
+      "operation": "git-read-unrelated",
+      "tool": "memory.search",
+      "status": "ok",
+      "claims": [
+        "mcp-media-policy"
+      ],
+      "evidence": [
+        {
+          "id": "e-323b5960a3531f23078de153f004a7477374479160b67964b6eb22dc6455c8a6",
+          "source": "git / apps/desktop/host/mcp-media-policy.ts"
+        },
+        {
+          "id": "e-ae10e1413ced6388c81398436d20e52ff59084cccc1784fb5573abc6997b7ac4",
+          "source": "git / apps/desktop/host/mcp-media-policy.test.ts"
+        },
+        {
+          "id": "e-9b91712afa47da7fcade8ee6901aac19ddf2d8bccb50c5a0786a2b744edd4475",
+          "source": "git / apps/desktop/host/folder-picker.ts"
+        }
+      ]
+    },
+    {
+      "operation": "git-read-unrelated",
+      "tool": "memory.search",
+      "status": "ok",
+      "claims": [
+        "mcp-media-policy",
+        "host-recovery-and-grants",
+        "orchestration-contracts"
+      ],
+      "evidence": [
+        {
+          "id": "e-dbda58313029437a0c04bb24b99445d24e123ae814d2a184f38d6a478c29f994",
+          "source": "git / apps/desktop/host/resource-recovery.ts"
+        },
+        {
+          "id": "e-a41e6b429c6eb7fdaf4328e44e9d7870c37c168d98c93cba170325571f5f8d22",
+          "source": "git / apps/desktop/host/grant-refresh.ts"
+        },
+        {
+          "id": "e-decb615b1c1ce244b5e9b7bafc3583dc90b8dea0d77753c24636a163af7ba1ad",
+          "source": "git / packages/orchestration/temporal-orchestration/src/failures.ts"
+        },
+        {
+          "id": "e-1040c53d2c25b36f250015f6f97768156a842d73fecf18d712a158edb194343f",
+          "source": "git / packages/orchestration/temporal-orchestration/src/telemetry.ts"
+        },
+        {
+          "id": "e-c7637071b98b0ed1d7c1f3bd613ee1ef70af7b02e4edc9f2932379e76da5db09",
+          "source": "git / packages/orchestration/temporal-orchestration/src/signals.ts"
+        },
+        {
+          "id": "e-7ef020a3a3bd6c490cd3ffae2ea0ae7ea4bd78979555d12a2211cb9279e142b7",
+          "source": "git / packages/observability/otel-host/otel.test.ts"
+        }
+      ]
+    },
+    {
+      "operation": "git-read-before-maintenance",
+      "tool": "memory.search",
+      "status": "ok",
+      "claims": [
+        "sidebar-persistence",
+        "host-recovery-and-grants",
+        "mcp-media-policy"
+      ],
+      "evidence": [
+        {
+          "id": "e-fe85c75f50905951616489f21a10c00c9b19dddd5c4b6b7f201d1590f15e3340",
+          "source": "git / packages/ui/ui/src/components/sidebar/constants.ts"
+        },
+        {
+          "id": "e-323b5960a3531f23078de153f004a7477374479160b67964b6eb22dc6455c8a6",
+          "source": "git / apps/desktop/host/mcp-media-policy.ts"
+        },
+        {
+          "id": "e-ae10e1413ced6388c81398436d20e52ff59084cccc1784fb5573abc6997b7ac4",
+          "source": "git / apps/desktop/host/mcp-media-policy.test.ts"
+        },
+        {
+          "id": "e-dbda58313029437a0c04bb24b99445d24e123ae814d2a184f38d6a478c29f994",
+          "source": "git / apps/desktop/host/resource-recovery.ts"
+        },
+        {
+          "id": "e-a41e6b429c6eb7fdaf4328e44e9d7870c37c168d98c93cba170325571f5f8d22",
+          "source": "git / apps/desktop/host/grant-refresh.ts"
+        },
+        {
+          "id": "e-0e89179e0e82ff7f27e22bbb59092b78decc012894053c96b1eb2ba093b2d6f1",
+          "source": "git / checks/sidebar.test.ts"
+        },
+        {
+          "id": "e-0435edf6acb2174bbc9bf180b3581985b7881d3b0f7896d9250cfc7c91e10059",
+          "source": "git / decisions/sidebar.md"
+        },
+        {
+          "id": "e-785539fd2f7152f28aa0430ce3a40c55fb27b7577e5c810d6607744227aab5a7",
+          "source": "git / packages/ui/ui/src/components/sidebar/constants.ts"
+        }
+      ]
+    }
+  ]
+}

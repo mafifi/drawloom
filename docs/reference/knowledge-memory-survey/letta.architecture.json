@@ -1,0 +1,193 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Letta Code · reflection into committed memory",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "animation": "none",
+    "repository": {
+      "url": "https://github.com/letta-ai/letta-code",
+      "revision": "aa3e294d006b448e36a0be44afed440f47923aa8"
+    }
+  },
+  "components": [
+    {
+      "id": "transcript",
+      "type": "database",
+      "label": "Local transcript slice",
+      "sublabel": "Agent and conversation state with JSONL",
+      "pos": [
+        40,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "src/headless.ts",
+          "line": 4750
+        }
+      ]
+    },
+    {
+      "id": "reflection",
+      "type": "backend",
+      "label": "Configured reflection",
+      "sublabel": "Step / compaction trigger; isolated subagent",
+      "pos": [
+        475,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "src/cli/helpers/reflection-launcher.ts",
+          "line": 521
+        }
+      ]
+    },
+    {
+      "id": "candidate",
+      "type": "database",
+      "label": "Git memory worktree",
+      "sublabel": "Model-authored facts, corrections and skills",
+      "pos": [
+        910,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "src/agent/subagents/builtin/reflection.md",
+          "line": 9
+        }
+      ]
+    },
+    {
+      "id": "integrate",
+      "type": "backend",
+      "label": "Integrate and checkpoint",
+      "sublabel": "Success consumes the transcript slice",
+      "pos": [
+        910,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "src/cli/helpers/reflection-transcript.ts",
+          "line": 1870
+        }
+      ]
+    },
+    {
+      "id": "compile",
+      "type": "backend",
+      "label": "Compile committed HEAD",
+      "sublabel": "Core memory and deferred references",
+      "pos": [
+        475,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "src/backend/local/system-prompt-compilation.ts",
+          "line": 60
+        }
+      ]
+    },
+    {
+      "id": "turn",
+      "type": "external",
+      "label": "Next provider turn",
+      "sublabel": "Compiled prompt plus conversation history",
+      "pos": [
+        40,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "src/backend/dev/fake-headless-backend.ts",
+          "line": 491
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "transcript",
+      "to": "reflection",
+      "label": "select slice"
+    },
+    {
+      "from": "reflection",
+      "to": "candidate",
+      "label": "edit"
+    },
+    {
+      "from": "candidate",
+      "to": "integrate",
+      "label": "merge outcome",
+      "labelAt": [
+        1045,
+        275
+      ]
+    },
+    {
+      "from": "integrate",
+      "to": "compile",
+      "label": "on changes"
+    },
+    {
+      "from": "compile",
+      "to": "turn",
+      "label": "load context"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Automatic, not human approval",
+      "items": [
+        "Integration may use an agent, not a person.",
+        "Only merged or no-change outcomes consume input."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Publication boundary",
+      "items": [
+        "Local compilation reads committed Git state.",
+        "Uncommitted edits stay out of compiled core memory."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Current versus historical",
+      "items": [
+        "This map is current local Letta Code.",
+        "The older Python server is compared separately."
+      ]
+    }
+  ]
+}

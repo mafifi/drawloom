@@ -1,0 +1,193 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Open Design · memory lifecycle",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "animation": "none",
+    "repository": {
+      "url": "https://github.com/nexu-io/open-design",
+      "revision": "933dc96038a4ee7a30c56d479f3497ad2716cbb3"
+    }
+  },
+  "components": [
+    {
+      "id": "entry",
+      "type": "external",
+      "label": "Manual / opt-in capture",
+      "sublabel": "Chat extraction is off by default",
+      "pos": [
+        40,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/daemon/src/memory.ts",
+          "line": 198
+        }
+      ]
+    },
+    {
+      "id": "write",
+      "type": "backend",
+      "label": "Entry writer",
+      "sublabel": "Stable ID, source label and body",
+      "pos": [
+        475,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/daemon/src/memory.ts",
+          "line": 507
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "Markdown + active index",
+      "sublabel": "Retained file is not always selected",
+      "pos": [
+        910,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/daemon/src/memory.ts",
+          "line": 549
+        }
+      ]
+    },
+    {
+      "id": "compose",
+      "type": "backend",
+      "label": "Compose memory body",
+      "sublabel": "Read the active entries for this run",
+      "pos": [
+        910,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/daemon/src/memory.ts",
+          "line": 620
+        }
+      ]
+    },
+    {
+      "id": "prompt",
+      "type": "backend",
+      "label": "Prompt composition",
+      "sublabel": "Preferences, profile and rule rubric",
+      "pos": [
+        475,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/daemon/src/prompts/system.ts",
+          "line": 1210
+        }
+      ]
+    },
+    {
+      "id": "verify",
+      "type": "backend",
+      "label": "Response scorecard check",
+      "sublabel": "Coverage check, not a truth proof",
+      "pos": [
+        40,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "apps/daemon/src/memory-verify.ts",
+          "line": 82
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "entry",
+      "to": "write",
+      "label": "save"
+    },
+    {
+      "from": "write",
+      "to": "store",
+      "label": "persist"
+    },
+    {
+      "from": "store",
+      "to": "compose",
+      "label": "active links",
+      "labelAt": [
+        1045,
+        275
+      ]
+    },
+    {
+      "from": "compose",
+      "to": "prompt",
+      "label": "memory body"
+    },
+    {
+      "from": "prompt",
+      "to": "verify",
+      "label": "run + response"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Readable and editable",
+      "items": [
+        "Removing an index link stops future injection.",
+        "The underlying record can remain on disk."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Recovery limitation",
+      "items": [
+        "Extraction dedupe is process-local.",
+        "A restart is not covered by a durable waterline."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Source scope",
+      "items": [
+        "Logical stages; native transcript is separate.",
+        "No domain confidence evaluator established."
+      ]
+    }
+  ]
+}

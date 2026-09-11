@@ -1,0 +1,201 @@
+{
+  "date": "2026-09-11T17:58:32.542Z",
+  "durationMs": 112863,
+  "bun": "1.2.23",
+  "codex": "codex-cli 0.153.4",
+  "phases": [
+    {
+      "name": "natural-contribution",
+      "milliseconds": 21050,
+      "instructionBytes": 959,
+      "promptBytes": 101,
+      "returnedToolBytes": 1369,
+      "calls": [
+        "memory.search",
+        "inspection.run",
+        "memory.publish"
+      ],
+      "retrievals": [
+        {
+          "topic": "wk-17",
+          "hits": 0
+        }
+      ],
+      "answer": "I’ll check the export failure and the retained cut-out export notes without rendering.\nUse **Compatibility mode for transparent PNG cut-out artwork**. The recorded renderer v1.0 test showed Native mode filled transparency with black (200 ms), while Compatibility preserved it (600 ms). Evidence: `cutout-test`.\n\nThis is the safest setting supported by that test; other versions and formats remain unverified. No retained note was available, so I saved a provisional finding. No render was run.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "natural-no-index",
+      "milliseconds": 36400,
+      "instructionBytes": 661,
+      "promptBytes": 211,
+      "returnedToolBytes": 1698,
+      "calls": [
+        "memory.search",
+        "memory.search",
+        "memory.search",
+        "memory.search",
+        "memory.search",
+        "memory.search",
+        "memory.search",
+        "plan.save"
+      ],
+      "retrievals": [
+        {
+          "topic": "last_recorded_test",
+          "hits": 0
+        },
+        {
+          "topic": "transparency",
+          "hits": 0
+        },
+        {
+          "topic": "alpha",
+          "hits": 0
+        },
+        {
+          "topic": "export",
+          "hits": 0
+        },
+        {
+          "topic": "rendering",
+          "hits": 0
+        },
+        {
+          "topic": "logo",
+          "hits": 0
+        },
+        {
+          "topic": "renderer",
+          "hits": 0
+        }
+      ],
+      "answer": "I’ll check the last recorded test and save a draft choice that preserves transparency, using speed only to choose between correct options. I won’t render.\nSaved a deferred draft requiring transparency before speed. The recorded test evidence wasn’t found, so I couldn’t reliably select a renderer. Nothing was rendered.\n\nWhat topic ID holds the last recorded test?\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "natural-indexed",
+      "milliseconds": 19766,
+      "instructionBytes": 959,
+      "promptBytes": 211,
+      "returnedToolBytes": 1858,
+      "calls": [
+        "memory.search",
+        "plan.save"
+      ],
+      "retrievals": [
+        {
+          "topic": "wk-17",
+          "hits": 1
+        }
+      ],
+      "answer": "I’ll check the last recorded setup and save a draft choice that preserves transparency, without rendering.\nSaved a draft using **compatibility mode**. In the last recorded test (renderer v1.0, transparent PNG), it preserved transparency at 600 ms; native mode was faster but filled empty areas black. Evidence: `cutout-test`.\n\nNothing was rendered.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "natural-paraphrase",
+      "milliseconds": 21503,
+      "instructionBytes": 959,
+      "promptBytes": 219,
+      "returnedToolBytes": 1864,
+      "calls": [
+        "memory.search",
+        "plan.save"
+      ],
+      "retrievals": [
+        {
+          "topic": "wk-17",
+          "hits": 1
+        }
+      ],
+      "answer": "I’ll check the retained export notes and the last tested setup, then save the draft setting without rendering.\nSaved the draft to **compatibility mode**. In the last tested setup—renderer v1.0 with transparent PNGs—it preserved clear areas; faster native mode filled them black. Evidence: `cutout-test`.\n\nNo rendering was performed.\n",
+      "terminal": "operation.completed",
+      "archived": true
+    },
+    {
+      "name": "natural-speech",
+      "milliseconds": 14136,
+      "instructionBytes": 959,
+      "promptBytes": 142,
+      "returnedToolBytes": 1373,
+      "calls": [
+        "memory.search"
+      ],
+      "retrievals": [
+        {
+          "topic": "wk-31",
+          "hits": 1
+        }
+      ],
+      "answer": "I’ll check the recorded speech timing note for the setting it supports.\nTry **speed 1.0 with the original pauses preserved**. Our recorded timing check found that 1.25 clipped breaths and felt rushed, while 1.0 preserved all breaths and sounded natural. This finding applies to that recorded sample, not every voice. (Evidence: `speech-check`, `wk-31`.)\n",
+      "terminal": "operation.completed",
+      "archived": true
+    }
+  ],
+  "notes": [
+    {
+      "topic": "wk-17",
+      "text": "Provisional: recorded synthetic renderer v1.0 transparent-PNG cut-out test found native mode filled transparency black (200 ms), while compatibility mode preserved transparency (600 ms). Prefer compatibility for that tested case; other versions/formats remain unverified. Evidence: cutout-test.",
+      "sources": [
+        {
+          "id": "cutout-test",
+          "topic": "wk-17",
+          "outcome": "transparency_failed",
+          "detail": "Latest recorded synthetic cut-out artwork test, renderer version 1.0: native mode filled the transparent background black (200 ms). Compatibility mode preserved the transparent background (600 ms). This test applies to transparent PNGs on that recorded version only."
+        }
+      ],
+      "stale": false
+    }
+  ],
+  "foregroundNotes": [
+    {
+      "topic": "wk-17",
+      "text": "Provisional: recorded synthetic renderer v1.0 transparent-PNG cut-out test found native mode filled transparency black (200 ms), while compatibility mode preserved transparency (600 ms). Prefer compatibility for that tested case; other versions/formats remain unverified. Evidence: cutout-test.",
+      "sources": [
+        {
+          "id": "cutout-test",
+          "topic": "wk-17",
+          "outcome": "transparency_failed",
+          "detail": "Latest recorded synthetic cut-out artwork test, renderer version 1.0: native mode filled the transparent background black (200 ms). Compatibility mode preserved the transparent background (600 ms). This test applies to transparent PNGs on that recorded version only."
+        }
+      ],
+      "stale": false
+    }
+  ],
+  "savedPlans": [
+    {
+      "mode": "defer",
+      "sources": [],
+      "reason": "Transparency is required; speed is secondary to correctness. Retained-note lookups returned no evidence identifying the last recorded setup or showing which renderer preserves alpha for it. Defer renderer selection rather than assume native or compatibility is correct. Draft only; do not render.",
+      "phase": "natural-no-index"
+    },
+    {
+      "mode": "compatibility",
+      "sources": [
+        "cutout-test"
+      ],
+      "reason": "For the last recorded setup—renderer v1.0 with transparent PNG—compatibility preserved transparency (600 ms), whereas faster native mode filled transparent areas black (200 ms). Correct transparency takes priority over speed. This choice is limited to the recorded setup; other versions and formats are unverified. Save draft only; do not render.",
+      "phase": "natural-indexed"
+    },
+    {
+      "mode": "compatibility",
+      "sources": [
+        "cutout-test"
+      ],
+      "reason": "For the last recorded tested setup (synthetic renderer v1.0, transparent PNG), compatibility preserved transparency in 600 ms; native filled clear areas black despite being faster at 200 ms. Correct transparency takes priority over speed. This evidence is limited to that recorded version and format, not an assumption about other setups. Save draft only; no rendering.",
+      "phase": "natural-paraphrase"
+    }
+  ],
+  "actionPassed": null,
+  "failure": null,
+  "limits": [
+    "Synthetic tool outcomes; real Codex maintenance and recall.",
+    "Exact-topic lookup, not semantic retrieval.",
+    "Single writer; atomic rename is not a power-loss durability claim.",
+    "Native reasoning and transcripts not captured; generic tool-use instructions are cooperative, not a sandbox guarantee.",
+    "No tokens, model internals or enterprise isolation measured."
+  ]
+}

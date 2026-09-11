@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-09-11",
+  "evidenceKind": "image-capable-screenshot-review",
+  "state": {
+    "detail": "read",
+    "motion": "still"
+  },
+  "coverage": "Both endpoint sizes and themes; artifact-bound automated browser receipts measure the four desktop viewports.",
+  "limitations": "No interactive focus, search, presentation, source-link opening, export, mobile or assistive-technology tests.",
+  "diagrams": [
+    {
+      "id": "comparison",
+      "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/comparison.html",
+      "artifact": {
+        "sha256": "71be7659c576cd7a09fabd9828f0ea97531ba9f1de276e5bfb555a043ddcc480",
+        "bytes": 802118
+      },
+      "specification": {
+        "sha256": "f8eba2a5e02091b9996968e92afbe71e46ce9ab79138aafc5124b8cfc4d97ecc",
+        "bytes": 2911
+      },
+      "browserEvidence": "passed",
+      "visualReview": "passed",
+      "correctionRounds": 1,
+      "reviewer": "primary image-capable reviewer",
+      "screenshots": [
+        "comparison.visual-check.1440x900.light.png",
+        "comparison.visual-check.1440x900.dark.png",
+        "comparison.visual-check.2048x1320.light.png",
+        "comparison.visual-check.2048x1320.dark.png"
+      ]
+    },
+    {
+      "id": "hindsight",
+      "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/hindsight.html",
+      "artifact": {
+        "sha256": "aca55bebd783b2dbba0bc35684573e708068363f9bb69b994e7f6756715cfcfa",
+        "bytes": 805894
+      },
+      "specification": {
+        "sha256": "0d70bc8f841811675f5e1df32284a30d122a810ecdb54d711a021f31958adfaf",
+        "bytes": 4356
+      },
+      "browserEvidence": "passed",
+      "visualReview": "passed",
+      "correctionRounds": 1,
+      "reviewer": "memory_graph_systems",
+      "screenshots": [
+        "hindsight.visual-check.1440x900.light.png",
+        "hindsight.visual-check.1440x900.dark.png",
+        "hindsight.visual-check.2048x1320.light.png",
+        "hindsight.visual-check.2048x1320.dark.png"
+      ]
+    },
+    {
+      "id": "graphiti",
+      "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/graphiti.html",
+      "artifact": {
+        "sha256": "91f61af806ead67194d56f089611e2bfa683919fae8e57abfdc18a1b6faf5259",
+        "bytes": 804640
+      },
+      "specification": {
+        "sha256": "74bd210c287e43dddca8518b2da8e6478f41c983101b21d136e6e32ec7e4be70",
+        "bytes": 4015
+      },
+      "browserEvidence": "passed",
+      "visualReview": "passed",
+      "correctionRounds": 1,
+      "reviewer": "memory_graph_systems",
+      "screenshots": [
+        "graphiti.visual-check.1440x900.light.png",
+        "graphiti.visual-check.1440x900.dark.png",
+        "graphiti.visual-check.2048x1320.light.png",
+        "graphiti.visual-check.2048x1320.dark.png"
+      ]
+    },
+    {
+      "id": "letta",
+      "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/letta.html",
+      "artifact": {
+        "sha256": "7a5441a486599d1d4c3a787a754bab770a820779aa70e60662992f3f31cc45b1",
+        "bytes": 804303
+      },
+      "specification": {
+        "sha256": "05f4d62c5658507714c07a49defa88e1c647919df453e5d630b45af018864eea",
+        "bytes": 3925
+      },
+      "browserEvidence": "passed",
+      "visualReview": "passed",
+      "correctionRounds": 1,
+      "reviewer": "memory_agent_systems",
+      "screenshots": [
+        "letta.visual-check.1440x900.light.png",
+        "letta.visual-check.1440x900.dark.png",
+        "letta.visual-check.2048x1320.light.png",
+        "letta.visual-check.2048x1320.dark.png"
+      ]
+    },
+    {
+      "id": "mem0",
+      "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/mem0.html",
+      "artifact": {
+        "sha256": "593008f31cd3c72c05e58d83f08f5af31d35d9966f4d1d4e0312c6bc8e479148",
+        "bytes": 804628
+      },
+      "specification": {
+        "sha256": "c704b8cce525a9833a4fd1e0da09a81af975398cb6719a8608eaeb670489c768",
+        "bytes": 3958
+      },
+      "browserEvidence": "passed",
+      "visualReview": "passed",
+      "correctionRounds": 1,
+      "reviewer": "memory_agent_systems",
+      "screenshots": [
+        "mem0.visual-check.1440x900.light.png",
+        "mem0.visual-check.1440x900.dark.png",
+        "mem0.visual-check.2048x1320.light.png",
+        "mem0.visual-check.2048x1320.dark.png"
+      ]
+    },
+    {
+      "id": "a-mem",
+      "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/a-mem.html",
+      "artifact": {
+        "sha256": "6d6ae36d38054c553649c029609981e75bbe1b3ccc61bd08b9fee95505a53de0",
+        "bytes": 803999
+      },
+      "specification": {
+        "sha256": "1a52521ed1874913b478f9941ecbc04a630d7c349d2de4c7f5661c6e9812fd0b",
+        "bytes": 3836
+      },
+      "browserEvidence": "passed",
+      "visualReview": "passed",
+      "correctionRounds": 2,
+      "reviewer": "review_0021_contracts",
+      "screenshots": [
+        "a-mem.visual-check.1440x900.light.png",
+        "a-mem.visual-check.1440x900.dark.png",
+        "a-mem.visual-check.2048x1320.light.png",
+        "a-mem.visual-check.2048x1320.dark.png"
+      ]
+    },
+    {
+      "id": "hipporag",
+      "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/hipporag.html",
+      "artifact": {
+        "sha256": "c98f120e34f141b33d022951cf270b1bd5435ed424a8b18f1c402ffb7470d4e3",
+        "bytes": 804306
+      },
+      "specification": {
+        "sha256": "c61e56e1dedead081a2769ed33ea960da4257e7844c1d74a089774720a7f99e3",
+        "bytes": 3901
+      },
+      "browserEvidence": "passed",
+      "visualReview": "passed",
+      "finalCitationReview": "primary image-capable reviewer; all four final screenshots reinspected",
+      "correctionRounds": 2,
+      "reviewer": "review_0021_contracts",
+      "screenshots": [
+        "hipporag.visual-check.1440x900.light.png",
+        "hipporag.visual-check.1440x900.dark.png",
+        "hipporag.visual-check.2048x1320.light.png",
+        "hipporag.visual-check.2048x1320.dark.png"
+      ]
+    },
+    {
+      "id": "deepseek",
+      "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/deepseek.html",
+      "artifact": {
+        "sha256": "0784e02fcc9833749c9c0d74aae47b5481cbb0d9b7cf08fc573d3155a27660e0",
+        "bytes": 804366
+      },
+      "specification": {
+        "sha256": "08a8d1f37dec9c516ed228d22100946275c33086288516df611f6ff965f3578c",
+        "bytes": 3926
+      },
+      "browserEvidence": "passed",
+      "visualReview": "passed",
+      "correctionRounds": 1,
+      "reviewer": "primary image-capable reviewer",
+      "screenshots": [
+        "deepseek.visual-check.1440x900.light.png",
+        "deepseek.visual-check.1440x900.dark.png",
+        "deepseek.visual-check.2048x1320.light.png",
+        "deepseek.visual-check.2048x1320.dark.png"
+      ]
+    },
+    {
+      "id": "open-design",
+      "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/open-design.html",
+      "artifact": {
+        "sha256": "d4c162dfc4185ed9557f48cf0e7d2459f764600e92483a88634f003317695c98",
+        "bytes": 803755
+      },
+      "specification": {
+        "sha256": "7c22a5da449c072909bcfb25c74367d3c35d9b3f148f80b7d26ffde9c1d2d2c6",
+        "bytes": 3736
+      },
+      "browserEvidence": "passed",
+      "visualReview": "passed",
+      "correctionRounds": 1,
+      "reviewer": "primary image-capable reviewer",
+      "screenshots": [
+        "open-design.visual-check.1440x900.light.png",
+        "open-design.visual-check.1440x900.dark.png",
+        "open-design.visual-check.2048x1320.light.png",
+        "open-design.visual-check.2048x1320.dark.png"
+      ]
+    }
+  ]
+}

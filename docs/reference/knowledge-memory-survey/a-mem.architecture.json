@@ -1,0 +1,193 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "A-Mem · evolving linked research notes",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "animation": "none",
+    "repository": {
+      "url": "https://github.com/agiresearch/A-mem",
+      "revision": "ceffb860f0712bbae97b184d440df62bc910ca8d"
+    }
+  },
+  "components": [
+    {
+      "id": "note",
+      "type": "external",
+      "label": "Caller creates a note",
+      "sublabel": "Text, UUID and optional metadata",
+      "pos": [
+        40,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "agentic_memory/memory_system.py",
+          "line": 233
+        }
+      ]
+    },
+    {
+      "id": "neighbors",
+      "type": "backend",
+      "label": "Retrieve nearby notes",
+      "sublabel": "Top-five semantic candidates",
+      "pos": [
+        475,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "agentic_memory/memory_system.py",
+          "line": 288
+        }
+      ]
+    },
+    {
+      "id": "evolve",
+      "type": "backend",
+      "label": "Model-directed evolution",
+      "sublabel": "Strengthen links or update neighbours",
+      "pos": [
+        910,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "agentic_memory/memory_system.py",
+          "line": 590
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "Note map and Chroma",
+      "sublabel": "Main path is process-local state",
+      "pos": [
+        910,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "agentic_memory/memory_system.py",
+          "line": 108
+        }
+      ]
+    },
+    {
+      "id": "recall",
+      "type": "backend",
+      "label": "Semantic and linked recall",
+      "sublabel": "Ranked notes plus linked neighbours",
+      "pos": [
+        475,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "agentic_memory/memory_system.py",
+          "line": 509
+        }
+      ]
+    },
+    {
+      "id": "result",
+      "type": "external",
+      "label": "Caller receives notes",
+      "sublabel": "Prompt composition remains outside",
+      "pos": [
+        40,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "agentic_memory/memory_system.py",
+          "line": 509
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "note",
+      "to": "neighbors",
+      "label": "find context"
+    },
+    {
+      "from": "neighbors",
+      "to": "evolve",
+      "label": "after first note"
+    },
+    {
+      "from": "evolve",
+      "to": "store",
+      "label": "store new note",
+      "labelAt": [
+        1045,
+        275
+      ]
+    },
+    {
+      "from": "store",
+      "to": "recall",
+      "label": "query"
+    },
+    {
+      "from": "recall",
+      "to": "result",
+      "label": "return records"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Research mechanism",
+      "items": [
+        "Neighbour changes wait for index rebuilding.",
+        "The content analyzer is not wired into add."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Important implementation limits",
+      "items": [
+        "The main constructor resets an ephemeral index.",
+        "An evolution index mismatch can target wrong notes."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Not a ready durable service",
+      "items": [
+        "Alternate persistent retrieval is not full recovery.",
+        "Deletion does not repair all dependent links."
+      ]
+    }
+  ]
+}

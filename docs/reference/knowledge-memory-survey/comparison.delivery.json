@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/comparison.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/comparison.html",
+  "specification": {
+    "sha256": "f8eba2a5e02091b9996968e92afbe71e46ce9ab79138aafc5124b8cfc4d97ecc",
+    "bytes": 2911
+  },
+  "artifact": {
+    "sha256": "71be7659c576cd7a09fabd9828f0ea97531ba9f1de276e5bfb555a043ddcc480",
+    "bytes": 802118
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "inspectedAt": "2026-09-11",
+  "purpose": "Source-inspected lifecycle comparison, not runtime validation or approved Drawloom contracts",
+  "repositories": [
+    {
+      "id": "hindsight",
+      "checkout": "/Users/afifim/Development/hindsight",
+      "url": "https://github.com/vectorize-io/hindsight",
+      "revision": "48b62ee08170b464f4c42b6f133b7cb798a59b21",
+      "rootLicense": "MIT",
+      "kind": "runtime",
+      "report": "hindsight.md",
+      "sourceTreeClean": true
+    },
+    {
+      "id": "graphiti",
+      "checkout": "/Users/afifim/Development/graphiti",
+      "url": "https://github.com/getzep/graphiti",
+      "revision": "c64e45c111fd43ca7f5536a7f84a73f6acafd5b1",
+      "rootLicense": "Apache-2.0",
+      "kind": "runtime",
+      "report": "graphiti.md",
+      "sourceTreeClean": true
+    },
+    {
+      "id": "letta",
+      "checkout": "/Users/afifim/Development/letta",
+      "url": "https://github.com/letta-ai/letta",
+      "revision": "5bcdd177d70fa2b31a754cfcd801e77b2e1ab16a",
+      "rootLicense": "Apache-2.0",
+      "kind": "redirect-and-archive",
+      "report": "letta.md",
+      "sourceTreeClean": true,
+      "additionalRevisions": [
+        {
+          "label": "archived Python server",
+          "revision": "56ba9c25552605eec89de8ed3dc6394b625c1993"
+        }
+      ]
+    },
+    {
+      "id": "letta-code",
+      "checkout": "/Users/afifim/Development/letta-code",
+      "url": "https://github.com/letta-ai/letta-code",
+      "revision": "aa3e294d006b448e36a0be44afed440f47923aa8",
+      "rootLicense": "Apache-2.0",
+      "kind": "runtime",
+      "report": "letta.md",
+      "sourceTreeClean": true
+    },
+    {
+      "id": "mem0",
+      "checkout": "/Users/afifim/Development/mem0",
+      "url": "https://github.com/mem0ai/mem0",
+      "revision": "c7ee362aff94a369af70f13f2b4f853f6793ff4c",
+      "rootLicense": "Apache-2.0",
+      "kind": "runtime",
+      "report": "mem0.md",
+      "sourceTreeClean": true
+    },
+    {
+      "id": "a-mem",
+      "checkout": "/Users/afifim/Development/A-mem",
+      "url": "https://github.com/agiresearch/A-mem",
+      "revision": "ceffb860f0712bbae97b184d440df62bc910ca8d",
+      "rootLicense": "MIT",
+      "kind": "research",
+      "report": "a-mem.md",
+      "sourceTreeClean": true
+    },
+    {
+      "id": "hipporag",
+      "checkout": "/Users/afifim/Development/HippoRAG",
+      "url": "https://github.com/OSU-NLP-Group/HippoRAG",
+      "revision": "1438aba3fc44ff10573e5a5e1e7cc3c7f9794aff",
+      "rootLicense": "MIT",
+      "kind": "research",
+      "report": "hipporag.md",
+      "sourceTreeClean": true
+    },
+    {
+      "id": "deepseek",
+      "checkout": "/Users/afifim/Development/deepseek-harness",
+      "url": "https://github.com/deepseek-ai/deepseek-harness",
+      "revision": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+      "rootLicense": "MIT",
+      "kind": "harness",
+      "report": "deepseek.md",
+      "sourceTreeClean": true
+    },
+    {
+      "id": "open-design",
+      "checkout": "/Users/afifim/Development/open-design",
+      "url": "https://github.com/nexu-io/open-design",
+      "revision": "933dc96038a4ee7a30c56d479f3497ad2716cbb3",
+      "rootLicense": "Apache-2.0",
+      "kind": "workbench",
+      "report": "open-design.md",
+      "sourceTreeClean": true
+    },
+    {
+      "id": "longmemeval",
+      "checkout": "/Users/afifim/Development/LongMemEval",
+      "url": "https://github.com/xiaowu0162/LongMemEval",
+      "revision": "9e0b455f4ef0e2ab8f2e582289761153549043fc",
+      "rootLicense": "MIT",
+      "kind": "evaluation",
+      "report": "research-and-evaluation.md",
+      "sourceTreeClean": true
+    },
+    {
+      "id": "sleep-time-compute",
+      "checkout": "/Users/afifim/Development/sleep-time-compute",
+      "url": "https://github.com/letta-ai/sleep-time-compute",
+      "revision": "ffdf6626178f55318e1109610fecd95f58b9ee28",
+      "rootLicense": "MIT",
+      "kind": "research",
+      "report": "research-and-evaluation.md",
+      "sourceTreeClean": true
+    },
+    {
+      "id": "minja",
+      "checkout": "/Users/afifim/Development/MINJA",
+      "url": "https://github.com/dsh3n77/MINJA",
+      "revision": "a3ec8da0f7740b3fe629f6706e1c14296ee6861d",
+      "rootLicense": "MIT",
+      "kind": "security-research",
+      "report": "research-and-evaluation.md",
+      "sourceTreeClean": true,
+      "note": "Source checkout only; LFS database payloads are not materialized."
+    },
+    {
+      "id": "sepio-ontology",
+      "checkout": "/Users/afifim/Development/SEPIO-ontology",
+      "url": "https://github.com/monarch-initiative/SEPIO-ontology",
+      "revision": "461b854e49660a21656f011aa20cb46498100e54",
+      "rootLicense": "CC-BY-3.0 (README declaration)",
+      "kind": "vocabulary",
+      "report": "vocabularies.md",
+      "sourceTreeClean": true
+    },
+    {
+      "id": "sepio-linkml",
+      "checkout": "/Users/afifim/Development/sepio-linkml",
+      "url": "https://github.com/sepio-framework/sepio-linkml",
+      "revision": "f41c71c4396ec30e06e12448270447f50b76a543",
+      "rootLicense": "Apache-2.0",
+      "kind": "vocabulary",
+      "report": "vocabularies.md",
+      "sourceTreeClean": true
+    },
+    {
+      "id": "archify",
+      "checkout": "/Users/afifim/Development/archify",
+      "url": "https://github.com/tt-a1i/archify",
+      "revision": "c1443b31b496eebf4a68bf83151816c955ddb796",
+      "rootLicense": "MIT",
+      "kind": "diagram-tool",
+      "report": "verification.md",
+      "sourceTreeClean": true
+    }
+  ]
+}

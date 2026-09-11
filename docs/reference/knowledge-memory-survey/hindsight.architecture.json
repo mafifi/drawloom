@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Hindsight · evidence to maintained knowledge",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "animation": "none",
+    "viewBox": [1220, 550],
+    "repository": {
+      "url": "https://github.com/vectorize-io/hindsight",
+      "revision": "48b62ee08170b464f4c42b6f133b7cb798a59b21"
+    }
+  },
+  "components": [
+    {
+      "id": "capture",
+      "type": "external",
+      "label": "Retain / submit",
+      "sublabel": "Bank, source, date and operation identity",
+      "pos": [
+        40,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "hindsight-clients/python/hindsight_client/hindsight_client.py",
+          "line": 346
+        }
+      ]
+    },
+    {
+      "id": "retain",
+      "type": "database",
+      "label": "Sources and extracted facts",
+      "sublabel": "Documents, chunks and memory units",
+      "pos": [
+        475,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "hindsight-api-slim/hindsight_api/engine/retain/fact_storage.py",
+          "line": 187
+        }
+      ]
+    },
+    {
+      "id": "derive",
+      "type": "backend",
+      "label": "Consolidate observations",
+      "sublabel": "Create, update or delete supported claims",
+      "pos": [
+        910,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "hindsight-api-slim/hindsight_api/engine/consolidation/consolidator.py",
+          "line": 790
+        }
+      ]
+    },
+    {
+      "id": "model",
+      "type": "database",
+      "label": "Optional mental models",
+      "sublabel": "Query-directed derived material",
+      "pos": [
+        910,
+        300
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "hindsight-api-slim/hindsight_api/engine/memory_engine.py",
+          "line": 15472
+        }
+      ]
+    },
+    {
+      "id": "recall",
+      "type": "backend",
+      "label": "Hybrid recall",
+      "sublabel": "Search evidence layers within a budget",
+      "pos": [
+        475,
+        300
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "hindsight-api-slim/hindsight_api/engine/memory_engine.py",
+          "line": 7260
+        }
+      ]
+    },
+    {
+      "id": "use",
+      "type": "external",
+      "label": "Reflect or caller context",
+      "sublabel": "Internal synthesis is a separate operation",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "hindsight-clients/python/hindsight_client/hindsight_client.py",
+          "line": 590
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "capture",
+      "to": "retain",
+      "label": "extract"
+    },
+    {
+      "from": "retain",
+      "to": "derive",
+      "label": "background work"
+    },
+    {
+      "from": "derive",
+      "to": "model",
+      "label": "refresh",
+      "labelAt": [1045, 225]
+    },
+    {
+      "from": "derive",
+      "to": "recall",
+      "label": "observations"
+    },
+    {
+      "from": "retain",
+      "to": "recall",
+      "label": "raw evidence",
+      "labelAt": [610,225]
+    },
+    {
+      "from": "recall",
+      "to": "use",
+      "label": "selected results"
+    },
+    {
+      "from": "model",
+      "to": "use",
+      "label": "model lookup",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [[1045, 470], [175, 470]]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Repair is part of learning",
+      "items": [
+        "Source deletion invalidates supported observations.",
+        "Surviving sources are marked for reconsolidation."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Progress includes obligations",
+      "items": [
+        "Checkpointed batches retain pending refresh work.",
+        "A completed import is not a fully refreshed model."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Confidence is not a count",
+      "items": [
+        "Supporting fact counts need domain interpretation.",
+        "Banks and tags do not supply authentication."
+      ]
+    }
+  ]
+}

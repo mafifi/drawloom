@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/open-design.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/open-design.html",
+  "specification": {
+    "sha256": "7c22a5da449c072909bcfb25c74367d3c35d9b3f148f80b7d26ffde9c1d2d2c6",
+    "bytes": 3736
+  },
+  "artifact": {
+    "sha256": "d4c162dfc4185ed9557f48cf0e7d2459f764600e92483a88634f003317695c98",
+    "bytes": 803755
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/nexu-io/open-design",
+    "revision": "933dc96038a4ee7a30c56d479f3497ad2716cbb3",
+    "references": 6
+  }
+}

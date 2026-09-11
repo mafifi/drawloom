@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/graphiti.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/graphiti.html",
+  "specification": {
+    "sha256": "74bd210c287e43dddca8518b2da8e6478f41c983101b21d136e6e32ec7e4be70",
+    "bytes": 4015
+  },
+  "artifact": {
+    "sha256": "91f61af806ead67194d56f089611e2bfa683919fae8e57abfdc18a1b6faf5259",
+    "bytes": 804640
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/getzep/graphiti",
+    "revision": "c64e45c111fd43ca7f5536a7f84a73f6acafd5b1",
+    "references": 6
+  }
+}

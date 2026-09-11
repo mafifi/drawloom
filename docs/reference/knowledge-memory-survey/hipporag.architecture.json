@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "HippoRAG 2 · documents to graph-assisted recall",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "animation": "none",
+    "repository": {
+      "url": "https://github.com/OSU-NLP-Group/HippoRAG",
+      "revision": "1438aba3fc44ff10573e5a5e1e7cc3c7f9794aff"
+    }
+  },
+  "components": [
+    {
+      "id": "chunks",
+      "type": "backend",
+      "label": "Index setup and input",
+      "sublabel": "Manifest guard, then source-bearing chunks",
+      "pos": [
+        40,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "src/hipporag/HippoRAG.py",
+          "line": 287
+        },
+        {
+          "path": "src/hipporag/HippoRAG.py",
+          "line": 488
+        }
+      ]
+    },
+    {
+      "id": "extract",
+      "type": "backend",
+      "label": "OpenIE and embeddings",
+      "sublabel": "Extract missing entities and triples",
+      "pos": [
+        475,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "src/hipporag/HippoRAG.py",
+          "line": 533
+        }
+      ]
+    },
+    {
+      "id": "graph",
+      "type": "database",
+      "label": "Source-aware retrieval index",
+      "sublabel": "Chunk, entity, fact and synonym relations",
+      "pos": [
+        910,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "src/hipporag/HippoRAG.py",
+          "line": 563
+        }
+      ]
+    },
+    {
+      "id": "persist",
+      "type": "database",
+      "label": "Persisted index components",
+      "sublabel": "Vectors, JSON and graph writes are separate",
+      "pos": [
+        910,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "src/hipporag/HippoRAG.py",
+          "line": 281
+        }
+      ]
+    },
+    {
+      "id": "retrieve",
+      "type": "backend",
+      "label": "Hybrid retrieval",
+      "sublabel": "Fact filtering, dense seeds and PageRank",
+      "pos": [
+        475,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "src/hipporag/HippoRAG.py",
+          "line": 693
+        }
+      ]
+    },
+    {
+      "id": "use",
+      "type": "external",
+      "label": "Caller or bundled QA",
+      "sublabel": "Retrieved evidence enters an answer prompt",
+      "pos": [
+        40,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "src/hipporag/HippoRAG.py",
+          "line": 881
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "chunks",
+      "to": "extract",
+      "label": "index"
+    },
+    {
+      "from": "extract",
+      "to": "graph",
+      "label": "derive"
+    },
+    {
+      "from": "graph",
+      "to": "persist",
+      "label": "incremental writes",
+      "labelAt": [
+        1045,
+        275
+      ]
+    },
+    {
+      "from": "persist",
+      "to": "retrieve",
+      "label": "query"
+    },
+    {
+      "from": "retrieve",
+      "to": "use",
+      "label": "ranked passages"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Useful deletion semantics",
+      "items": [
+        "Remove exact content and its contributions.",
+        "Keep facts still supported by other chunks."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Compatibility is explicit",
+      "items": [
+        "Manifest checks precede indexing.",
+        "Persistence is not one cross-store transaction."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Scope of this mechanism",
+      "items": [
+        "This is retrieval, not conversation curation.",
+        "Graph relevance is not evidence confidence."
+      ]
+    }
+  ]
+}

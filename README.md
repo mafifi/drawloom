@@ -24,6 +24,8 @@ and decision test live in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 - [Harness and workbench survey](docs/reference/harness-workbench-survey/README.md):
   detailed DeepSeek Harness and Open Design capability maps, source evidence,
   limitations and comparison with Drawloom.
+- [Knowledge, memory and context survey](docs/reference/knowledge-memory-survey/README.md):
+  source-pinned lifecycles, common interfaces, evidence vocabulary and Archify maps.
 - [`knowledge/`](knowledge/): OKF-profiled knowledge and provenance records.
 - [`packages/`](packages/): contract-first product packages.
 - [`apps/`](apps/): public-source reference compositions, not published as packages.

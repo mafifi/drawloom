@@ -1,0 +1,22 @@
+{
+  "verifiedAt": "2026-09-11",
+  "ok": true,
+  "pinnedSourceLinks": 235,
+  "uniqueSourceBlobs": 119,
+  "localLinks": 69,
+  "diagrams": 9,
+  "failures": [],
+  "limitations": "Checks source existence, line bounds and artifact identity, not semantic accuracy, remote availability or upstream runtime behaviour.",
+  "repositoryGate": {
+    "command": "bun run check:ci",
+    "exitCode": 0,
+    "bunTests": {
+      "passed": 651,
+      "skipped": 5,
+      "failed": 0,
+      "files": 121
+    },
+    "nodeConformance": "passed",
+    "note": "Docs/reference changes; no upstream runtime or benchmark validation."
+  }
+}

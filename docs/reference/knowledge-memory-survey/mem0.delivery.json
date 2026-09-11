@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/mem0.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/mem0.html",
+  "specification": {
+    "sha256": "c704b8cce525a9833a4fd1e0da09a81af975398cb6719a8608eaeb670489c768",
+    "bytes": 3958
+  },
+  "artifact": {
+    "sha256": "593008f31cd3c72c05e58d83f08f5af31d35d9966f4d1d4e0312c6bc8e479148",
+    "bytes": 804628
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/mem0ai/mem0",
+    "revision": "c7ee362aff94a369af70f13f2b4f853f6793ff4c",
+    "references": 6
+  }
+}

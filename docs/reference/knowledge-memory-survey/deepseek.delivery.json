@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/deepseek.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/deepseek.html",
+  "specification": {
+    "sha256": "08a8d1f37dec9c516ed228d22100946275c33086288516df611f6ff965f3578c",
+    "bytes": 3926
+  },
+  "artifact": {
+    "sha256": "0784e02fcc9833749c9c0d74aae47b5481cbb0d9b7cf08fc573d3155a27660e0",
+    "bytes": 804366
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/deepseek-ai/deepseek-harness",
+    "revision": "c291e7961a515f6d7af9304e7fd1d257929aef26",
+    "references": 6
+  }
+}

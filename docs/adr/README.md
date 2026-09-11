@@ -14,6 +14,11 @@ links back.
 
 ## Latest decision
 
+- [ADR 0022: Knowledge, memory and context experiment](0022-knowledge-memory-context-experiment.md)
+  is Accepted for the demonstrated capture, maintenance, source-update and
+  fresh-agent retrieval boundaries. It records weaknesses and future acceptance
+  work; it establishes no supported data model, capability API or production memory.
+
 - [ADR 0021: Local Temporal orchestration](0021-local-temporal-orchestration.md)
   is Accepted. It adds an installed workflow
   entrypoint, local Temporal provider and deterministic video-workbench integration.

@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/letta.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/letta.html",
+  "specification": {
+    "sha256": "05f4d62c5658507714c07a49defa88e1c647919df453e5d630b45af018864eea",
+    "bytes": 3925
+  },
+  "artifact": {
+    "sha256": "7a5441a486599d1d4c3a787a754bab770a820779aa70e60662992f3f31cc45b1",
+    "bytes": 804303
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/letta-ai/letta-code",
+    "revision": "aa3e294d006b448e36a0be44afed440f47923aa8",
+    "references": 6
+  }
+}

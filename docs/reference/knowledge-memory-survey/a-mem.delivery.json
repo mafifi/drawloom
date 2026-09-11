@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/a-mem.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/knowledge-memory-survey/a-mem.html",
+  "specification": {
+    "sha256": "1a52521ed1874913b478f9941ecbc04a630d7c349d2de4c7f5661c6e9812fd0b",
+    "bytes": 3836
+  },
+  "artifact": {
+    "sha256": "6d6ae36d38054c553649c029609981e75bbe1b3ccc61bd08b9fee95505a53de0",
+    "bytes": 803999
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/agiresearch/A-mem",
+    "revision": "ceffb860f0712bbae97b184d440df62bc910ca8d",
+    "references": 6
+  }
+}

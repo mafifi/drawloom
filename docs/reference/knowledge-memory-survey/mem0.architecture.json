@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Mem0 · additive facts and application recall",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "animation": "none",
+    "repository": {
+      "url": "https://github.com/mem0ai/mem0",
+      "revision": "c7ee362aff94a369af70f13f2b4f853f6793ff4c"
+    }
+  },
+  "components": [
+    {
+      "id": "add",
+      "type": "external",
+      "label": "Application calls Memory.add",
+      "sublabel": "Caller chooses the conversation material",
+      "pos": [
+        40,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "mem0/memory/main.py",
+          "line": 760
+        }
+      ]
+    },
+    {
+      "id": "extract",
+      "type": "backend",
+      "label": "Additive extraction",
+      "sublabel": "Recent messages and retrieved memories",
+      "pos": [
+        475,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "mem0/memory/main.py",
+          "line": 911
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "Vectors and SQLite records",
+      "sublabel": "Separate writes, not one transaction",
+      "pos": [
+        910,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "mem0/memory/main.py",
+          "line": 996
+        }
+      ]
+    },
+    {
+      "id": "entities",
+      "type": "database",
+      "label": "Optional entity side index",
+      "sublabel": "Names linked to memory identities",
+      "pos": [
+        910,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "mem0/memory/main.py",
+          "line": 1099
+        }
+      ]
+    },
+    {
+      "id": "search",
+      "type": "backend",
+      "label": "Hybrid memory search",
+      "sublabel": "Semantic candidates and optional boosts",
+      "pos": [
+        475,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "mem0/memory/main.py",
+          "line": 1628
+        }
+      ]
+    },
+    {
+      "id": "prompt",
+      "type": "external",
+      "label": "Application model prompt",
+      "sublabel": "Consumer formats selected memory text",
+      "pos": [
+        40,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ],
+      "sources": [
+        {
+          "path": "README.md",
+          "line": 209
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "add",
+      "to": "extract",
+      "label": "infer=True"
+    },
+    {
+      "from": "extract",
+      "to": "store",
+      "label": "append"
+    },
+    {
+      "from": "store",
+      "to": "entities",
+      "label": "index",
+      "labelAt": [
+        1045,
+        335
+      ]
+    },
+    {
+      "from": "entities",
+      "to": "search",
+      "label": "boost",
+      "labelAt": [
+        827,
+        475
+      ]
+    },
+    {
+      "from": "store",
+      "to": "search",
+      "label": "semantic recall",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "from": "search",
+      "to": "prompt",
+      "label": "selected text"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Current implementation matters",
+      "items": [
+        "The inspected extraction path adds facts.",
+        "Updates and deletion are explicit operations."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Several stores, different duties",
+      "items": [
+        "History is separate from searchable memory.",
+        "Partial writes are not an atomic successful save."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Retrieval is not verification",
+      "items": [
+        "Ranking scores do not establish truth.",
+        "Scope filters do not authenticate the caller."
+      ]
+    }
+  ]
+}

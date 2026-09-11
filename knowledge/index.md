@@ -4,12 +4,14 @@ id: drawloom-knowledge-index
 title: Drawloom knowledge index
 status: active
 created: 2026-09-02
-updated: 2026-09-11
+updated: 2026-09-12
 ---
 
 # Drawloom knowledge index
 
 ## Sources
+
+- [Knowledge, memory and context implementation survey](sources/knowledge-memory-survey.md)
 
 - [DeepSeek Harness and Open Design capability survey](sources/harness-workbench-survey.md)
 
@@ -18,6 +20,18 @@ updated: 2026-09-11
 - No assumption records yet.
 
 ## Evidence and computations
+
+- [Installed Git evidence, code judgement and bounded retrieval](evidence/adr-0022-memory-git-sprint.md)
+- [Claims and evidence without agent-visible maintenance bookkeeping](evidence/adr-0022-memory-simple-interface.md)
+- [Plugin sources, evidence links and snapshot waterlines](evidence/adr-0022-memory-sources-sprint.md)
+
+- [Organisation, evidence judgement and interrupted maintenance](evidence/adr-0022-memory-organisation-sprint.md)
+
+- [Natural contribution and metadata-guided memory retrieval](evidence/adr-0022-memory-natural-sprint.md)
+
+- [Memory-driven action selection and irrelevant-evidence control](evidence/adr-0022-memory-action-sprint.md)
+
+- [First knowledge, memory and context sprint](evidence/adr-0022-memory-sprint.md)
 
 - [Local Temporal orchestration implementation](evidence/adr-0021-local-temporal.md)
 

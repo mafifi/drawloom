@@ -86,6 +86,13 @@ area you change.
   is not proof of enabled behavior, and source-inspected tests are not passing
   test results. Keep discoveries separate from approved Drawloom contracts.
 
+- Before knowledge, memory, curation or context-retrieval design, consult the
+  [knowledge and memory survey](docs/reference/knowledge-memory-survey/README.md).
+  Read the relevant product lifecycle and source revision, not just the synthesis.
+  It separates current code, historical implementations and research; tests read
+  are not tests run. Findings and candidate interfaces are not accepted contracts.
+  Keep provenance, confidence, retrieval relevance, scope and entitlements distinct.
+
 - Apply [proven boundaries before invention](ARCHITECTURE.md#reference-led-changes-and-approval).
   Plugin contract and proof revisions follow the explicit approval gate in
   [ADR 0013](docs/adr/0013-plugin-boundaries-and-host-integration.md#reference-comparison-and-alternatives).

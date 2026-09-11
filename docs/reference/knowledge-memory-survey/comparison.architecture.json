@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Knowledge, memory and context · comparison lens",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "animation": "none"
+  },
+  "components": [
+    {
+      "id": "contribute",
+      "type": "external",
+      "label": "Contribute",
+      "sublabel": "Messages, documents, explicit notes",
+      "pos": [
+        40,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ]
+    },
+    {
+      "id": "interpret",
+      "type": "backend",
+      "label": "Interpret",
+      "sublabel": "Extract, identify and link",
+      "pos": [
+        475,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ]
+    },
+    {
+      "id": "retain",
+      "type": "database",
+      "label": "Retain",
+      "sublabel": "Sources, facts, notes or graphs",
+      "pos": [
+        910,
+        65
+      ],
+      "size": [
+        270,
+        84
+      ]
+    },
+    {
+      "id": "maintain",
+      "type": "backend",
+      "label": "Maintain",
+      "sublabel": "Revise, consolidate or invalidate",
+      "pos": [
+        910,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ]
+    },
+    {
+      "id": "retrieve",
+      "type": "backend",
+      "label": "Retrieve",
+      "sublabel": "Select relevant retained material",
+      "pos": [
+        475,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ]
+    },
+    {
+      "id": "compose",
+      "type": "backend",
+      "label": "Compose context",
+      "sublabel": "Budget, format and supply to agent",
+      "pos": [
+        40,
+        400
+      ],
+      "size": [
+        270,
+        84
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "contribute",
+      "to": "interpret",
+      "label": "write request"
+    },
+    {
+      "from": "interpret",
+      "to": "retain",
+      "label": "persist"
+    },
+    {
+      "from": "retain",
+      "to": "maintain",
+      "label": "new evidence",
+      "labelAt": [
+        1045,
+        275
+      ]
+    },
+    {
+      "from": "maintain",
+      "to": "retrieve",
+      "label": "usable knowledge"
+    },
+    {
+      "from": "retrieve",
+      "to": "compose",
+      "label": "bounded results"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "A comparison lens",
+      "items": [
+        "These are questions applied to each repository.",
+        "They are not a universal pipeline or an accepted API."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Different implementations",
+      "items": [
+        "Maintenance may be inline, background or absent.",
+        "The caller often owns the final context assembly."
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Inspect the missing pieces",
+      "items": [
+        "Provenance is not calibrated confidence.",
+        "Stored history is not automatically useful memory."
+      ]
+    }
+  ]
+}
