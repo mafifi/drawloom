@@ -73,6 +73,11 @@ import { createViewContext } from './view-context.js';
 import { createResourceContent } from './resource-content.js';
 import { createMediaPolicy, remoteMediaUrl } from './media-policy.js';
 import { observed, observeOutcome, observedRpc, observedToolGateway, observedTools, observedAssets, instrumentApplication, createOperationTelemetry, observeCache } from './telemetry.js';
+import { createManagedLocalKnowledgeClient } from '@drawloom/local-knowledge-runtime';
+import { createKnowledgeHost, type KnowledgeService } from './knowledge-host.js';
+import { createInstalledGitKnowledgeFeed } from './knowledge-source.js';
+import { createKnowledgeNightloom, isNightloomKnowledgeService } from './knowledge-nightloom.js';
+import { createKnowledgePlugin, KNOWLEDGE_RETRIEVAL_GUIDANCE, KNOWLEDGE_TOOL_IDS, knowledgeObservation } from './knowledge-tools.js';
 
 type Live = {
   session: AgentSession;
@@ -95,7 +100,8 @@ export async function retireCreatedRuntimes<T>(
 export async function createDesktopApplication(
   root: string,
   options: { experimentalPluginDiscovery?: boolean; mediaOrigins?: readonly string[];
-    orchestration?: { temporalPath?: string; nodePath?: string; runtimeDirectory?: string; manager?: () => Promise<ReturnType<typeof createLocalTemporalManager>> } } = {},
+    orchestration?: { temporalPath?: string; nodePath?: string; runtimeDirectory?: string; manager?: () => Promise<ReturnType<typeof createLocalTemporalManager>> };
+    knowledge?: { service?: KnowledgeService; nodePath?: string; runtimeEntrypoint?: string; nightloomDirectory?: string } } = {},
 ) {
   const operationTelemetry = createOperationTelemetry();
   const mediaOrigins = z.array(ResourceOriginSchema).parse(options.mediaOrigins ?? []);
@@ -224,14 +230,17 @@ export async function createDesktopApplication(
   const elicitation = createElicitationPresenter(operationId => project.conversations.find(c => live.get(c.id)?.active === operationId)?.id);
   const runtimes = new Map<string, Promise<Awaited<ReturnType<typeof createRuntime>>>>();
   const workflowAuthority = createWorkflowAuthority();
-  const orchestration = createOrchestrationHost({ dataDirectory: root,
-    manager: options.orchestration?.manager ?? (async () => {
+  const createTemporalManager = options.orchestration?.manager ?? (async () => {
       const { createLocalTemporalManager } = await import('@drawloom/temporal-orchestration');
       return createLocalTemporalManager({ dataDirectory: root,
         ...(options.orchestration?.temporalPath ? { temporalPath: options.orchestration.temporalPath } : {}),
         ...(options.orchestration?.nodePath ? { nodePath: options.orchestration.nodePath } : {}),
         ...(options.orchestration?.runtimeDirectory ? { runtimeDirectory: options.orchestration.runtimeDirectory } : {}) });
-    }),
+    });
+  let temporalManager: Promise<ReturnType<typeof createLocalTemporalManager>> | undefined;
+  const manager = () => temporalManager ??= createTemporalManager();
+  const orchestration = createOrchestrationHost({ dataDirectory: root,
+    manager,
     ensureProject: async id => {
       const binding = project.projects.find(p => p.id === id);
       if (!binding) throw Error('Project unavailable');
@@ -239,6 +248,12 @@ export async function createDesktopApplication(
       await runtimeFor(binding);
     },
   });
+  const knowledgeService = options.knowledge?.service ?? createManagedLocalKnowledgeClient({
+    root: join(root, 'knowledge'), workingDirectory: root,
+    ...(options.knowledge?.nodePath ? { nodePath: options.knowledge.nodePath } : {}),
+    ...(options.knowledge?.runtimeEntrypoint ? { runtimeEntrypoint: options.knowledge.runtimeEntrypoint } : {}),
+  });
+  const knowledgePlugin = createKnowledgePlugin(knowledgeService);
   function runtimeFor(binding?: DirectoryProject) {
     const key = binding?.id ?? 'legacy';
     let runtime = runtimes.get(key);
@@ -278,13 +293,17 @@ export async function createDesktopApplication(
     const text = await createTextController(runtimeStore);
     const controllers = new Map<string, OperatorController>([['text', text]]);
     const grants = new Map<string, Set<string>>();
+    const knowledgeToolIds = new Set<string>(KNOWLEDGE_TOOL_IDS);
+    const knowledgeGrants = z.record(z.string(), z.array(z.string())).parse((await runtimeStore.get('knowledge-tool-grants')) ?? {});
     const refreshWorkbenchGrants = createGrantRefresh(grants,
       async id => {
         const controller = controllers.get(id);
         if (!controller) throw Error('Workbench unavailable');
         return OperatorSnapshotSchema.parse(await controller.snapshot());
       },
-      (snapshot, id) => new Set([...snapshot.grants.filter(g => g.allowed).map(g => g.toolName), ...(packageGrants[id] ?? []).filter(name => packageToolIds.has(name))]));
+      (snapshot, id) => new Set([...snapshot.grants.filter(g => g.allowed).map(g => g.toolName),
+        ...(packageGrants[id] ?? []).filter(name => packageToolIds.has(name)),
+        ...(knowledgeGrants[id] ?? []).filter(name => knowledgeToolIds.has(name))]));
     const workflowScopes = new Map<string, ReturnType<typeof createWorkflowToolScope>>();
     async function ready() {
       const pending = binding && runtimes.get(binding.id);
@@ -297,7 +316,7 @@ export async function createDesktopApplication(
     ...(binding ? { project: { id: binding.id, directory: binding.directory } } : {}),
     mediaPolicy,
     host: { ...compositionContext, store: runtimeStore },
-    builtins: [{ plugin: textPlugin, config: {} }],
+    builtins: [{ plugin: textPlugin, config: {} }, knowledgePlugin],
     elicitation: elicitation.request,
     authProviderFor: installation => server => oauth.connection({ installationId: installation.id, serverName: server.name, serverUrl: server.config.url }).provider,
     ...(binding ? { prepareWorkflows: (installation, inventory) => orchestration.prepare(binding.id, installation, inventory,
@@ -340,7 +359,7 @@ export async function createDesktopApplication(
   const packageToolIds = packages.toolIds;
   const packageGrants = z.record(z.string(), z.array(z.string())).parse((await runtimeStore.get('package-grants')) ?? {});
   const registry = createPluginRegistry(
-    [{ plugin: textPlugin, config: {} }, ...packages.installs],
+    [{ plugin: textPlugin, config: {} }, knowledgePlugin, ...packages.installs],
     ["agent", "host"],
   );
   for (const [key, controller] of packages.controllers) {
@@ -363,8 +382,26 @@ export async function createDesktopApplication(
       // to arbitrary startup transports.
     }
   } catch (error) { await Promise.all([...mcpApps.values()].map(app => app.close())); throw error; }
-    return { packages, packageToolIds, packageGrants, registry, controllers, grants, refreshWorkbenchGrants, text, mcpApps, store: runtimeStore, activated: available };
+    return { packages, packageToolIds, packageGrants, knowledgeToolIds, knowledgeGrants, registry, controllers, grants, refreshWorkbenchGrants, text, mcpApps, store: runtimeStore, activated: available };
   }
+  const nightloom = isNightloomKnowledgeService(knowledgeService) ? createKnowledgeNightloom({ service: knowledgeService, store,
+    packageDirectory: options.knowledge?.nightloomDirectory ?? join(import.meta.dir, '../../../packages/knowledge/nightloom'),
+    settings: async () => (await knowledgeService.status()).configuration,
+    prepareHost: owner => manager().then(instance => instance.prepareHost(owner)),
+  }) : undefined;
+  const knowledge = createKnowledgeHost({
+    service: knowledgeService, store,
+    selectedProjectId: () => project.selectedProjectId,
+    sourceForProject: async projectId => {
+      const binding = project.projects.find(candidate => candidate.id === projectId);
+      if (!binding) throw Error('Configured knowledge source project is unavailable');
+      await verifyProjectDirectory(binding, root);
+      const runtime = await runtimeFor(binding);
+      return createInstalledGitKnowledgeFeed({ projectId,
+        tools: runtime.registry.tools.filter(tool => runtime.packageToolIds.has(tool.name)),
+        presentation: runtime.packages.toolPresentation });
+    }, ...(nightloom ? { nightloom } : {}),
+  });
   async function viewTarget(raw: unknown) {
     const target = ViewTargetSchema.parse(raw);
     const conversation = project.conversations.find(c => c.id === project.selectedId);
@@ -389,7 +426,7 @@ export async function createDesktopApplication(
       );
       if (!conversation) throw Error("Conversation unavailable");
       const runtime = await runtimeForConversation(conversationId);
-      const { registry, controllers, packageToolIds, grants, text } = runtime;
+      const { registry, controllers, packageToolIds, knowledgeToolIds, grants, text } = runtime;
       const workbench = registry.workbenches.find(
         (w) => w.id === conversation.workbenchId,
       );
@@ -407,7 +444,7 @@ export async function createDesktopApplication(
       const sink = await evidenceFor(conversationId);
       const resourceRecovery = await recoveryFor(conversationId);
       const gateway = observedToolGateway(createLocalToolGateway({
-        tools: observedTools(registry.tools.filter((t) => workbench.tools.includes(t.name) || packageToolIds.has(t.name))),
+        tools: observedTools(registry.tools.filter((t) => workbench.tools.includes(t.name) || packageToolIds.has(t.name) || knowledgeToolIds.has(t.name))),
         policy: (operationId, name) =>
           operationBindings.has(operationId) &&
           Boolean(grants.get(workbench.id)?.has(name)),
@@ -417,6 +454,18 @@ export async function createDesktopApplication(
           if (record.kind === 'finished') {
             try { await resourceRecovery.record(record.result); }
             catch { historyWriter.reportStorageFailure(); }
+            try {
+              const tool = sink.toolFor(record.result.invocationId);
+              const presentation = tool ? runtime.packages.toolPresentation.get(tool) : undefined;
+              const observation = tool ? knowledgeObservation({ toolName: tool,
+                ...(presentation ? { registeredName: presentation.name } : {}),
+                ...(runtime.packages.toolSources.get(tool) ? { producerOrigin: runtime.packages.toolSources.get(tool)! } : {}),
+                invocationId: record.result.invocationId, outcome: record.result.outcome }) : undefined;
+              if (observation) {
+                const saved = await knowledgeService.ingest(observation);
+                if (saved.kind !== 'accepted' && saved.kind !== 'duplicate') knowledge.reportObservationFailure();
+              }
+            } catch { knowledge.reportObservationFailure(); }
           }
         } },
       }), operationTelemetry);
@@ -481,10 +530,10 @@ export async function createDesktopApplication(
         const result = await driver.openSession({
         sessionId: conversationId,
         context: {
-          text: registry.skills
+          text: [registry.skills
             .filter((s) => workbench.skills.includes(s.id))
             .map((s) => s.instructions)
-            .join("\n"),
+            .join("\n"), KNOWLEDGE_RETRIEVAL_GUIDANCE].filter(Boolean).join("\n\n"),
         },
         tools:
           conversation.provider === "synthetic"
@@ -630,6 +679,7 @@ export async function createDesktopApplication(
     workflowRuns: orchestration.list,
     workflowSteps: orchestration.steps,
     workflowCommand: orchestration.command,
+    knowledgeCommand: knowledge.command,
     bindOAuthRedirect: (url: string) => { oauthRedirect = url; },
     oauthCallback: (url: URL) => oauth.callback(url),
     async packageOAuth(raw: unknown) {
@@ -685,7 +735,7 @@ export async function createDesktopApplication(
       return this.installedPackages();
     },
     async discover(conversationId: string, refresh = false, cursor?: string): Promise<DesktopCatalogue> {
-      const { packages, registry, packageToolIds, mcpApps } = await runtimeForConversation(conversationId);
+      const { packages, registry, packageToolIds, knowledgeToolIds, mcpApps } = await runtimeForConversation(conversationId);
       const conversation = project.conversations.find(c => c.id === conversationId);
       if (!conversation) throw Error('Conversation unavailable');
       const workbench = registry.workbenches.find(w => w.id === conversation.workbenchId)!;
@@ -696,7 +746,7 @@ export async function createDesktopApplication(
         const presentation = packages.toolPresentation.get(contribution.contributionId);
         entries.push({ id: contribution.id, origin: presentation?.origin ?? 'drawloom', kind: contribution.kind, name: presentation?.name ?? contribution.title, description: presentation?.description ?? contribution.description,
           scope: contribution.kind === 'skill' && workbench.skills.includes(contribution.contributionId) ? 'required' : 'startup',
-          availability: contribution.kind === 'tool' && !workbench.tools.includes(contribution.contributionId) && !packageToolIds.has(contribution.contributionId) ? 'unavailable' : 'available',
+          availability: contribution.kind === 'tool' && !workbench.tools.includes(contribution.contributionId) && !packageToolIds.has(contribution.contributionId) && !knowledgeToolIds.has(contribution.contributionId) ? 'unavailable' : 'available',
           selectable: contribution.kind === 'skill', ownerId: `drawloom:plugin:${contribution.pluginId}`, revision: localRevision });
       }
       for (const [alias, tool] of packages.toolPresentation) {
@@ -912,14 +962,16 @@ export async function createDesktopApplication(
       } catch { return { isError: true }; }
     },
     async snapshot() {
-      const { packages, registry, controllers, packageToolIds, packageGrants } = await selectedRuntime();
+      const { packages, registry, controllers, packageToolIds, packageGrants, knowledgeToolIds, knowledgeGrants } = await selectedRuntime();
       const conversation = project.conversations.find(
         (c) => c.id === project.selectedId,
       );
       const state = live.get(project.selectedId);
       const controller = conversation ? controllers.get(conversation.workbenchId) : undefined;
       const original = controller ? await controller.snapshot() : unavailable;
-      const operator = { ...original, grants: [...original.grants, ...[...packageToolIds].map(toolName => ({ toolName, allowed: conversation ? packageGrants[conversation.workbenchId]?.includes(toolName) ?? false : false }))] };
+      const operator = { ...original, grants: [...original.grants,
+        ...[...knowledgeToolIds].map(toolName => ({ toolName, allowed: conversation ? knowledgeGrants[conversation.workbenchId]?.includes(toolName) ?? false : false })),
+        ...[...packageToolIds].map(toolName => ({ toolName, allowed: conversation ? packageGrants[conversation.workbenchId]?.includes(toolName) ?? false : false }))] };
       const retained = conversation ? await evidenceFor(conversation.id) : undefined;
       return DesktopSnapshotSchema.parse({
         mediaPolicy: mediaPolicy.snapshot(),
@@ -956,6 +1008,8 @@ export async function createDesktopApplication(
     async restore() {
       const workflowReadiness = await orchestration.restore();
       if (workflowReadiness?.message) notice = workflowReadiness.message;
+      void nightloom?.initialize().catch(() => undefined);
+      void knowledge.pollSource().catch(() => undefined);
       const c = project.conversations.find((c) => c.id === project.selectedId);
       if (c?.provider === "codex" && c.projectId) {
         void connect(c.id).catch(async () => {
@@ -1031,7 +1085,15 @@ export async function createDesktopApplication(
           throw Error('Conversation unavailable');
         await requireProject(project.selectedId);
         const runtime = await selectedRuntime();
-        const { controllers, packageToolIds, packageGrants } = runtime;
+        const { controllers, packageToolIds, packageGrants, knowledgeToolIds, knowledgeGrants } = runtime;
+        if (command.command.kind === 'set_tool_grant' && knowledgeToolIds.has(command.command.toolName)) {
+          if (!controllers.has(command.workbenchId)) throw Error('Workbench unavailable');
+          const selected = new Set(knowledgeGrants[command.workbenchId] ?? []);
+          if (command.command.allowed) selected.add(command.command.toolName); else selected.delete(command.command.toolName);
+          const next = { ...knowledgeGrants, [command.workbenchId]: [...selected] };
+          await runtime.store.set('knowledge-tool-grants', next); Object.assign(knowledgeGrants, next);
+          await refreshGrants(command.workbenchId, runtime); return this.snapshot();
+        }
         if (command.command.kind === 'set_tool_grant' && packageToolIds.has(command.command.toolName)) {
           if (!controllers.has(command.workbenchId)) throw Error('Workbench unavailable');
           const selected = new Set(packageGrants[command.workbenchId] ?? []);
@@ -1219,6 +1281,7 @@ export async function createDesktopApplication(
     },
     async close() {
       await orchestration.close();
+      await knowledge.close();
       operationTelemetry.close();
       await Promise.allSettled([...opening.values()]);
       await Promise.all([...live.values()].map((s) => s.close()));

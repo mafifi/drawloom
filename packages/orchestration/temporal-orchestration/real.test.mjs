@@ -87,6 +87,16 @@ test("full local close/reopen preserves input and completed effects, isolates ow
     const second = await other.orchestrator.start("other-review", review, 4);
     await assert.rejects(other.orchestrator.get(run), /owner/);
     const another = await registration.orchestrator.start("second", review, 5);
+    const hostRegistration = await manager.prepareHost({ capabilityId: "knowledge-maintenance", packageDirectory: pkg, entrypoint: "workflow.mjs" });
+    await hostRegistration.attach(handlers);
+    const hostRun = await hostRegistration.orchestrator.start("nightloom", review, 2);
+    await until(() => hostRegistration.orchestrator.get(hostRun), (state) => state.pendingInputs.length > 0);
+    assert.notEqual(hostRun.split("/")[0], run.split("/")[0], "host and plugin run identities must occupy separate owner namespaces");
+    assert.equal(await hostRegistration.orchestrator.start("nightloom", review, 2), hostRun, "same host start identity and fingerprint replays safely");
+    await assert.rejects(hostRegistration.orchestrator.start("nightloom", review, 3), /Conflicting start/);
+    assert.equal((await manager.listHostOwners()).length, 1);
+    assert.equal((await manager.listOwners()).length, 2);
+    assert.equal(await manager.hasUnfinishedInstallation("knowledge-maintenance"), false, "host capabilities never become plugin installation guards");
     const page = await registration.orchestrator.list({ limit: 1 }); assert.ok(page.cursor);
     await assert.rejects(other.orchestrator.list({ cursor: page.cursor }), /cursor/);
     await until(() => registration.orchestrator.get(another), (state) => state.pendingInputs.length > 0);
@@ -96,9 +106,11 @@ test("full local close/reopen preserves input and completed effects, isolates ow
     await manager.close();
     manager = provider.createLocalTemporalManager({ dataDirectory: root });
     assert.equal((await manager.listOwners()).length, 2);
+    assert.equal((await manager.listHostOwners()).length, 1);
     assert.equal(await manager.hasUnfinishedInstallation(owner.installationId), true);
     await writeFile(join(pkg, "workflow.mjs"), `${original}\nthrow Error('Changed code must not be imported');\n`);
     await assert.rejects(manager.prepare(owner), /bundle changed/);
+    await assert.rejects(manager.prepareHost({ capabilityId: "knowledge-maintenance", packageDirectory: pkg, entrypoint: "workflow.mjs" }), /bundle changed/);
     await writeFile(join(pkg, "workflow.mjs"), original);
     registration = await manager.prepare(owner); await registration.attach(handlers);
     assert.equal((await registration.orchestrator.get(run)).status, "running");

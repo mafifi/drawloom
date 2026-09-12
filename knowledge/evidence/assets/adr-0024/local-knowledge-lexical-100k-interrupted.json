@@ -1,0 +1,16 @@
+{
+  "kind": "interrupted_before_result",
+  "corpus": {
+    "version": "drawloom-public-knowledge-v1",
+    "sha256": "70ab90e0be0e1ba9e7872dbd1e7286b1ef5c5fd343660b5e950cbd8c7a90e5e5",
+    "requestedRecords": 100000,
+    "persistedRecordsAtInterrupt": 54954
+  },
+  "measurement": {
+    "command": "node --experimental-strip-types evaluations/knowledge/runner.ts --root <preserved-temp-dir> --stress",
+    "interruptedAfterWallMinutes": 5,
+    "reason": "bounded run stopped before retrieval measurements; no result metrics were produced",
+    "models": "none; no embedding or hosted-model calls",
+    "providerSettings": "unchanged durable SQLite provider settings"
+  }
+}

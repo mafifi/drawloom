@@ -1,0 +1,19 @@
+{
+  "name": "@drawloom/sqlite-knowledge",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=24" },
+  "files": ["dist", "src"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "scripts": { "test:node": "node --experimental-strip-types --test sqlite-knowledge.node-check.ts" },
+  "drawloom": { "role": "provider", "runtime": "node" },
+  "dependencies": {
+    "@drawloom/knowledge": "workspace:*",
+    "sqlite-vec": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": { "@types/node": "catalog:node-runtime" }
+}

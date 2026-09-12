@@ -46,9 +46,13 @@ area you change.
   [ADR 0023](docs/adr/0023-knowledge-memory-authorization-boundaries.md).
   Enforce decisions using trusted identity and attributes; do not turn the
   experiment's classification or inheritance rules into core policy. Those rules
-  belong to the selected implementation or organisation. ADR 0024 will cover the
-  broader OSS implementation; acceptance of the boundary is not proof of deployed
-  authorization.
+  belong to the selected implementation or organisation. Accepted
+  [ADR 0024](docs/adr/0024-local-knowledge-memory-and-retrieval.md) covers the local
+  implementation; consult its [implementation reference](docs/design/local-knowledge.md)
+  and evidence before changing intake, indexing or Nightloom. Acceptance of the
+  authorization boundary is not proof of deployed enterprise policy. Keep local
+  embeddings and provider-disclosed assessment evidence distinct; downloading
+  models requires explicit consent.
 
 - Project/file work follows Accepted
   [ADR 0020](docs/adr/0020-directory-backed-projects-and-file-delivery.md) and its

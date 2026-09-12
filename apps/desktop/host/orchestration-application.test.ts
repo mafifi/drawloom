@@ -29,6 +29,7 @@ test('desktop attaches installed task handlers, restores both projects and enfor
     async prepare(owner) { await mkdir(join(root, 'orchestration'), { recursive: true }); savedProjects.add(owner.projectId); events.push('prepare:' + owner.projectId); return { registry: { workflows: [], tasks: [] }, readiness: () => ({ status: 'ready' }),
       orchestrator: { start: async () => 'run', get: async () => { throw Error('unused'); }, getSteps: async () => ({ steps: [] }), list: async () => ({ runs: [] }), respond: async () => {}, cancel: async () => {}, result: async () => ({}) },
       attach: async values => { handlers.set(owner.projectId, values); }, close: async () => { events.push('registration-close'); } }; },
+    prepareHost: async () => { throw Error('not used'); }, listHostOwners: async () => [],
     listOwners: async () => [...savedProjects].map(projectId => ({ projectId, installationId, packageDirectory: pkg, entrypoint: 'workflows.mjs', bundleFingerprint: 'hash', owner: projectId })), hasUnfinishedInstallation: async () => handlers.size > 0,
     close: async () => { events.push('manager-close'); },
   };
@@ -69,7 +70,7 @@ test('desktop attaches installed task handlers, restores both projects and enfor
     await app.command({ kind: 'select_project', projectId });
     await app.command({ kind: 'create_conversation', workbenchId: 'documents', provider: 'synthetic' });
     const snapshot = await app.snapshot();
-    const toolName = snapshot.operator.grants[0]!.toolName;
+    const toolName = snapshot.toolLabels.find(label => label.title === 'inspect')!.toolName;
     await app.command({ kind: 'operator', conversationId: snapshot.selectedId, workbenchId: 'documents', command: { kind: 'set_tool_grant', toolName, allowed: true } });
     await app.command({ kind: 'select_project', projectId: projects[1] });
     expect(await task.run({}, context)).toMatchObject({ outcome: { status: 'ok' }, operationId: 'run' });

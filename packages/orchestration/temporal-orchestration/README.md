@@ -15,6 +15,13 @@ const registration = await manager.prepare({
 // Supply registration.orchestrator to the explicitly trusted backend factory.
 // Before attachment its methods reject promptly with unavailable readiness.
 await registration.attach(backend.taskHandlers);
+
+const hostRegistration = await manager.prepareHost({
+  capabilityId: 'knowledge-maintenance',
+  packageDirectory: nightloomDirectory,
+  entrypoint: 'dist/workflows.js',
+});
+await hostRegistration.attach(nightloomHandlers);
 ```
 
 `registration.readiness()` returns the existing desktop-host readiness report.
@@ -25,8 +32,16 @@ activation and new workflow starts. `registration.close()` releases one worker;
 `manager.close()` stops dispatch and owned workers/service, without workflow cancel.
 Only `orchestrator.cancel(runId)` requests durable workflow cancellation.
 
-Owners are fixed to the project and installation. Every run and cursor is checked
-against that scope. Get/query/update requests have five-second deadlines; result
+`prepareHost` is a separate, explicit composition-root path for host capabilities
+that are not plugin installations or projects. Its records and deterministic
+identity namespace live separately and are listed by `listHostOwners()`. Host
+owners never appear in `listOwners()` or `hasUnfinishedInstallation()`, and this
+does not add or loosen a plugin scope. The same bundle fingerprint, replay, run,
+receipt, and unfinished-update guards apply to both owner kinds.
+
+Plugin owners are fixed to the project and installation; host owners are fixed to
+their declared capability. Every run and cursor is checked against its owner.
+Get/query/update requests have five-second deadlines; result
 waits are intentionally long-lived and accept caller cancellation. Pages contain
 at most 100 records. Task dispatch bodies and responses are limited to 1 MiB.
 

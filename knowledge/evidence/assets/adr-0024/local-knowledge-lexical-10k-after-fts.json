@@ -1,0 +1,34 @@
+{
+  "kind": "deterministic_smoke",
+  "corpus": {
+    "version": "drawloom-public-knowledge-v1",
+    "sha256": "70ab90e0be0e1ba9e7872dbd1e7286b1ef5c5fd343660b5e950cbd8c7a90e5e5",
+    "records": 10000
+  },
+  "lexical": {
+    "queries": 24,
+    "metrics": {
+      "relevantEvidence": { "precision": 0.1201923076923077, "recall": 0.9259259259259259 },
+      "exactIdentifierRecall": 0.75,
+      "chainCompleteness": 0.6,
+      "irrelevantAbstention": 0
+    },
+    "latency": {
+      "coldMs": 1.5428329999999733,
+      "warm30MedianMs": 0.553541999999652,
+      "cpuMicros": 2662578,
+      "startRssBytes": 103727104,
+      "peakRssBytes": 181370880,
+      "storeBytes": 19177472
+    }
+  },
+  "hybrid": { "kind": "not_run", "reason": "no_model_requested" },
+  "answerEvaluation": "not_configured",
+  "measurement": {
+    "command": "node --experimental-strip-types evaluations/knowledge/runner.ts --root <preserved-temp-dir> --scale",
+    "durationMs": 3039.502667,
+    "providerRevision": "FTS rowid-map maintenance and lexical OR query parser",
+    "rssScope": "sampled process RSS from fixture intake through retrieval; not a whole-host peak",
+    "models": "none; no embedding or hosted-model calls"
+  }
+}

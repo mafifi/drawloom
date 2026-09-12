@@ -9,6 +9,13 @@
   },
   "drawloom": {
     "releaseVersion": "0.0.0",
+    "externalRuntimes": {
+      "mlxEmbeddings": {
+        "requirements": "packages/knowledge/local-embeddings/python/mlx-requirements.in",
+        "lock": "packages/knowledge/local-embeddings/python/mlx-requirements.lock",
+        "reason": "User-installed isolated Python runtime; Python wheels use a hash-locked requirements file, not Bun's JavaScript catalog. No runtime or model weights are bundled."
+      }
+    },
     "dependencyPolicy": {
       "exceptions": []
     }
@@ -19,6 +26,8 @@
       "packages/*/*"
     ],
     "catalog": {
+      "@types/node": "20.19.19",
+      "sqlite-vec": "0.1.9",
       "@cedar-policy/cedar-wasm": "4.12.0",
       "casbin": "5.43.0",
       "@microsoft/aspire-cli": "13.5.3",
@@ -75,6 +84,9 @@
       "tailwind-variants": "^3.3.0",
       "svelte-sonner": "^1.1.0",
       "shadcn-svelte": "1.6.1"
+    },
+    "catalogs": {
+      "node-runtime": { "@types/node": "24.13.4" }
     }
   },
   "scripts": {
@@ -113,6 +125,7 @@
     "spike:adr-0017": "bun run build:packages && node --experimental-strip-types --test spikes/adr-0017-orchestration/temporal-host.test.ts && bun build spikes/adr-0017-orchestration/temporal-worker.ts --target node --packages external --outdir spikes/adr-0017-orchestration/dist && node --experimental-strip-types spikes/adr-0017-orchestration/temporal-run.ts"
   },
   "devDependencies": {
+    "sqlite-vec": "catalog:",
     "@cedar-policy/cedar-wasm": "catalog:",
     "casbin": "catalog:",
     "@microsoft/aspire-cli": "catalog:",
@@ -141,7 +154,7 @@
     "@modelcontextprotocol/sdk": "catalog:",
     "@modelcontextprotocol/ext-apps": "catalog:",
     "@types/bun": "1.2.23",
-    "@types/node": "20.19.19",
+    "@types/node": "catalog:",
     "dependency-cruiser": "catalog:",
     "typescript": "5.9.3",
     "zod": "catalog:"

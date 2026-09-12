@@ -77,12 +77,16 @@ test('a denied gateway call creates no execution span and never invokes its hand
 
 test('application instrumentation preserves method receiver and returned state', async () => {
   exporter.reset();
-  const app = { value: 3, async discover() { return this.value; }, async snapshot() { return this.value; }, async historyChanges() { return []; }, viewSession() { return { mountId: 'synchronous' }; } };
+  const app = { value: 3, async discover() { return this.value; }, async knowledgeCommand() { return this.value; }, async snapshot() { return this.value; }, async historyChanges() { return []; }, viewSession() { return { mountId: 'synchronous' }; } };
   const wrapped = instrumentApplication(app);
   expect(await wrapped.discover()).toBe(3); expect(await wrapped.snapshot()).toBe(3);
   expect(wrapped.viewSession()).toEqual({ mountId: 'synchronous' });
   await observedHttp(new Request('http://localhost/api/history/changes'), async () => { await wrapped.historyChanges(); return new Response(null, { status: 204 }); });
-  expect(exporter.getFinishedSpans().map(s => s.name)).toEqual(['host.discovery']);
+  await observedHttp(new Request('http://localhost/api/knowledge?query=SECRET'), async () => { await wrapped.knowledgeCommand(); return new Response(null, { status: 204 }); });
+  const spans = exporter.getFinishedSpans();
+  expect(spans.map(s => s.name)).toEqual(['host.discovery', 'host.knowledge.command', 'http.request']);
+  expect(spans.at(-1)?.attributes['http.route']).toBe('/api/knowledge');
+  expect(JSON.stringify(spans.map(s => s.attributes))).not.toContain('SECRET');
 });
 
 test('the real synthetic desktop exposes discovery and history boundaries without content', async () => {

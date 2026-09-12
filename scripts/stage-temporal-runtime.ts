@@ -9,13 +9,14 @@ const contained = (root: string, path: string) => { const rel = relative(root, p
 /** Reproduce the installed, frozen dependency layout. Do not resolve new versions,
  * execute package scripts, or copy private source into the public app bundle.
  */
-export async function stageTemporalRuntime(options: { repositoryRoot: string; destination: string }) {
+export async function stageTemporalRuntime(options: { repositoryRoot: string; destination: string; packageDirectories?: readonly string[]; destinationName?: string }) {
   const repository = await realpath(options.repositoryRoot);
   const modules = await realpath(join(repository, 'node_modules'));
   const destination = resolve(options.destination);
-  if (basename(destination) !== 'orchestration' || destination === repository || contained(destination, repository)) throw Error('Invalid generated runtime destination');
+  const destinationName = options.destinationName ?? 'orchestration';
+  if (basename(destination) !== destinationName || destination === repository || contained(destination, repository)) throw Error('Invalid generated runtime destination');
   await mkdir(dirname(destination), { recursive: true });
-  const temporary = join(dirname(destination), `.orchestration-${randomUUID()}`);
+  const temporary = join(dirname(destination), `.${destinationName}-${randomUUID()}`);
   await mkdir(temporary);
   const copied = new Set<string>();
   const packages: { name: string; version: string; path: string }[] = [];
@@ -64,7 +65,7 @@ export async function stageTemporalRuntime(options: { repositoryRoot: string; de
     }
   }
   try {
-    await copyPackage(join(repository, 'packages/orchestration/temporal-orchestration'));
+    for (const packageDirectory of options.packageDirectories ?? [join(repository, 'packages/orchestration/temporal-orchestration')]) await copyPackage(packageDirectory);
     await writeFile(join(temporary, 'runtime-manifest.json'), JSON.stringify({ format: 1, platform: process.platform, arch: process.arch, packages }, null, 2));
     await rm(destination, { recursive: true, force: true });
     await rename(temporary, destination);

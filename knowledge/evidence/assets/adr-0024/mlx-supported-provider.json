@@ -1,0 +1,12 @@
+{
+  "coldReadinessMs": 1291.232166,
+  "firstQueryMs": 2981.586708,
+  "warmQueryMedianMs": 10.493124999999964,
+  "warmQueryP95Ms": 11.978916999999456,
+  "warmRepetitions": 30,
+  "validMaximumBatch": 50,
+  "dimensions": 1024,
+  "parentFetchForbidden": true,
+  "workerOfflineEnvironment": true,
+  "nodeVersion": "v24.20.0"
+}

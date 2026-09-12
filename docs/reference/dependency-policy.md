@@ -34,6 +34,14 @@ Workspace manifests declare usage without repeating version ranges:
 Run `bun install` after changing the root catalog and commit the resulting
 `bun.lock` change.
 
+The root `drawloom.externalRuntimes` entry explicitly designates the MLX Python
+requirements and hash-locked dependency file under ADR 0024. This is a
+non-JavaScript runtime, installed independently after user consent; Bun cannot
+resolve Python wheels. That designated lock is the version authority for the
+isolated environment. Do not add ad-hoc pip dependencies, resolve `latest` during
+setup or bundle the environment/weights into application packages. The JavaScript
+catalog rule is unchanged. Runtime licence notices remain applicable.
+
 ## Package metadata
 
 Each workspace manifest declares its architectural role and runtime:

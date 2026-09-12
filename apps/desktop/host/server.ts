@@ -13,6 +13,7 @@ import { ProjectDirectoryError } from './projects.js';
 import { remoteMediaResponse } from './remote-media-response.js';
 import { createOrchestrationHttp } from './orchestration-http.js';
 import { WorkflowControlError } from './orchestration-presentation.js';
+import { KnowledgeCommandSchema } from '../src/lib/knowledge-protocol.js';
 type Application = Awaited<ReturnType<typeof createDesktopApplication>>;
 export function serveDesktop(app: Application, webRoot: string, port = 0, telemetry?: ReturnType<typeof createTelemetryRelay>, options: {pickDirectory?:(signal:AbortSignal)=>Promise<string|undefined>}={}) {
   const token = randomBytes(32).toString('hex');
@@ -69,6 +70,14 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
         if (['/api/orchestration/owners', '/api/orchestration/runs', '/api/orchestration/steps'].includes(url.pathname)) {
           const result = await workflows(request, url);
           return json(result.body, result.status);
+        }
+        if (url.pathname === '/api/knowledge' && request.method === 'POST') {
+          const command = KnowledgeCommandSchema.parse(await request.json());
+          // Cancellation must not queue behind the download it interrupts.
+          if (command.action === 'cancel_download') return json(await app.knowledgeCommand(command));
+          if (['status', 'search', 'evidence', 'export'].includes(command.action)) return json(await app.knowledgeCommand(command));
+          const next = commandQueue.then(() => app.knowledgeCommand(command));
+          commandQueue = next.catch(() => {}); return json(await next);
         }
         if(url.pathname==='/api/project-directory' && request.method==='POST') {
           if(!options.pickDirectory)return json({error:'Native folder selection is unavailable. Enter a local path instead.'},501);

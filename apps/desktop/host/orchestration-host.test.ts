@@ -19,6 +19,7 @@ test('configuration is serialized with starts and blocks old configuration until
     get: async () => { throw Error('unused'); }, list: async () => ({ runs: [] }), getSteps: async () => ({ steps: [] }), result: async () => ({}), respond: async () => {}, cancel: async () => {} };
   const manager: ReturnType<typeof createLocalTemporalManager> = { prepare: async () => ({ registry: { workflows: [], tasks: [] }, orchestrator,
     readiness: () => ({ status: 'ready' }), attach: async () => {}, close: async () => {} }),
+    prepareHost: async () => { throw Error('not used'); }, listHostOwners: async () => [],
     listOwners: async () => [], hasUnfinishedInstallation: async () => unfinished, close: async () => {} };
   const host = createOrchestrationHost({ dataDirectory: root, manager: async () => manager, ensureProject: async () => {} });
   const installation: Installation = { id: crypto.randomUUID(), name: 'documents', root, enabled: true, trustedBackend: true, servers: [], configuration: {}, approvedResourceOrigins: [], elicitationDisabledServers: [] };
@@ -48,6 +49,7 @@ test('ordinary startup is lazy; saved owners restore unopened projects and prote
   let created = 0, closed = 0;
   const manager: ReturnType<typeof createLocalTemporalManager> = {
     prepare: async () => { throw Error('not used'); },
+    prepareHost: async () => { throw Error('not used'); }, listHostOwners: async () => [],
     listOwners: async () => ['a', 'b'].map(projectId => ({ projectId, installationId: 'i', packageDirectory: root, entrypoint: 'workflow.mjs', bundleFingerprint: 'hash', owner: projectId })),
     hasUnfinishedInstallation: async id => id === 'i', close: async () => { closed++; },
   };
@@ -66,7 +68,7 @@ test('ordinary startup is lazy; saved owners restore unopened projects and prote
 test('missing prerequisites expose actionable readiness without disabling ordinary backend use', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-orchestration-unavailable-'));
   const manager: ReturnType<typeof createLocalTemporalManager> = {
-    prepare: async () => { throw Error('spawn temporal ENOENT'); }, listOwners: async () => [], hasUnfinishedInstallation: async () => false, close: async () => {},
+    prepare: async () => { throw Error('spawn temporal ENOENT'); }, prepareHost: async () => { throw Error('not used'); }, listOwners: async () => [], listHostOwners: async () => [], hasUnfinishedInstallation: async () => false, close: async () => {},
   };
   const host = createOrchestrationHost({ dataDirectory: root, manager: async () => manager, ensureProject: async () => {} });
   try {
@@ -87,6 +89,7 @@ test('saved owners remain visible when their project is unavailable; changed bun
   await mkdir(join(root, 'orchestration'));
   const manager: ReturnType<typeof createLocalTemporalManager> = {
     prepare: async () => { throw Error('Workflow bundle changed with unfinished runs'); },
+    prepareHost: async () => { throw Error('not used'); }, listHostOwners: async () => [],
     listOwners: async () => [{ projectId: 'offline', installationId: 'i', packageDirectory: root, entrypoint: 'workflow.mjs', bundleFingerprint: 'hash', owner: 'offline-i' }],
     hasUnfinishedInstallation: async () => true, close: async () => {},
   };

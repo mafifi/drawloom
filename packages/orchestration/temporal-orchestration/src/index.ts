@@ -17,8 +17,13 @@ import { observe } from './telemetry.js';
 
 const OwnerInput = z.strictObject({ projectId: z.string().min(1).max(256), installationId: z.string().min(1).max(256), packageDirectory: z.string().min(1), entrypoint: z.string().min(1) });
 const OwnerRecordSchema = OwnerInput.extend({ bundleFingerprint: z.string(), owner: z.string() });
+const HostOwnerInput = z.strictObject({ capabilityId: z.string().min(1).max(256), packageDirectory: z.string().min(1), entrypoint: z.string().min(1) });
+const HostOwnerRecordSchema = HostOwnerInput.extend({ bundleFingerprint: z.string(), owner: z.string() });
+const StoredOwnerRecordSchema = z.union([OwnerRecordSchema, HostOwnerRecordSchema]);
 export type OwnerRecord = z.infer<typeof OwnerRecordSchema>;
 export type PrepareOwner = z.infer<typeof OwnerInput>;
+export type HostOwnerRecord = z.infer<typeof HostOwnerRecordSchema>;
+export type PrepareHostOwner = z.infer<typeof HostOwnerInput>;
 export interface LocalTemporalOptions { dataDirectory: string; temporalPath?: string; nodePath?: string; /** Composition-owned real Node files for a compiled desktop host. */ runtimeDirectory?: string }
 export interface LocalTemporalRegistration {
   readonly orchestrator: Orchestrator;
@@ -126,11 +131,18 @@ export function createLocalTemporalManager(options: LocalTemporalOptions) {
     await startup;
   }
   const ownersDirectory = join(root, "owners");
-  async function listOwners(): Promise<readonly OwnerRecord[]> {
+  const hostOwnersDirectory = join(root, "host-owners");
+  async function listRecords<T>(directory: string, schema: z.ZodType<T>): Promise<readonly T[]> {
     await own();
-    await mkdir(ownersDirectory, { recursive: true, mode: 0o700 });
-    const paths = (await readdir(ownersDirectory)).filter((path) => path.endsWith(".json"));
-    return Promise.all(paths.map(async (path) => OwnerRecordSchema.parse(await readJson(join(ownersDirectory, path)))));
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    const paths = (await readdir(directory)).filter((path) => path.endsWith(".json"));
+    return Promise.all(paths.map(async (path) => schema.parse(await readJson(join(directory, path)))));
+  }
+  async function listOwners(): Promise<readonly OwnerRecord[]> {
+    return listRecords(ownersDirectory, OwnerRecordSchema);
+  }
+  async function listHostOwners(): Promise<readonly HostOwnerRecord[]> {
+    return listRecords(hostOwnersDirectory, HostOwnerRecordSchema);
   }
   const recordsPath = (owner: string) => join(root, "runs", `${owner}.json`);
   const records = async (owner: string) => z.array(RunRecord).parse(await readJson(recordsPath(owner)) ?? []);
@@ -160,7 +172,7 @@ export function createLocalTemporalManager(options: LocalTemporalOptions) {
     for (const owner of await listOwners()) if (owner.installationId === installationId && await unfinished(owner.owner)) return true;
     return false;
   }
-  async function prepareOwner(input: PrepareOwner, owner: string): Promise<LocalTemporalRegistration> {
+  async function prepareOwner(input: { packageDirectory: string; entrypoint: string }, owner: string, ownerDirectory: string, ownerRecord: object, hostOwned = false): Promise<LocalTemporalRegistration> {
     await own();
     const packageDirectory = await realpath(input.packageDirectory);
     if (isAbsolute(input.entrypoint)) throw new Error("Workflow entrypoint containment failed");
@@ -172,22 +184,22 @@ export function createLocalTemporalManager(options: LocalTemporalOptions) {
     await mkdir(bundleDirectory, { recursive: true, mode: 0o700 });
     const destination = join(bundleDirectory, "candidate.js");
     const config = join(bundleDirectory, "compile.json");
-    await writeJson(config, { mode: "bundle", parent: process.pid, entry, packageDirectory, destination });
+    await writeJson(config, { mode: "bundle", parent: process.pid, entry, packageDirectory, destination, ...(hostOwned ? { hostCapability: true } : {}) });
     const output = await command(node, [sidecar, config], 45000);
     const compiled = Bundle.parse(JSON.parse(output.trim().split("\n").at(-1)!));
     // Verify source did not change between bundling and trusted host import.
     for (const [path, hash] of compiled.dependencies) if (digest(await readFile(path)) !== hash) throw new Error("Workflow dependency changed while preparing");
-    const old = await readJson(join(ownersDirectory, `${owner}.json`));
+    const old = await readJson(join(ownerDirectory, `${owner}.json`));
     if (old !== undefined) {
-      const previous = OwnerRecordSchema.parse(old);
+      const previous = StoredOwnerRecordSchema.parse(old);
       if (previous.bundleFingerprint !== compiled.fingerprint && await unfinished(owner)) throw new Error("Workflow bundle changed with unfinished runs");
     }
     const bundle = join(bundleDirectory, `${compiled.fingerprint}.js`);
     await rename(destination, bundle);
     const imported: unknown = await import(`${pathToFileURL(entry).href}?drawloom=${compiled.fingerprint}`);
     const registry = parseWorkflowModule(Reflect.get(imported as object, "default"));
-    const record: OwnerRecord = { ...input, packageDirectory, owner, bundleFingerprint: compiled.fingerprint };
-    await writeJson(join(ownersDirectory, `${owner}.json`), record);
+    const record = { ...ownerRecord, packageDirectory, owner, bundleFingerprint: compiled.fingerprint };
+    await writeJson(join(ownerDirectory, `${owner}.json`), record);
     let ready = false;
     let disposed = false;
     let worker: ChildProcess | undefined;
@@ -327,13 +339,21 @@ export function createLocalTemporalManager(options: LocalTemporalOptions) {
     return registration;
   }
   return {
-    listOwners, hasUnfinishedInstallation,
+    listOwners, listHostOwners, hasUnfinishedInstallation,
     prepare(value: PrepareOwner): Promise<LocalTemporalRegistration> {
       const input = OwnerInput.parse(value);
       const owner = digest(canonical([input.projectId, input.installationId]));
       if (registrations.has(owner)) return Promise.reject(new Error("Owner already prepared"));
       const prior = preparing.get(owner); if (prior) return prior;
-      const preparingOwner = observe('prepare', () => prepareOwner(input, owner)).finally(() => preparing.delete(owner));
+      const preparingOwner = observe('prepare', () => prepareOwner(input, owner, ownersDirectory, input)).finally(() => preparing.delete(owner));
+      preparing.set(owner, preparingOwner); return preparingOwner;
+    },
+    async prepareHost(value: PrepareHostOwner): Promise<LocalTemporalRegistration> {
+      const input = HostOwnerInput.parse(value);
+      const owner = digest(canonical(["host", input.capabilityId]));
+      if (registrations.has(owner)) return Promise.reject(new Error("Owner already prepared"));
+      const prior = preparing.get(owner); if (prior) return prior;
+      const preparingOwner = observe('prepare', () => prepareOwner(input, owner, hostOwnersDirectory, input, true)).finally(() => preparing.delete(owner));
       preparing.set(owner, preparingOwner); return preparingOwner;
     },
     async close() {

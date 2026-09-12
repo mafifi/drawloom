@@ -3,6 +3,7 @@
   import DiscoveryInventory from './DiscoveryInventory.svelte';
   import DetailsPane from './DetailsPane.svelte';
   import Projects from './Projects.svelte';
+  import Knowledge from './Knowledge.svelte';
   import WorkflowRuns from './WorkflowRuns.svelte';
   import type { DesktopViewModel } from './view-model.svelte.js';
   let { vm, artifact = false }: { vm: DesktopViewModel; artifact?: boolean } = $props();
@@ -11,7 +12,7 @@
 <main class="primary-view">
   <header class="primary-view-header">
     <Button variant="ghost" onclick={() => { vm.primaryView = 'conversation'; if (artifact) vm.detailsOpen = false; }}>← Back to conversation</Button>
-    <h1>{artifact ? (vm.artifact?.title ?? 'Artifacts') : vm.primaryView === 'plugins' ? 'Plugins' : vm.primaryView === 'projects' ? 'Projects' : 'Settings'}</h1>
+    <h1>{artifact ? (vm.artifact?.title ?? 'Artifacts') : vm.primaryView === 'plugins' ? 'Plugins' : vm.primaryView === 'projects' ? 'Projects' : vm.primaryView === 'knowledge' ? 'Knowledge' : 'Settings'}</h1>
   </header>
   <Separator />
   {#if artifact}
@@ -20,10 +21,15 @@
     <div class="primary-view-content"><DiscoveryInventory {vm} /></div>
   {:else if vm.primaryView === 'projects'}
     <Projects {vm} />
+  {:else if vm.primaryView === 'knowledge'}
+    <Knowledge />
   {:else}
     <section class="primary-view-content preview">
       <h2>Project</h2>
       <p class="break-all text-muted-foreground">{vm.conversationProject?.directory ?? 'Select a project to use working files.'}</p>
+      <h2>Knowledge</h2>
+      <p class="text-muted-foreground">Manage local semantic search, its MLX runtime and model installation, and Nightloom limits.</p>
+      <Button variant="outline" class="w-fit" onclick={() => vm.primaryView = 'knowledge'}>Open Knowledge settings</Button>
       <h2>Shared media sources</h2>
       <p class="text-muted-foreground">Activated integrations and recognised media resources declare these sources once for all workbenches. Shared access does not expose credentials or make media model context.</p>
       {#if vm.state?.mediaPolicy.sources.length}

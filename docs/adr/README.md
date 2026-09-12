@@ -14,6 +14,11 @@ links back.
 
 ## Latest decision
 
+- [ADR 0024: Local knowledge, memory and evidence-based retrieval](0024-local-knowledge-memory-and-retrieval.md)
+  is Accepted. Local storage, hybrid retrieval and maintenance are implemented;
+  broader retrieval value and remaining verification follow-ups are explicit,
+  not claims established by the synthetic evaluation.
+
 - [ADR 0023: Knowledge and memory authorization boundaries](0023-knowledge-memory-authorization-boundaries.md)
   is Accepted for replaceable authorization and trusted attribute enforcement,
   using AuthZEN's decision shape. Classification and entitlement rules remain

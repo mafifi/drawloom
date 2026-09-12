@@ -106,6 +106,7 @@ const methods: Record<string, string> = {
   importAssetStream: 'host.asset.write',
   viewRequest: 'mcp.request', viewInteraction: 'host.command',
   inspectPackage: 'host.package.inspect', packageAction: 'host.package.activate',
+  knowledgeCommand: 'host.knowledge.command',
 };
 /** Explicit finite boundary map; no introspection of arguments or controller data. */
 export function instrumentApplication<T extends object>(app: T): T {
@@ -119,7 +120,7 @@ export function instrumentApplication<T extends object>(app: T): T {
 export function observedAssets<T extends { read(key: string): Promise<Uint8Array> }>(assets: T): T {
   return { ...assets, read: (key: string) => observed('host.asset.read', {}, () => assets.read(key)) };
 }
-const routes = new Set(['/api/command', '/api/discovery', '/api/discovery/authenticate', '/api/discovery/resource/read', '/api/resource/read', '/api/resources', '/api/resource/open', '/api/history', '/api/view-session', '/api/view-request', '/api/view-interaction', '/api/import', '/api/packages', '/api/packages/oauth']);
+const routes = new Set(['/api/command', '/api/discovery', '/api/discovery/authenticate', '/api/discovery/resource/read', '/api/resource/read', '/api/resources', '/api/resource/open', '/api/history', '/api/view-session', '/api/view-request', '/api/view-interaction', '/api/import', '/api/packages', '/api/packages/oauth', '/api/knowledge']);
 /** Called only after channel authentication. URLs, query strings and baggage are never captured. */
 export async function observedHttp(request: Request, run: () => Promise<Response>): Promise<Response> {
   const path = new URL(request.url).pathname;

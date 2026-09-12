@@ -21,6 +21,9 @@ updated: 2026-09-12
 
 ## Evidence and computations
 
+- [Local knowledge implementation and retrieval evaluation](evidence/adr-0024-local-knowledge.md)
+- [Qwen embedding acceleration on Apple Silicon](evidence/adr-0024-mlx-acceleration.md)
+
 - [Local authorization standards: Cedar and Casbin experiment](evidence/adr-0023-authorization.md)
 
 - [Installed Git evidence, code judgement and bounded retrieval](evidence/adr-0022-memory-git-sprint.md)

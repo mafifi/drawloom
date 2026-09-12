@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { HistoryEntrySchema, HistoryPageOptionsSchema, HistoryReadBatchSchema } from '../packages/observability/conversation-history/dist/index.js';
 import { conversationHistoryConformance } from '../packages/observability/conversation-history/dist/conformance.js';
 import { toolConformance } from "../packages/tools/tools/dist/conformance.js";
@@ -45,3 +46,13 @@ await hostConformance(async () => {
 console.log(
   "Node shared conformance: tools, synthetic agent, Codex agent, plugins, host passed; portable history schema/export smoke passed (SQLite remains Bun-only)",
 );
+for (const file of [
+  'packages/knowledge/sqlite-knowledge/sqlite-knowledge.node-check.ts',
+  'packages/knowledge/local-embeddings/mlx-worker.node-check.mjs',
+  'packages/knowledge/local-knowledge-runtime/runtime.node-check.ts',
+  'packages/knowledge/local-knowledge-runtime/semantic.node-check.ts',
+]) {
+  const checked = spawnSync(process.execPath, ['--test', file], { stdio: 'inherit' });
+  if (checked.error) throw checked.error;
+  assert.equal(checked.status, 0, `Node knowledge check failed: ${file}`);
+}

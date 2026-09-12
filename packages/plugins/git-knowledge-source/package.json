@@ -1,0 +1,12 @@
+{
+  "name": "@drawloom/git-knowledge-source",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=22" },
+  "files": ["dist", "src", "plugin.json", "mcp.json", "README.md"],
+  "exports": { "./protocol": { "types": "./dist/source.d.ts", "import": "./dist/source.js" } },
+  "scripts": { "build": "tsc -p tsconfig.json && bun build ./src/server.ts --target=node --outfile ./dist/server.mjs" },
+  "drawloom": { "role": "provider", "runtime": "node" },
+  "dependencies": { "@modelcontextprotocol/sdk": "catalog:", "zod": "catalog:" }
+}

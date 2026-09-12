@@ -1,0 +1,35 @@
+{
+  "kind": "deterministic_smoke",
+  "corpus": {
+    "version": "drawloom-public-knowledge-v1",
+    "sha256": "70ab90e0be0e1ba9e7872dbd1e7286b1ef5c5fd343660b5e950cbd8c7a90e5e5",
+    "records": 100000
+  },
+  "lexical": {
+    "queries": 24,
+    "metrics": {
+      "relevantEvidence": { "precision": 0.1201923076923077, "recall": 0.9259259259259259 },
+      "exactIdentifierRecall": 0.75,
+      "chainCompleteness": 0.6,
+      "irrelevantAbstention": 0
+    },
+    "latency": {
+      "coldMs": 1.5617080000010901,
+      "warm30MedianMs": 0.6233330000031856,
+      "warm30P95Ms": 44.885167000000365,
+      "cpuMicros": 28064914,
+      "startRssBytes": 103284736,
+      "peakRssBytes": 469762048,
+      "storeBytes": 191242240
+    }
+  },
+  "hybrid": { "kind": "not_run", "reason": "no_model_requested" },
+  "answerEvaluation": "not_configured",
+  "measurement": {
+    "command": "/usr/bin/perl -e 'alarm shift; exec @ARGV' 120 /usr/bin/time -p node --experimental-strip-types evaluations/knowledge/runner.ts --root /tmp/drawloom-local-knowledge-100k-final.hf8k5v --stress",
+    "elapsedSeconds": 33.69,
+    "capSeconds": 120,
+    "rssScope": "sampled process RSS from fixture intake through retrieval; not a whole-host peak",
+    "models": "none; no embedding, hosted-model, network, or weight-download calls"
+  }
+}

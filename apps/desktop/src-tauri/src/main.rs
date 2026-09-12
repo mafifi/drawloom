@@ -8,7 +8,7 @@ fn main() {
             let resources = app.path().resource_dir()?;
             let binary = std::env::var_os("DRAWLOOM_HOST_BIN").map(std::path::PathBuf::from).unwrap_or_else(|| resources.join("host/drawloom-host"));
             let web = std::env::var_os("DRAWLOOM_WEB_ROOT").map(std::path::PathBuf::from).unwrap_or_else(|| resources.join("web"));
-            let mut child = Command::new(binary).env("DRAWLOOM_WEB_ROOT", web).env("DRAWLOOM_ORCHESTRATION_RUNTIME", resources.join("orchestration")).env("DRAWLOOM_MANAGED", "1").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn()?;
+            let mut child = Command::new(binary).env("DRAWLOOM_WEB_ROOT", web).env("DRAWLOOM_ORCHESTRATION_RUNTIME", resources.join("orchestration")).env("DRAWLOOM_KNOWLEDGE_RUNTIME", resources.join("knowledge")).env("DRAWLOOM_MANAGED", "1").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn()?;
             let stdout = child.stdout.take().ok_or("Host output unavailable")?;
             let (sender, receiver) = std::sync::mpsc::channel();
             std::thread::spawn(move || { let line = BufReader::new(stdout).lines().next().transpose(); let _ = sender.send(line); });

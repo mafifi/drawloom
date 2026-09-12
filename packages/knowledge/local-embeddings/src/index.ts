@@ -1,0 +1,11 @@
+export { LocalEmbeddingsError } from "./errors.js";
+export { createKnowledgeEmbeddings, embeddingConfiguration } from "./adapter.js";
+export { KnownModelManifests, ModelManifestSchema, formatEmbeddingInput, knownManifest } from "./manifest.js";
+export type { KnownModelId, ModelManifest } from "./manifest.js";
+export { ModelSetup, createModelSetup } from "./setup.js";
+export type { ArtifactFetch, InstallOptions, ModelSetupOptions, ModelSetupStatus, ReadyModel } from "./setup.js";
+export type { MlxRuntimeSetupOptions } from "./setup.js";
+export { MlxEmbeddingWorker } from "./mlx-worker-client.js";
+export type { MlxEmbeddingWorkerOptions } from "./mlx-worker-client.js";
+export type { EmbedOptions, EmbedRequest, EmbeddingWorker } from "./worker-types.js";
+export { validateEmbeddingVectors } from "./validation.js";

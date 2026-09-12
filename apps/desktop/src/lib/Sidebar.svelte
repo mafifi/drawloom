@@ -4,7 +4,7 @@
   import type { DesktopViewModel } from './view-model.svelte.js';
   let { vm }: { vm: DesktopViewModel } = $props();
   const sidebar = Sidebar.useSidebar();
-  function showPane(pane: 'settings' | 'plugins' | 'projects') { vm.primaryView = pane; sidebar.setOpenMobile(false); }
+  function showPane(pane: 'settings' | 'plugins' | 'projects' | 'knowledge') { vm.primaryView = pane; sidebar.setOpenMobile(false); }
 </script>
 
 {#snippet navigation()}
@@ -40,6 +40,7 @@
   </Sidebar.Content>
   <Sidebar.Footer><Sidebar.Menu>
     <Sidebar.MenuItem><Sidebar.MenuButton onclick={() => showPane('plugins')}><PlugIcon aria-hidden="true" /><span>Plugins</span></Sidebar.MenuButton></Sidebar.MenuItem>
+    <Sidebar.MenuItem><Sidebar.MenuButton onclick={() => showPane('knowledge')}><DocumentIcon aria-hidden="true" /><span>Knowledge</span></Sidebar.MenuButton></Sidebar.MenuItem>
     <Sidebar.MenuItem><Sidebar.MenuButton onclick={() => showPane('settings')}><SettingsIcon aria-hidden="true" /><span>Settings</span></Sidebar.MenuButton></Sidebar.MenuItem>
   </Sidebar.Menu></Sidebar.Footer>
 {/snippet}

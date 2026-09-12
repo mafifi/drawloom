@@ -1,0 +1,114 @@
+{
+  "kind": "live-codex-assessment",
+  "recovering": false,
+  "result": {
+    "kind": "completed",
+    "requestId": "public-d9f9f8ae-03ae-45df-b88b-ba55b1b47951",
+    "payloadFingerprint": "public-library-batch-r1",
+    "proposals": [
+      {
+        "record": {
+          "ref": {
+            "type": "claim",
+            "origin": "nightloom",
+            "id": "moss-library-monday-closure",
+            "revision": "39eff323165f0083fb97bb468c4f094bc7339bf8710e61794422046316b52f10"
+          },
+          "body": "The Moss Library closes every Monday.",
+          "confidence": {},
+          "provenance": {
+            "producer": {
+              "type": "assessment",
+              "id": "public-d9f9f8ae-03ae-45df-b88b-ba55b1b47951"
+            },
+            "inputs": [
+              {
+                "type": "source",
+                "origin": "public-invented-fixture",
+                "id": "library",
+                "revision": "r1"
+              }
+            ]
+          },
+          "status": "active",
+          "freshness": "current"
+        },
+        "expectedRevision": null,
+        "links": [
+          {
+            "from": {
+              "type": "claim",
+              "origin": "nightloom",
+              "id": "moss-library-monday-closure",
+              "revision": "39eff323165f0083fb97bb468c4f094bc7339bf8710e61794422046316b52f10"
+            },
+            "to": {
+              "type": "source",
+              "origin": "public-invented-fixture",
+              "id": "library",
+              "revision": "r1"
+            },
+            "relation": "support"
+          }
+        ]
+      },
+      {
+        "record": {
+          "ref": {
+            "type": "claim",
+            "origin": "nightloom",
+            "id": "moss-library-tuesday-opening",
+            "revision": "e82086d2a9d52fac6f79c8a7bd2850c048c9cd448793f5893415d6e649569a2e"
+          },
+          "body": "The Moss Library opens at 09:00 on Tuesdays.",
+          "confidence": {},
+          "provenance": {
+            "producer": {
+              "type": "assessment",
+              "id": "public-d9f9f8ae-03ae-45df-b88b-ba55b1b47951"
+            },
+            "inputs": [
+              {
+                "type": "source",
+                "origin": "public-invented-fixture",
+                "id": "library-tuesday",
+                "revision": "r1"
+              }
+            ]
+          },
+          "status": "active",
+          "freshness": "current"
+        },
+        "expectedRevision": null,
+        "links": [
+          {
+            "from": {
+              "type": "claim",
+              "origin": "nightloom",
+              "id": "moss-library-tuesday-opening",
+              "revision": "e82086d2a9d52fac6f79c8a7bd2850c048c9cd448793f5893415d6e649569a2e"
+            },
+            "to": {
+              "type": "source",
+              "origin": "public-invented-fixture",
+              "id": "library-tuesday",
+              "revision": "r1"
+            },
+            "relation": "support"
+          }
+        ]
+      }
+    ]
+  },
+  "milliseconds": 6756.292875,
+  "calls": {
+    "initialize": 1,
+    "model/list": 1,
+    "thread/start": 1,
+    "thread/memoryMode/set": 1,
+    "turn/start": 1,
+    "thread/turns/list": 6,
+    "thread/items/list": 3
+  },
+  "errors": []
+}

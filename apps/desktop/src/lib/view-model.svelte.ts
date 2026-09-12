@@ -37,7 +37,7 @@ export function createDesktopViewModel() {
   let projectDirectoryRequest: AbortController | undefined;
   let detailsOpen = $state(false), contextOpen = $state(false);
   let pane = $state<'preview' | 'details'>('preview');
-  let primaryView = $state<'conversation' | 'projects' | 'plugins' | 'settings'>('conversation');
+  let primaryView = $state<'conversation' | 'projects' | 'plugins' | 'settings' | 'knowledge'>('conversation');
   let attachmentKeys = $state<string[]>([]), contextIds = $state<string[]>([]);
   let attachmentNames = $state<Record<string, string>>({});
   let attachments = $state<Attachment[]>([]), selections = $state<Discovery[]>([]);

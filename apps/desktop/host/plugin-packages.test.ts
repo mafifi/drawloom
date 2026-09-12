@@ -123,7 +123,8 @@ test('desktop discovery shows friendly standard and app-only tools without execu
       expect(catalogue.entries.find(e => e.name === 'Inspect document')).toMatchObject({ kind: 'tool', availability: 'available' });
       expect(catalogue.entries.find(e => e.name === 'Save draft')).toMatchObject({ kind: 'tool', scope: 'app-only', selectable: false });
       const snapshot = await app.snapshot();
-      const grant = snapshot.operator.grants.find(g => g.toolName.startsWith('package_')) ?? snapshot.operator.grants.find(g => g.toolName !== 'text.word_count');
+      const installedTool = snapshot.toolLabels.find(label => label.title === 'Inspect document' && label.origin === 'documents / remote');
+      const grant = snapshot.operator.grants.find(g => g.toolName === installedTool?.toolName);
       expect(grant).toBeDefined();
       expect(snapshot.toolLabels).toContainEqual({ toolName: grant!.toolName, title: 'Inspect document', origin: 'documents / remote' });
       expect(remote.events).not.toContain('tools/call');

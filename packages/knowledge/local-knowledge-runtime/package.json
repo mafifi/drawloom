@@ -1,0 +1,21 @@
+{
+  "name": "@drawloom/local-knowledge-runtime",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=24" },
+  "files": ["dist", "src"],
+  "exports": { ".": { "bun": "./src/client.ts", "types": "./dist/client.d.ts", "import": "./dist/client.js" } },
+  "scripts": { "test:node": "node --test runtime.node-check.ts semantic.node-check.ts" },
+  "drawloom": { "role": "composition", "runtime": "node" },
+  "dependencies": {
+    "@drawloom/codex-assessment": "workspace:*",
+    "@drawloom/host": "workspace:*",
+    "@drawloom/knowledge": "workspace:*",
+    "@drawloom/local-embeddings": "workspace:*",
+    "@drawloom/node-host": "workspace:*",
+    "@drawloom/sqlite-knowledge": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": { "@types/node": "catalog:node-runtime" }
+}

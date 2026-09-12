@@ -17,6 +17,7 @@ const configuration = z.strictObject({
   entry: z.string().optional(), packageDirectory: z.string().optional(), destination: z.string().optional(),
   address: z.string().optional(), taskQueue: z.string().optional(), bundle: z.string().optional(),
   bridge: z.string().optional(), token: z.string().optional(), temporalPath: z.string().optional(),
+  hostCapability: z.boolean().optional(),
   port: z.number().optional(), database: z.string().optional(),
 }).parse(JSON.parse(await readFile(process.argv[2]!, "utf8")));
 let shutdown: () => Promise<void> = async () => { process.exit(0); };
@@ -65,7 +66,8 @@ if (configuration.mode === "service") {
               // Only the package, provider runtime, Temporal runtime and portable public dependencies.
               const dependency = /[/\\]node_modules[/\\](?:\.bun[/\\][^/\\]+[/\\]node_modules[/\\])?(?:@temporalio[/\\]|@drawloom[/\\](?:orchestration|agent|tools|context|host)[/\\]|@modelcontextprotocol[/\\]sdk[/\\]|zod[/\\]|long[/\\]|ms[/\\]|protobufjs[/\\]|@protobufjs[/\\]|uuid[/\\]|abort-controller[/\\]|event-target-shim[/\\]|nexus-rpc[/\\])/.test(path);
               const publicContract = /[/\\]packages[/\\](?:orchestration[/\\]orchestration|agent[/\\]agent|tools[/\\]tools|context[/\\]context|host[/\\]host)[/\\]dist[/\\]/.test(path);
-              if (!generated && !inside(packageRoot, path) && !inside(runtimeRoot, path) && !dependency && !publicContract)
+              const hostKnowledgeContract = configuration.hostCapability === true && (/[/\\]packages[/\\]knowledge[/\\]knowledge[/\\]dist[/\\]/.test(path) || /[/\\]node_modules[/\\](?:\.bun[/\\][^/\\]+[/\\]node_modules[/\\])?@drawloom[/\\]knowledge[/\\]/.test(path));
+              if (!generated && !inside(packageRoot, path) && !inside(runtimeRoot, path) && !dependency && !publicContract && !hostKnowledgeContract)
                 throw new Error(`Workflow dependency containment rejected: ${path}`);
               dependencies.set(path, digest(await readFile(path)));
             }

@@ -105,7 +105,17 @@ identity and attributes; implementations own classification, entitlements,
 derivation and lifecycle policy. The OSS path is a simple local-owner implementation,
 not an enterprise governance system. Cedar/Casbin remain tested candidates in
 retained experiments, not a supported runtime selection. Broader implementation
-is reserved for ADR 0024; no production authorization is claimed by this acceptance.
+is implemented under ADR 0024; no production authorization is claimed by this acceptance.
+
+Accepted [ADR 0024](docs/adr/0024-local-knowledge-memory-and-retrieval.md)
+adds local SQLite knowledge, revision-linked evidence, lexical/local semantic
+retrieval and Temporal-coordinated Nightloom with replaceable Codex assessment.
+Knowledge spans projects; conversation history and provider context retain their
+separate ownership. Embeddings are rebuildable indexes and OKF is an explicit
+export. The maintainer accepts the implementation while deferring broader
+retrieval-value judgement to stronger representative workloads. Synthetic results
+and remaining verification gaps are preserved in the ADR's evidence record;
+acceptance is not a production-readiness claim.
 
 Public editorial publishing is established separately through Accepted
 [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md). Its Astro and
