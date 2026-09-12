@@ -21,6 +21,8 @@ updated: 2026-09-12
 
 ## Evidence and computations
 
+- [Local authorization standards: Cedar and Casbin experiment](evidence/adr-0023-authorization.md)
+
 - [Installed Git evidence, code judgement and bounded retrieval](evidence/adr-0022-memory-git-sprint.md)
 - [Claims and evidence without agent-visible maintenance bookkeeping](evidence/adr-0022-memory-simple-interface.md)
 - [Plugin sources, evidence links and snapshot waterlines](evidence/adr-0022-memory-sources-sprint.md)

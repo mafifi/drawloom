@@ -1,0 +1,5 @@
+entity User { tenant: String, active: Bool, clearance: Long, compartments: Set<String> };
+entity Knowledge { tenant: String, active: Bool, sensitivity: Long, compartments: Set<String>, expires: Long, remoteAllowed: Bool };
+action "read", "derive", "export_model" appliesTo {
+  principal: User, resource: Knowledge, context: { now: Long }
+};

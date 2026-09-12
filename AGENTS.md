@@ -42,6 +42,14 @@ area you change.
 
 ## Area guides
 
+- Knowledge and memory authorization follows
+  [ADR 0023](docs/adr/0023-knowledge-memory-authorization-boundaries.md).
+  Enforce decisions using trusted identity and attributes; do not turn the
+  experiment's classification or inheritance rules into core policy. Those rules
+  belong to the selected implementation or organisation. ADR 0024 will cover the
+  broader OSS implementation; acceptance of the boundary is not proof of deployed
+  authorization.
+
 - Project/file work follows Accepted
   [ADR 0020](docs/adr/0020-directory-backed-projects-and-file-delivery.md) and its
   implemented [host boundary](docs/design/desktop-host.md). Installation and

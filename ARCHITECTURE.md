@@ -98,6 +98,15 @@ not agent-facing responsibilities. Its retained JSON experiments are not support
 memory implementations or final contracts; retrieval quality, domain assessment,
 durability and efficiency follow-ups remain explicit in the ADR.
 
+Accepted [ADR 0023](docs/adr/0023-knowledge-memory-authorization-boundaries.md)
+establishes cross-project knowledge/memory and a replaceable authorization boundary
+starting from AuthZEN's decision shape. Drawloom enforces access using authoritative
+identity and attributes; implementations own classification, entitlements,
+derivation and lifecycle policy. The OSS path is a simple local-owner implementation,
+not an enterprise governance system. Cedar/Casbin remain tested candidates in
+retained experiments, not a supported runtime selection. Broader implementation
+is reserved for ADR 0024; no production authorization is claimed by this acceptance.
+
 Public editorial publishing is established separately through Accepted
 [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md). Its Astro and
 Remotion spike consumes piece-owned `publishing/` sources without introducing

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": { "title": "Knowledge access: standard decisions, explicit enforcement", "quality_profile": "showcase", "locale": "en", "viewBox": [1140, 560] },
+  "components": [
+    { "id": "caller", "type": "external", "label": "Agent or Nightloom", "sublabel": "Acts for a known identity", "pos": [35, 245], "size": [205, 75] },
+    { "id": "host", "type": "security", "label": "Host enforcement", "sublabel": "Resolve identity and labels", "pos": [440, 245], "size": [215, 75] },
+    { "id": "material", "type": "database", "label": "Claims and evidence", "sublabel": "Cross-project knowledge", "pos": [875, 245], "size": [230, 75] },
+    { "id": "request", "type": "backend", "label": "AuthZEN request", "sublabel": "Subject · action · resource", "pos": [440, 30], "size": [215, 75] },
+    { "id": "cedar", "type": "security", "label": "Cedar or Casbin", "sublabel": "Local policy evaluation", "pos": [875, 30], "size": [230, 75] },
+    { "id": "labels", "type": "backend", "label": "Source restrictions", "sublabel": "Labels and current access", "pos": [440, 455], "size": [215, 75] },
+    { "id": "derivation", "type": "backend", "label": "Derived-claim rules", "sublabel": "Still a Drawloom decision", "pos": [875, 455], "size": [230, 75] }
+  ],
+  "connections": [
+    { "from": "caller", "to": "host", "label": "request knowledge" },
+    { "from": "host", "to": "request", "label": "check access" },
+    { "from": "request", "to": "cedar", "label": "evaluate / decision" },
+    { "from": "host", "to": "material", "label": "read only if allowed", "variant": "security" },
+    { "from": "labels", "to": "host", "label": "trusted attributes" },
+    { "from": "labels", "to": "derivation", "label": "retain restrictions" },
+    { "from": "derivation", "to": "material", "label": "label derived claims" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Established boundaries", "items": ["NIST: decide separately from enforcement", "AuthZEN: a replaceable decision interface"] },
+    { "dot": "amber", "title": "Short local experiment", "items": ["Synthetic attributes, real policy engines", "No desktop or enterprise integration claim"] },
+    { "dot": "rose", "title": "Not supplied by a policy engine", "items": ["Trusted identity and source classification", "Claim lineage, revocation and deletion"] }
+  ]
+}

@@ -19,6 +19,8 @@
       "packages/*/*"
     ],
     "catalog": {
+      "@cedar-policy/cedar-wasm": "4.12.0",
+      "casbin": "5.43.0",
       "@microsoft/aspire-cli": "13.5.3",
       "@opentelemetry/api": "1.9.1",
       "@opentelemetry/api-logs": "0.222.0",
@@ -110,6 +112,8 @@
     "spike:adr-0017": "bun run build:packages && node --experimental-strip-types --test spikes/adr-0017-orchestration/temporal-host.test.ts && bun build spikes/adr-0017-orchestration/temporal-worker.ts --target node --packages external --outdir spikes/adr-0017-orchestration/dist && node --experimental-strip-types spikes/adr-0017-orchestration/temporal-run.ts"
   },
   "devDependencies": {
+    "@cedar-policy/cedar-wasm": "catalog:",
+    "casbin": "catalog:",
     "@microsoft/aspire-cli": "catalog:",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",

@@ -10,6 +10,9 @@ stable when a local OSS implementation is replaced by a shared implementation.
 
 ## Start here
 
+- [Authorization follow-up](../authorization-survey/README.md): source-pinned
+  AuthZEN, Cedar and Casbin comparison plus a local synthetic access-control test.
+
 - [Lifecycle comparison map](comparison.html): an interactive Archify overview.
 - [Lifecycle and interface comparison](#the-lifecycles-side-by-side): the main synthesis.
 - [What this suggests for Drawloom](#what-this-suggests-for-drawloom): findings to discuss, not APIs already agreed.

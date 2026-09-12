@@ -1,0 +1,381 @@
+{
+  "observedAt": "2026-09-12T01:11:17.658Z",
+  "runtime": {
+    "node": "24.3.0",
+    "bun": "1.2.23",
+    "boringssl": "29a2cd359458c9384694b75456026e4b57e3e567",
+    "openssl": "1.1.0",
+    "llhttp": "9.3.0",
+    "libarchive": "898dc8319355b7e985f68a9819f182aaed61b53a",
+    "mimalloc": "4c283af60cdae205df5a872530c77e2a6a307d43",
+    "picohttpparser": "066d2b1e9ab820703db0837a7255d92d30f0c9f5",
+    "uwebsockets": "cf1367137da5775dc23cb57f0e4071776e1ff90f",
+    "webkit": "0ddf6f47af0a9782a354f61e06d7f83d097d9f84",
+    "zig": "0.14.1",
+    "zlib": "886098f3f339617b4243b286f5ed364b9989e245",
+    "tinycc": "ab631362d839333660a265d3084d8ff060b96753",
+    "lolhtml": "8d4c273ded322193d017042d1f48df2766b0f88b",
+    "ares": "d1722e6e8acaf10eb73fa995798a9cd421d9f85e",
+    "libdeflate": "dc76454a39e7e83b68c3704b6e3784654f8d5ac5",
+    "usockets": "cf1367137da5775dc23cb57f0e4071776e1ff90f",
+    "lshpack": "3d0f1fc1d6e66a642e7a98c55deb38aa986eb4b0",
+    "zstd": "794ea1b0afca0f020f4e57b6732332231fb23c70",
+    "v8": "13.6.233.10-node.18",
+    "uv": "1.48.0",
+    "napi": "10",
+    "icu": "74.2",
+    "unicode": "15.1",
+    "modules": "137"
+  },
+  "scope": "Synthetic single-evaluation profile; both engines loaded in one process. Initialization excludes imports. No network, full AuthZEN conformance, throughput or enterprise benchmark claim.",
+  "results": [
+    {
+      "engine": "cedar",
+      "initializationMs": 21.869208,
+      "repetitions": 100,
+      "medianMs": 0.9364579999999876,
+      "p95Ms": 1.1989169999999945,
+      "cpuMicroseconds": {
+        "user": 602661,
+        "system": 19185
+      },
+      "sampledRssBytes": 291700736,
+      "cases": [
+        {
+          "label": "allowed",
+          "request": {
+            "subject": {
+              "type": "user",
+              "id": "owner",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "clearance": 2,
+                "compartments": [
+                  "clinic"
+                ]
+              }
+            },
+            "action": {
+              "name": "read"
+            },
+            "resource": {
+              "type": "knowledge",
+              "id": "claim",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "sensitivity": 2,
+                "compartments": [
+                  "clinic"
+                ],
+                "expires": 200,
+                "remoteAllowed": false
+              }
+            },
+            "context": {
+              "now": 100
+            }
+          },
+          "response": {
+            "decision": true
+          }
+        },
+        {
+          "label": "insufficient-clearance",
+          "request": {
+            "subject": {
+              "type": "user",
+              "id": "owner",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "clearance": 0,
+                "compartments": [
+                  "clinic"
+                ]
+              }
+            },
+            "action": {
+              "name": "read"
+            },
+            "resource": {
+              "type": "knowledge",
+              "id": "claim",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "sensitivity": 2,
+                "compartments": [
+                  "clinic"
+                ],
+                "expires": 200,
+                "remoteAllowed": false
+              }
+            },
+            "context": {
+              "now": 100
+            }
+          },
+          "response": {
+            "decision": false
+          }
+        },
+        {
+          "label": "expired",
+          "request": {
+            "subject": {
+              "type": "user",
+              "id": "owner",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "clearance": 2,
+                "compartments": [
+                  "clinic"
+                ]
+              }
+            },
+            "action": {
+              "name": "read"
+            },
+            "resource": {
+              "type": "knowledge",
+              "id": "claim",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "sensitivity": 2,
+                "compartments": [
+                  "clinic"
+                ],
+                "expires": 200,
+                "remoteAllowed": false
+              }
+            },
+            "context": {
+              "now": 200
+            }
+          },
+          "response": {
+            "decision": false
+          }
+        },
+        {
+          "label": "remote-processing-denied",
+          "request": {
+            "subject": {
+              "type": "user",
+              "id": "owner",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "clearance": 2,
+                "compartments": [
+                  "clinic"
+                ]
+              }
+            },
+            "action": {
+              "name": "export_model"
+            },
+            "resource": {
+              "type": "knowledge",
+              "id": "claim",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "sensitivity": 2,
+                "compartments": [
+                  "clinic"
+                ],
+                "expires": 200,
+                "remoteAllowed": false
+              }
+            },
+            "context": {
+              "now": 100
+            }
+          },
+          "response": {
+            "decision": false
+          }
+        }
+      ]
+    },
+    {
+      "engine": "casbin",
+      "initializationMs": 1.7390839999999912,
+      "repetitions": 100,
+      "medianMs": 0.04516599999999471,
+      "p95Ms": 0.0741249999999809,
+      "cpuMicroseconds": {
+        "user": 34493,
+        "system": 813
+      },
+      "sampledRssBytes": 301334528,
+      "cases": [
+        {
+          "label": "allowed",
+          "request": {
+            "subject": {
+              "type": "user",
+              "id": "owner",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "clearance": 2,
+                "compartments": [
+                  "clinic"
+                ]
+              }
+            },
+            "action": {
+              "name": "read"
+            },
+            "resource": {
+              "type": "knowledge",
+              "id": "claim",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "sensitivity": 2,
+                "compartments": [
+                  "clinic"
+                ],
+                "expires": 200,
+                "remoteAllowed": false
+              }
+            },
+            "context": {
+              "now": 100
+            }
+          },
+          "response": {
+            "decision": true
+          }
+        },
+        {
+          "label": "insufficient-clearance",
+          "request": {
+            "subject": {
+              "type": "user",
+              "id": "owner",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "clearance": 0,
+                "compartments": [
+                  "clinic"
+                ]
+              }
+            },
+            "action": {
+              "name": "read"
+            },
+            "resource": {
+              "type": "knowledge",
+              "id": "claim",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "sensitivity": 2,
+                "compartments": [
+                  "clinic"
+                ],
+                "expires": 200,
+                "remoteAllowed": false
+              }
+            },
+            "context": {
+              "now": 100
+            }
+          },
+          "response": {
+            "decision": false
+          }
+        },
+        {
+          "label": "expired",
+          "request": {
+            "subject": {
+              "type": "user",
+              "id": "owner",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "clearance": 2,
+                "compartments": [
+                  "clinic"
+                ]
+              }
+            },
+            "action": {
+              "name": "read"
+            },
+            "resource": {
+              "type": "knowledge",
+              "id": "claim",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "sensitivity": 2,
+                "compartments": [
+                  "clinic"
+                ],
+                "expires": 200,
+                "remoteAllowed": false
+              }
+            },
+            "context": {
+              "now": 200
+            }
+          },
+          "response": {
+            "decision": false
+          }
+        },
+        {
+          "label": "remote-processing-denied",
+          "request": {
+            "subject": {
+              "type": "user",
+              "id": "owner",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "clearance": 2,
+                "compartments": [
+                  "clinic"
+                ]
+              }
+            },
+            "action": {
+              "name": "export_model"
+            },
+            "resource": {
+              "type": "knowledge",
+              "id": "claim",
+              "properties": {
+                "tenant": "local",
+                "active": true,
+                "sensitivity": 2,
+                "compartments": [
+                  "clinic"
+                ],
+                "expires": 200,
+                "remoteAllowed": false
+              }
+            },
+            "context": {
+              "now": 100
+            }
+          },
+          "response": {
+            "decision": false
+          }
+        }
+      ]
+    }
+  ]
+}

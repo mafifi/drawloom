@@ -18,6 +18,10 @@ type-only imports.
 
 Current spikes:
 
+- [`adr-0023-authorization`](adr-0023-authorization/): AuthZEN-shaped local
+  evaluation with Cedar and Casbin, synthetic classification and enforcement;
+  evidence for interface discussion, not an accepted policy or supported API.
+
 - [`adr-0022-memory`](adr-0022-memory/): temporary JSON evidence, automatic
   observation capture and maintenance, and fresh-agent recall through existing
   Codex and tool contracts, plus an installed standard Git evidence plugin and

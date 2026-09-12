@@ -14,6 +14,12 @@ links back.
 
 ## Latest decision
 
+- [ADR 0023: Knowledge and memory authorization boundaries](0023-knowledge-memory-authorization-boundaries.md)
+  is Accepted for replaceable authorization and trusted attribute enforcement,
+  using AuthZEN's decision shape. Classification and entitlement rules remain
+  implementation-owned; the retained Cedar/Casbin experiment is not production
+  enforcement. Broader OSS implementation follows in ADR 0024.
+
 - [ADR 0022: Knowledge, memory and context experiment](0022-knowledge-memory-context-experiment.md)
   is Accepted for the demonstrated capture, maintenance, source-update and
   fresh-agent retrieval boundaries. It records weaknesses and future acceptance
