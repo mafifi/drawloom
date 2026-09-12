@@ -1,27 +1,112 @@
 ---
 import {getCollection} from 'astro:content';
-import Journal from '../layouts/Journal.astro';
+import LandingPageView from '../components/LandingPageView.svelte';
+import type {LandingPageActions, LandingPagePresentation} from '../components/landing-page';
+import Landing from '../layouts/Landing.astro';
+
 const preview = process.env.JOURNAL_DRAFTS === '1';
 const articles = (await getCollection('articles', ({data}) => preview || !data.draft))
   .sort((a, b) => (b.data.published ?? '').localeCompare(a.data.published ?? '') || a.id.localeCompare(b.id));
-const [featured, ...remaining] = articles;
+const featured = articles.find(({id}) => id === 'a-place-to-do-the-work') ?? articles[0];
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const articleHref = featured ? `${base}/articles/${featured.id}/` : `${base}/`;
+const artwork = `${base}/artwork/synaptic-shuttle`;
+const repository = 'https://github.com/mafifi/drawloom';
+const logo = {src: `${artwork}/logo.svg`, width: 48, height: 48, alt: ''};
+const arrowIcon = {src: `${base}/icons/arrow-right.svg`, width: 18, height: 18, alt: ''};
+
+const presentation = {
+  skipLabel: 'Skip to content',
+  header: {
+    brandName: 'Drawloom',
+    homeLabel: 'Drawloom home',
+    logo,
+    navigationLabel: 'Main navigation',
+    navigation: [
+      {id: 'why', label: 'Why'},
+      {id: 'process', label: 'How it works'},
+      {id: 'decisions', label: 'Decisions'},
+      {id: 'journal', label: 'Journal'},
+      {id: 'github', label: 'GitHub', emphasis: true},
+    ],
+  },
+  hero: {
+    artwork: {src: `${artwork}/hero.png`, width: 1672, height: 941, alt: ''},
+    eyebrow: 'Synaptic shuttle',
+    titleLines: ['Build AI systems', 'people can understand', 'and direct.'],
+    deck: 'A contract-first harness for controlled, portable and inspectable agent work.',
+    primaryActionLabel: 'Explore the decisions',
+    secondaryActionLabel: 'View on GitHub',
+    principleNotesLabel: 'Drawloom principles',
+    principleNotes: ['Clarity · constraint · composability', 'Open source for a more capable tomorrow'],
+    arrowIcon,
+  },
+  decisionMap: {
+    sectionLabel: 'A visible line of reasoning',
+    heading: 'From questions to working systems.',
+    body: 'Drawloom keeps the reasoning behind an agent system close to the code: principles shape investigations, decisions carry evidence, and implementations stay accountable to both.',
+    interactionLabel: 'Decision process',
+    artwork: {src: `${artwork}/decision-map-transparent.png`, width: 1672, height: 941, alt: ''},
+    title: 'Drawloom decision process',
+    description: 'A luminous network links principles, questions, investigations, decisions, evidence and implementation. Each label opens the corresponding public material.',
+    caption: 'Trace the architecture through public decisions and their supporting evidence.',
+    stages: [
+      {id: 'principles', number: '01', name: 'Principles', ariaLabel: 'Explore Principles', summaryLines: ['What we care about'], x: 78, hitX: 28, hitWidth: 170, textAnchor: 'start'},
+      {id: 'questions', number: '02', name: 'Questions', ariaLabel: 'Explore Questions', summaryLines: ['What do we need', 'to figure out?'], x: 470, hitX: 376, hitWidth: 188, textAnchor: 'middle'},
+      {id: 'investigations', number: '03', name: 'Investigations', ariaLabel: 'Explore Investigations', summaryLines: ['How do we explore', 'options?'], x: 713, hitX: 603, hitWidth: 220, textAnchor: 'middle'},
+      {id: 'decisions', number: '04', name: 'Decisions', ariaLabel: 'Explore Decisions', summaryLines: ['What will we do', 'and why?'], x: 962, hitX: 870, hitWidth: 184, textAnchor: 'middle'},
+      {id: 'evidence', number: '05', name: 'Evidence', ariaLabel: 'Explore Evidence', summaryLines: ['What supports', 'this choice?'], x: 1205, hitX: 1118, hitWidth: 174, textAnchor: 'middle'},
+      {id: 'implementation', number: '06', name: 'Implementation', ariaLabel: 'Explore Implementation', summaryLines: ['How does it', 'come to life?'], x: 1594, hitX: 1438, hitWidth: 206, textAnchor: 'end'},
+    ],
+  },
+  openByDesign: {
+    artwork: {src: `${artwork}/decision-map-transparent.png`, width: 1672, height: 941, alt: ''},
+    sectionLabel: 'The operating belief',
+    headingLines: ['Open by design.', 'Serious by default.'],
+    body: 'Powerful agent systems need more than capability. They need explicit boundaries, inspectable decisions and implementations that can move between hosts without hiding what matters.',
+    actionLabel: 'Explore the open-source repository',
+    journalLabel: 'From the journal',
+    articleTitle: featured?.data.title ?? 'A place to do the work',
+    articleDescription: featured?.data.description ?? 'Notes on making AI useful.',
+    articleActionLabel: 'Read the essay',
+    arrowIcon,
+  },
+  footer: {
+    brandName: 'Drawloom',
+    statement: 'Understandable systems. Deliberate work.',
+    repositoryLabel: 'GitHub',
+    logo,
+  },
+} satisfies LandingPagePresentation;
+
+const actions = {
+  skipHref: '#main',
+  homeHref: `${base}/`,
+  navigation: {
+    why: '#why',
+    process: '#decision-map',
+    decisions: `${repository}/tree/main/docs/adr`,
+    journal: `${base}/articles/a-place-to-do-the-work/`,
+    github: repository,
+  },
+  hero: {primaryHref: '#decision-map', secondaryHref: repository},
+  decisionStages: {
+    principles: `${repository}/blob/main/ARCHITECTURE.md#decision-principles`,
+    questions: '#why',
+    investigations: `${repository}/tree/main/docs/reference`,
+    decisions: `${repository}/tree/main/docs/adr`,
+    evidence: `${repository}/tree/main/knowledge/evidence`,
+    implementation: repository,
+  },
+  openRepositoryHref: repository,
+  articleHref,
+  footerRepositoryHref: repository,
+} satisfies LandingPageActions;
 ---
-<Journal title="Journal" description="Notes on making AI useful." draft={preview}>
-  <section class="home-intro">
-    <p class="eyebrow">Notes on making AI useful.</p>
-    {featured ? <>
-      <h1>{featured.data.title}</h1>
-      <p class="deck">{featured.data.description}</p>
-      {featured.data.draft && <p class="notice">{featured.id === 'workbench-example' ? 'Illustrative example · local preview, not a customer case study.' : 'Draft · local preview'}</p>}
-      <a class="reading-link" href={`${base}/articles/${featured.id}/`}>Read the essay <img class="arrow" src={`${base}/icons/arrow-right.svg`} width="20" height="20" alt="" /></a>
-    </> : <><h1>From ideas to useful work.</h1><p class="deck">The journal is coming soon.</p></>}
-  </section>
-  <img class="weave" src={`${base}/artwork/weave-hero-neutral.png`} width="1689" height="931" alt="" />
-  {remaining.length > 0 && <section aria-label="More essays" class="essay-list">{remaining.map((entry) => <article>
-    <p class="eyebrow">Essay</p>
-    <h2><a href={`${base}/articles/${entry.id}/`}>{entry.data.title}<img class="arrow" src={`${base}/icons/arrow-right.svg`} width="20" height="20" alt="" /></a></h2>
-    <p>{entry.data.description}</p>
-    {entry.data.draft && <p class="notice">{entry.id === 'workbench-example' ? 'Illustrative example · local preview' : 'Draft · local preview'}</p>}
-  </article>)}</section>}
-</Journal>
+<Landing
+  title="Build understandable AI systems"
+  description="Drawloom is a contract-first harness for controlled, portable and inspectable agent work."
+  draft={preview}
+>
+  <LandingPageView {presentation} {actions} />
+</Landing>

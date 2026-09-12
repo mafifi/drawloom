@@ -1,5 +1,64 @@
 # Local journal design and browser QA
 
+## Synaptic Shuttle landing and interactive decision map — 2026-09-12
+
+Local author-review implementation only. This does not publish the site.
+
+final result: passed
+
+The selected Synaptic Shuttle mock remains the visual source:
+`/Users/afifim/.codex/generated_images/01a09359-6fc8-7112-91e4-fe7321796974/exec-25ef4903-3f8b-4b02-a72b-a7d7bdb7597f.png`.
+The focused browser capture and combined reference comparison are under
+`/Users/afifim/.codex/visualizations/2026/09/12/01a09359-6fc8-7112-91e4-fe7321796974/drawloom-landing-qa/` as
+`decision-map-browser-final.png` and `decision-map-comparison.png`. The combined
+image was opened and inspected after the final map rebuild.
+
+The transparent network retains the selected violet, copper and graphite line
+work without its generated off-white rectangle. Real SVG text and anchor elements
+now occupy the artwork's native 1672×941 coordinate system. The stage names and
+short explanations track the reference composition; the page intentionally keeps
+the already approved landing copy and its single-column introduction. CSS supplies
+restrained hover, focus and active states. The static browser accessibility tree
+exposes all six SVG anchors by name and destination; an initial `role="img"` hid
+those descendants and was replaced with a labelled group before this pass.
+
+No actionable P0/P1/P2 visual issue remains in the inspected decision-map state.
+P3 differences: the generated network is not pixel-identical to the network in
+the full mock, and the maintained page has more vertical breathing room at the
+772px in-app browser width. Below 560px, the SVG labels yield to a two-column
+semantic link list while the artwork remains visible. Reduced-motion styling
+removes the interaction transitions.
+
+The landing remains static Svelte rendered by Astro with no hydration island.
+The production fixture build proves all six map links, SVG text, transparent PNG
+selection, vector logo selection and draft exclusion. The final repository gate passes with 711 tests,
+5 opt-in skips, 0 failures and 3,578 assertions; Astro reports zero errors,
+warnings or hints. A direct Astro build also passes; the higher-level local journal build still expects
+the separately generated article poster that is not present in this worktree, an
+existing media-input prerequisite unrelated to the landing page. Nothing was
+committed, pushed or deployed.
+
+### Vector logo follow-up
+
+final result: passed
+
+The generated `logo.png` was treated as the visual reference and retained for
+provenance. The maintained site now uses a transparent, accessible `logo.svg`
+with the same brain/shuttle silhouette, bone-white structure, copper craft
+thread and violet cognition thread. It is a deliberate vector interpretation,
+not a mechanical trace, so small features remain legible at the 48px masthead
+size.
+
+The 512px render, 48px render, live-page browser capture and combined
+raster/vector comparison are under
+`/Users/afifim/.codex/visualizations/2026/09/12/01a09359-6fc8-7112-91e4-fe7321796974/drawloom-logo-qa/`.
+The combined comparison and live capture were opened and inspected. The browser
+loaded `/drawloom/artwork/synaptic-shuttle/logo.svg` at its expected intrinsic
+size and reported no console errors or warnings. No actionable P0/P1/P2 visual
+issue remains. P3 difference: the vector simplifies some of the raster's fine
+neural filaments and lobe irregularity in exchange for a cleaner small-size
+silhouette.
+
 ## Publication preparation — 2026-09-05
 
 The author explicitly authorised publication and integration of the full journal,

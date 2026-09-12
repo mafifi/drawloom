@@ -1,6 +1,23 @@
-# Local journal
+# Drawloom publishing site
 
-Maintained static Astro templates consume `publishing/<slug>/article.md` and an
+The site root is the Synaptic Shuttle product landing page. It is composed from
+Svelte components that Astro renders into static HTML; no component uses a
+`client:*` hydration directive, so the landing and its navigation need no client
+JavaScript. Article pages remain Astro editorial templates and retain the journal
+design system.
+
+The Astro route is the landing composition root. It builds typed presentation
+data and navigation actions, then passes them to `LandingPageView.svelte`; section
+Views receive only the slice they render. Static copy and links therefore remain
+replaceable without a stateful ViewModel class. Use the repository
+`svelte-presentation-mvvm` skill when extending this boundary.
+
+The decision map is a transparent raster artwork inside a semantic SVG. SVG text
+anchors share its 1672×941 coordinate system, scale with the artwork, and expose
+real links with CSS hover, focus and active states. A compact HTML list replaces
+the overlaid labels on narrow screens.
+
+Maintained article templates consume `publishing/<slug>/article.md` and an
 optional `transcript.md`. The metadata boundary is defined in
 [`src/article-metadata.ts`](src/article-metadata.ts); omitted `draft` means true.
 Published entries require `draft: false` and a `published: YYYY-MM-DD` date.

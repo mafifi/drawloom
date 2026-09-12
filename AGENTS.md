@@ -117,6 +117,14 @@ area you change.
   repeats that advice after edits once reviewed and trusted through `/hooks`.
   Do not bypass hook trust; CI checks remain required whether hooks run or not.
 
+- Before designing or changing interactive behaviour, use the
+  [microinteraction-design skill](.agents/skills/microinteraction-design/SKILL.md)
+  during the design process, before implementation. This includes product polish,
+  feedback and state transitions, hover, press, focus, loading, success, failure,
+  interruption, motion, animation, gestures, reveals and interactive SVG. Pair it
+  with the [Svelte presentation MVVM skill](.agents/skills/svelte-presentation-mvvm/SKILL.md)
+  when a Svelte View or its state ownership changes.
+
 - `packages/AGENTS.md`: package roles and dependency constraints.
 - `docs/AGENTS.md`: ADR, plan, and reference-document conventions.
 - `knowledge/AGENTS.md`: OKF profile and provenance requirements.

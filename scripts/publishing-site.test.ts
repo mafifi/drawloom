@@ -1,5 +1,5 @@
 import {expect, test} from 'bun:test';
-import {mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
+import {existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -52,6 +52,35 @@ test('selected Archify artwork matches its source and contains no viewer runtime
   }
 });
 
+test('the product landing page uses static Svelte composition and selected Synaptic Shuttle artwork', () => {
+  const packageManifest = readFileSync('package.json', 'utf8');
+  const astroConfig = readFileSync('publishing/site/astro.config.mjs', 'utf8');
+  const landingPage = readFileSync('publishing/site/src/pages/index.astro', 'utf8');
+  const transparentMap = readFileSync('publishing/site/public/artwork/synaptic-shuttle/decision-map-transparent.png');
+  const vectorLogoPath = 'publishing/site/public/artwork/synaptic-shuttle/logo.svg';
+  const vectorLogo = existsSync(vectorLogoPath) ? readFileSync(vectorLogoPath, 'utf8') : '';
+  const landingViewPath = 'publishing/site/src/components/LandingPageView.svelte';
+  const landingView = existsSync(landingViewPath) ? readFileSync(landingViewPath, 'utf8') : '';
+
+  expect(packageManifest).toContain('"@astrojs/svelte": "catalog:"');
+  expect(astroConfig).toContain("import svelte from '@astrojs/svelte'");
+  expect(astroConfig).toContain('integrations: [svelte()]');
+  expect(existsSync(landingViewPath)).toBe(true);
+  expect(landingPage).toContain("import LandingPageView from '../components/LandingPageView.svelte'");
+  expect(landingPage).toContain('satisfies LandingPagePresentation');
+  expect(landingPage).toContain('satisfies LandingPageActions');
+  expect(landingPage).toContain('<LandingPageView {presentation} {actions} />');
+  expect(landingView).toContain('presentation: LandingPagePresentation');
+  expect(landingView).toContain('actions: LandingPageActions');
+  expect(transparentMap[25]).toBe(6); // PNG truecolour with an alpha channel.
+  expect(existsSync(vectorLogoPath)).toBe(true);
+  expect(vectorLogo).toContain('viewBox="0 0 512 512"');
+  expect(vectorLogo).toContain('aria-labelledby="logo-title logo-description"');
+  expect(vectorLogo).not.toMatch(/<(script|foreignObject|image)\b|\bon\w+=|@import/i);
+  expect(vectorLogo.replace('http://www.w3.org/2000/svg', '')).not.toMatch(/https?:/i);
+  expect(landingPage).toContain("`${artwork}/logo.svg`");
+});
+
 test('production excludes draft routes and media; explicit preview renders accessible static articles', async () => {
   const temporary = mkdtempSync(join(tmpdir(), 'drawloom-journal-test-'));
   try {
@@ -77,6 +106,23 @@ test('production excludes draft routes and media; explicit preview renders acces
       const files = readdirSync(output, {recursive: true}).map(String);
       const home = readFileSync(join(output, 'index.html'), 'utf8');
       if (!preview) {
+        expect(home).toContain('Build AI systems<br');
+        expect(home).toContain('people can understand<br');
+        expect(home).toContain('id="decision-map"');
+        expect(home).toContain('/drawloom/artwork/synaptic-shuttle/hero.png');
+        expect(home).toContain('/drawloom/artwork/synaptic-shuttle/logo.svg');
+        expect(home).not.toContain('/drawloom/artwork/synaptic-shuttle/logo.png');
+        expect(home).toContain('<svg class="decision-map"');
+        expect(home).toContain('viewBox="0 0 1672 941"');
+        expect(home).toContain('role="group"');
+        expect(home).not.toContain('role="img" aria-labelledby="decision-map-title decision-map-description"');
+        expect(home).toContain('/drawloom/artwork/synaptic-shuttle/decision-map-transparent.png');
+        expect(home.match(/class="decision-map-link"/g)).toHaveLength(6);
+        expect(home).toContain('aria-label="Explore Principles"');
+        expect(home).toContain('>Principles</text>');
+        expect(home).toContain('>What we care about</text>');
+        expect(home).toContain('/drawloom/articles/a-place-to-do-the-work/');
+        expect(home).not.toContain('<astro-island');
         expect(home).not.toContain('workbench-example');
         expect(files.some((file) => file.includes('workbench-example'))).toBe(false);
         expect(home).toContain('a-place-to-do-the-work');
@@ -89,7 +135,7 @@ test('production excludes draft routes and media; explicit preview renders acces
         expect(files).toContain('media/a-place-to-do-the-work/03-programme-raw.png');
         expect(files.some((file) => file.includes('notes.md') || file.includes('reference.png'))).toBe(false);
       } else {
-        expect(home).toContain('Illustrative example');
+        expect(home).toContain('noindex, nofollow');
         const article = readFileSync(join(output, 'articles/workbench-example/index.html'), 'utf8');
         expect(article).toContain('Read transcript');
         expect(article).toContain('noindex');

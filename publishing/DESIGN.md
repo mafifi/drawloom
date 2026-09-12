@@ -8,6 +8,10 @@ colors:
   muted: "#344155"
   paper: "#F8F8F6"
   rule: "#D4D4D4"
+  productBackground: "#111214"
+  productInk: "#F8F5EF"
+  productViolet: "#5F50DC"
+  productCopper: "#93603F"
 typography:
   heading:
     fontFamily: Libre Caslon Display, Times New Roman, serif
@@ -32,6 +36,15 @@ spacing:
 rounded:
   media: 0px
 components:
+  productLanding:
+    backgroundColor: "{colors.productBackground}"
+    textColor: "{colors.productInk}"
+  productPrimaryAction:
+    backgroundColor: "{colors.productViolet}"
+    textColor: "{colors.productInk}"
+  productSectionLabel:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.productCopper}"
   separator:
     backgroundColor: "{colors.rule}"
   article:
@@ -67,6 +80,49 @@ and ADR 0009 proof preserve their earlier white/cobalt styling.
 Local revisions are not publication approval. Execution and publication
 follow the [adoption plan](../docs/plans/2026-09-05-journal-design-adoption.md);
 local visual and interaction checks are recorded in [design-qa.md](../design-qa.md).
+
+### Product landing identity — Synaptic Shuttle
+
+The author selected the Synaptic Shuttle direction for local implementation on
+2026-09-12. It owns the product landing page at the site root; article pages keep
+the quieter editorial system below. The landing should feel tidy, professional,
+premium and slightly mysterious: a graphite field, bone-white type, luminous
+violet cognition and warm copper threads suggesting human craft and the loom.
+
+The broader colour vocabulary remains semantic rather than decorative. Violet
+signals cognition, possibility and the mind at work. Copper signals human labour,
+material craft and the shuttle passing through a loom. Gold signals accumulated
+craft, illumination and alchemical refinement. Deep green signals living
+knowledge, judgement and the scientific or library tradition. Electric blue
+signals transformation and overt magic. Use the latter three only when their
+meaning is present; the product landing's primary accent remains violet, with
+copper in the artwork.
+
+The reference composition uses a dark, full-bleed hero, a light decision-map
+section and an open-source statement. Use the standalone, text-free artwork in
+`site/public/artwork/synaptic-shuttle/`; never use the raster mockup as the page.
+The hero artwork is decorative. The decision map is meaningful and requires a
+text alternative. Svelte components are server-rendered by Astro without client
+hydration, so the final page remains usable as ordinary static HTML.
+
+The primary Drawloom mark is the maintained `logo.svg`: a transparent,
+compact brain/shuttle outline crossed by copper and violet woven
+threads. It is deliberately a clean vector interpretation rather than an
+autotrace of the generated source. Keep the original `logo.png` beside it as
+provenance and visual reference, but use the SVG in product surfaces so the mark
+stays crisp at masthead, footer and future high-density sizes. Its bone-white
+structure, copper craft thread and violet cognition thread use the same semantic
+palette as the landing page.
+
+Compose the decision network as a transparent raster `<image>` within a semantic
+SVG using its native 1672×941 view box. Place real SVG text anchors in that same
+coordinate system rather than baking labels into the image or using a fixed
+HTML image map. CSS may provide restrained hover, focus and active feedback;
+keyboard focus must remain as clear as pointer hover. On narrow screens, replace
+the overlaid anchors with a concise semantic list so the artwork can crop without
+making navigation illegible. Canvas is not used because it would require custom
+hit testing, focus management and scripted scaling for behavior SVG supplies
+natively.
 
 ### Approved reference
 
@@ -115,7 +171,7 @@ places reading content 60px from the edge and gives figures 616px. Paragraphs
 stop at 490px. Use 24px outer gutters and no extra article gutters on mobile.
 Section spacing starts at 30px; media sits directly beside its explanation.
 
-Home: compact masthead, short editorial introduction, featured essay title/deck,
+Journal home: compact masthead, short editorial introduction, featured essay title/deck,
 clear reading link, wide woven illustration, and simple ruled lists when real
 additional articles exist. Do not invent content to fill the mockup's rows.
 

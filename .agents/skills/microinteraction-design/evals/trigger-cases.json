@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "skill": "microinteraction-design",
+  "cases": [
+    {
+      "id": "implicit-premium-landing",
+      "prompt": "Make the Drawloom journal landing page feel premium and alive while keeping it restrained and accessible.",
+      "expected": "trigger",
+      "requiredBehaviors": ["select-skill", "interaction-brief", "restraint", "reduced-motion"]
+    },
+    {
+      "id": "interactive-svg-map",
+      "prompt": "Turn the knowledge map into an interactive SVG with equivalent hover, focus, keyboard and touch feedback.",
+      "expected": "trigger",
+      "requiredBehaviors": ["select-skill", "interaction-brief", "input-equivalence", "non-motion-fallback"]
+    },
+    {
+      "id": "run-state-lifecycle",
+      "prompt": "Design idle, starting, running, interrupted, failed, retrying and complete states for the run control.",
+      "expected": "trigger",
+      "requiredBehaviors": ["select-skill", "interaction-brief", "state-authority", "interruption"]
+    },
+    {
+      "id": "async-feedback",
+      "prompt": "Polish the loading, partial result, success and failure feedback for this action.",
+      "expected": "trigger",
+      "requiredBehaviors": ["select-skill", "interaction-brief", "truthful-feedback", "duplicate-action-policy"]
+    },
+    {
+      "id": "hover-press-focus",
+      "prompt": "The cards feel dead. Refine their hover, press and focus behaviour without making the page noisy.",
+      "expected": "trigger",
+      "requiredBehaviors": ["select-skill", "interaction-brief", "input-equivalence", "hundredth-use"]
+    },
+    {
+      "id": "signature-weaving-moment",
+      "prompt": "Create a recognisable Drawloom moment where separate knowledge threads become a coherent fabric.",
+      "expected": "trigger",
+      "requiredBehaviors": ["select-skill", "interaction-brief", "signature-moment", "task-continuation"]
+    },
+    {
+      "id": "motion-audit",
+      "prompt": "Audit the desktop interaction design for abrupt transitions, repeated animations and reduced-motion failures.",
+      "expected": "trigger",
+      "requiredBehaviors": ["select-skill", "interaction-brief", "audit", "reduced-motion"]
+    },
+    {
+      "id": "pattern-autosave-supersession",
+      "prompt": "Design autosave feedback for an editor where saves may be pending, succeed, fail, or be superseded by a newer edit.",
+      "expected": "trigger",
+      "requiredBehaviors": ["select-skill", "interaction-brief", "pattern-selection", "pattern-limits", "pattern-restraint", "state-authority", "reduced-motion"]
+    },
+    {
+      "id": "pattern-guarded-delete",
+      "prompt": "Design a destructive delete interaction for a high-consequence item that must be hard to trigger accidentally but fast for keyboard users.",
+      "expected": "trigger",
+      "requiredBehaviors": ["select-skill", "interaction-brief", "pattern-selection", "pattern-limits", "pattern-restraint", "input-equivalence", "interruption"]
+    },
+    {
+      "id": "pattern-optimistic-table",
+      "prompt": "Design feedback for a sortable, filterable results table whose rows may update optimistically and later be rejected.",
+      "expected": "trigger",
+      "requiredBehaviors": ["select-skill", "interaction-brief", "pattern-selection", "pattern-limits", "pattern-restraint", "state-authority", "non-motion-fallback"]
+    },
+    {
+      "id": "static-copy-edit",
+      "prompt": "Rewrite the hero headline and supporting paragraph without changing layout or behaviour.",
+      "expected": "skip",
+      "requiredBehaviors": []
+    },
+    {
+      "id": "static-colour-review",
+      "prompt": "Review whether the existing gold and violet palette communicates the intended brand meaning.",
+      "expected": "skip",
+      "requiredBehaviors": []
+    },
+    {
+      "id": "static-logo-geometry",
+      "prompt": "Correct the path geometry of this static SVG logo; do not animate or make it interactive.",
+      "expected": "skip",
+      "requiredBehaviors": []
+    },
+    {
+      "id": "backend-retry-policy",
+      "prompt": "Define the provider-neutral backend retry contract; there is no user-interface change.",
+      "expected": "skip",
+      "requiredBehaviors": []
+    },
+    {
+      "id": "editorial-structure",
+      "prompt": "Reorder the article sections to improve the engineering story without changing interactive behaviour.",
+      "expected": "skip",
+      "requiredBehaviors": []
+    }
+  ]
+}

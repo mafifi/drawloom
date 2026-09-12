@@ -1,0 +1,6 @@
+interface:
+  display_name: "Microinteraction Design"
+  short_description: "Design complete, accessible interaction behaviour."
+  default_prompt: "Use $microinteraction-design to define and review this interaction before implementation."
+policy:
+  allow_implicit_invocation: true

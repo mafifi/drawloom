@@ -1,0 +1,26 @@
+---
+import '../styles/landing.css';
+
+interface Props {
+  title: string;
+  description: string;
+  draft?: boolean;
+}
+
+const {title, description, draft = false} = Astro.props;
+const home = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/`;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preload" href={`${home}fonts/LibreCaslonDisplay-Regular.ttf`} as="font" type="font/ttf" crossorigin />
+    <title>{title} — Drawloom</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#111214" />
+    {draft && <meta name="robots" content="noindex, nofollow" />}
+    {!draft && <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />}
+  </head>
+  <body><slot /></body>
+</html>

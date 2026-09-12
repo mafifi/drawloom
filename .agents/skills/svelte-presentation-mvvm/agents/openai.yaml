@@ -1,0 +1,4 @@
+interface:
+  display_name: "Svelte Presentation MVVM"
+  short_description: "Apply Drawloom View and presentation boundaries in Svelte."
+  default_prompt: "Refactor this Svelte surface to follow Drawloom presentation MVVM boundaries."
