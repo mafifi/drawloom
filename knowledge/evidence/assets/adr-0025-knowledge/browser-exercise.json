@@ -1,0 +1,23 @@
+{
+  "browser": "152.0.7977.83",
+  "browserPath": "Playwright with installed Chrome; Browser skill not available",
+  "mode": "exercise",
+  "errors": [],
+  "consoleErrors": [],
+  "checks": {
+    "identityAndMeaningfulContent": true,
+    "perCaseFindingsAndComparison": true,
+    "validatedKeyboardSave": true,
+    "persistedFeedbackVisible": true,
+    "historicalModeAndCaseIsolation": true,
+    "themesNarrowAndReducedMotion": true,
+    "sourceResultsUnchanged": true,
+    "noFrameworkOverlayOrConsoleErrors": true
+  },
+  "screenshots": [
+    "inspection-exercise-light-1440.png",
+    "inspection-exercise-dark-1440.png",
+    "inspection-exercise-dark-390.png"
+  ],
+  "note": "Final reviewed build, before whole-host restart. All content synthetic."
+}

@@ -1,0 +1,6276 @@
+{
+  "kind": "answer_quality_evaluation",
+  "evaluationScale": "scale",
+  "answeringModel": {
+    "model": "gpt-5.6-terra",
+    "effort": "low"
+  },
+  "limits": {
+    "maxCases": 72,
+    "timeoutMsPerCase": 60000,
+    "maxEvidenceBytes": 65536
+  },
+  "retrieval": {
+    "lexical": {
+      "corpus": {
+        "version": "drawloom-public-knowledge-v1",
+        "sha256": "70ab90e0be0e1ba9e7872dbd1e7286b1ef5c5fd343660b5e950cbd8c7a90e5e5",
+        "records": 10000
+      },
+      "lexical": {
+        "questions": {
+          "s1": {
+            "category": "semantic",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "package-report@r1",
+              "observatory-rule@r1",
+              "museum-access@r1",
+              "archive-recovery@r1",
+              "package-claim@r1",
+              "museum-visiting@r1",
+              "archive-policy@r1",
+              "book-binding@r1",
+              "rail-closure@r1"
+            ]
+          },
+          "s2": {
+            "category": "semantic",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "archive-recovery@r1",
+              "ferry-guidance@r1",
+              "release-retry@r1",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "book-binding@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1"
+            ]
+          },
+          "s3": {
+            "category": "semantic",
+            "retrieved": [
+              "archive-recovery@r1",
+              "museum-hours@r1",
+              "rail-travel@r1",
+              "rail-closure@r1",
+              "ferry-guidance@r1",
+              "book-binding@r1",
+              "package-claim@r1",
+              "garden-water@r1",
+              "ferry-rule@r2",
+              "workshop-storage@r1"
+            ]
+          },
+          "s4": {
+            "category": "semantic",
+            "retrieved": [
+              "rail-closure@r1",
+              "rail-travel@r1",
+              "ferry-guidance@r1",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "garden-water@r1",
+              "ferry-rule@r2",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "museum-access@r1"
+            ]
+          },
+          "s5": {
+            "category": "semantic",
+            "retrieved": [
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "package-report@r1",
+              "rail-cycle@r1",
+              "museum-visiting@r1",
+              "archive-recovery@r1",
+              "archive-policy@r1"
+            ]
+          },
+          "s6": {
+            "category": "semantic",
+            "retrieved": [
+              "museum-access@r1",
+              "rail-travel@r1",
+              "museum-hours@r1",
+              "package-status@r1",
+              "package-report@r1",
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "garden-access@r1",
+              "workshop-storage@r1",
+              "garden-water@r1"
+            ]
+          },
+          "s7": {
+            "category": "semantic",
+            "retrieved": [
+              "garden-access@r1",
+              "ferry-guidance@r1",
+              "observatory-rule@r1",
+              "book-repair@r1",
+              "release-retry@r1",
+              "package-report@r1",
+              "package-claim@r1",
+              "archive-recovery@r1",
+              "museum-visiting@r1",
+              "book-binding@r1"
+            ]
+          },
+          "s8": {
+            "category": "semantic",
+            "retrieved": [
+              "book-binding@r1",
+              "archive-recovery@r1",
+              "workshop-storage@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "book-repair@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "observatory-rule@r1",
+              "package-report@r1"
+            ]
+          },
+          "s9": {
+            "category": "semantic",
+            "retrieved": [
+              "release-retry@r1",
+              "museum-visiting@r1",
+              "museum-hours@r1",
+              "rail-closure@r1",
+              "observatory-rule@r1"
+            ]
+          },
+          "s10": {
+            "category": "semantic",
+            "retrieved": [
+              "observatory-rule@r1",
+              "package-claim@r1",
+              "archive-policy@r1",
+              "book-repair@r1",
+              "package-report@r1",
+              "ferry-guidance@r1",
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "export-profile@r1",
+              "rail-closure@r1"
+            ]
+          },
+          "s11": {
+            "category": "semantic",
+            "retrieved": [
+              "workshop-storage@r1",
+              "observatory-rule@r1",
+              "museum-hours@r1",
+              "rail-closure@r1",
+              "archive-policy@r1",
+              "package-claim@r1",
+              "ferry-rule@r2",
+              "garden-water@r1",
+              "rail-travel@r1",
+              "package-status@r1"
+            ]
+          },
+          "i1": {
+            "category": "identifier",
+            "retrieved": [
+              "release-retry@r1",
+              "workshop-storage@r1",
+              "garden-water@r1"
+            ]
+          },
+          "i2": {
+            "category": "identifier",
+            "retrieved": [
+              "release-cache@r1",
+              "workshop-storage@r1",
+              "garden-water@r1"
+            ]
+          },
+          "i3": {
+            "category": "identifier",
+            "retrieved": [
+              "garden-water@r1",
+              "ferry-guidance@r1",
+              "museum-hours@r1",
+              "export-other@r1",
+              "package-claim@r1"
+            ]
+          },
+          "i4": {
+            "category": "identifier",
+            "retrieved": [
+              "export-other@r1",
+              "release-cache@r1",
+              "book-repair@r1",
+              "archive-policy@r1",
+              "observatory-rule@r1",
+              "package-claim@r1"
+            ]
+          },
+          "c1": {
+            "category": "chain",
+            "retrieved": [
+              "museum-visiting@r1",
+              "museum-access@r1",
+              "ferry-rule@r2",
+              "release-retry@r1",
+              "workshop-storage@r1",
+              "archive-policy@r1",
+              "ferry-guidance@r1",
+              "package-claim@r1",
+              "museum-hours@r1",
+              "rail-travel@r1"
+            ]
+          },
+          "c2": {
+            "category": "chain",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "rail-closure@r1",
+              "package-claim@r1",
+              "archive-policy@r1",
+              "package-report@r1",
+              "rail-travel@r1",
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "book-repair@r1",
+              "observatory-rule@r1"
+            ]
+          },
+          "c3": {
+            "category": "chain",
+            "retrieved": [
+              "book-repair@r1",
+              "release-cache@r1",
+              "archive-policy@r1",
+              "observatory-rule@r1",
+              "package-claim@r1",
+              "book-binding@r1",
+              "package-report@r1"
+            ]
+          },
+          "x1": {
+            "category": "contradiction",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "garden-water@r1",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "package-report@r1"
+            ]
+          },
+          "x2": {
+            "category": "contradiction",
+            "retrieved": [
+              "museum-hours@r1",
+              "package-report@r1",
+              "package-claim@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "rail-travel@r1",
+              "ferry-guidance@r1",
+              "garden-water@r1",
+              "ferry-rule@r2"
+            ]
+          },
+          "n1": {
+            "category": "irrelevant",
+            "retrieved": [
+              "observatory-rule@r1",
+              "ferry-guidance@r1",
+              "package-claim@r1",
+              "museum-hours@r1",
+              "rail-closure@r1",
+              "garden-water@r1",
+              "book-repair@r1",
+              "package-report@r1",
+              "museum-visiting@r1",
+              "garden-access@r1"
+            ]
+          },
+          "n2": {
+            "category": "irrelevant",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "release-retry@r1",
+              "museum-hours@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "package-report@r1",
+              "release-cache@r1"
+            ]
+          },
+          "n3": {
+            "category": "irrelevant",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "museum-visiting@r1",
+              "release-cache@r1",
+              "book-repair@r1",
+              "book-binding@r1",
+              "archive-policy@r1",
+              "observatory-rule@r1",
+              "package-claim@r1"
+            ]
+          },
+          "n4": {
+            "category": "irrelevant",
+            "retrieved": [
+              "book-binding@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "observatory-rule@r1",
+              "package-report@r1",
+              "export-profile@r1",
+              "export-other@r1"
+            ]
+          }
+        },
+        "queries": 24,
+        "metrics": {
+          "relevantEvidence": {
+            "precision": 0.1201923076923077,
+            "recall": 0.9259259259259259
+          },
+          "exactIdentifierRecall": 0.75,
+          "chainCompleteness": 0.6,
+          "irrelevantAbstention": 0
+        },
+        "categoryMetrics": {
+          "semantic": {
+            "relevantEvidence": {
+              "precision": 0.14285714285714285,
+              "recall": 0.9375
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "identifier": {
+            "relevantEvidence": {
+              "precision": 0.17647058823529413,
+              "recall": 0.75
+            },
+            "exactIdentifierRecall": 0.75,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "chain": {
+            "relevantEvidence": {
+              "precision": 0.1111111111111111,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 0.6666666666666666,
+            "irrelevantAbstention": 1
+          },
+          "contradiction": {
+            "relevantEvidence": {
+              "precision": 0.2,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 0.5,
+            "irrelevantAbstention": 1
+          },
+          "irrelevant": {
+            "relevantEvidence": {
+              "precision": 0,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 0
+          }
+        },
+        "measurement": {
+          "elapsedMs": 56.74424999999974,
+          "cpuMicros": 61591,
+          "startRssBytes": 190136320,
+          "peakRssBytes": 190234624
+        },
+        "latency": {
+          "coldMs": 1.5109160000001793,
+          "warm30MedianMs": 0.5630000000001019,
+          "warm30P95Ms": 4.683249999999589,
+          "cpuMicros": 61591,
+          "startRssBytes": 190136320,
+          "peakRssBytes": 190234624,
+          "storeBytes": 24483920
+        },
+        "storeBytes": {
+          "database": 19169280,
+          "wal": 5281872,
+          "shm": 32768,
+          "total": 24483920
+        }
+      },
+      "hybrid": {
+        "kind": "real_vectors",
+        "model": "nomic-embed-text-v1.5",
+        "questions": {
+          "s1": {
+            "category": "semantic",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "rail-cycle@r1",
+              "ferry-guidance@r1",
+              "package-report@r1",
+              "observatory-rule@r1",
+              "inventory-4409@r1",
+              "archive-recovery@r1",
+              "inventory-4614@r1",
+              "inventory-842@r1"
+            ]
+          },
+          "s2": {
+            "category": "semantic",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "museum-hours@r1",
+              "release-retry@r1",
+              "package-report@r1",
+              "ferry-guidance@r1",
+              "package-claim@r1",
+              "package-status@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1"
+            ]
+          },
+          "s3": {
+            "category": "semantic",
+            "retrieved": [
+              "archive-recovery@r1",
+              "archive-policy@r1",
+              "museum-hours@r1",
+              "inventory-1885@r1",
+              "rail-travel@r1",
+              "inventory-1876@r1",
+              "rail-closure@r1",
+              "ferry-guidance@r1",
+              "inventory-1894@r1",
+              "book-binding@r1"
+            ]
+          },
+          "s4": {
+            "category": "semantic",
+            "retrieved": [
+              "rail-closure@r1",
+              "rail-travel@r1",
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "package-claim@r1",
+              "package-status@r1",
+              "museum-visiting@r1",
+              "rail-cycle@r1",
+              "package-report@r1",
+              "garden-water@r1"
+            ]
+          },
+          "s5": {
+            "category": "semantic",
+            "retrieved": [
+              "rail-travel@r1",
+              "ferry-rule@r2",
+              "rail-cycle@r1",
+              "package-report@r1",
+              "museum-visiting@r1",
+              "ferry-guidance@r1",
+              "rail-closure@r1",
+              "observatory-rule@r1",
+              "workshop-storage@r1",
+              "package-status@r1"
+            ]
+          },
+          "s6": {
+            "category": "semantic",
+            "retrieved": [
+              "package-status@r1",
+              "garden-access@r1",
+              "garden-water@r1",
+              "workshop-storage@r1",
+              "package-claim@r1",
+              "release-retry@r1",
+              "museum-access@r1",
+              "rail-travel@r1",
+              "museum-hours@r1",
+              "inventory-7377@r1"
+            ]
+          },
+          "s7": {
+            "category": "semantic",
+            "retrieved": [
+              "garden-access@r1",
+              "ferry-guidance@r1",
+              "release-retry@r1",
+              "garden-water@r1",
+              "rail-closure@r1",
+              "observatory-rule@r1",
+              "inventory-90@r1",
+              "ferry-rule@r2",
+              "book-repair@r1",
+              "rail-travel@r1"
+            ]
+          },
+          "s8": {
+            "category": "semantic",
+            "retrieved": [
+              "book-binding@r1",
+              "archive-recovery@r1",
+              "book-repair@r1",
+              "workshop-storage@r1",
+              "archive-policy@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "inventory-7080@r1",
+              "inventory-1482@r1",
+              "package-status@r1"
+            ]
+          },
+          "s9": {
+            "category": "semantic",
+            "retrieved": [
+              "release-retry@r1",
+              "museum-visiting@r1",
+              "release-cache@r1",
+              "museum-hours@r1",
+              "package-status@r1",
+              "ferry-rule@r2",
+              "rail-closure@r1",
+              "observatory-rule@r1",
+              "package-claim@r1",
+              "ferry-guidance@r1"
+            ]
+          },
+          "s10": {
+            "category": "semantic",
+            "retrieved": [
+              "observatory-rule@r1",
+              "ferry-guidance@r1",
+              "package-status@r1",
+              "ferry-rule@r2",
+              "workshop-storage@r1",
+              "package-claim@r1",
+              "museum-visiting@r1",
+              "archive-policy@r1",
+              "book-repair@r1",
+              "package-report@r1"
+            ]
+          },
+          "s11": {
+            "category": "semantic",
+            "retrieved": [
+              "workshop-storage@r1",
+              "garden-water@r1",
+              "release-cache@r1",
+              "museum-access@r1",
+              "book-binding@r1",
+              "observatory-rule@r1",
+              "museum-hours@r1",
+              "garden-access@r1",
+              "rail-closure@r1",
+              "archive-policy@r1"
+            ]
+          },
+          "i1": {
+            "category": "identifier",
+            "retrieved": [
+              "release-retry@r1",
+              "release-cache@r1",
+              "workshop-storage@r1",
+              "garden-water@r1",
+              "museum-access@r1",
+              "museum-hours@r1",
+              "museum-visiting@r1",
+              "inventory-4012@r1",
+              "inventory-4122@r1",
+              "inventory-6962@r1"
+            ]
+          },
+          "i2": {
+            "category": "identifier",
+            "retrieved": [
+              "release-cache@r1",
+              "release-retry@r1",
+              "workshop-storage@r1",
+              "garden-water@r1",
+              "museum-hours@r1",
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "inventory-1074@r1",
+              "inventory-2904@r1",
+              "inventory-1424@r1"
+            ]
+          },
+          "i3": {
+            "category": "identifier",
+            "retrieved": [
+              "export-other@r1",
+              "package-claim@r1",
+              "export-profile@r1",
+              "garden-water@r1",
+              "ferry-guidance@r1",
+              "museum-hours@r1",
+              "package-status@r1",
+              "release-retry@r1",
+              "package-report@r1",
+              "inventory-67@r1"
+            ]
+          },
+          "i4": {
+            "category": "identifier",
+            "retrieved": [
+              "export-other@r1",
+              "export-profile@r1",
+              "release-cache@r1",
+              "book-repair@r1",
+              "inventory-1971@r1",
+              "archive-policy@r1",
+              "inventory-2899@r1",
+              "inventory-71@r1",
+              "observatory-rule@r1",
+              "inventory-7242@r1"
+            ]
+          },
+          "c1": {
+            "category": "chain",
+            "retrieved": [
+              "museum-visiting@r1",
+              "museum-access@r1",
+              "release-retry@r1",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "package-status@r1",
+              "release-cache@r1",
+              "package-report@r1",
+              "ferry-rule@r2",
+              "observatory-rule@r1"
+            ]
+          },
+          "c2": {
+            "category": "chain",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "rail-closure@r1",
+              "rail-travel@r1",
+              "package-report@r1",
+              "package-claim@r1",
+              "museum-visiting@r1",
+              "rail-cycle@r1",
+              "observatory-rule@r1",
+              "garden-access@r1",
+              "ferry-rule@r2"
+            ]
+          },
+          "c3": {
+            "category": "chain",
+            "retrieved": [
+              "book-repair@r1",
+              "release-cache@r1",
+              "archive-policy@r1",
+              "book-binding@r1",
+              "package-claim@r1",
+              "observatory-rule@r1",
+              "archive-recovery@r1",
+              "release-retry@r1",
+              "package-report@r1",
+              "rail-travel@r1"
+            ]
+          },
+          "x1": {
+            "category": "contradiction",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "package-claim@r1",
+              "rail-travel@r1",
+              "garden-water@r1",
+              "package-status@r1",
+              "rail-cycle@r1",
+              "package-report@r1",
+              "rail-closure@r1",
+              "museum-access@r1"
+            ]
+          },
+          "x2": {
+            "category": "contradiction",
+            "retrieved": [
+              "package-report@r1",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "package-status@r1",
+              "museum-visiting@r1",
+              "museum-access@r1",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "ferry-rule@r2",
+              "garden-water@r1"
+            ]
+          },
+          "n1": {
+            "category": "irrelevant",
+            "retrieved": [
+              "observatory-rule@r1",
+              "ferry-guidance@r1",
+              "museum-hours@r1",
+              "museum-visiting@r1",
+              "museum-access@r1",
+              "export-profile@r1",
+              "export-other@r1",
+              "package-claim@r1",
+              "rail-closure@r1",
+              "garden-water@r1"
+            ]
+          },
+          "n2": {
+            "category": "irrelevant",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "museum-hours@r1",
+              "release-retry@r1",
+              "release-cache@r1",
+              "inventory-88@r1",
+              "ferry-rule@r2",
+              "inventory-1890@r1",
+              "rail-travel@r1",
+              "inventory-1860@r1"
+            ]
+          },
+          "n3": {
+            "category": "irrelevant",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "book-binding@r1",
+              "release-cache@r1",
+              "export-other@r1",
+              "museum-visiting@r1",
+              "inventory-5568@r1",
+              "book-repair@r1",
+              "inventory-3452@r1",
+              "inventory-1280@r1"
+            ]
+          },
+          "n4": {
+            "category": "irrelevant",
+            "retrieved": [
+              "observatory-rule@r1",
+              "package-status@r1",
+              "rail-travel@r1",
+              "package-report@r1",
+              "ferry-rule@r2",
+              "workshop-storage@r1",
+              "museum-visiting@r1",
+              "museum-access@r1",
+              "rail-closure@r1",
+              "book-binding@r1"
+            ]
+          }
+        },
+        "indexing": {
+          "elapsedMs": 270253.10524999996,
+          "cpuMicros": 1671524052,
+          "startRssBytes": 185319424,
+          "peakRssBytes": 716832768
+        },
+        "queries": 24,
+        "metrics": {
+          "relevantEvidence": {
+            "precision": 0.1125,
+            "recall": 1
+          },
+          "exactIdentifierRecall": 1,
+          "chainCompleteness": 0.8,
+          "irrelevantAbstention": 0
+        },
+        "categoryMetrics": {
+          "semantic": {
+            "relevantEvidence": {
+              "precision": 0.14545454545454545,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "identifier": {
+            "relevantEvidence": {
+              "precision": 0.1,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "chain": {
+            "relevantEvidence": {
+              "precision": 0.1,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "contradiction": {
+            "relevantEvidence": {
+              "precision": 0.2,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 0.5,
+            "irrelevantAbstention": 1
+          },
+          "irrelevant": {
+            "relevantEvidence": {
+              "precision": 0,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 0
+          }
+        },
+        "measurement": {
+          "elapsedMs": 35509.614917,
+          "cpuMicros": 41011289,
+          "startRssBytes": 680181760,
+          "peakRssBytes": 686587904
+        },
+        "latency": {
+          "coldMs": 675.6484160000109,
+          "warm30MedianMs": 650.1849590000056,
+          "warm30P95Ms": 756.9910829999717,
+          "cpuMicros": 41011289,
+          "startRssBytes": 680181760,
+          "peakRssBytes": 686587904,
+          "storeBytes": 199178320
+        },
+        "storeBytes": {
+          "database": 193863680,
+          "wal": 5281872,
+          "shm": 32768,
+          "total": 199178320
+        }
+      },
+      "kind": "real_vector_evaluation",
+      "ingestion": {
+        "elapsedMs": 2982.177209,
+        "cpuMicros": 2639088,
+        "startRssBytes": 104316928,
+        "peakRssBytes": 190136320
+      },
+      "answerEvaluation": "not_configured"
+    },
+    "qwen3-embedding-0.6b": {
+      "corpus": {
+        "version": "drawloom-public-knowledge-v1",
+        "sha256": "70ab90e0be0e1ba9e7872dbd1e7286b1ef5c5fd343660b5e950cbd8c7a90e5e5",
+        "records": 10000
+      },
+      "lexical": {
+        "questions": {
+          "s1": {
+            "category": "semantic",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "package-report@r1",
+              "observatory-rule@r1",
+              "museum-access@r1",
+              "archive-recovery@r1",
+              "package-claim@r1",
+              "museum-visiting@r1",
+              "archive-policy@r1",
+              "book-binding@r1",
+              "rail-closure@r1"
+            ]
+          },
+          "s2": {
+            "category": "semantic",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "archive-recovery@r1",
+              "ferry-guidance@r1",
+              "release-retry@r1",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "book-binding@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1"
+            ]
+          },
+          "s3": {
+            "category": "semantic",
+            "retrieved": [
+              "archive-recovery@r1",
+              "museum-hours@r1",
+              "rail-travel@r1",
+              "rail-closure@r1",
+              "ferry-guidance@r1",
+              "book-binding@r1",
+              "package-claim@r1",
+              "garden-water@r1",
+              "ferry-rule@r2",
+              "workshop-storage@r1"
+            ]
+          },
+          "s4": {
+            "category": "semantic",
+            "retrieved": [
+              "rail-closure@r1",
+              "rail-travel@r1",
+              "ferry-guidance@r1",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "garden-water@r1",
+              "ferry-rule@r2",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "museum-access@r1"
+            ]
+          },
+          "s5": {
+            "category": "semantic",
+            "retrieved": [
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "package-report@r1",
+              "rail-cycle@r1",
+              "museum-visiting@r1",
+              "archive-recovery@r1",
+              "archive-policy@r1"
+            ]
+          },
+          "s6": {
+            "category": "semantic",
+            "retrieved": [
+              "museum-access@r1",
+              "rail-travel@r1",
+              "museum-hours@r1",
+              "package-status@r1",
+              "package-report@r1",
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "garden-access@r1",
+              "workshop-storage@r1",
+              "garden-water@r1"
+            ]
+          },
+          "s7": {
+            "category": "semantic",
+            "retrieved": [
+              "garden-access@r1",
+              "ferry-guidance@r1",
+              "observatory-rule@r1",
+              "book-repair@r1",
+              "release-retry@r1",
+              "package-report@r1",
+              "package-claim@r1",
+              "archive-recovery@r1",
+              "museum-visiting@r1",
+              "book-binding@r1"
+            ]
+          },
+          "s8": {
+            "category": "semantic",
+            "retrieved": [
+              "book-binding@r1",
+              "archive-recovery@r1",
+              "workshop-storage@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "book-repair@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "observatory-rule@r1",
+              "package-report@r1"
+            ]
+          },
+          "s9": {
+            "category": "semantic",
+            "retrieved": [
+              "release-retry@r1",
+              "museum-visiting@r1",
+              "museum-hours@r1",
+              "rail-closure@r1",
+              "observatory-rule@r1"
+            ]
+          },
+          "s10": {
+            "category": "semantic",
+            "retrieved": [
+              "observatory-rule@r1",
+              "package-claim@r1",
+              "archive-policy@r1",
+              "book-repair@r1",
+              "package-report@r1",
+              "ferry-guidance@r1",
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "export-profile@r1",
+              "rail-closure@r1"
+            ]
+          },
+          "s11": {
+            "category": "semantic",
+            "retrieved": [
+              "workshop-storage@r1",
+              "observatory-rule@r1",
+              "museum-hours@r1",
+              "rail-closure@r1",
+              "archive-policy@r1",
+              "package-claim@r1",
+              "ferry-rule@r2",
+              "garden-water@r1",
+              "rail-travel@r1",
+              "package-status@r1"
+            ]
+          },
+          "i1": {
+            "category": "identifier",
+            "retrieved": [
+              "release-retry@r1",
+              "workshop-storage@r1",
+              "garden-water@r1"
+            ]
+          },
+          "i2": {
+            "category": "identifier",
+            "retrieved": [
+              "release-cache@r1",
+              "workshop-storage@r1",
+              "garden-water@r1"
+            ]
+          },
+          "i3": {
+            "category": "identifier",
+            "retrieved": [
+              "garden-water@r1",
+              "ferry-guidance@r1",
+              "museum-hours@r1",
+              "export-other@r1",
+              "package-claim@r1"
+            ]
+          },
+          "i4": {
+            "category": "identifier",
+            "retrieved": [
+              "export-other@r1",
+              "release-cache@r1",
+              "book-repair@r1",
+              "archive-policy@r1",
+              "observatory-rule@r1",
+              "package-claim@r1"
+            ]
+          },
+          "c1": {
+            "category": "chain",
+            "retrieved": [
+              "museum-visiting@r1",
+              "museum-access@r1",
+              "ferry-rule@r2",
+              "release-retry@r1",
+              "workshop-storage@r1",
+              "archive-policy@r1",
+              "ferry-guidance@r1",
+              "package-claim@r1",
+              "museum-hours@r1",
+              "rail-travel@r1"
+            ]
+          },
+          "c2": {
+            "category": "chain",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "rail-closure@r1",
+              "package-claim@r1",
+              "archive-policy@r1",
+              "package-report@r1",
+              "rail-travel@r1",
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "book-repair@r1",
+              "observatory-rule@r1"
+            ]
+          },
+          "c3": {
+            "category": "chain",
+            "retrieved": [
+              "book-repair@r1",
+              "release-cache@r1",
+              "archive-policy@r1",
+              "observatory-rule@r1",
+              "package-claim@r1",
+              "book-binding@r1",
+              "package-report@r1"
+            ]
+          },
+          "x1": {
+            "category": "contradiction",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "garden-water@r1",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "package-report@r1"
+            ]
+          },
+          "x2": {
+            "category": "contradiction",
+            "retrieved": [
+              "museum-hours@r1",
+              "package-report@r1",
+              "package-claim@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "rail-travel@r1",
+              "ferry-guidance@r1",
+              "garden-water@r1",
+              "ferry-rule@r2"
+            ]
+          },
+          "n1": {
+            "category": "irrelevant",
+            "retrieved": [
+              "observatory-rule@r1",
+              "ferry-guidance@r1",
+              "package-claim@r1",
+              "museum-hours@r1",
+              "rail-closure@r1",
+              "garden-water@r1",
+              "book-repair@r1",
+              "package-report@r1",
+              "museum-visiting@r1",
+              "garden-access@r1"
+            ]
+          },
+          "n2": {
+            "category": "irrelevant",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "release-retry@r1",
+              "museum-hours@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "package-report@r1",
+              "release-cache@r1"
+            ]
+          },
+          "n3": {
+            "category": "irrelevant",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "museum-visiting@r1",
+              "release-cache@r1",
+              "book-repair@r1",
+              "book-binding@r1",
+              "archive-policy@r1",
+              "observatory-rule@r1",
+              "package-claim@r1"
+            ]
+          },
+          "n4": {
+            "category": "irrelevant",
+            "retrieved": [
+              "book-binding@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "observatory-rule@r1",
+              "package-report@r1",
+              "export-profile@r1",
+              "export-other@r1"
+            ]
+          }
+        },
+        "queries": 24,
+        "metrics": {
+          "relevantEvidence": {
+            "precision": 0.1201923076923077,
+            "recall": 0.9259259259259259
+          },
+          "exactIdentifierRecall": 0.75,
+          "chainCompleteness": 0.6,
+          "irrelevantAbstention": 0
+        },
+        "categoryMetrics": {
+          "semantic": {
+            "relevantEvidence": {
+              "precision": 0.14285714285714285,
+              "recall": 0.9375
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "identifier": {
+            "relevantEvidence": {
+              "precision": 0.17647058823529413,
+              "recall": 0.75
+            },
+            "exactIdentifierRecall": 0.75,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "chain": {
+            "relevantEvidence": {
+              "precision": 0.1111111111111111,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 0.6666666666666666,
+            "irrelevantAbstention": 1
+          },
+          "contradiction": {
+            "relevantEvidence": {
+              "precision": 0.2,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 0.5,
+            "irrelevantAbstention": 1
+          },
+          "irrelevant": {
+            "relevantEvidence": {
+              "precision": 0,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 0
+          }
+        },
+        "measurement": {
+          "elapsedMs": 60.61641700000018,
+          "cpuMicros": 65856,
+          "startRssBytes": 190644224,
+          "peakRssBytes": 190742528
+        },
+        "latency": {
+          "coldMs": 1.6932080000001406,
+          "warm30MedianMs": 0.5828330000003916,
+          "warm30P95Ms": 4.897915999999896,
+          "cpuMicros": 65856,
+          "startRssBytes": 190644224,
+          "peakRssBytes": 190742528,
+          "storeBytes": 24673368
+        },
+        "storeBytes": {
+          "database": 19181568,
+          "wal": 5459032,
+          "shm": 32768,
+          "total": 24673368
+        }
+      },
+      "hybrid": {
+        "kind": "real_vectors",
+        "model": "qwen3-embedding-0.6b",
+        "questions": {
+          "s1": {
+            "category": "semantic",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "ferry-guidance@r1",
+              "package-report@r1",
+              "inventory-265@r1",
+              "observatory-rule@r1",
+              "inventory-6184@r1",
+              "archive-recovery@r1",
+              "inventory-1950@r1",
+              "inventory-3539@r1"
+            ]
+          },
+          "s2": {
+            "category": "semantic",
+            "retrieved": [
+              "museum-visiting@r1",
+              "museum-access@r1",
+              "museum-hours@r1",
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "workshop-storage@r1",
+              "rail-travel@r1",
+              "release-retry@r1",
+              "package-claim@r1",
+              "package-report@r1"
+            ]
+          },
+          "s3": {
+            "category": "semantic",
+            "retrieved": [
+              "archive-recovery@r1",
+              "archive-policy@r1",
+              "package-claim@r1",
+              "museum-hours@r1",
+              "inventory-1930@r1",
+              "rail-travel@r1",
+              "inventory-1848@r1",
+              "rail-closure@r1",
+              "ferry-guidance@r1",
+              "inventory-1812@r1"
+            ]
+          },
+          "s4": {
+            "category": "semantic",
+            "retrieved": [
+              "rail-closure@r1",
+              "rail-travel@r1",
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "package-claim@r1",
+              "rail-cycle@r1",
+              "package-report@r1",
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "workshop-storage@r1"
+            ]
+          },
+          "s5": {
+            "category": "semantic",
+            "retrieved": [
+              "rail-travel@r1",
+              "ferry-rule@r2",
+              "rail-cycle@r1",
+              "workshop-storage@r1",
+              "museum-visiting@r1",
+              "package-report@r1",
+              "package-status@r1",
+              "rail-closure@r1",
+              "ferry-guidance@r1",
+              "museum-access@r1"
+            ]
+          },
+          "s6": {
+            "category": "semantic",
+            "retrieved": [
+              "garden-access@r1",
+              "ferry-guidance@r1",
+              "garden-water@r1",
+              "workshop-storage@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "museum-access@r1",
+              "museum-hours@r1",
+              "package-status@r1",
+              "inventory-7750@r1"
+            ]
+          },
+          "s7": {
+            "category": "semantic",
+            "retrieved": [
+              "garden-access@r1",
+              "ferry-guidance@r1",
+              "book-repair@r1",
+              "garden-water@r1",
+              "museum-visiting@r1",
+              "rail-closure@r1",
+              "museum-access@r1",
+              "ferry-rule@r2",
+              "observatory-rule@r1",
+              "release-retry@r1"
+            ]
+          },
+          "s8": {
+            "category": "semantic",
+            "retrieved": [
+              "book-binding@r1",
+              "archive-recovery@r1",
+              "book-repair@r1",
+              "workshop-storage@r1",
+              "archive-policy@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "release-cache@r1",
+              "export-profile@r1",
+              "package-status@r1"
+            ]
+          },
+          "s9": {
+            "category": "semantic",
+            "retrieved": [
+              "release-retry@r1",
+              "rail-closure@r1",
+              "museum-visiting@r1",
+              "package-claim@r1",
+              "museum-hours@r1",
+              "release-cache@r1",
+              "package-report@r1",
+              "observatory-rule@r1",
+              "package-status@r1",
+              "archive-recovery@r1"
+            ]
+          },
+          "s10": {
+            "category": "semantic",
+            "retrieved": [
+              "observatory-rule@r1",
+              "archive-policy@r1",
+              "museum-visiting@r1",
+              "ferry-guidance@r1",
+              "museum-access@r1",
+              "workshop-storage@r1",
+              "rail-closure@r1",
+              "rail-cycle@r1",
+              "export-profile@r1",
+              "ferry-rule@r2"
+            ]
+          },
+          "s11": {
+            "category": "semantic",
+            "retrieved": [
+              "workshop-storage@r1",
+              "archive-policy@r1",
+              "garden-water@r1",
+              "release-cache@r1",
+              "museum-access@r1",
+              "archive-recovery@r1",
+              "museum-visiting@r1",
+              "observatory-rule@r1",
+              "inventory-1947@r1",
+              "museum-hours@r1"
+            ]
+          },
+          "i1": {
+            "category": "identifier",
+            "retrieved": [
+              "release-retry@r1",
+              "workshop-storage@r1",
+              "release-cache@r1",
+              "garden-water@r1",
+              "inventory-4082@r1",
+              "inventory-4789@r1",
+              "inventory-2567@r1",
+              "inventory-1462@r1",
+              "inventory-4488@r1",
+              "inventory-4458@r1"
+            ]
+          },
+          "i2": {
+            "category": "identifier",
+            "retrieved": [
+              "release-cache@r1",
+              "workshop-storage@r1",
+              "release-retry@r1",
+              "export-profile@r1",
+              "garden-water@r1",
+              "inventory-2054@r1",
+              "inventory-2407@r1",
+              "inventory-7094@r1",
+              "ferry-rule@r2",
+              "inventory-2244@r1"
+            ]
+          },
+          "i3": {
+            "category": "identifier",
+            "retrieved": [
+              "export-other@r1",
+              "export-profile@r1",
+              "garden-water@r1",
+              "ferry-guidance@r1",
+              "inventory-1717@r1",
+              "museum-hours@r1",
+              "inventory-1767@r1",
+              "inventory-1330@r1",
+              "package-claim@r1",
+              "inventory-6178@r1"
+            ]
+          },
+          "i4": {
+            "category": "identifier",
+            "retrieved": [
+              "export-other@r1",
+              "export-profile@r1",
+              "release-cache@r1",
+              "book-repair@r1",
+              "inventory-7071@r1",
+              "archive-policy@r1",
+              "inventory-4717@r1",
+              "inventory-1971@r1",
+              "observatory-rule@r1",
+              "inventory-7271@r1"
+            ]
+          },
+          "c1": {
+            "category": "chain",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "workshop-storage@r1",
+              "museum-hours@r1",
+              "rail-travel@r1",
+              "ferry-rule@r2",
+              "release-retry@r1",
+              "inventory-1868@r1",
+              "archive-policy@r1",
+              "inventory-2186@r1"
+            ]
+          },
+          "c2": {
+            "category": "chain",
+            "retrieved": [
+              "rail-closure@r1",
+              "ferry-guidance@r1",
+              "rail-travel@r1",
+              "museum-visiting@r1",
+              "package-report@r1",
+              "rail-cycle@r1",
+              "package-claim@r1",
+              "book-repair@r1",
+              "ferry-rule@r2",
+              "garden-access@r1"
+            ]
+          },
+          "c3": {
+            "category": "chain",
+            "retrieved": [
+              "book-repair@r1",
+              "release-cache@r1",
+              "book-binding@r1",
+              "archive-policy@r1",
+              "package-claim@r1",
+              "package-report@r1",
+              "observatory-rule@r1",
+              "release-retry@r1",
+              "workshop-storage@r1",
+              "archive-recovery@r1"
+            ]
+          },
+          "x1": {
+            "category": "contradiction",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "rail-cycle@r1",
+              "package-status@r1",
+              "release-retry@r1",
+              "rail-closure@r1",
+              "rail-travel@r1",
+              "book-binding@r1",
+              "export-other@r1",
+              "museum-hours@r1"
+            ]
+          },
+          "x2": {
+            "category": "contradiction",
+            "retrieved": [
+              "package-report@r1",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "package-status@r1",
+              "museum-visiting@r1",
+              "rail-closure@r1",
+              "workshop-storage@r1",
+              "rail-travel@r1",
+              "museum-access@r1",
+              "inventory-1017@r1"
+            ]
+          },
+          "n1": {
+            "category": "irrelevant",
+            "retrieved": [
+              "observatory-rule@r1",
+              "archive-policy@r1",
+              "museum-access@r1",
+              "ferry-guidance@r1",
+              "inventory-1868@r1",
+              "inventory-3366@r1",
+              "package-claim@r1",
+              "inventory-3368@r1",
+              "museum-hours@r1",
+              "inventory-6380@r1"
+            ]
+          },
+          "n2": {
+            "category": "irrelevant",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "museum-hours@r1",
+              "workshop-storage@r1",
+              "release-retry@r1",
+              "ferry-rule@r2",
+              "inventory-1918@r1",
+              "inventory-1818@r1",
+              "rail-travel@r1",
+              "inventory-1300@r1"
+            ]
+          },
+          "n3": {
+            "category": "irrelevant",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "release-cache@r1",
+              "export-profile@r1",
+              "museum-visiting@r1",
+              "release-retry@r1",
+              "book-repair@r1",
+              "export-other@r1",
+              "book-binding@r1",
+              "rail-cycle@r1"
+            ]
+          },
+          "n4": {
+            "category": "irrelevant",
+            "retrieved": [
+              "observatory-rule@r1",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "museum-visiting@r1",
+              "rail-cycle@r1",
+              "rail-closure@r1",
+              "museum-access@r1",
+              "ferry-guidance@r1",
+              "archive-policy@r1"
+            ]
+          }
+        },
+        "indexing": {
+          "elapsedMs": 532255.763084,
+          "cpuMicros": 4675670040,
+          "startRssBytes": 186335232,
+          "peakRssBytes": 2146091008
+        },
+        "queries": 24,
+        "metrics": {
+          "relevantEvidence": {
+            "precision": 0.1125,
+            "recall": 1
+          },
+          "exactIdentifierRecall": 1,
+          "chainCompleteness": 0.8,
+          "irrelevantAbstention": 0
+        },
+        "categoryMetrics": {
+          "semantic": {
+            "relevantEvidence": {
+              "precision": 0.14545454545454545,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "identifier": {
+            "relevantEvidence": {
+              "precision": 0.1,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "chain": {
+            "relevantEvidence": {
+              "precision": 0.1,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "contradiction": {
+            "relevantEvidence": {
+              "precision": 0.2,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 0.5,
+            "irrelevantAbstention": 1
+          },
+          "irrelevant": {
+            "relevantEvidence": {
+              "precision": 0,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 0
+          }
+        },
+        "measurement": {
+          "elapsedMs": 47039.547374999966,
+          "cpuMicros": 65429832,
+          "startRssBytes": 1995112448,
+          "peakRssBytes": 2005008384
+        },
+        "latency": {
+          "coldMs": 1014.7010840000003,
+          "warm30MedianMs": 862.9879580000415,
+          "warm30P95Ms": 900.0059159999946,
+          "cpuMicros": 65429832,
+          "startRssBytes": 1995112448,
+          "peakRssBytes": 2005008384,
+          "storeBytes": 253447256
+        },
+        "storeBytes": {
+          "database": 247955456,
+          "wal": 5459032,
+          "shm": 32768,
+          "total": 253447256
+        }
+      },
+      "kind": "real_vector_evaluation",
+      "ingestion": {
+        "elapsedMs": 3141.7936670000004,
+        "cpuMicros": 2775031,
+        "startRssBytes": 104611840,
+        "peakRssBytes": 190644224
+      },
+      "answerEvaluation": "not_configured"
+    },
+    "nomic-embed-text-v1.5": {
+      "corpus": {
+        "version": "drawloom-public-knowledge-v1",
+        "sha256": "70ab90e0be0e1ba9e7872dbd1e7286b1ef5c5fd343660b5e950cbd8c7a90e5e5",
+        "records": 10000
+      },
+      "lexical": {
+        "questions": {
+          "s1": {
+            "category": "semantic",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "package-report@r1",
+              "observatory-rule@r1",
+              "museum-access@r1",
+              "archive-recovery@r1",
+              "package-claim@r1",
+              "museum-visiting@r1",
+              "archive-policy@r1",
+              "book-binding@r1",
+              "rail-closure@r1"
+            ]
+          },
+          "s2": {
+            "category": "semantic",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "archive-recovery@r1",
+              "ferry-guidance@r1",
+              "release-retry@r1",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "book-binding@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1"
+            ]
+          },
+          "s3": {
+            "category": "semantic",
+            "retrieved": [
+              "archive-recovery@r1",
+              "museum-hours@r1",
+              "rail-travel@r1",
+              "rail-closure@r1",
+              "ferry-guidance@r1",
+              "book-binding@r1",
+              "package-claim@r1",
+              "garden-water@r1",
+              "ferry-rule@r2",
+              "workshop-storage@r1"
+            ]
+          },
+          "s4": {
+            "category": "semantic",
+            "retrieved": [
+              "rail-closure@r1",
+              "rail-travel@r1",
+              "ferry-guidance@r1",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "garden-water@r1",
+              "ferry-rule@r2",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "museum-access@r1"
+            ]
+          },
+          "s5": {
+            "category": "semantic",
+            "retrieved": [
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "package-report@r1",
+              "rail-cycle@r1",
+              "museum-visiting@r1",
+              "archive-recovery@r1",
+              "archive-policy@r1"
+            ]
+          },
+          "s6": {
+            "category": "semantic",
+            "retrieved": [
+              "museum-access@r1",
+              "rail-travel@r1",
+              "museum-hours@r1",
+              "package-status@r1",
+              "package-report@r1",
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "garden-access@r1",
+              "workshop-storage@r1",
+              "garden-water@r1"
+            ]
+          },
+          "s7": {
+            "category": "semantic",
+            "retrieved": [
+              "garden-access@r1",
+              "ferry-guidance@r1",
+              "observatory-rule@r1",
+              "book-repair@r1",
+              "release-retry@r1",
+              "package-report@r1",
+              "package-claim@r1",
+              "archive-recovery@r1",
+              "museum-visiting@r1",
+              "book-binding@r1"
+            ]
+          },
+          "s8": {
+            "category": "semantic",
+            "retrieved": [
+              "book-binding@r1",
+              "archive-recovery@r1",
+              "workshop-storage@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "book-repair@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "observatory-rule@r1",
+              "package-report@r1"
+            ]
+          },
+          "s9": {
+            "category": "semantic",
+            "retrieved": [
+              "release-retry@r1",
+              "museum-visiting@r1",
+              "museum-hours@r1",
+              "rail-closure@r1",
+              "observatory-rule@r1"
+            ]
+          },
+          "s10": {
+            "category": "semantic",
+            "retrieved": [
+              "observatory-rule@r1",
+              "package-claim@r1",
+              "archive-policy@r1",
+              "book-repair@r1",
+              "package-report@r1",
+              "ferry-guidance@r1",
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "export-profile@r1",
+              "rail-closure@r1"
+            ]
+          },
+          "s11": {
+            "category": "semantic",
+            "retrieved": [
+              "workshop-storage@r1",
+              "observatory-rule@r1",
+              "museum-hours@r1",
+              "rail-closure@r1",
+              "archive-policy@r1",
+              "package-claim@r1",
+              "ferry-rule@r2",
+              "garden-water@r1",
+              "rail-travel@r1",
+              "package-status@r1"
+            ]
+          },
+          "i1": {
+            "category": "identifier",
+            "retrieved": [
+              "release-retry@r1",
+              "workshop-storage@r1",
+              "garden-water@r1"
+            ]
+          },
+          "i2": {
+            "category": "identifier",
+            "retrieved": [
+              "release-cache@r1",
+              "workshop-storage@r1",
+              "garden-water@r1"
+            ]
+          },
+          "i3": {
+            "category": "identifier",
+            "retrieved": [
+              "garden-water@r1",
+              "ferry-guidance@r1",
+              "museum-hours@r1",
+              "export-other@r1",
+              "package-claim@r1"
+            ]
+          },
+          "i4": {
+            "category": "identifier",
+            "retrieved": [
+              "export-other@r1",
+              "release-cache@r1",
+              "book-repair@r1",
+              "archive-policy@r1",
+              "observatory-rule@r1",
+              "package-claim@r1"
+            ]
+          },
+          "c1": {
+            "category": "chain",
+            "retrieved": [
+              "museum-visiting@r1",
+              "museum-access@r1",
+              "ferry-rule@r2",
+              "release-retry@r1",
+              "workshop-storage@r1",
+              "archive-policy@r1",
+              "ferry-guidance@r1",
+              "package-claim@r1",
+              "museum-hours@r1",
+              "rail-travel@r1"
+            ]
+          },
+          "c2": {
+            "category": "chain",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "rail-closure@r1",
+              "package-claim@r1",
+              "archive-policy@r1",
+              "package-report@r1",
+              "rail-travel@r1",
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "book-repair@r1",
+              "observatory-rule@r1"
+            ]
+          },
+          "c3": {
+            "category": "chain",
+            "retrieved": [
+              "book-repair@r1",
+              "release-cache@r1",
+              "archive-policy@r1",
+              "observatory-rule@r1",
+              "package-claim@r1",
+              "book-binding@r1",
+              "package-report@r1"
+            ]
+          },
+          "x1": {
+            "category": "contradiction",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "garden-water@r1",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "package-report@r1"
+            ]
+          },
+          "x2": {
+            "category": "contradiction",
+            "retrieved": [
+              "museum-hours@r1",
+              "package-report@r1",
+              "package-claim@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "rail-travel@r1",
+              "ferry-guidance@r1",
+              "garden-water@r1",
+              "ferry-rule@r2"
+            ]
+          },
+          "n1": {
+            "category": "irrelevant",
+            "retrieved": [
+              "observatory-rule@r1",
+              "ferry-guidance@r1",
+              "package-claim@r1",
+              "museum-hours@r1",
+              "rail-closure@r1",
+              "garden-water@r1",
+              "book-repair@r1",
+              "package-report@r1",
+              "museum-visiting@r1",
+              "garden-access@r1"
+            ]
+          },
+          "n2": {
+            "category": "irrelevant",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "release-retry@r1",
+              "museum-hours@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "package-report@r1",
+              "release-cache@r1"
+            ]
+          },
+          "n3": {
+            "category": "irrelevant",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "museum-visiting@r1",
+              "release-cache@r1",
+              "book-repair@r1",
+              "book-binding@r1",
+              "archive-policy@r1",
+              "observatory-rule@r1",
+              "package-claim@r1"
+            ]
+          },
+          "n4": {
+            "category": "irrelevant",
+            "retrieved": [
+              "book-binding@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "package-status@r1",
+              "museum-access@r1",
+              "observatory-rule@r1",
+              "package-report@r1",
+              "export-profile@r1",
+              "export-other@r1"
+            ]
+          }
+        },
+        "queries": 24,
+        "metrics": {
+          "relevantEvidence": {
+            "precision": 0.1201923076923077,
+            "recall": 0.9259259259259259
+          },
+          "exactIdentifierRecall": 0.75,
+          "chainCompleteness": 0.6,
+          "irrelevantAbstention": 0
+        },
+        "categoryMetrics": {
+          "semantic": {
+            "relevantEvidence": {
+              "precision": 0.14285714285714285,
+              "recall": 0.9375
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "identifier": {
+            "relevantEvidence": {
+              "precision": 0.17647058823529413,
+              "recall": 0.75
+            },
+            "exactIdentifierRecall": 0.75,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "chain": {
+            "relevantEvidence": {
+              "precision": 0.1111111111111111,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 0.6666666666666666,
+            "irrelevantAbstention": 1
+          },
+          "contradiction": {
+            "relevantEvidence": {
+              "precision": 0.2,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 0.5,
+            "irrelevantAbstention": 1
+          },
+          "irrelevant": {
+            "relevantEvidence": {
+              "precision": 0,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 0
+          }
+        },
+        "measurement": {
+          "elapsedMs": 56.74424999999974,
+          "cpuMicros": 61591,
+          "startRssBytes": 190136320,
+          "peakRssBytes": 190234624
+        },
+        "latency": {
+          "coldMs": 1.5109160000001793,
+          "warm30MedianMs": 0.5630000000001019,
+          "warm30P95Ms": 4.683249999999589,
+          "cpuMicros": 61591,
+          "startRssBytes": 190136320,
+          "peakRssBytes": 190234624,
+          "storeBytes": 24483920
+        },
+        "storeBytes": {
+          "database": 19169280,
+          "wal": 5281872,
+          "shm": 32768,
+          "total": 24483920
+        }
+      },
+      "hybrid": {
+        "kind": "real_vectors",
+        "model": "nomic-embed-text-v1.5",
+        "questions": {
+          "s1": {
+            "category": "semantic",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "rail-cycle@r1",
+              "ferry-guidance@r1",
+              "package-report@r1",
+              "observatory-rule@r1",
+              "inventory-4409@r1",
+              "archive-recovery@r1",
+              "inventory-4614@r1",
+              "inventory-842@r1"
+            ]
+          },
+          "s2": {
+            "category": "semantic",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "museum-hours@r1",
+              "release-retry@r1",
+              "package-report@r1",
+              "ferry-guidance@r1",
+              "package-claim@r1",
+              "package-status@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1"
+            ]
+          },
+          "s3": {
+            "category": "semantic",
+            "retrieved": [
+              "archive-recovery@r1",
+              "archive-policy@r1",
+              "museum-hours@r1",
+              "inventory-1885@r1",
+              "rail-travel@r1",
+              "inventory-1876@r1",
+              "rail-closure@r1",
+              "ferry-guidance@r1",
+              "inventory-1894@r1",
+              "book-binding@r1"
+            ]
+          },
+          "s4": {
+            "category": "semantic",
+            "retrieved": [
+              "rail-closure@r1",
+              "rail-travel@r1",
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "package-claim@r1",
+              "package-status@r1",
+              "museum-visiting@r1",
+              "rail-cycle@r1",
+              "package-report@r1",
+              "garden-water@r1"
+            ]
+          },
+          "s5": {
+            "category": "semantic",
+            "retrieved": [
+              "rail-travel@r1",
+              "ferry-rule@r2",
+              "rail-cycle@r1",
+              "package-report@r1",
+              "museum-visiting@r1",
+              "ferry-guidance@r1",
+              "rail-closure@r1",
+              "observatory-rule@r1",
+              "workshop-storage@r1",
+              "package-status@r1"
+            ]
+          },
+          "s6": {
+            "category": "semantic",
+            "retrieved": [
+              "package-status@r1",
+              "garden-access@r1",
+              "garden-water@r1",
+              "workshop-storage@r1",
+              "package-claim@r1",
+              "release-retry@r1",
+              "museum-access@r1",
+              "rail-travel@r1",
+              "museum-hours@r1",
+              "inventory-7377@r1"
+            ]
+          },
+          "s7": {
+            "category": "semantic",
+            "retrieved": [
+              "garden-access@r1",
+              "ferry-guidance@r1",
+              "release-retry@r1",
+              "garden-water@r1",
+              "rail-closure@r1",
+              "observatory-rule@r1",
+              "inventory-90@r1",
+              "ferry-rule@r2",
+              "book-repair@r1",
+              "rail-travel@r1"
+            ]
+          },
+          "s8": {
+            "category": "semantic",
+            "retrieved": [
+              "book-binding@r1",
+              "archive-recovery@r1",
+              "book-repair@r1",
+              "workshop-storage@r1",
+              "archive-policy@r1",
+              "ferry-rule@r2",
+              "rail-travel@r1",
+              "inventory-7080@r1",
+              "inventory-1482@r1",
+              "package-status@r1"
+            ]
+          },
+          "s9": {
+            "category": "semantic",
+            "retrieved": [
+              "release-retry@r1",
+              "museum-visiting@r1",
+              "release-cache@r1",
+              "museum-hours@r1",
+              "package-status@r1",
+              "ferry-rule@r2",
+              "rail-closure@r1",
+              "observatory-rule@r1",
+              "package-claim@r1",
+              "ferry-guidance@r1"
+            ]
+          },
+          "s10": {
+            "category": "semantic",
+            "retrieved": [
+              "observatory-rule@r1",
+              "ferry-guidance@r1",
+              "package-status@r1",
+              "ferry-rule@r2",
+              "workshop-storage@r1",
+              "package-claim@r1",
+              "museum-visiting@r1",
+              "archive-policy@r1",
+              "book-repair@r1",
+              "package-report@r1"
+            ]
+          },
+          "s11": {
+            "category": "semantic",
+            "retrieved": [
+              "workshop-storage@r1",
+              "garden-water@r1",
+              "release-cache@r1",
+              "museum-access@r1",
+              "book-binding@r1",
+              "observatory-rule@r1",
+              "museum-hours@r1",
+              "garden-access@r1",
+              "rail-closure@r1",
+              "archive-policy@r1"
+            ]
+          },
+          "i1": {
+            "category": "identifier",
+            "retrieved": [
+              "release-retry@r1",
+              "release-cache@r1",
+              "workshop-storage@r1",
+              "garden-water@r1",
+              "museum-access@r1",
+              "museum-hours@r1",
+              "museum-visiting@r1",
+              "inventory-4012@r1",
+              "inventory-4122@r1",
+              "inventory-6962@r1"
+            ]
+          },
+          "i2": {
+            "category": "identifier",
+            "retrieved": [
+              "release-cache@r1",
+              "release-retry@r1",
+              "workshop-storage@r1",
+              "garden-water@r1",
+              "museum-hours@r1",
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "inventory-1074@r1",
+              "inventory-2904@r1",
+              "inventory-1424@r1"
+            ]
+          },
+          "i3": {
+            "category": "identifier",
+            "retrieved": [
+              "export-other@r1",
+              "package-claim@r1",
+              "export-profile@r1",
+              "garden-water@r1",
+              "ferry-guidance@r1",
+              "museum-hours@r1",
+              "package-status@r1",
+              "release-retry@r1",
+              "package-report@r1",
+              "inventory-67@r1"
+            ]
+          },
+          "i4": {
+            "category": "identifier",
+            "retrieved": [
+              "export-other@r1",
+              "export-profile@r1",
+              "release-cache@r1",
+              "book-repair@r1",
+              "inventory-1971@r1",
+              "archive-policy@r1",
+              "inventory-2899@r1",
+              "inventory-71@r1",
+              "observatory-rule@r1",
+              "inventory-7242@r1"
+            ]
+          },
+          "c1": {
+            "category": "chain",
+            "retrieved": [
+              "museum-visiting@r1",
+              "museum-access@r1",
+              "release-retry@r1",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "package-status@r1",
+              "release-cache@r1",
+              "package-report@r1",
+              "ferry-rule@r2",
+              "observatory-rule@r1"
+            ]
+          },
+          "c2": {
+            "category": "chain",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "rail-closure@r1",
+              "rail-travel@r1",
+              "package-report@r1",
+              "package-claim@r1",
+              "museum-visiting@r1",
+              "rail-cycle@r1",
+              "observatory-rule@r1",
+              "garden-access@r1",
+              "ferry-rule@r2"
+            ]
+          },
+          "c3": {
+            "category": "chain",
+            "retrieved": [
+              "book-repair@r1",
+              "release-cache@r1",
+              "archive-policy@r1",
+              "book-binding@r1",
+              "package-claim@r1",
+              "observatory-rule@r1",
+              "archive-recovery@r1",
+              "release-retry@r1",
+              "package-report@r1",
+              "rail-travel@r1"
+            ]
+          },
+          "x1": {
+            "category": "contradiction",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "package-claim@r1",
+              "rail-travel@r1",
+              "garden-water@r1",
+              "package-status@r1",
+              "rail-cycle@r1",
+              "package-report@r1",
+              "rail-closure@r1",
+              "museum-access@r1"
+            ]
+          },
+          "x2": {
+            "category": "contradiction",
+            "retrieved": [
+              "package-report@r1",
+              "museum-hours@r1",
+              "package-claim@r1",
+              "package-status@r1",
+              "museum-visiting@r1",
+              "museum-access@r1",
+              "rail-travel@r1",
+              "workshop-storage@r1",
+              "ferry-rule@r2",
+              "garden-water@r1"
+            ]
+          },
+          "n1": {
+            "category": "irrelevant",
+            "retrieved": [
+              "observatory-rule@r1",
+              "ferry-guidance@r1",
+              "museum-hours@r1",
+              "museum-visiting@r1",
+              "museum-access@r1",
+              "export-profile@r1",
+              "export-other@r1",
+              "package-claim@r1",
+              "rail-closure@r1",
+              "garden-water@r1"
+            ]
+          },
+          "n2": {
+            "category": "irrelevant",
+            "retrieved": [
+              "museum-access@r1",
+              "museum-visiting@r1",
+              "museum-hours@r1",
+              "release-retry@r1",
+              "release-cache@r1",
+              "inventory-88@r1",
+              "ferry-rule@r2",
+              "inventory-1890@r1",
+              "rail-travel@r1",
+              "inventory-1860@r1"
+            ]
+          },
+          "n3": {
+            "category": "irrelevant",
+            "retrieved": [
+              "ferry-guidance@r1",
+              "ferry-rule@r2",
+              "book-binding@r1",
+              "release-cache@r1",
+              "export-other@r1",
+              "museum-visiting@r1",
+              "inventory-5568@r1",
+              "book-repair@r1",
+              "inventory-3452@r1",
+              "inventory-1280@r1"
+            ]
+          },
+          "n4": {
+            "category": "irrelevant",
+            "retrieved": [
+              "observatory-rule@r1",
+              "package-status@r1",
+              "rail-travel@r1",
+              "package-report@r1",
+              "ferry-rule@r2",
+              "workshop-storage@r1",
+              "museum-visiting@r1",
+              "museum-access@r1",
+              "rail-closure@r1",
+              "book-binding@r1"
+            ]
+          }
+        },
+        "indexing": {
+          "elapsedMs": 270253.10524999996,
+          "cpuMicros": 1671524052,
+          "startRssBytes": 185319424,
+          "peakRssBytes": 716832768
+        },
+        "queries": 24,
+        "metrics": {
+          "relevantEvidence": {
+            "precision": 0.1125,
+            "recall": 1
+          },
+          "exactIdentifierRecall": 1,
+          "chainCompleteness": 0.8,
+          "irrelevantAbstention": 0
+        },
+        "categoryMetrics": {
+          "semantic": {
+            "relevantEvidence": {
+              "precision": 0.14545454545454545,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "identifier": {
+            "relevantEvidence": {
+              "precision": 0.1,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "chain": {
+            "relevantEvidence": {
+              "precision": 0.1,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 1
+          },
+          "contradiction": {
+            "relevantEvidence": {
+              "precision": 0.2,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 0.5,
+            "irrelevantAbstention": 1
+          },
+          "irrelevant": {
+            "relevantEvidence": {
+              "precision": 0,
+              "recall": 1
+            },
+            "exactIdentifierRecall": 1,
+            "chainCompleteness": 1,
+            "irrelevantAbstention": 0
+          }
+        },
+        "measurement": {
+          "elapsedMs": 35509.614917,
+          "cpuMicros": 41011289,
+          "startRssBytes": 680181760,
+          "peakRssBytes": 686587904
+        },
+        "latency": {
+          "coldMs": 675.6484160000109,
+          "warm30MedianMs": 650.1849590000056,
+          "warm30P95Ms": 756.9910829999717,
+          "cpuMicros": 41011289,
+          "startRssBytes": 680181760,
+          "peakRssBytes": 686587904,
+          "storeBytes": 199178320
+        },
+        "storeBytes": {
+          "database": 193863680,
+          "wal": 5281872,
+          "shm": 32768,
+          "total": 199178320
+        }
+      },
+      "kind": "real_vector_evaluation",
+      "ingestion": {
+        "elapsedMs": 2982.177209,
+        "cpuMicros": 2639088,
+        "startRssBytes": 104316928,
+        "peakRssBytes": 190136320
+      },
+      "answerEvaluation": "not_configured"
+    }
+  },
+  "results": [
+    {
+      "mode": "lexical",
+      "questionId": "s1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Use the step-free entrance on Willow Lane.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-access",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-visiting",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "Willow Lane",
+              "matched": true
+            },
+            {
+              "label": "step-free",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "s2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Yes—if you mean Tuesday, the Lantern Museum is open 10:00–18:00. It is closed on Monday.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-hours",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "closed Monday",
+              "matched": true
+            },
+            {
+              "label": "Tuesday opening",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "s3",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. The search index can be rebuilt from retained original survey scans, so the surveys do not need to be collected again.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "archive-recovery",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "archive-policy",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "no recollection",
+              "matched": true
+            },
+            {
+              "label": "retained scans",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "s4",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Northbound passengers use the replacement bus, which leaves from Orchard Square, while the bridge repairs close the Amber Line (3–9 April).",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "rail-closure",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 3,
+          "checks": [
+            {
+              "label": "replacement bus",
+              "matched": true
+            },
+            {
+              "label": "Orchard Square",
+              "matched": true
+            },
+            {
+              "label": "3 to 9 April",
+              "matched": false
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "s5",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. The Amber Line replacement bus cannot carry bicycles.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "rail-cycle",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "bicycles prohibited",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "s6",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "They irrigate with stored rainwater, using mains water only once it is exhausted.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "garden-water",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "stored rainwater",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "s7",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. An electric cutter is powered equipment, so a member must complete an induction before borrowing it; new membership alone is not enough.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "garden-access",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "induction required",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "s8",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. A worn cloth jacket/cover on a Paperfinch book can be replaced without reprinting the printed pages or contents.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "book-binding",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "book-repair",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "no reprint",
+              "matched": true
+            },
+            {
+              "label": "cover replaceable",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "s9",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. An uncertain payment response should not trigger an immediate automatic retry; first inspect the original payment operation.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "release-retry",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "no immediate retry",
+              "matched": true
+            },
+            {
+              "label": "inspect original",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "s10",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. A reservation is required at Birch Observatory, but it alone does not guarantee telescope viewing because cloud cover can prevent it.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "observatory-rule",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "no guarantee",
+              "matched": true
+            },
+            {
+              "label": "clouds",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "s11",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Larch keeps varnish in its ventilated cabinet.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "workshop-storage",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "ventilated cabinet",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "i1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "LANTERN-042 disables automatic retries after an uncertain payment response; operators must first inspect the original payment operation.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "release-retry",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "automatic retry disabled",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "i2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "LANTERN-024 added caching for completed thumbnail work; payment handling did not change.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "release-cache",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 1,
+          "checks": [
+            {
+              "label": "completed thumbnails cached",
+              "matched": false
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "i3",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "The supplied evidence does not state OAK-17's frame rate; it only states that separate profile OAK-71 is 30 frames per second.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "export-other",
+              "revision": "r1"
+            }
+          ],
+          "abstained": true
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 0,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 1,
+          "checks": [
+            {
+              "label": "24 fps",
+              "matched": false
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": true,
+          "matched": false
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "i4",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "OAK-71 produces square 1080 × 1080 frames (at 30 fps).",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "export-other",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "1080 square",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "c1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Plan the visit for Tuesday–Sunday, between 10:00 and 18:00; do not visit on Monday. Enter via Willow Lane, which has the step-free entrance, and avoid the Market Street front entrance because it has stairs.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-hours",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-access",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-visiting",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 3,
+          "valid": 3,
+          "current": 3,
+          "expected": 3,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 3,
+          "checks": [
+            {
+              "label": "Willow Lane",
+              "matched": true
+            },
+            {
+              "label": "Tuesday through Sunday",
+              "matched": true
+            },
+            {
+              "label": "10 to 18",
+              "matched": false
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "c2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "The Amber Line’s April bridge repairs require travellers to use a replacement bus, and that bus cannot carry bicycles. Therefore, a cyclist bringing a bicycle cannot make the replacement journey with it.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "rail-travel",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "rail-closure",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 3,
+          "total": 3,
+          "checks": [
+            {
+              "label": "bridge repair",
+              "matched": true
+            },
+            {
+              "label": "replacement bus",
+              "matched": true
+            },
+            {
+              "label": "bicycle prohibited",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "c3",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Paperfinch repair does not require reprinting because its cloth cover can be replaced while retaining the existing printed pages.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "book-binding",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "book-repair",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "cover separate",
+              "matched": true
+            },
+            {
+              "label": "no reprint",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "x1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. Since 1 June, the Rowan ferry has accepted both contactless cards and cash; the previous cash-only rule was replaced.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "ferry-rule",
+              "revision": "r2"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "ferry-guidance",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 3,
+          "total": 3,
+          "checks": [
+            {
+              "label": "not cash-only",
+              "matched": true
+            },
+            {
+              "label": "contactless",
+              "matched": true
+            },
+            {
+              "label": "since 1 June",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "x2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. The evidence says there is no regular Sunday shutdown; successful collections were recorded on three following Sundays. One Sunday unavailability report did not establish a weekly pattern.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "package-claim",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "package-status",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "package-report",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 3,
+          "valid": 3,
+          "current": 3,
+          "expected": 3,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "not regular closure",
+              "matched": true
+            },
+            {
+              "label": "later Sunday collections",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "n1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "The supplied evidence says visitors must reserve a ticket, but it does not provide the ticket price.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "observatory-rule",
+              "revision": "r1"
+            }
+          ],
+          "abstained": true
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 0,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 0,
+          "checks": []
+        },
+        "abstention": {
+          "expected": true,
+          "actual": true,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "n2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "I can’t determine who designed the Lantern Museum; the supplied evidence only covers access and opening hours, not its designer.",
+          "citations": [],
+          "abstained": true
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 0,
+          "valid": 0,
+          "current": 0,
+          "expected": 0,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 0,
+          "checks": []
+        },
+        "abstention": {
+          "expected": true,
+          "actual": true,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "n3",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "I can’t determine the card processor. The evidence only says the Rowan ferry accepts contactless cards and cash; it does not identify a processor.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "ferry-rule",
+              "revision": "r2"
+            }
+          ],
+          "abstained": true
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 0,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 0,
+          "checks": []
+        },
+        "abstention": {
+          "expected": true,
+          "actual": true,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "lexical",
+      "questionId": "n4",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "I can’t determine tomorrow’s weather at Birch. The evidence mentions that cloud cover can affect telescope viewing at Birch Observatory, but provides no weather forecast or date-specific conditions.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "observatory-rule",
+              "revision": "r1"
+            }
+          ],
+          "abstained": true
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 0,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 0,
+          "checks": []
+        },
+        "abstention": {
+          "expected": true,
+          "actual": true,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "s1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Enter via the step-free entrance on Willow Lane.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-access",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-visiting",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "Willow Lane",
+              "matched": true
+            },
+            {
+              "label": "step-free",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "s2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. The Lantern Museum is closed on Mondays; it is open Tuesday through Sunday from 10:00 to 18:00.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-hours",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "closed Monday",
+              "matched": true
+            },
+            {
+              "label": "Tuesday opening",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "s3",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. Harbour Archive can rebuild the search index from retained original survey scans, so the surveys do not need to be collected again. The original scans are retained for seven years, and losing the index does not delete them.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "archive-recovery",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "archive-policy",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "no recollection",
+              "matched": true
+            },
+            {
+              "label": "retained scans",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "s4",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Northbound passengers use the replacement bus, which leaves from Orchard Square, while the Amber Line is closed for bridge repairs (3–9 April).",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "rail-closure",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 3,
+          "checks": [
+            {
+              "label": "replacement bus",
+              "matched": true
+            },
+            {
+              "label": "Orchard Square",
+              "matched": true
+            },
+            {
+              "label": "3 to 9 April",
+              "matched": false
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "s5",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. The Amber Line replacement bus cannot carry bicycles.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "rail-cycle",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "bicycles prohibited",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "s6",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "They irrigate with stored rainwater before using mains water.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "garden-water",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "stored rainwater",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "s7",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. An electric cutter is powered equipment, so the member must complete an induction before borrowing it.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "garden-access",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "induction required",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "s8",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. The cloth/fabric jacket can be replaced without reprinting the pages or contents.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "book-binding",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "book-repair",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 2,
+          "checks": [
+            {
+              "label": "no reprint",
+              "matched": true
+            },
+            {
+              "label": "cover replaceable",
+              "matched": false
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "s9",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. After an uncertain payment response, automatic retry is disabled; operators should first inspect the original payment operation.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "release-retry",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "no immediate retry",
+              "matched": true
+            },
+            {
+              "label": "inspect original",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "s10",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. A reservation at Birch Observatory does not guarantee telescope viewing, because cloud cover can prevent it.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "observatory-rule",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "no guarantee",
+              "matched": true
+            },
+            {
+              "label": "clouds",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "s11",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Larch keeps varnish in its ventilated cabinet.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "workshop-storage",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "ventilated cabinet",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "i1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "LANTERN-042 disables automatic retry after an uncertain payment response; operators must first inspect the original payment operation.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "release-retry",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "automatic retry disabled",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "i2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "LANTERN-024 now caches completed thumbnail work; payment handling is unchanged.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "release-cache",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "completed thumbnails cached",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "i3",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "OAK-17's frame rate is 24 frames per second.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "export-profile",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "24 fps",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "i4",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "OAK-71 produces square 1080 × 1080 frames.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "export-other",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "1080 square",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "c1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Plan the visit for Tuesday through Sunday, between 10:00 and 18:00; do not go on Monday, when the museum is closed. For step-free access, enter via Willow Lane and avoid the Market Street front entrance, which has stairs.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-hours",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-access",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-visiting",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 3,
+          "valid": 3,
+          "current": 3,
+          "expected": 3,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 3,
+          "checks": [
+            {
+              "label": "Willow Lane",
+              "matched": true
+            },
+            {
+              "label": "Tuesday through Sunday",
+              "matched": true
+            },
+            {
+              "label": "10 to 18",
+              "matched": false
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "c2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "The April journey uses the Amber Line replacement bus during the bridge repairs, but that bus cannot carry bicycles. A cyclist bringing a bicycle therefore cannot complete the replacement journey with it.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "rail-travel",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "rail-closure",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 3,
+          "total": 3,
+          "checks": [
+            {
+              "label": "bridge repair",
+              "matched": true
+            },
+            {
+              "label": "replacement bus",
+              "matched": true
+            },
+            {
+              "label": "bicycle prohibited",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "c3",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Paperfinch repair does not require reprinting because the cloth cover can be replaced while leaving the existing printed pages intact.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "book-binding",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "book-repair",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "cover separate",
+              "matched": true
+            },
+            {
+              "label": "no reprint",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "x1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. Since 1 June, the Rowan ferry accepts contactless cards as well as cash; the earlier cash-only rule was replaced.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "ferry-rule",
+              "revision": "r2"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "ferry-guidance",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 3,
+          "total": 3,
+          "checks": [
+            {
+              "label": "not cash-only",
+              "matched": true
+            },
+            {
+              "label": "contactless",
+              "matched": true
+            },
+            {
+              "label": "since 1 June",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "x2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. The evidence explicitly says there is no regular Sunday shutdown, supported by successful collections on three Sundays; one Sunday unavailability report did not establish a weekly pattern.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "package-claim",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "package-status",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "package-report",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 3,
+          "valid": 3,
+          "current": 3,
+          "expected": 3,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "not regular closure",
+              "matched": true
+            },
+            {
+              "label": "later Sunday collections",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "n1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "The supplied evidence does not state the ticket price for Birch Observatory; it only says visitors must reserve a ticket.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "observatory-rule",
+              "revision": "r1"
+            }
+          ],
+          "abstained": true
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 0,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 0,
+          "checks": []
+        },
+        "abstention": {
+          "expected": true,
+          "actual": true,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "n2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "The supplied evidence does not identify who designed the Lantern Museum.",
+          "citations": [],
+          "abstained": true
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 0,
+          "valid": 0,
+          "current": 0,
+          "expected": 0,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 0,
+          "checks": []
+        },
+        "abstention": {
+          "expected": true,
+          "actual": true,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "n3",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "The supplied evidence says the Rowan ferry accepts contactless cards and cash, but does not identify its card processor.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "ferry-rule",
+              "revision": "r2"
+            }
+          ],
+          "abstained": true
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 0,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 0,
+          "checks": []
+        },
+        "abstention": {
+          "expected": true,
+          "actual": true,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "qwen3-embedding-0.6b",
+      "questionId": "n4",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "I can’t determine tomorrow’s weather at Birch. The supplied evidence only notes that cloud cover can prevent telescope viewing; it provides no weather forecast or date-specific conditions.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "observatory-rule",
+              "revision": "r1"
+            }
+          ],
+          "abstained": true
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 0,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 0,
+          "checks": []
+        },
+        "abstention": {
+          "expected": true,
+          "actual": true,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "s1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Enter via the step-free entrance on Willow Lane.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-access",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-visiting",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "Willow Lane",
+              "matched": true
+            },
+            {
+              "label": "step-free",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "s2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. Lantern Museum is closed on Mondays; it is open Tuesday through Sunday, 10:00–18:00.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-hours",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "closed Monday",
+              "matched": true
+            },
+            {
+              "label": "Tuesday opening",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "s3",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. Harbour Archive can rebuild the lost search index from retained original survey scans, without collecting the surveys again.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "archive-recovery",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "archive-policy",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "no recollection",
+              "matched": true
+            },
+            {
+              "label": "retained scans",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "s4",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Northbound passengers use the Amber Line replacement bus, which departs from Orchard Square.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "rail-closure",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 3,
+          "checks": [
+            {
+              "label": "replacement bus",
+              "matched": true
+            },
+            {
+              "label": "Orchard Square",
+              "matched": true
+            },
+            {
+              "label": "3 to 9 April",
+              "matched": false
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "s5",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. The Amber Line replacement bus cannot carry bicycles.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "rail-cycle",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "bicycles prohibited",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "s6",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Cedar growers use stored rainwater before using mains water.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "garden-water",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "stored rainwater",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "s7",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. An electric cutter is powered equipment, so the member must complete an induction before borrowing it.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "garden-access",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "induction required",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "s8",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. The cloth cover can be replaced without reprinting the printed pages.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "book-binding",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "book-repair",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "no reprint",
+              "matched": true
+            },
+            {
+              "label": "cover replaceable",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "s9",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. An uncertain payment response should not trigger an immediate automatic retry; first inspect the original payment operation.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "release-retry",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "no immediate retry",
+              "matched": true
+            },
+            {
+              "label": "inspect original",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "s10",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. At Birch Observatory, a reservation is required, but it does not guarantee telescope viewing because cloud cover can prevent it.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "observatory-rule",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "no guarantee",
+              "matched": true
+            },
+            {
+              "label": "clouds",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "s11",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Larch keeps the varnish in its ventilated cabinet.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "workshop-storage",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "ventilated cabinet",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "i1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "LANTERN-042 disables automatic retries after an uncertain payment response; operators must first inspect the original payment operation.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "release-retry",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "automatic retry disabled",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "i2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "LANTERN-024 added caching for completed thumbnail work; it did not change payment handling.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "release-cache",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 1,
+          "checks": [
+            {
+              "label": "completed thumbnails cached",
+              "matched": false
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "i3",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "OAK-17's frame rate is 24 frames per second.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "export-profile",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "24 fps",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "i4",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "OAK-71 produces square 1080 by 1080 frames.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "export-other",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 1,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 1,
+          "total": 1,
+          "checks": [
+            {
+              "label": "1080 square",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "c1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Plan your Lantern Museum visit for Tuesday through Sunday, arriving between 10:00 and 18:00; do not visit on Monday, when it is closed. Use the step-free Willow Lane entrance and avoid the Market Street front entrance, which has stairs.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-hours",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-access",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "museum-visiting",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 3,
+          "valid": 3,
+          "current": 3,
+          "expected": 3,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 3,
+          "checks": [
+            {
+              "label": "Willow Lane",
+              "matched": true
+            },
+            {
+              "label": "Tuesday through Sunday",
+              "matched": true
+            },
+            {
+              "label": "10 to 18",
+              "matched": false
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "c2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "The April journey relies on the Amber Line replacement bus during the 3–9 April bridge repairs, but that bus cannot carry bicycles. A cyclist bringing a bicycle therefore could not use the replacement service.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "rail-travel",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "rail-closure",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "rail-cycle",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 3,
+          "valid": 3,
+          "current": 3,
+          "expected": 3,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 3,
+          "total": 3,
+          "checks": [
+            {
+              "label": "bridge repair",
+              "matched": true
+            },
+            {
+              "label": "replacement bus",
+              "matched": true
+            },
+            {
+              "label": "bicycle prohibited",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "c3",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "Paperfinch repair does not require reprinting because the damaged cloth cover can be replaced while the existing printed pages remain in place.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "book-binding",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "book-repair",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "cover separate",
+              "matched": true
+            },
+            {
+              "label": "no reprint",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "x1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. Since 1 June, the Rowan ferry has accepted contactless cards as well as cash; the prior cash-only rule was replaced.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "ferry-rule",
+              "revision": "r2"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "ferry-guidance",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 2,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 3,
+          "total": 3,
+          "checks": [
+            {
+              "label": "not cash-only",
+              "matched": true
+            },
+            {
+              "label": "contactless",
+              "matched": true
+            },
+            {
+              "label": "since 1 June",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "x2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "No. Do not assume it is always closed on Sundays: successful collections were recorded on three Sundays, and the operator reported no regular Sunday shutdown. One Sunday unavailability report did not establish a weekly pattern.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "package-status",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "package-claim",
+              "revision": "r1"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "package-report",
+              "revision": "r1"
+            }
+          ],
+          "abstained": false
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 3,
+          "valid": 3,
+          "current": 3,
+          "expected": 3,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 2,
+          "total": 2,
+          "checks": [
+            {
+              "label": "not regular closure",
+              "matched": true
+            },
+            {
+              "label": "later Sunday collections",
+              "matched": true
+            }
+          ]
+        },
+        "abstention": {
+          "expected": false,
+          "actual": false,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "n1",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "The supplied evidence does not state the ticket price for Birch Observatory; it only says that visitors must reserve a ticket.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "observatory-rule",
+              "revision": "r1"
+            }
+          ],
+          "abstained": true
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 0,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 0,
+          "checks": []
+        },
+        "abstention": {
+          "expected": true,
+          "actual": true,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "n2",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "The supplied evidence does not identify who designed the Lantern Museum.",
+          "citations": [],
+          "abstained": true
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 0,
+          "valid": 0,
+          "current": 0,
+          "expected": 0,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 0,
+          "checks": []
+        },
+        "abstention": {
+          "expected": true,
+          "actual": true,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "n3",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "I can confirm the Rowan ferry accepts contactless cards and cash, but the evidence does not name the card processor.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "ferry-rule",
+              "revision": "r2"
+            },
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "ferry-guidance",
+              "revision": "r1"
+            }
+          ],
+          "abstained": true
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 2,
+          "valid": 2,
+          "current": 2,
+          "expected": 0,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 0,
+          "checks": []
+        },
+        "abstention": {
+          "expected": true,
+          "actual": true,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    },
+    {
+      "mode": "nomic-embed-text-v1.5",
+      "questionId": "n4",
+      "result": {
+        "kind": "completed",
+        "output": {
+          "answer": "I can’t determine tomorrow’s weather at Birch. The supplied evidence only notes that cloud cover can prevent telescope viewing at Birch Observatory; it gives no forecast or weather conditions for tomorrow.",
+          "citations": [
+            {
+              "type": "source",
+              "origin": "evaluation-public",
+              "id": "observatory-rule",
+              "revision": "r1"
+            }
+          ],
+          "abstained": true
+        },
+        "nativeActivity": [],
+        "cached": false
+      },
+      "score": {
+        "citations": {
+          "supplied": 1,
+          "valid": 1,
+          "current": 1,
+          "expected": 0,
+          "invalid": []
+        },
+        "surfaceAssertions": {
+          "matched": 0,
+          "total": 0,
+          "checks": []
+        },
+        "abstention": {
+          "expected": true,
+          "actual": true,
+          "matched": true
+        },
+        "limit": "deterministic_surface_checks_are_not_universal_correctness"
+      }
+    }
+  ],
+  "summary": {
+    "selectedCases": 72,
+    "completedCases": 72,
+    "uncertainCases": 0,
+    "blockedCases": 0,
+    "failedCases": 0,
+    "nativeActivityCases": 0,
+    "citationValidity": 1,
+    "currentCitationRate": 1,
+    "expectedCitationRate": 0.8910891089108911,
+    "surfaceAssertionRate": 0.9074074074074074,
+    "abstentionAccuracy": 0.9861111111111112
+  },
+  "limitations": [
+    "Direct App Server evaluation; not a full desktop AgentDriver journey.",
+    "Deterministic surface assertions and reference checks are transparent heuristics, not universal factual correctness.",
+    "Disabled tools and observed native activity do not prove blanket native-tool isolation.",
+    "Evidence chains are bounded to depth 32, 100 records, 100 links and the configured byte allowance; endpoint-open packages are marked incomplete."
+  ]
+}

@@ -7,11 +7,13 @@ import {
   AgentApprovalResolutionSchema,
   AgentInputResolutionSchema,
   AgentSessionSignalSchema,
+  AgentOperationUsageSchema,
   type AgentDriver,
   type AgentResult,
   type AgentSessionSignal,
   type AgentInputResolution,
   type AgentReviewer,
+  type AgentOperationUsage,
 } from "@drawloom/agent";
 import type { JsonStore, RpcTransport, JsonValue } from "@drawloom/host";
 import type { ToolExposure, ToolGateway, ToolBinding } from "@drawloom/tools";
@@ -36,9 +38,18 @@ export type CodexDriverOptions = {
     operationId: string,
   ) => void;
   onTurnFinished?: (threadId: string, turnId: string) => void;
+  /** Dedicated managed sessions only: archive a fresh thread after an exact native terminal turn signal. */
+  archiveOnClose?: boolean;
 };
 const record = z.record(z.string(), z.unknown());
 const identifier = z.string().min(1);
+const tokenCount = z.number().int().safe().nonnegative();
+const tokenUsageBreakdown = z.object({
+  inputTokens: tokenCount.optional(), cachedInputTokens: tokenCount.optional(),
+  outputTokens: tokenCount.optional(), reasoningOutputTokens: tokenCount.optional(),
+  totalTokens: tokenCount.optional(), cacheWriteInputTokens: tokenCount.optional(),
+});
+const tokenUsageNotification = z.object({ total: tokenUsageBreakdown, last: tokenUsageBreakdown.optional(), modelContextWindow: tokenCount.optional() });
 const reject = (
   code:
     | "invalid_state"
@@ -145,6 +156,11 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           ...result, resourceSelections: await catalog.rememberReturnedResources(result.source, result.content),
         }) : undefined;
         let active: { operationId: string; turnId: string } | undefined;
+        let usageEligible = !resume;
+        let latestUsage: AgentOperationUsage | undefined;
+        let terminalSettled = false;
+        let archived = false;
+        let transportClosed = false;
         let sequence = 0;
         const interactionScope = crypto.randomUUID();
         let activeReviewer: AgentReviewer = 'human';
@@ -183,6 +199,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             | "provider_unavailable"
             | "provider_rejected"
             | "invalid_provider_response" = "provider_rejected",
+          confirmedNativeTerminal = false,
         ) => {
           if (!active) return;
           const last = active;
@@ -197,6 +214,10 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           } catch {
             /* Authority owners must also revoke during composition cleanup. */
           }
+          const usage = kind === "operation.completed" && usageEligible ? latestUsage : undefined;
+          if (confirmedNativeTerminal) terminalSettled = true;
+          usageEligible = false;
+          latestUsage = undefined;
           emit(
             kind === "operation.failed"
               ? {
@@ -209,8 +230,9 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                         ? "Provider connection unavailable"
                         : "Provider operation failed",
                   },
+                  ...(usage ? { usage } : {}),
                 }
-              : { kind, operationId: last.operationId },
+              : { kind, operationId: last.operationId, ...(usage ? { usage } : {}) },
           );
         };
         const fail = () => {
@@ -235,7 +257,13 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             buffered.push(message);
             return;
           }
-          if (!active) return;
+          if (!active) {
+            if (message.method === "thread/tokenUsage/updated") {
+              const source = z.object({ threadId: identifier }).safeParse(message.params);
+              if (source.success && source.data.threadId === threadId) usageEligible = false;
+            }
+            return;
+          }
           try {
             const params = record.parse(message.params);
             if (params.threadId !== threadId) return;
@@ -252,7 +280,10 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             }
             const turn =
               params.turn === undefined ? undefined : record.parse(params.turn);
-            if ((params.turnId ?? turn?.id) !== active.turnId) return;
+            if ((params.turnId ?? turn?.id) !== active.turnId) {
+              if (message.method === "thread/tokenUsage/updated") usageEligible = false;
+              return;
+            }
             const operationId = active.operationId;
             if (message.id !== undefined) {
               if (interrupting) return;
@@ -508,6 +539,26 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               return;
             }
             if (message.method === "thread/tokenUsage/updated") {
+              if (usageEligible) {
+                const parsed = tokenUsageNotification.safeParse(params.tokenUsage);
+                if (!parsed.success) usageEligible = false;
+                else {
+                  const total = parsed.data.total;
+                  const candidate = AgentOperationUsageSchema.safeParse({
+                    ...(total.inputTokens === undefined ? {} : { inputTokens: total.inputTokens }),
+                    ...(total.cachedInputTokens === undefined ? {} : { cachedInputTokens: total.cachedInputTokens }),
+                    ...(total.outputTokens === undefined ? {} : { outputTokens: total.outputTokens }),
+                    ...(total.reasoningOutputTokens === undefined ? {} : { reasoningTokens: total.reasoningOutputTokens }),
+                    ...(total.totalTokens === undefined ? {} : { totalTokens: total.totalTokens }),
+                  });
+                  const monotone = candidate.success && (!latestUsage || Object.entries(latestUsage).every(([name, value]) => {
+                    const next = candidate.data[name as keyof AgentOperationUsage];
+                    return typeof value === "number" && next !== undefined && next >= value;
+                  }));
+                  if (!monotone) usageEligible = false;
+                  else latestUsage = candidate.data;
+                }
+              }
               emit({
                 kind: "provider.observation",
                 operationId,
@@ -535,6 +586,8 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                   : status === "interrupted"
                     ? "operation.interrupted"
                     : "operation.failed",
+                "provider_rejected",
+                true,
               ); };
               if (mediaPending.size) void Promise.all([...mediaPending]).then(complete);
               else complete();
@@ -771,11 +824,18 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 unsubscribe();
                 sessions.delete(input.sessionId);
                 wake?.();
+              }
+              if (options.archiveOnClose && !resume && terminalSettled && !archived) {
                 try {
-                  await rpc.close();
+                  await rpc.request("thread/archive", { threadId });
+                  archived = true;
                 } catch {
                   return reject("provider_unavailable");
                 }
+              }
+              if (!transportClosed) {
+                try { await rpc.close(); transportClosed = true; }
+                catch { return reject("provider_unavailable"); }
               }
               return ok();
             },

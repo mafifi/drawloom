@@ -78,6 +78,9 @@ import { createKnowledgeHost, type KnowledgeService } from './knowledge-host.js'
 import { createInstalledGitKnowledgeFeed } from './knowledge-source.js';
 import { createKnowledgeNightloom, isNightloomKnowledgeService } from './knowledge-nightloom.js';
 import { createKnowledgePlugin, KNOWLEDGE_RETRIEVAL_GUIDANCE, KNOWLEDGE_TOOL_IDS, knowledgeObservation } from './knowledge-tools.js';
+import {createInstalledEvaluation} from './evaluation-host.js';
+import {createDesktopAssessment} from './evaluation-assessment.js';
+import type {EvaluationAssessmentProvider} from '@drawloom/evaluation';
 
 type Live = {
   session: AgentSession;
@@ -100,10 +103,20 @@ export async function retireCreatedRuntimes<T>(
 export async function createDesktopApplication(
   root: string,
   options: { experimentalPluginDiscovery?: boolean; mediaOrigins?: readonly string[];
+    evaluation?: {assessment?:EvaluationAssessmentProvider;model?:string};
     orchestration?: { temporalPath?: string; nodePath?: string; runtimeDirectory?: string; manager?: () => Promise<ReturnType<typeof createLocalTemporalManager>> };
     knowledge?: { service?: KnowledgeService; nodePath?: string; runtimeEntrypoint?: string; nightloomDirectory?: string } } = {},
 ) {
   const operationTelemetry = createOperationTelemetry();
+  // Do not load the assessment SDK for installations that never request it.
+  let evaluationAssessment:Promise<EvaluationAssessmentProvider>|undefined;
+  const assessment = (installationId:string,projectId:string,workingDirectory:string) => {
+    if(options.evaluation?.assessment)return Promise.resolve(options.evaluation.assessment);
+    const create=()=>createDesktopAssessment({dataDirectory:root,scope:{installationId,projectId},workingDirectory,
+      ...(options.evaluation?.model!==undefined?{model:options.evaluation.model}:{})});
+    // Native session mappings must never be shared across installed owners.
+    return options.evaluation?.model!==undefined?create():evaluationAssessment??=create();
+  };
   const mediaOrigins = z.array(ResourceOriginSchema).parse(options.mediaOrigins ?? []);
   await mkdir(root, { recursive: true, mode: 0o700 });
   const history = createSqliteConversationHistory(join(root, 'history.sqlite'));
@@ -324,6 +337,10 @@ export async function createDesktopApplication(
         await ready(); await verifyProjectDirectory(binding, root);
         await workflowScopes.get(installation.id)?.refresh();
       })) } : {}),
+    ...(binding ? {prepareEvaluation:async(installation,_inventory,workflow)=>createInstalledEvaluation({
+      dataDirectory:root,scope:{installationId:installation.id,projectId:binding.id},assessment:await assessment(installation.id,binding.id,binding.directory),
+      ...(workflow?{workflow}:{}),
+    })} : {}),
     toolsFor: (installation, tools, workbenchIds) => {
       const ownedWorkbenchIds: string[] = [];
       const workflow = createWorkflowToolScope({ authority: workflowAuthority, projectId: binding?.id ?? '', installationId: installation.id,
@@ -334,7 +351,9 @@ export async function createDesktopApplication(
           await verifyProjectDirectory(binding, root);
           // No task/workbench association exists: every owned workbench must grant.
           ownedWorkbenchIds.splice(0, ownedWorkbenchIds.length, ...registry.contributions.filter(c => c.kind === 'workbench' && c.pluginId === `package:${installation.id}:backend`).map(c => c.contributionId));
-          await refreshWorkbenchGrants(ownedWorkbenchIds);
+          const controllerBackedIds = ownedWorkbenchIds.filter(id => controllers.has(id));
+          for (const id of ownedWorkbenchIds) if (!controllers.has(id)) grants.delete(id);
+          await refreshWorkbenchGrants(controllerBackedIds);
         },
       });
       workflowScopes.set(installation.id, workflow);

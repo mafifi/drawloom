@@ -117,6 +117,14 @@ retrieval-value judgement to stronger representative workloads. Synthetic result
 and remaining verification gaps are preserved in the ADR's evidence record;
 acceptance is not a production-readiness claim.
 
+Accepted [ADR 0025](docs/adr/0025-evaluation-boundaries-and-comparative-proof.md)
+establishes evaluation's cases, targets, scorers, findings and advisory feedback.
+Its supported implementation is in progress. Evaluation consumes orchestration
+for durable scheduling and recovery; it does not own another scheduler or depend
+on a particular orchestration provider. Plugins retain domain judgement and
+execution authority remains with existing agent/tool controls. Technical proof
+of these boundaries is distinct from proving broad evaluator quality.
+
 Public editorial publishing is established separately through Accepted
 [ADR 0009](docs/adr/0009-repository-backed-visual-publishing.md). Its Astro and
 Remotion spike consumes piece-owned `publishing/` sources without introducing

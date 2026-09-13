@@ -1,0 +1,237 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Langfuse core — experiments and evaluation",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/langfuse/langfuse",
+      "revision": "39e3cd7d6572236fa9d88e475297941eb118d74b"
+    }
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [
+      50,
+      60
+    ],
+    "cols": 4,
+    "cellW": 205,
+    "cellH": 90,
+    "gapX": 125,
+    "gapY": 150
+  },
+  "components": [
+    {
+      "id": "observe",
+      "label": "Observation ingestion",
+      "sublabel": "OTel content and run links",
+      "type": "backend",
+      "row": 1,
+      "col": 0,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "packages/shared/src/server/otel/OtelIngestionProcessor.ts"
+        }
+      ]
+    },
+    {
+      "id": "rules",
+      "label": "Evaluation rules",
+      "sublabel": "Selection · sampling · mapping",
+      "type": "backend",
+      "row": 1,
+      "col": 1,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "fern/apis/server/definition/evaluation-rules.yml"
+        }
+      ]
+    },
+    {
+      "id": "execute",
+      "label": "Judge execution",
+      "sublabel": "Model / code dispatch",
+      "type": "backend",
+      "row": 1,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "worker/src/features/evaluation/evalExecutionDeps.ts"
+        },
+        {
+          "path": "packages/shared/src/server/evals/codeEvalDispatchers.ts"
+        }
+      ]
+    },
+    {
+      "id": "scores",
+      "label": "Typed scores",
+      "sublabel": "Subject · value · source",
+      "type": "database",
+      "row": 1,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "fern/apis/server/definition/scores-v3.yml"
+        }
+      ]
+    },
+    {
+      "id": "dataset",
+      "label": "Dataset versions",
+      "sublabel": "Input and expected material",
+      "type": "database",
+      "row": 0,
+      "col": 0,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "fern/apis/server/definition/dataset-items.yml"
+        }
+      ]
+    },
+    {
+      "id": "experiment",
+      "label": "Experiment items",
+      "sublabel": "Dataset version and trace links",
+      "type": "database",
+      "row": 0,
+      "col": 1,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "fern/apis/server/definition/experiments.yml"
+        }
+      ]
+    },
+    {
+      "id": "compare",
+      "label": "Comparison UI",
+      "sublabel": "Per-case and baseline analysis",
+      "type": "frontend",
+      "row": 0,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "web/src/features/experiments/components/table/ExperimentCompareTable.tsx"
+        }
+      ]
+    },
+    {
+      "id": "definitions",
+      "label": "Evaluator definitions",
+      "sublabel": "Versioned code or LLM rubric",
+      "type": "backend",
+      "row": 2,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "fern/apis/server/definition/evaluators.yml"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "observe-rules",
+      "from": "observe",
+      "to": "rules",
+      "label": "selection"
+    },
+    {
+      "id": "rules-execute",
+      "from": "rules",
+      "to": "execute",
+      "label": "dispatch"
+    },
+    {
+      "id": "execute-scores",
+      "from": "execute",
+      "to": "scores",
+      "label": "results"
+    },
+    {
+      "id": "dataset-experiment",
+      "from": "dataset",
+      "to": "experiment",
+      "label": "versions"
+    },
+    {
+      "id": "experiment-compare",
+      "from": "experiment",
+      "to": "compare",
+      "label": "items"
+    },
+    {
+      "id": "scores-compare",
+      "from": "scores",
+      "to": "compare",
+      "label": "scores",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "definitions-execute",
+      "from": "definitions",
+      "to": "execute",
+      "label": "definition",
+      "fromSide": "top",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Platform",
+      "items": [
+        "MIT core; enterprise directories are excluded. The chart shows evaluation records and processing."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Operational cost",
+      "items": [
+        "Web + worker, PostgreSQL, ClickHouse, Redis and object storage; model calls remain separate."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Trust",
+      "items": [
+        "The insecure-local code dispatcher is for trusted code, not an untrusted evaluator sandbox."
+      ]
+    }
+  ]
+}

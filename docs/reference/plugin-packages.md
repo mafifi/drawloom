@@ -86,8 +86,10 @@ with an MCP App opening tool.
 
 [Accepted ADR 0021](../adr/0021-local-temporal-orchestration.md) adds optional
 `workflows: { entrypoint: "./dist/workflows.js" }` and an optional
-`{ kind: "capability", id: "orchestration" }` dependency. Other capabilities
-remain required-only. These fields are Drawloom extensions, not Agent Plugins
+`{ kind: "capability", id: "orchestration" }` dependency.
+[Accepted ADR 0025](../adr/0025-evaluation-boundaries-and-comparative-proof.md)
+also permits optional `evaluation`; other capabilities remain required-only.
+These fields are Drawloom extensions, not Agent Plugins
 fields. Their contract is implemented; supported desktop activation and recovery
 are still being integrated and must not be inferred from successful inspection.
 
@@ -112,10 +114,18 @@ requirements, not guarantees established by the metadata parser alone.
 The default export has type `PluginBackendFactory` from `@drawloom/desktop-host`.
 Its context contains installation identity, package/data paths, non-secret
 configuration, a declared-dependency startup availability report and explicitly supplied `capabilities`. These may include existing
-host, tool or orchestration interfaces. The desktop's local Temporal implementation
+host, tool, orchestration or evaluation interfaces. The desktop's local Temporal implementation
 under Accepted ADR 0021 reports missing external prerequisites explicitly; it
 does not install global tooling automatically. A backend returns contributions and cleanup, optionally contributing
 MCP server transports. It must not duplicate a standard server declaration.
+
+Evaluation is a fixed installation/project startup composer, not an injected
+agent driver or browser service. Its immutable target/scorer bindings return a
+service plus existing orchestration task handlers. Installed workflow definitions
+include the portable evaluation registry. Saved results remain readable without
+a running orchestration service; starting work still requires it. See the
+[evaluation implementation reference](../design/evaluation.md) for ownership and
+current delivery status. Package inspection never composes or executes a check.
 
 Required tools use `package:<package-name>:<server-name>:<tool-name>`; skills use
 `package:<package-name>:skill:<skill-name>`. Multiple installations with an

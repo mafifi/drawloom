@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Braintrust SDK — local runner, optional platform",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/braintrustdata/braintrust-sdk-javascript",
+      "revision": "4a79372d94cd769e00fe5bea657a374208ee11bb"
+    }
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [
+      50,
+      60
+    ],
+    "cols": 4,
+    "cellW": 205,
+    "cellH": 90,
+    "gapX": 125,
+    "gapY": 390
+  },
+  "components": [
+    {
+      "id": "api",
+      "label": "Public evaluation API",
+      "sublabel": "Eval / Evaluator exports",
+      "type": "backend",
+      "row": 1,
+      "col": 0,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/src/exports.ts"
+        }
+      ]
+    },
+    {
+      "id": "runner",
+      "label": "Case / trial runner",
+      "sublabel": "data · task · scores",
+      "type": "backend",
+      "row": 1,
+      "col": 1,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/src/framework.ts"
+        }
+      ]
+    },
+    {
+      "id": "scorers",
+      "label": "Scorer callbacks",
+      "sublabel": "Output · expected · trace",
+      "type": "backend",
+      "row": 1,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/src/framework.ts"
+        }
+      ]
+    },
+    {
+      "id": "summary",
+      "label": "Results and summary",
+      "sublabel": "Local or connected reporting",
+      "type": "backend",
+      "row": 1,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/src/framework.ts"
+        },
+        {
+          "path": "js/src/logger.ts"
+        }
+      ]
+    },
+    {
+      "id": "trace",
+      "label": "Trace helper",
+      "sublabel": "Cache first; some remote reads",
+      "type": "backend",
+      "row": 0,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/src/trace.ts"
+        }
+      ]
+    },
+    {
+      "id": "service",
+      "label": "Braintrust service",
+      "sublabel": "External API, not SDK server",
+      "type": "external",
+      "row": 0,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/src/logger.ts"
+        },
+        {
+          "path": "js/src/trace.ts"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "api-runner",
+      "from": "api",
+      "to": "runner",
+      "label": "Eval"
+    },
+    {
+      "id": "runner-scorers",
+      "from": "runner",
+      "to": "scorers",
+      "label": "case output"
+    },
+    {
+      "id": "scorers-summary",
+      "from": "scorers",
+      "to": "summary",
+      "label": "scores"
+    },
+    {
+      "id": "scorers-trace",
+      "from": "scorers",
+      "to": "trace",
+      "label": "inspect",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "trace-service",
+      "from": "trace",
+      "to": "service",
+      "label": "fallbacks",
+      "variant": "dashed"
+    },
+    {
+      "id": "summary-service",
+      "from": "summary",
+      "to": "service",
+      "label": "if connected",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Local path",
+      "items": [
+        "noSendLogs skips experiment creation and computes a local summary for supplied cases."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Reusable seam",
+      "items": [
+        "Typed task/scorer callbacks, repeats, progress, bounded scheduling and local summary."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Caveat",
+      "items": [
+        "An enclosing trace, remote dataset or getThread can still contact a service; test egress separately."
+      ]
+    }
+  ]
+}

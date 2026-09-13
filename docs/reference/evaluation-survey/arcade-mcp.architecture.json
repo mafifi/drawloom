@@ -1,0 +1,227 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Arcade — tool choice is not tool execution",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/ArcadeAI/arcade-mcp",
+      "revision": "7246e9d6500f213ce42e8e84dd9ee72ebfec926b"
+    }
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [
+      50,
+      60
+    ],
+    "cols": 4,
+    "cellW": 205,
+    "cellH": 90,
+    "gapX": 125,
+    "gapY": 150
+  },
+  "components": [
+    {
+      "id": "cli",
+      "label": "CLI entry",
+      "sublabel": "Selected suites and models",
+      "type": "backend",
+      "row": 1,
+      "col": 0,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "libs/arcade-cli/arcade_cli/evals_runner.py"
+        }
+      ]
+    },
+    {
+      "id": "suite",
+      "label": "Suite and cases",
+      "sublabel": "Messages · expected calls",
+      "type": "backend",
+      "row": 1,
+      "col": 1,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "libs/arcade-evals/arcade_evals/eval.py"
+        }
+      ]
+    },
+    {
+      "id": "choice",
+      "label": "Model choice request",
+      "sublabel": "Predicted names and arguments",
+      "type": "external",
+      "row": 1,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "libs/arcade-evals/arcade_evals/eval.py"
+        }
+      ]
+    },
+    {
+      "id": "critics",
+      "label": "Call matching / critics",
+      "sublabel": "Selection and argument scores",
+      "type": "backend",
+      "row": 1,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "libs/arcade-evals/arcade_evals/critic.py"
+        },
+        {
+          "path": "libs/arcade-evals/arcade_evals/eval.py"
+        }
+      ]
+    },
+    {
+      "id": "schemas",
+      "label": "Tool schema discovery",
+      "sublabel": "MCP list_tools / registry",
+      "type": "backend",
+      "row": 0,
+      "col": 1,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "libs/arcade-evals/arcade_evals/loaders.py"
+        },
+        {
+          "path": "libs/arcade-evals/arcade_evals/_evalsuite/_tool_registry.py"
+        }
+      ]
+    },
+    {
+      "id": "capture",
+      "label": "Unscored capture",
+      "sublabel": "Record proposed calls",
+      "type": "backend",
+      "row": 2,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "libs/arcade-evals/arcade_evals/_evalsuite/_capture.py"
+        }
+      ]
+    },
+    {
+      "id": "report",
+      "label": "Local reports",
+      "sublabel": "Cases · repeats · tracks",
+      "type": "frontend",
+      "row": 2,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "libs/arcade-cli/arcade_cli/evals_runner.py"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "cli-suite",
+      "from": "cli",
+      "to": "suite",
+      "label": "run"
+    },
+    {
+      "id": "suite-choice",
+      "from": "suite",
+      "to": "choice",
+      "label": "messages"
+    },
+    {
+      "id": "choice-critics",
+      "from": "choice",
+      "to": "critics",
+      "label": "predictions"
+    },
+    {
+      "id": "schemas-suite",
+      "from": "schemas",
+      "to": "suite",
+      "label": "schemas",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        482.5,
+        225
+      ]
+    },
+    {
+      "id": "capture-choice",
+      "from": "capture",
+      "to": "choice",
+      "label": "capture only",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "critics-report",
+      "from": "critics",
+      "to": "report",
+      "label": "scores",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        1142.5,
+        465
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Useful",
+      "items": [
+        "Compare tool schemas, descriptions and argument choices across models and repeated trials."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Interface",
+      "items": [
+        "EvalSuite registers cases, expected tool calls, critics and an explicit model client."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Not covered",
+      "items": [
+        "This evaluator does not execute selected tools or verify resulting files or external state."
+      ]
+    }
+  ]
+}

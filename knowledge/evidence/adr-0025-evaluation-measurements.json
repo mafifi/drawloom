@@ -1,0 +1,1117 @@
+{
+  "generatedAt": "2026-09-12T20:46:12.263Z",
+  "referenceMachine": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "cpu": "Apple M2 Ultra",
+    "logicalCPUs": 24,
+    "memoryBytes": 68719476736,
+    "node": "v24.20.0"
+  },
+  "isolation": "macOS sandbox-exec deny network*, clean environment; Node channels record overlapping attempts without content",
+  "imports": [
+    {
+      "name": "promptfoo",
+      "code": 0,
+      "timedOut": false,
+      "processMs": 586.213583,
+      "detail": {
+        "importMs": 538.511791,
+        "cpu": {
+          "user": 612197,
+          "system": 98666
+        },
+        "maxRSSKiB": 294032
+      },
+      "network": [
+        {
+          "kind": "summary",
+          "counts": {},
+          "detailTruncated": false
+        }
+      ]
+    },
+    {
+      "name": "braintrust",
+      "code": 0,
+      "timedOut": false,
+      "processMs": 139.27370799999994,
+      "detail": {
+        "importMs": 93.491958,
+        "cpu": {
+          "user": 125966,
+          "system": 22695
+        },
+        "maxRSSKiB": 95184
+      },
+      "network": [
+        {
+          "kind": "summary",
+          "counts": {},
+          "detailTruncated": false
+        }
+      ]
+    },
+    {
+      "name": "autoevals",
+      "code": 0,
+      "timedOut": false,
+      "processMs": 115.72395800000004,
+      "detail": {
+        "importMs": 70.2285,
+        "cpu": {
+          "user": 104982,
+          "system": 21906
+        },
+        "maxRSSKiB": 75280
+      },
+      "network": [
+        {
+          "kind": "summary",
+          "counts": {},
+          "detailTruncated": false
+        }
+      ]
+    }
+  ],
+  "adapters": [
+    {
+      "adapter": "promptfoo",
+      "verified": true,
+      "code": 0,
+      "timedOut": false,
+      "outputLimit": false,
+      "processMs": 1007.7794170000002,
+      "stdoutBytes": 10290,
+      "stderrBytes": 166,
+      "network": [
+        {
+          "kind": "event",
+          "channel": "undici:request:create"
+        },
+        {
+          "kind": "event",
+          "channel": "net.client.socket"
+        },
+        {
+          "kind": "summary",
+          "counts": {
+            "undici:request:create": 1,
+            "net.client.socket": 1
+          },
+          "detailTruncated": false
+        }
+      ],
+      "proof": {
+        "schemaVersion": 1,
+        "adapter": "promptfoo",
+        "versions": {
+          "node": "v24.20.0",
+          "promptfoo": "0.123.0",
+          "braintrust": "3.32.0",
+          "autoevals": "0.3.0"
+        },
+        "checks": [
+          {
+            "name": "assessment makes zero target calls",
+            "passed": true
+          },
+          {
+            "name": "assessment returns every case",
+            "passed": true
+          },
+          {
+            "name": "known regression remains per-case",
+            "passed": true
+          },
+          {
+            "name": "quality failure remains a score",
+            "passed": true
+          },
+          {
+            "name": "usage cost remains unknown",
+            "passed": true
+          },
+          {
+            "name": "existing artifact remains unchanged",
+            "passed": true
+          },
+          {
+            "name": "experiment repeats through vendor runner",
+            "passed": true
+          },
+          {
+            "name": "repeat identities are distinct",
+            "passed": true
+          },
+          {
+            "name": "case target scorer revisions retained",
+            "passed": true
+          },
+          {
+            "name": "expected is absent at target",
+            "passed": true
+          },
+          {
+            "name": "expected sentinel bytes never reach target",
+            "passed": true
+          },
+          {
+            "name": "reverse-completion trials retain their own outputs",
+            "passed": true
+          },
+          {
+            "name": "per-case duration excludes later queued work",
+            "passed": true
+          },
+          {
+            "name": "bounded progress reports start while running then finish",
+            "passed": true
+          },
+          {
+            "name": "successful finding survives sibling failure",
+            "passed": true
+          },
+          {
+            "name": "scorer failure is not a zero score",
+            "passed": true
+          },
+          {
+            "name": "explicit scorer failure is preserved",
+            "passed": true
+          },
+          {
+            "name": "malformed scorer output becomes an error finding",
+            "passed": true
+          },
+          {
+            "name": "authorized asset roundtrip preserves generated WAV",
+            "passed": true
+          },
+          {
+            "name": "result projection contains no media bytes",
+            "passed": true
+          },
+          {
+            "name": "composed media scorer reads only permitted generated WAV",
+            "passed": true
+          },
+          {
+            "name": "unpermitted media reference is denied without reading",
+            "passed": true
+          },
+          {
+            "name": "real baseline/current results and exact feedback reload",
+            "passed": true
+          },
+          {
+            "name": "reloaded matched comparison identifies only affected regression",
+            "passed": true
+          },
+          {
+            "name": "invalid bounds rejected",
+            "passed": true
+          },
+          {
+            "name": "duplicate case identities rejected",
+            "passed": true
+          },
+          {
+            "name": "duplicate scorer identities rejected",
+            "passed": true
+          },
+          {
+            "name": "invalid mode and empty scorers rejected before callbacks",
+            "passed": true
+          },
+          {
+            "name": "native scheduling respects concurrency ceiling",
+            "passed": true
+          },
+          {
+            "name": "cancellation stops queued target starts",
+            "passed": true
+          },
+          {
+            "name": "cancelled work is not scored as zero",
+            "passed": true
+          },
+          {
+            "name": "typed denied is distinct and not retried/scored",
+            "passed": true
+          },
+          {
+            "name": "typed timed-out is distinct and not retried/scored",
+            "passed": true
+          },
+          {
+            "name": "typed uncertain is distinct and not retried/scored",
+            "passed": true
+          },
+          {
+            "name": "malformed target output is distinct and unscored",
+            "passed": true
+          },
+          {
+            "name": "malformed target input prevents callback",
+            "passed": true
+          },
+          {
+            "name": "abort-ignoring target completes but remains explicitly unscored",
+            "passed": true
+          },
+          {
+            "name": "cancelled target continuation cannot start a delayed scorer",
+            "passed": true
+          },
+          {
+            "name": "abort-ignoring scorer settles before final projection",
+            "passed": true
+          }
+        ],
+        "failures": [],
+        "coldInitializationMs": 524.482417,
+        "warm": {
+          "repetitions": 30,
+          "casesPerRun": 2,
+          "medianRunnerWallMs": 2.080500000000029,
+          "p95RunnerWallMs": 2.7367499999999154,
+          "medianOverheadMs": 2.057541999999785,
+          "p95OverheadMs": 2.7098759999998947,
+          "medianDirectFixtureMs": 0.007791999999994914,
+          "p95DirectFixtureMs": 0.02945799999997689,
+          "totalCallbackCoveredMs": 0.6469130000004952,
+          "totalRunnerWallMs": 68.94491899999991,
+          "fixtureWorkMs": 0.6889589999999544
+        },
+        "process": {
+          "cpu": {
+            "user": 93650,
+            "system": 6416
+          },
+          "peakRssBytes": 348864512
+        },
+        "calls": {
+          "targetCalls": 60,
+          "scorerCalls": 120,
+          "peakConcurrency": 1
+        },
+        "resultBytes": 33989,
+        "usageCost": "unknown",
+        "method": "30 independent sequential runner.run calls, one trial per case, concurrency one. Overhead is runner wall time minus the union of actual target/scorer callback intervals (overlap counted once). A separate direct-call baseline runs identical fixture callbacks without a vendor runner. CPU covers warm runs and direct baselines; peak RSS covers the whole process including conformance. Call counts cover runner callbacks only; the direct baseline performs the same additional calls. Cold initialization excludes statically imported Autoevals; separate cold import probes include each library's import dependencies. No live model calls."
+      }
+    },
+    {
+      "adapter": "braintrust",
+      "verified": true,
+      "code": 0,
+      "timedOut": false,
+      "outputLimit": false,
+      "processMs": 419.4297499999998,
+      "stdoutBytes": 6193,
+      "stderrBytes": 6202,
+      "network": [
+        {
+          "kind": "summary",
+          "counts": {},
+          "detailTruncated": false
+        }
+      ],
+      "proof": {
+        "schemaVersion": 1,
+        "adapter": "braintrust",
+        "versions": {
+          "node": "v24.20.0",
+          "promptfoo": "0.123.0",
+          "braintrust": "3.32.0",
+          "autoevals": "0.3.0"
+        },
+        "checks": [
+          {
+            "name": "assessment makes zero target calls",
+            "passed": true
+          },
+          {
+            "name": "assessment returns every case",
+            "passed": true
+          },
+          {
+            "name": "known regression remains per-case",
+            "passed": true
+          },
+          {
+            "name": "quality failure remains a score",
+            "passed": true
+          },
+          {
+            "name": "usage cost remains unknown",
+            "passed": true
+          },
+          {
+            "name": "existing artifact remains unchanged",
+            "passed": true
+          },
+          {
+            "name": "experiment repeats through vendor runner",
+            "passed": true
+          },
+          {
+            "name": "repeat identities are distinct",
+            "passed": true
+          },
+          {
+            "name": "case target scorer revisions retained",
+            "passed": true
+          },
+          {
+            "name": "expected is absent at target",
+            "passed": true
+          },
+          {
+            "name": "expected sentinel bytes never reach target",
+            "passed": true
+          },
+          {
+            "name": "reverse-completion trials retain their own outputs",
+            "passed": true
+          },
+          {
+            "name": "per-case duration excludes later queued work",
+            "passed": true
+          },
+          {
+            "name": "bounded progress reports start while running then finish",
+            "passed": true
+          },
+          {
+            "name": "successful finding survives sibling failure",
+            "passed": true
+          },
+          {
+            "name": "scorer failure is not a zero score",
+            "passed": true
+          },
+          {
+            "name": "explicit scorer failure is preserved",
+            "passed": true
+          },
+          {
+            "name": "malformed scorer output becomes an error finding",
+            "passed": true
+          },
+          {
+            "name": "authorized asset roundtrip preserves generated WAV",
+            "passed": true
+          },
+          {
+            "name": "result projection contains no media bytes",
+            "passed": true
+          },
+          {
+            "name": "composed media scorer reads only permitted generated WAV",
+            "passed": true
+          },
+          {
+            "name": "unpermitted media reference is denied without reading",
+            "passed": true
+          },
+          {
+            "name": "real baseline/current results and exact feedback reload",
+            "passed": true
+          },
+          {
+            "name": "reloaded matched comparison identifies only affected regression",
+            "passed": true
+          },
+          {
+            "name": "invalid bounds rejected",
+            "passed": true
+          },
+          {
+            "name": "duplicate case identities rejected",
+            "passed": true
+          },
+          {
+            "name": "duplicate scorer identities rejected",
+            "passed": true
+          },
+          {
+            "name": "invalid mode and empty scorers rejected before callbacks",
+            "passed": true
+          },
+          {
+            "name": "native scheduling respects concurrency ceiling",
+            "passed": true
+          },
+          {
+            "name": "cancellation stops queued target starts",
+            "passed": true
+          },
+          {
+            "name": "cancelled work is not scored as zero",
+            "passed": true
+          },
+          {
+            "name": "typed denied is distinct and not retried/scored",
+            "passed": true
+          },
+          {
+            "name": "typed timed-out is distinct and not retried/scored",
+            "passed": true
+          },
+          {
+            "name": "typed uncertain is distinct and not retried/scored",
+            "passed": true
+          },
+          {
+            "name": "malformed target output is distinct and unscored",
+            "passed": true
+          },
+          {
+            "name": "malformed target input prevents callback",
+            "passed": true
+          },
+          {
+            "name": "abort-ignoring target completes but remains explicitly unscored",
+            "passed": true
+          },
+          {
+            "name": "cancelled target continuation cannot start a delayed scorer",
+            "passed": true
+          },
+          {
+            "name": "abort-ignoring scorer settles before final projection",
+            "passed": true
+          }
+        ],
+        "failures": [],
+        "coldInitializationMs": 79.358708,
+        "warm": {
+          "repetitions": 30,
+          "casesPerRun": 2,
+          "medianRunnerWallMs": 0.14754200000004403,
+          "p95RunnerWallMs": 0.2784159999999929,
+          "medianOverheadMs": 0.1350819999999544,
+          "p95OverheadMs": 0.23087499999996908,
+          "medianDirectFixtureMs": 0.005666000000019267,
+          "p95DirectFixtureMs": 0.017499999999984084,
+          "totalCallbackCoveredMs": 0.4507939999999735,
+          "totalRunnerWallMs": 5.095086000000265,
+          "fixtureWorkMs": 0.4398350000000164
+        },
+        "process": {
+          "cpu": {
+            "user": 7577,
+            "system": 968
+          },
+          "peakRssBytes": 150863872
+        },
+        "calls": {
+          "targetCalls": 60,
+          "scorerCalls": 120,
+          "peakConcurrency": 1
+        },
+        "resultBytes": 34162,
+        "usageCost": "unknown",
+        "method": "30 independent sequential runner.run calls, one trial per case, concurrency one. Overhead is runner wall time minus the union of actual target/scorer callback intervals (overlap counted once). A separate direct-call baseline runs identical fixture callbacks without a vendor runner. CPU covers warm runs and direct baselines; peak RSS covers the whole process including conformance. Call counts cover runner callbacks only; the direct baseline performs the same additional calls. Cold initialization excludes statically imported Autoevals; separate cold import probes include each library's import dependencies. No live model calls."
+      }
+    }
+  ],
+  "dependencies": [
+    {
+      "root": "promptfoo",
+      "packageCount": 879,
+      "installedBytes": 2036872364,
+      "unresolved": [
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-darwin-x64",
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-linux-arm64",
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-linux-arm64-musl",
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-linux-x64",
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-linux-x64-musl",
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-win32-arm64",
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-win32-x64",
+        "optional-or-peer:@aws-sdk/client-rds-data",
+        "optional-or-peer:@aws-sdk/credential-providers",
+        "optional-or-peer:@cloudflare/workers-types",
+        "optional-or-peer:@electric-sql/pglite",
+        "optional-or-peer:@esbuild/aix-ppc64",
+        "optional-or-peer:@esbuild/android-arm",
+        "optional-or-peer:@esbuild/android-arm64",
+        "optional-or-peer:@esbuild/android-x64",
+        "optional-or-peer:@esbuild/darwin-x64",
+        "optional-or-peer:@esbuild/freebsd-arm64",
+        "optional-or-peer:@esbuild/freebsd-x64",
+        "optional-or-peer:@esbuild/linux-arm",
+        "optional-or-peer:@esbuild/linux-arm64",
+        "optional-or-peer:@esbuild/linux-ia32",
+        "optional-or-peer:@esbuild/linux-loong64",
+        "optional-or-peer:@esbuild/linux-mips64el",
+        "optional-or-peer:@esbuild/linux-ppc64",
+        "optional-or-peer:@esbuild/linux-riscv64",
+        "optional-or-peer:@esbuild/linux-s390x",
+        "optional-or-peer:@esbuild/linux-x64",
+        "optional-or-peer:@esbuild/netbsd-arm64",
+        "optional-or-peer:@esbuild/netbsd-x64",
+        "optional-or-peer:@esbuild/openbsd-arm64",
+        "optional-or-peer:@esbuild/openbsd-x64",
+        "optional-or-peer:@esbuild/openharmony-arm64",
+        "optional-or-peer:@esbuild/sunos-x64",
+        "optional-or-peer:@esbuild/win32-arm64",
+        "optional-or-peer:@esbuild/win32-ia32",
+        "optional-or-peer:@esbuild/win32-x64",
+        "optional-or-peer:@img/sharp-darwin-x64",
+        "optional-or-peer:@img/sharp-freebsd-wasm32",
+        "optional-or-peer:@img/sharp-libvips-darwin-x64",
+        "optional-or-peer:@img/sharp-libvips-linux-arm",
+        "optional-or-peer:@img/sharp-libvips-linux-arm64",
+        "optional-or-peer:@img/sharp-libvips-linux-ppc64",
+        "optional-or-peer:@img/sharp-libvips-linux-riscv64",
+        "optional-or-peer:@img/sharp-libvips-linux-s390x",
+        "optional-or-peer:@img/sharp-libvips-linux-x64",
+        "optional-or-peer:@img/sharp-libvips-linuxmusl-arm64",
+        "optional-or-peer:@img/sharp-libvips-linuxmusl-x64",
+        "optional-or-peer:@img/sharp-linux-arm",
+        "optional-or-peer:@img/sharp-linux-arm64",
+        "optional-or-peer:@img/sharp-linux-ppc64",
+        "optional-or-peer:@img/sharp-linux-riscv64",
+        "optional-or-peer:@img/sharp-linux-s390x",
+        "optional-or-peer:@img/sharp-linux-x64",
+        "optional-or-peer:@img/sharp-linuxmusl-arm64",
+        "optional-or-peer:@img/sharp-linuxmusl-x64",
+        "optional-or-peer:@img/sharp-wasm32",
+        "optional-or-peer:@img/sharp-webcontainers-wasm32",
+        "optional-or-peer:@img/sharp-win32-arm64",
+        "optional-or-peer:@img/sharp-win32-ia32",
+        "optional-or-peer:@img/sharp-win32-x64",
+        "optional-or-peer:@libsql/client-wasm",
+        "optional-or-peer:@libsql/darwin-x64",
+        "optional-or-peer:@libsql/linux-arm-gnueabihf",
+        "optional-or-peer:@libsql/linux-arm-musleabihf",
+        "optional-or-peer:@libsql/linux-arm64-gnu",
+        "optional-or-peer:@libsql/linux-arm64-musl",
+        "optional-or-peer:@libsql/linux-x64-gnu",
+        "optional-or-peer:@libsql/linux-x64-musl",
+        "optional-or-peer:@libsql/win32-x64-msvc",
+        "optional-or-peer:@mongodb-js/zstd",
+        "optional-or-peer:@napi-rs/canvas-android-arm64",
+        "optional-or-peer:@napi-rs/canvas-darwin-x64",
+        "optional-or-peer:@napi-rs/canvas-linux-arm-gnueabihf",
+        "optional-or-peer:@napi-rs/canvas-linux-arm64-gnu",
+        "optional-or-peer:@napi-rs/canvas-linux-arm64-musl",
+        "optional-or-peer:@napi-rs/canvas-linux-riscv64-gnu",
+        "optional-or-peer:@napi-rs/canvas-linux-x64-gnu",
+        "optional-or-peer:@napi-rs/canvas-linux-x64-musl",
+        "optional-or-peer:@napi-rs/canvas-win32-arm64-msvc",
+        "optional-or-peer:@napi-rs/canvas-win32-x64-msvc",
+        "optional-or-peer:@neondatabase/serverless",
+        "optional-or-peer:@node-rs/xxhash",
+        "optional-or-peer:@op-engineering/op-sqlite",
+        "optional-or-peer:@openai/codex-darwin-x64",
+        "optional-or-peer:@openai/codex-linux-arm64",
+        "optional-or-peer:@openai/codex-linux-x64",
+        "optional-or-peer:@openai/codex-win32-arm64",
+        "optional-or-peer:@openai/codex-win32-x64",
+        "optional-or-peer:@planetscale/database",
+        "optional-or-peer:@prisma/client",
+        "optional-or-peer:@rollup/rollup-linux-x64-gnu",
+        "optional-or-peer:@smithy/hash-node",
+        "optional-or-peer:@swc/core-darwin-x64",
+        "optional-or-peer:@swc/core-linux-arm-gnueabihf",
+        "optional-or-peer:@swc/core-linux-arm64-gnu",
+        "optional-or-peer:@swc/core-linux-arm64-musl",
+        "optional-or-peer:@swc/core-linux-ppc64-gnu",
+        "optional-or-peer:@swc/core-linux-s390x-gnu",
+        "optional-or-peer:@swc/core-linux-x64-gnu",
+        "optional-or-peer:@swc/core-linux-x64-musl",
+        "optional-or-peer:@swc/core-win32-arm64-msvc",
+        "optional-or-peer:@swc/core-win32-ia32-msvc",
+        "optional-or-peer:@swc/core-win32-x64-msvc",
+        "optional-or-peer:@tidbcloud/serverless",
+        "optional-or-peer:@types/better-sqlite3",
+        "optional-or-peer:@types/pg",
+        "optional-or-peer:@types/sql.js",
+        "optional-or-peer:@upstash/redis",
+        "optional-or-peer:@vercel/postgres",
+        "optional-or-peer:@xata.io/client",
+        "optional-or-peer:babel-plugin-macros",
+        "optional-or-peer:better-sqlite3",
+        "optional-or-peer:bufferutil",
+        "optional-or-peer:expo-sqlite",
+        "optional-or-peer:gel",
+        "optional-or-peer:kerberos",
+        "optional-or-peer:knex",
+        "optional-or-peer:kysely",
+        "optional-or-peer:mongodb-client-encryption",
+        "optional-or-peer:mysql2",
+        "optional-or-peer:pg-native",
+        "optional-or-peer:postgres",
+        "optional-or-peer:puppeteer-extra",
+        "optional-or-peer:react-devtools-core",
+        "optional-or-peer:snappy",
+        "optional-or-peer:sql.js",
+        "optional-or-peer:sqlite3",
+        "optional-or-peer:utf-8-validate"
+      ],
+      "method": "Resolved installed dependency/optional/peer closure; unique real package folders, regular-file bytes; excludes nested node_modules and symlinks. Closures overlap. Not download or incremental disk cost.",
+      "largestPackages": [
+        {
+          "name": "@openai/codex",
+          "version": "0.153.4-darwin-arm64",
+          "bytes": 288140243
+        },
+        {
+          "name": "@openai/codex",
+          "version": "0.149.1-darwin-arm64",
+          "bytes": 282491555
+        },
+        {
+          "name": "onnxruntime-node",
+          "version": "1.24.3",
+          "bytes": 220344078
+        },
+        {
+          "name": "@anthropic-ai/claude-agent-sdk-darwin-arm64",
+          "version": "0.3.251",
+          "bytes": 197172264
+        },
+        {
+          "name": "onnxruntime-web",
+          "version": "1.26.0-dev.20260416-b7804b056c",
+          "bytes": 133894613
+        },
+        {
+          "name": "node-sql-parser",
+          "version": "5.4.0",
+          "bytes": 92373153
+        },
+        {
+          "name": "pdfjs-dist",
+          "version": "5.4.296",
+          "bytes": 36624782
+        },
+        {
+          "name": "wordnet-db",
+          "version": "3.1.14",
+          "bytes": 35407539
+        }
+      ]
+    },
+    {
+      "root": "braintrust",
+      "packageCount": 137,
+      "installedBytes": 98897310,
+      "unresolved": [
+        "optional-or-peer:@braintrust/bt-darwin-x64",
+        "optional-or-peer:@braintrust/bt-linux-arm64",
+        "optional-or-peer:@braintrust/bt-linux-x64",
+        "optional-or-peer:@braintrust/bt-linux-x64-musl",
+        "optional-or-peer:@braintrust/bt-win32-arm64",
+        "optional-or-peer:@braintrust/bt-win32-x64",
+        "optional-or-peer:@esbuild/aix-ppc64",
+        "optional-or-peer:@esbuild/android-arm",
+        "optional-or-peer:@esbuild/android-arm64",
+        "optional-or-peer:@esbuild/android-x64",
+        "optional-or-peer:@esbuild/darwin-x64",
+        "optional-or-peer:@esbuild/freebsd-arm64",
+        "optional-or-peer:@esbuild/freebsd-x64",
+        "optional-or-peer:@esbuild/linux-arm",
+        "optional-or-peer:@esbuild/linux-arm64",
+        "optional-or-peer:@esbuild/linux-ia32",
+        "optional-or-peer:@esbuild/linux-loong64",
+        "optional-or-peer:@esbuild/linux-mips64el",
+        "optional-or-peer:@esbuild/linux-ppc64",
+        "optional-or-peer:@esbuild/linux-riscv64",
+        "optional-or-peer:@esbuild/linux-s390x",
+        "optional-or-peer:@esbuild/linux-x64",
+        "optional-or-peer:@esbuild/netbsd-arm64",
+        "optional-or-peer:@esbuild/netbsd-x64",
+        "optional-or-peer:@esbuild/openbsd-arm64",
+        "optional-or-peer:@esbuild/openbsd-x64",
+        "optional-or-peer:@esbuild/openharmony-arm64",
+        "optional-or-peer:@esbuild/sunos-x64",
+        "optional-or-peer:@esbuild/win32-arm64",
+        "optional-or-peer:@esbuild/win32-ia32",
+        "optional-or-peer:@esbuild/win32-x64"
+      ],
+      "method": "Resolved installed dependency/optional/peer closure; unique real package folders, regular-file bytes; excludes nested node_modules and symlinks. Closures overlap. Not download or incremental disk cost.",
+      "largestPackages": [
+        {
+          "name": "braintrust",
+          "version": "3.32.0",
+          "bytes": 33546945
+        },
+        {
+          "name": "@braintrust/bt-darwin-arm64",
+          "version": "0.12.0",
+          "bytes": 23995471
+        },
+        {
+          "name": "esbuild",
+          "version": "0.28.1",
+          "bytes": 10711381
+        },
+        {
+          "name": "@esbuild/darwin-arm64",
+          "version": "0.28.1",
+          "bytes": 10574305
+        },
+        {
+          "name": "zod",
+          "version": "4.5.4",
+          "bytes": 5797652
+        },
+        {
+          "name": "@smithy/core",
+          "version": "3.34.1",
+          "bytes": 1786573
+        },
+        {
+          "name": "meriyah",
+          "version": "6.1.4",
+          "bytes": 1411733
+        },
+        {
+          "name": "esquery",
+          "version": "1.7.0",
+          "bytes": 1097084
+        }
+      ]
+    },
+    {
+      "root": "autoevals",
+      "packageCount": 53,
+      "installedBytes": 29070840,
+      "unresolved": [
+        "optional-or-peer:@smithy/hash-node",
+        "optional-or-peer:bufferutil",
+        "optional-or-peer:utf-8-validate"
+      ],
+      "method": "Resolved installed dependency/optional/peer closure; unique real package folders, regular-file bytes; excludes nested node_modules and symlinks. Closures overlap. Not download or incremental disk cost.",
+      "largestPackages": [
+        {
+          "name": "openai",
+          "version": "6.49.0",
+          "bytes": 12468421
+        },
+        {
+          "name": "zod",
+          "version": "4.5.4",
+          "bytes": 5797652
+        },
+        {
+          "name": "@smithy/core",
+          "version": "3.34.1",
+          "bytes": 1786573
+        },
+        {
+          "name": "ml-spectra-processing",
+          "version": "14.35.0",
+          "bytes": 1310876
+        },
+        {
+          "name": "ml-matrix",
+          "version": "6.15.0",
+          "bytes": 1113666
+        },
+        {
+          "name": "ajv",
+          "version": "8.20.0",
+          "bytes": 1033496
+        },
+        {
+          "name": "js-yaml",
+          "version": "4.3.2",
+          "bytes": 960180
+        },
+        {
+          "name": "@aws-sdk/nested-clients",
+          "version": "3.997.45",
+          "bytes": 832840
+        }
+      ]
+    },
+    {
+      "root": "promptfoo + autoevals",
+      "packageCount": 899,
+      "installedBytes": 2041262384,
+      "unresolved": [
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-darwin-x64",
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-linux-arm64",
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-linux-arm64-musl",
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-linux-x64",
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-linux-x64-musl",
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-win32-arm64",
+        "optional-or-peer:@anthropic-ai/claude-agent-sdk-win32-x64",
+        "optional-or-peer:@aws-sdk/client-rds-data",
+        "optional-or-peer:@aws-sdk/credential-providers",
+        "optional-or-peer:@cloudflare/workers-types",
+        "optional-or-peer:@electric-sql/pglite",
+        "optional-or-peer:@esbuild/aix-ppc64",
+        "optional-or-peer:@esbuild/android-arm",
+        "optional-or-peer:@esbuild/android-arm64",
+        "optional-or-peer:@esbuild/android-x64",
+        "optional-or-peer:@esbuild/darwin-x64",
+        "optional-or-peer:@esbuild/freebsd-arm64",
+        "optional-or-peer:@esbuild/freebsd-x64",
+        "optional-or-peer:@esbuild/linux-arm",
+        "optional-or-peer:@esbuild/linux-arm64",
+        "optional-or-peer:@esbuild/linux-ia32",
+        "optional-or-peer:@esbuild/linux-loong64",
+        "optional-or-peer:@esbuild/linux-mips64el",
+        "optional-or-peer:@esbuild/linux-ppc64",
+        "optional-or-peer:@esbuild/linux-riscv64",
+        "optional-or-peer:@esbuild/linux-s390x",
+        "optional-or-peer:@esbuild/linux-x64",
+        "optional-or-peer:@esbuild/netbsd-arm64",
+        "optional-or-peer:@esbuild/netbsd-x64",
+        "optional-or-peer:@esbuild/openbsd-arm64",
+        "optional-or-peer:@esbuild/openbsd-x64",
+        "optional-or-peer:@esbuild/openharmony-arm64",
+        "optional-or-peer:@esbuild/sunos-x64",
+        "optional-or-peer:@esbuild/win32-arm64",
+        "optional-or-peer:@esbuild/win32-ia32",
+        "optional-or-peer:@esbuild/win32-x64",
+        "optional-or-peer:@img/sharp-darwin-x64",
+        "optional-or-peer:@img/sharp-freebsd-wasm32",
+        "optional-or-peer:@img/sharp-libvips-darwin-x64",
+        "optional-or-peer:@img/sharp-libvips-linux-arm",
+        "optional-or-peer:@img/sharp-libvips-linux-arm64",
+        "optional-or-peer:@img/sharp-libvips-linux-ppc64",
+        "optional-or-peer:@img/sharp-libvips-linux-riscv64",
+        "optional-or-peer:@img/sharp-libvips-linux-s390x",
+        "optional-or-peer:@img/sharp-libvips-linux-x64",
+        "optional-or-peer:@img/sharp-libvips-linuxmusl-arm64",
+        "optional-or-peer:@img/sharp-libvips-linuxmusl-x64",
+        "optional-or-peer:@img/sharp-linux-arm",
+        "optional-or-peer:@img/sharp-linux-arm64",
+        "optional-or-peer:@img/sharp-linux-ppc64",
+        "optional-or-peer:@img/sharp-linux-riscv64",
+        "optional-or-peer:@img/sharp-linux-s390x",
+        "optional-or-peer:@img/sharp-linux-x64",
+        "optional-or-peer:@img/sharp-linuxmusl-arm64",
+        "optional-or-peer:@img/sharp-linuxmusl-x64",
+        "optional-or-peer:@img/sharp-wasm32",
+        "optional-or-peer:@img/sharp-webcontainers-wasm32",
+        "optional-or-peer:@img/sharp-win32-arm64",
+        "optional-or-peer:@img/sharp-win32-ia32",
+        "optional-or-peer:@img/sharp-win32-x64",
+        "optional-or-peer:@libsql/client-wasm",
+        "optional-or-peer:@libsql/darwin-x64",
+        "optional-or-peer:@libsql/linux-arm-gnueabihf",
+        "optional-or-peer:@libsql/linux-arm-musleabihf",
+        "optional-or-peer:@libsql/linux-arm64-gnu",
+        "optional-or-peer:@libsql/linux-arm64-musl",
+        "optional-or-peer:@libsql/linux-x64-gnu",
+        "optional-or-peer:@libsql/linux-x64-musl",
+        "optional-or-peer:@libsql/win32-x64-msvc",
+        "optional-or-peer:@mongodb-js/zstd",
+        "optional-or-peer:@napi-rs/canvas-android-arm64",
+        "optional-or-peer:@napi-rs/canvas-darwin-x64",
+        "optional-or-peer:@napi-rs/canvas-linux-arm-gnueabihf",
+        "optional-or-peer:@napi-rs/canvas-linux-arm64-gnu",
+        "optional-or-peer:@napi-rs/canvas-linux-arm64-musl",
+        "optional-or-peer:@napi-rs/canvas-linux-riscv64-gnu",
+        "optional-or-peer:@napi-rs/canvas-linux-x64-gnu",
+        "optional-or-peer:@napi-rs/canvas-linux-x64-musl",
+        "optional-or-peer:@napi-rs/canvas-win32-arm64-msvc",
+        "optional-or-peer:@napi-rs/canvas-win32-x64-msvc",
+        "optional-or-peer:@neondatabase/serverless",
+        "optional-or-peer:@node-rs/xxhash",
+        "optional-or-peer:@op-engineering/op-sqlite",
+        "optional-or-peer:@openai/codex-darwin-x64",
+        "optional-or-peer:@openai/codex-linux-arm64",
+        "optional-or-peer:@openai/codex-linux-x64",
+        "optional-or-peer:@openai/codex-win32-arm64",
+        "optional-or-peer:@openai/codex-win32-x64",
+        "optional-or-peer:@planetscale/database",
+        "optional-or-peer:@prisma/client",
+        "optional-or-peer:@rollup/rollup-linux-x64-gnu",
+        "optional-or-peer:@smithy/hash-node",
+        "optional-or-peer:@swc/core-darwin-x64",
+        "optional-or-peer:@swc/core-linux-arm-gnueabihf",
+        "optional-or-peer:@swc/core-linux-arm64-gnu",
+        "optional-or-peer:@swc/core-linux-arm64-musl",
+        "optional-or-peer:@swc/core-linux-ppc64-gnu",
+        "optional-or-peer:@swc/core-linux-s390x-gnu",
+        "optional-or-peer:@swc/core-linux-x64-gnu",
+        "optional-or-peer:@swc/core-linux-x64-musl",
+        "optional-or-peer:@swc/core-win32-arm64-msvc",
+        "optional-or-peer:@swc/core-win32-ia32-msvc",
+        "optional-or-peer:@swc/core-win32-x64-msvc",
+        "optional-or-peer:@tidbcloud/serverless",
+        "optional-or-peer:@types/better-sqlite3",
+        "optional-or-peer:@types/pg",
+        "optional-or-peer:@types/sql.js",
+        "optional-or-peer:@upstash/redis",
+        "optional-or-peer:@vercel/postgres",
+        "optional-or-peer:@xata.io/client",
+        "optional-or-peer:babel-plugin-macros",
+        "optional-or-peer:better-sqlite3",
+        "optional-or-peer:bufferutil",
+        "optional-or-peer:expo-sqlite",
+        "optional-or-peer:gel",
+        "optional-or-peer:kerberos",
+        "optional-or-peer:knex",
+        "optional-or-peer:kysely",
+        "optional-or-peer:mongodb-client-encryption",
+        "optional-or-peer:mysql2",
+        "optional-or-peer:pg-native",
+        "optional-or-peer:postgres",
+        "optional-or-peer:puppeteer-extra",
+        "optional-or-peer:react-devtools-core",
+        "optional-or-peer:snappy",
+        "optional-or-peer:sql.js",
+        "optional-or-peer:sqlite3",
+        "optional-or-peer:utf-8-validate"
+      ],
+      "method": "Resolved installed dependency/optional/peer closure; unique real package folders, regular-file bytes; excludes nested node_modules and symlinks. Closures overlap. Not download or incremental disk cost.",
+      "largestPackages": [
+        {
+          "name": "@openai/codex",
+          "version": "0.153.4-darwin-arm64",
+          "bytes": 288140243
+        },
+        {
+          "name": "@openai/codex",
+          "version": "0.149.1-darwin-arm64",
+          "bytes": 282491555
+        },
+        {
+          "name": "onnxruntime-node",
+          "version": "1.24.3",
+          "bytes": 220344078
+        },
+        {
+          "name": "@anthropic-ai/claude-agent-sdk-darwin-arm64",
+          "version": "0.3.251",
+          "bytes": 197172264
+        },
+        {
+          "name": "onnxruntime-web",
+          "version": "1.26.0-dev.20260416-b7804b056c",
+          "bytes": 133894613
+        },
+        {
+          "name": "node-sql-parser",
+          "version": "5.4.0",
+          "bytes": 92373153
+        },
+        {
+          "name": "pdfjs-dist",
+          "version": "5.4.296",
+          "bytes": 36624782
+        },
+        {
+          "name": "wordnet-db",
+          "version": "3.1.14",
+          "bytes": 35407539
+        }
+      ]
+    },
+    {
+      "root": "braintrust + autoevals",
+      "packageCount": 168,
+      "installedBytes": 116259214,
+      "unresolved": [
+        "optional-or-peer:@braintrust/bt-darwin-x64",
+        "optional-or-peer:@braintrust/bt-linux-arm64",
+        "optional-or-peer:@braintrust/bt-linux-x64",
+        "optional-or-peer:@braintrust/bt-linux-x64-musl",
+        "optional-or-peer:@braintrust/bt-win32-arm64",
+        "optional-or-peer:@braintrust/bt-win32-x64",
+        "optional-or-peer:@esbuild/aix-ppc64",
+        "optional-or-peer:@esbuild/android-arm",
+        "optional-or-peer:@esbuild/android-arm64",
+        "optional-or-peer:@esbuild/android-x64",
+        "optional-or-peer:@esbuild/darwin-x64",
+        "optional-or-peer:@esbuild/freebsd-arm64",
+        "optional-or-peer:@esbuild/freebsd-x64",
+        "optional-or-peer:@esbuild/linux-arm",
+        "optional-or-peer:@esbuild/linux-arm64",
+        "optional-or-peer:@esbuild/linux-ia32",
+        "optional-or-peer:@esbuild/linux-loong64",
+        "optional-or-peer:@esbuild/linux-mips64el",
+        "optional-or-peer:@esbuild/linux-ppc64",
+        "optional-or-peer:@esbuild/linux-riscv64",
+        "optional-or-peer:@esbuild/linux-s390x",
+        "optional-or-peer:@esbuild/linux-x64",
+        "optional-or-peer:@esbuild/netbsd-arm64",
+        "optional-or-peer:@esbuild/netbsd-x64",
+        "optional-or-peer:@esbuild/openbsd-arm64",
+        "optional-or-peer:@esbuild/openbsd-x64",
+        "optional-or-peer:@esbuild/openharmony-arm64",
+        "optional-or-peer:@esbuild/sunos-x64",
+        "optional-or-peer:@esbuild/win32-arm64",
+        "optional-or-peer:@esbuild/win32-ia32",
+        "optional-or-peer:@esbuild/win32-x64",
+        "optional-or-peer:@smithy/hash-node",
+        "optional-or-peer:bufferutil",
+        "optional-or-peer:utf-8-validate"
+      ],
+      "method": "Resolved installed dependency/optional/peer closure; unique real package folders, regular-file bytes; excludes nested node_modules and symlinks. Closures overlap. Not download or incremental disk cost.",
+      "largestPackages": [
+        {
+          "name": "braintrust",
+          "version": "3.32.0",
+          "bytes": 33546945
+        },
+        {
+          "name": "@braintrust/bt-darwin-arm64",
+          "version": "0.12.0",
+          "bytes": 23995471
+        },
+        {
+          "name": "openai",
+          "version": "6.49.0",
+          "bytes": 12468421
+        },
+        {
+          "name": "esbuild",
+          "version": "0.28.1",
+          "bytes": 10711381
+        },
+        {
+          "name": "@esbuild/darwin-arm64",
+          "version": "0.28.1",
+          "bytes": 10574305
+        },
+        {
+          "name": "zod",
+          "version": "4.5.4",
+          "bytes": 5797652
+        },
+        {
+          "name": "@smithy/core",
+          "version": "3.34.1",
+          "bytes": 1786573
+        },
+        {
+          "name": "meriyah",
+          "version": "6.1.4",
+          "bytes": 1411733
+        }
+      ]
+    }
+  ],
+  "sourceHashes": {
+    "braintrust.ts": "4b1623cfc3302b6f47bc0513c452443e9510fbcda7fd738df342cc20fd584636",
+    "common.ts": "1b693e81b18c0e1ae057dc31695cba33089f9d0481168ddfb4e39538b1e8a34f",
+    "conformance.ts": "27c8bb5e8d411f70b534c921360fe180405ca0c2d00eea44c9cdb4b5027e5c2e",
+    "contract.ts": "241cd4367a9f97561266a1812ea23980e5f2f70c6d72dfc532af4e1c61729d79",
+    "fixtures.ts": "9202f1a8e1a8b15886ef028825f3ae68647fd3c6c17162dfd2b0462fa2275dc9",
+    "footprint.mjs": "604abcb16b5b10849d165ae60fe637e50a305f4172117da85ed19a5c8602a80b",
+    "footprint.test.ts": "23a324899ec252dac3dceabcb84749aaa56302f64d0911af203ea338eb80866f",
+    "isolation.mjs": "d7187c8c2cccad63fd442a3d27724856fae26558f7006fab3ec8d058eda6eb03",
+    "isolation.test.ts": "22ee334c0f62ea1224105c5419e45b2330db299f5ec8cd2fc9917de09ef629d0",
+    "measurement.mjs": "939b803c6ed7453fb95685dd80d0c38c15ba2c5218cedbcf5c31a05e6405a5fe",
+    "measurement.test.ts": "d3cea0230b682ed5ba57c6a0133eda6bce29e75cb7c9c8b4e6627f4434d2ff6e",
+    "observer.mjs": "431ebbee0646b39b4dd04863c5c1c1050db3524fb60fc56699d08be7d3df833e",
+    "promptfoo.ts": "81ffcc2f6ae493aae84ea2caf61e98d0ef0d9ca1e21b27391209d8b2674df649",
+    "proof.test.ts": "0a75412290429f23f07804de515e6e0562de6bb1b33d8ab3a0e5a6a96ddc3cb8",
+    "result-files.ts": "271bb54e7059fc6e001872311a3808cb46f6548e2c8a838cf512ee4dd79e7aa9",
+    "run.ts": "bfcc33a334f16af273999d9277e576e0cc6b9e91fb2f6eea9a2d7084a6b18b5f",
+    "tsconfig.node.json": "1626157b531caf353854bd002eed7b4c01af4a872464000b5c93ce37aca76184",
+    "tsconfig.portable.json": "41ef8608ed57ffd112a9c2c9860b0d01f78513b38e9c0b9d323ae4a789ba7407",
+    "verify-local.mjs": "36706b63d0e493efe62ef462a183939792467c8d28778e882d31a698923e7fce"
+  }
+}

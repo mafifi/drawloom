@@ -8,6 +8,9 @@ dist/
 coverage/
 .turbo/
 
+# Compiled MCP App; included in packages after build, not in source control.
+packages/examples/knowledge-evaluation/app.html
+
 *.log
 
 # Reproducible publishing spike output, never source artifacts.

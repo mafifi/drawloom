@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/evaluation-survey/braintrust-sdk-javascript.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/generated/evaluation-survey/braintrust-sdk-javascript.html",
+  "specification": {
+    "sha256": "3734bb9dc79f687617e0688b3e694a0e47eab3ee30d9bbe023de2839322682b3",
+    "bytes": 3986
+  },
+  "artifact": {
+    "sha256": "e2badd406adaf85c25beef5de8169f683526542768208103405287e2c8ba5add",
+    "bytes": 804278
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/braintrustdata/braintrust-sdk-javascript",
+    "revision": "4a79372d94cd769e00fe5bea657a374208ee11bb",
+    "references": 8
+  }
+}

@@ -29,7 +29,7 @@ export function createBackendLoader() {
     if (!options.trusted) return { status: 'untrusted' };
     const present = new Set(options.available.map(r => `${r.kind}:${r.id}`));
     // Only capability objects actually provided count as available backend services.
-    for (const name of ['host', 'tools', 'orchestration'] as const)
+    for (const name of ['host', 'tools', 'orchestration', 'evaluation'] as const)
       if (options.capabilities[name]) present.add(`capability:${name}`);
       else present.delete(`capability:${name}`);
     const missing = (definition.requires ?? []).filter(r => !present.has(`${r.kind}:${r.id}`));
@@ -49,6 +49,7 @@ export function createBackendLoader() {
       ...(requested.has('host') && options.capabilities.host ? { host: options.capabilities.host } : {}),
       ...(requested.has('tools') && options.capabilities.tools ? { tools: options.capabilities.tools } : {}),
       ...(requested.has('orchestration') && options.capabilities.orchestration ? { orchestration: options.capabilities.orchestration } : {}),
+      ...(requested.has('evaluation') && options.capabilities.evaluation ? { evaluation: options.capabilities.evaluation } : {}),
       ...(requested.has('orchestration') && options.capabilities.orchestrationReadiness ? {
         orchestrationReadiness: async () => OrchestrationReadinessSchema.parse(await options.capabilities.orchestrationReadiness!()),
       } : {}),
@@ -57,7 +58,7 @@ export function createBackendLoader() {
     for (const item of declared) {
       const available = present.has(`${item.kind}:${item.id}`);
       if (item.kind === 'tool' || item.kind === 'skill') dependencies.set(`${item.kind}:${item.id}`, Object.freeze({ kind: item.kind, id: item.id, available }));
-      else if (item.id === 'orchestration') dependencies.set('capability:orchestration', Object.freeze({ kind: 'capability' as const, id: 'orchestration' as const, available }));
+      else if (item.id === 'orchestration' || item.id === 'evaluation') dependencies.set(`capability:${item.id}`, Object.freeze({ kind: 'capability' as const, id: item.id, available }));
     }
     let backend: PluginBackend | undefined;
     try {

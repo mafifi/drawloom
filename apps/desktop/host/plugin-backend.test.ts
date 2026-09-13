@@ -5,6 +5,51 @@ import { tmpdir } from 'node:os';
 import { createBackendLoader } from './plugin-backend.js';
 import type { PackageInventory } from '@drawloom/plugins';
 import type { Orchestrator } from '@drawloom/orchestration';
+import type { EvaluationComposer } from '@drawloom/evaluation';
+
+test('evaluation is supplied only when declared, with availability independent of orchestration', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-backend-evaluation-'));
+  let compositions = 0;
+  const evaluation: EvaluationComposer = { compose() { compositions++; throw Error('Not called by discovery'); } };
+  try {
+    await writeFile(join(root, 'backend.mjs'), `export default context => ({ contributions: { skills: [{
+      id:'report',title:Object.keys(context.capabilities).sort().join(','),instructions:JSON.stringify(context.dependencies)
+    }] },dispose:async()=>{} });`);
+    for (const declared of [true, false]) for (const supplied of [true, false]) {
+      const loader = createBackendLoader();
+      try {
+        const inventory: PackageInventory = {root,name:'sample',skills:[],servers:[],diagnostics:[],extensions:{},
+          drawloom:{version:1,backend:{entrypoint:'./backend.mjs'},...(declared?{optional:[{kind:'capability',id:'evaluation'}]}:{})}};
+        const result = await loader.activate(inventory,{installationId:'sample',dataDirectory:join(root,'data'),trusted:true,
+          configuration:{},available:[{kind:'capability',id:'evaluation'}],capabilities:supplied?{evaluation}:{}});
+        expect(result.status).toBe('ready');
+        if (result.status === 'ready') {
+          const report = result.backend.contributions?.skills?.[0]!;
+          expect(report.title).toBe(declared && supplied ? 'evaluation' : '');
+          expect(JSON.parse(report.instructions)).toEqual(declared?[{kind:'capability',id:'evaluation',available:supplied}]:[]);
+        }
+        expect(compositions).toBe(0);
+      } finally { await loader.close(); }
+    }
+  } finally { await rm(root,{recursive:true,force:true}); }
+});
+
+test('required evaluation and backend trust are checked before importing the module', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-backend-required-evaluation-'));
+  const marker = join(root,'imported');
+  const loader = createBackendLoader();
+  try {
+    await writeFile(join(root,'backend.mjs'),`import {writeFile} from 'node:fs/promises';
+      await writeFile(${JSON.stringify(marker)},'imported'); export default ()=>({dispose:async()=>{}});`);
+    const inventory: PackageInventory = {root,name:'sample',skills:[],servers:[],diagnostics:[],extensions:{},
+      drawloom:{version:1,backend:{entrypoint:'./backend.mjs'},requires:[{kind:'capability',id:'evaluation'}]}};
+    const options = {installationId:'sample',dataDirectory:join(root,'data'),configuration:{},capabilities:{},
+      available:[{kind:'capability' as const,id:'evaluation'}]};
+    expect((await loader.activate(inventory,{...options,trusted:false})).status).toBe('untrusted');
+    expect((await loader.activate(inventory,{...options,trusted:true})).status).toBe('unavailable');
+    expect(await Bun.file(marker).exists()).toBe(false);
+  } finally { await loader.close(); await rm(root,{recursive:true,force:true}); }
+});
 
 test('optional orchestration exposes declared presence and readiness without disabling editing', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-backend-orchestration-'));

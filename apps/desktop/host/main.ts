@@ -17,6 +17,7 @@ console.error(`Drawloom data: ${root}`);
 const web = resolve(process.env.DRAWLOOM_WEB_ROOT ?? resolve(import.meta.dir, '../build'));
 const knowledgeRuntime = process.env.DRAWLOOM_KNOWLEDGE_RUNTIME;
 const app = await createDesktopApplication(root, { experimentalPluginDiscovery: process.env.DRAWLOOM_EXPERIMENTAL_PLUGIN_DISCOVERY === '1', mediaOrigins: (process.env.DRAWLOOM_MEDIA_ORIGINS ?? '').split(',').map(s=>s.trim()).filter(Boolean),
+  ...(process.env.DRAWLOOM_EVALUATION_MODEL!==undefined?{evaluation:{model:process.env.DRAWLOOM_EVALUATION_MODEL}}:{}),
   orchestration: { ...(process.env.DRAWLOOM_TEMPORAL_PATH ? { temporalPath: process.env.DRAWLOOM_TEMPORAL_PATH } : {}),
     ...(process.env.DRAWLOOM_NODE_PATH ? { nodePath: process.env.DRAWLOOM_NODE_PATH } : {}),
     ...(process.env.DRAWLOOM_ORCHESTRATION_RUNTIME ? { runtimeDirectory: process.env.DRAWLOOM_ORCHESTRATION_RUNTIME } : {}) },

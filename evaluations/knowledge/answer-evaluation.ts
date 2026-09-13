@@ -9,6 +9,7 @@ import { createNodeJsonStore, createStdioTransport, codexCommand } from "@drawlo
 import { createSqliteKnowledge } from "@drawloom/sqlite-knowledge";
 import { corpusVersion, documents, heldOutQuestions, type EvaluationQuestion } from "./corpus.ts";
 import { runKnowledgeEvaluation, type RetrievalQuestionResult } from "./runner.ts";
+import { finishDisposableCodexThread } from "../../scripts/codex-thread-cleanup.ts";
 
 const Id = z.string().min(1).max(256);
 const AnswerOutputSchema = z.strictObject({
@@ -58,15 +59,16 @@ const ReceiptSchema = z.strictObject({
   questionId: Id, model: z.literal("gpt-5.6-terra"), effort: z.literal("low"),
   marker: Id, milestone: z.enum(["preflight", "thread_created", "submission_attempted", "accepted", "completed", "failed"]),
   threadId: Id.optional(), turnId: Id.optional(), output: AnswerOutputSchema.optional(),
+  archiveCompleted: z.boolean().optional(),
   nativeActivity: NativeActivitySchema,
 });
 type Receipt = z.infer<typeof ReceiptSchema>;
 
 export type AnswerCaseResult =
-  | { kind: "completed"; output: AnswerOutput; nativeActivity: readonly string[]; cached: boolean }
-  | { kind: "uncertain"; nativeActivity: readonly string[] }
-  | { kind: "blocked"; reason: "context_too_large" | "model_unavailable" | "invalid_output"; nativeActivity: readonly string[] }
-  | { kind: "failed"; nativeActivity: readonly string[] };
+  | { kind: "completed"; output: AnswerOutput; nativeActivity: readonly string[]; cached: boolean; cleanupFailure?: string }
+  | { kind: "uncertain"; nativeActivity: readonly string[]; cleanupFailure?: string }
+  | { kind: "blocked"; reason: "context_too_large" | "model_unavailable" | "invalid_output"; nativeActivity: readonly string[]; cleanupFailure?: string }
+  | { kind: "failed"; nativeActivity: readonly string[]; cleanupFailure?: string };
 
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
 const canonical = (value: unknown) => JSON.stringify(value);
@@ -123,8 +125,6 @@ export async function runAnswerCase(options: {
   if (saved !== undefined) {
     receipt = ReceiptSchema.parse(saved);
     if (receipt.inputHash !== inputHash || receipt.model !== options.model || receipt.effort !== options.effort) throw Error("Answer evaluation receipt conflicts with the requested case");
-    if (receipt.milestone === "completed" && receipt.output) return { kind: "completed", output: receipt.output, nativeActivity: receipt.nativeActivity, cached: true };
-    if (receipt.milestone === "failed") return { kind: "failed", nativeActivity: receipt.nativeActivity };
   } else {
     receipt = ReceiptSchema.parse({
       version: 1, inputHash, mode: value.mode, questionId: value.questionId,
@@ -134,8 +134,26 @@ export async function runAnswerCase(options: {
     try { await bounded(() => options.store.set(key, structuredClone(receipt) as JsonValue)); }
     catch { return { kind: "uncertain", nativeActivity: [] }; }
   }
+  const cleanTerminalReceipt = async (result: AnswerCaseResult): Promise<AnswerCaseResult> => {
+    if (!receipt.threadId || receipt.archiveCompleted || (receipt.milestone !== "completed" && receipt.milestone !== "failed")) return result;
+    const finished = await finishDisposableCodexThread(result, { threadId: receipt.threadId, connect: options.connect, timeoutMs: Math.min(timeoutMs, 5_000) });
+    if (finished.cleanup.kind === "failed") return { ...result, cleanupFailure: finished.cleanup.reason };
+    if (finished.cleanup.kind === "archived") {
+      receipt = ReceiptSchema.parse({ ...receipt, archiveCompleted: true });
+      const confirmation = options.store.set(key, structuredClone(receipt) as JsonValue);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try { await Promise.race([confirmation, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(Error("Archive confirmation receipt write timed out")), Math.min(timeoutMs, 5_000)); })]); }
+      catch { return { ...result, cleanupFailure: "Archived thread confirmation could not be saved" }; }
+      finally { if (timer) clearTimeout(timer); void confirmation.catch(() => undefined); }
+    }
+    return result;
+  };
+  if (receipt.milestone === "completed" && receipt.output) return cleanTerminalReceipt({ kind: "completed", output: receipt.output, nativeActivity: receipt.nativeActivity, cached: true });
+  if (receipt.milestone === "failed") return cleanTerminalReceipt({ kind: "failed", nativeActivity: receipt.nativeActivity });
   let rpc: RpcTransport | undefined;
   let unsubscribe = () => {};
+  let terminalToClean: AnswerCaseResult | undefined;
+  const markTerminal = (result: AnswerCaseResult) => { terminalToClean = result; return result; };
   const activity = new Set(receipt.nativeActivity);
   let persistenceCompromised = false;
   const save = async () => {
@@ -194,15 +212,15 @@ export async function runAnswerCase(options: {
       if (turns.nextCursor) { await save(); return { kind: "uncertain", nativeActivity: [...activity] }; }
       const turn = turns.data.find(item => item.id === receipt.turnId);
       if (!turn || turn.status === "inProgress") { await new Promise(resolve => setTimeout(resolve, Math.min(250, Math.max(0, deadline - Date.now())))); continue; }
-      if (turn.status !== "completed") { receipt.milestone = "failed"; await save(); return { kind: "failed", nativeActivity: [...activity] }; }
+      if (turn.status !== "completed") { receipt.milestone = "failed"; await save(); return markTerminal({ kind: "failed", nativeActivity: [...activity] }); }
       const items = await readItems(request, receipt.threadId!, receipt.turnId!, activity);
       const answer = items.map(item => z.object({ type: z.literal("agentMessage"), text: z.string(), phase: z.string().nullable().optional() }).safeParse(item)).find(item => item.success && item.data.phase !== "commentary");
-      if (!answer?.success) { receipt.milestone = "failed"; await save(); return { kind: "blocked", reason: "invalid_output", nativeActivity: [...activity] }; }
+      if (!answer?.success) { receipt.milestone = "failed"; await save(); return markTerminal({ kind: "blocked", reason: "invalid_output", nativeActivity: [...activity] }); }
       let parsed: ReturnType<typeof AnswerOutputSchema.safeParse> | undefined;
       try { parsed = AnswerOutputSchema.safeParse(JSON.parse(answer.data.text)); } catch { /* terminal invalid output below */ }
-      if (!parsed?.success) { receipt.milestone = "failed"; await save(); return { kind: "blocked", reason: "invalid_output", nativeActivity: [...activity] }; }
+      if (!parsed?.success) { receipt.milestone = "failed"; await save(); return markTerminal({ kind: "blocked", reason: "invalid_output", nativeActivity: [...activity] }); }
       receipt.output = parsed.data; receipt.milestone = "completed"; await save();
-      return { kind: "completed", output: parsed.data, nativeActivity: [...activity], cached: false };
+      return markTerminal({ kind: "completed", output: parsed.data, nativeActivity: [...activity], cached: false });
     }
     await save(); return { kind: "uncertain", nativeActivity: [...activity] };
   } catch {
@@ -212,10 +230,17 @@ export async function runAnswerCase(options: {
     return { kind: receipt.milestone === "submission_attempted" || receipt.milestone === "accepted" ? "uncertain" : "failed", nativeActivity: [...activity] };
   } finally {
     unsubscribe();
+    let ownerClosed = rpc === undefined;
     if (rpc) {
       const closing = rpc.close();
-      await bounded(() => closing).catch(() => undefined);
+      await bounded(() => closing).then(() => { ownerClosed = true; }).catch(() => undefined);
       void closing.catch(() => undefined);
+    }
+    if (terminalToClean && ownerClosed) {
+      const cleaned = await cleanTerminalReceipt(terminalToClean);
+      if (cleaned.cleanupFailure) terminalToClean.cleanupFailure = cleaned.cleanupFailure;
+    } else if (terminalToClean) {
+      terminalToClean.cleanupFailure = "Answer writer transport did not close before archive cleanup";
     }
   }
 }
@@ -462,6 +487,7 @@ export async function runAnswerQualityEvaluation(options: AnswerQualityEvaluatio
     results.push({ mode: entry.mode, questionId: entry.value.questionId, result,
       ...(result.kind === "completed" ? { score: scoreAnswer(question, entry.value, result.output) } : {}) });
     await store.set("answer-evaluation-progress", z.json().parse({ completedCases: index + 1, totalCases: selected.length, results }));
+    if (result.cleanupFailure) throw Error(`Answer evaluation cleanup failed after its receipt was saved: ${result.cleanupFailure}`);
     process.stderr.write(`[answer-evaluation] cases: ${index + 1}/${selected.length}\n`);
   }
   const completed = results.filter(result => result.result.kind === "completed");

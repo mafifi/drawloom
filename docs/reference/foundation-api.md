@@ -27,12 +27,21 @@ Cloudflare and Tauri compatibility are not claimed.
 | `@drawloom/conversation-history` | Portable history records, pages, changes, checkpoints, store and reader contracts; `/conformance`: `conversationHistoryConformance` |
 | `@drawloom/sqlite-conversation-history` | `createSqliteConversationHistory` (Bun only) |
 | `@drawloom/orchestration` | Accepted ADR 0017 workflow/task, management and owned-conversation contracts and shared conformance; no bundled workflow engine |
+| `@drawloom/evaluation` | Versioned cases, typed targets/scorers, durable checkpoints/results, scoped reader/store and advisory feedback; `/conformance`: `evaluationStoreConformance` |
+| `@drawloom/sqlite-evaluation` | `createSqliteEvaluationStore` (Bun only), local immutable evaluation records and keyset pages |
+| `@drawloom/evaluation-orchestration` | `createEvaluationComposer`, portable `evaluationRegistry` and task definitions; uses the orchestration contract, not Temporal imports |
+| `@drawloom/evaluation-presentation` | `createEvaluationViewModel`, controlled presentation/actions and a consumer-adapted client port; no provider, scope or browser transport selection |
+| `@drawloom/braintrust-assessment` | `createBraintrustAssessmentProvider`, deterministic library checks and optional host-owned `createAgentRubricScorer`; vendor types stay private |
 
 Accepted ADR 0018 also adds portable package metadata to `@drawloom/plugins` and
 `PluginBackendFactory`, context, capabilities and cleanup types to
 `@drawloom/desktop-host`. See the [package reference](plugin-packages.md) for the
 standard/enhanced split and current evidence. This is not a Temporal desktop
 integration or an accepted migration claim.
+
+Evaluation's [implementation reference](../design/evaluation.md) distinguishes
+the supported packages, installed-consumer verification and remaining quality
+limitations under Accepted ADR 0025. The store owns no scheduler.
 
 ## Tools
 

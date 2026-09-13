@@ -1,0 +1,33 @@
+{
+  "name": "@drawloom/knowledge-evaluation",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=22" },
+  "files": ["dist", "src", "app.html", "plugin.json", "mcp.json", "README.md"],
+  "exports": {
+    ".": { "bun": "./src/index.ts", "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./backend": { "bun": "./src/backend.ts", "types": "./dist/backend.d.ts", "import": "./dist/backend.js" },
+    "./workflows": { "bun": "./src/workflows.ts", "types": "./dist/workflows.d.ts", "import": "./dist/workflows.js" }
+  },
+  "scripts": { "build": "bun run build.ts" },
+  "drawloom": { "role": "composition", "runtime": "node" },
+  "dependencies": {
+    "@drawloom/desktop-host": "workspace:*",
+    "@drawloom/evaluation": "workspace:*",
+    "@drawloom/evaluation-orchestration": "workspace:*",
+    "@drawloom/evaluation-presentation": "workspace:*",
+    "@drawloom/ui": "workspace:*",
+    "@modelcontextprotocol/ext-apps": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
+    "svelte": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "playwright": "catalog:",
+    "@sveltejs/vite-plugin-svelte": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "@types/node": "catalog:node-runtime",
+    "vite": "catalog:"
+  }
+}

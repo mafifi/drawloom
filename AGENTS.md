@@ -36,11 +36,32 @@ area you change.
   too. A package's `private: true` flag does not make its source confidential.
 - Public CI must work without private repositories, credentials or services.
   Keep shared conformance public and business scenario tests private.
+- Live tests must clean up their own disposable Codex tasks. Save evidence,
+  close the owning connection, then archive only identities created by that
+  run or recorded in its exact receipt. Use `scripts/codex-thread-cleanup.ts`;
+  report cleanup failures and retry cleanup without repeating model work.
+  Preserve uncertain submissions for recovery. Never sweep tasks by title,
+  archive user conversations, or change production session lifecycles to tidy
+  tests. Forced termination may bypass cleanup; retain recovery receipts.
 - Challenge new public abstractions with a contrasting consumer; do not import
   business decisions into core contracts under generic names. Known-private
   dependency checks supplement this review, not replace it.
 
 ## Area guides
+
+- Before evaluation design or integration, consult the
+  [permissive evaluation survey](docs/reference/evaluation-survey/README.md).
+  It maps actual runner/scorer interfaces, local versus hosted paths, licence
+  exclusions and capability proposals. Source inspection is not integration
+  proof; no-upload settings are not complete egress controls. Keep evaluation
+  content separate from content-free operational traces and scores separate
+  from execution permission or business acceptance.
+  Accepted [ADR 0025](docs/adr/0025-evaluation-boundaries-and-comparative-proof.md)
+  and its [implementation reference](docs/design/evaluation.md) govern delivery.
+  Evaluation owns cases, findings and advisory feedback; orchestration owns
+  scheduling and recovery. Preserve target-free assessment, expected-answer
+  isolation, scoped records and unknown execution/usage outcomes. Supported
+  delivery is in progress; retained spikes do not replace installed-consumer checks.
 
 - Knowledge and memory authorization follows
   [ADR 0023](docs/adr/0023-knowledge-memory-authorization-boundaries.md).

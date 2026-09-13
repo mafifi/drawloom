@@ -60,7 +60,7 @@ const entrypoint = z.string().min(1).refine(value =>
   !value.startsWith('/') && !/[\\:\u0000]/u.test(value) && !value.split('/').includes('..') && /\.(?:mjs|js)$/.test(value));
 export const PackageOptionalRequirementSchema = z.union([
   z.strictObject({ kind: z.enum(['tool', 'skill']), id: z.string().min(1) }),
-  z.strictObject({ kind: z.literal('capability'), id: z.literal('orchestration') }),
+  z.strictObject({ kind: z.literal('capability'), id: z.enum(['orchestration', 'evaluation']) }),
 ]);
 /** Metadata only. The composition root owns loading and granting backend access. */
 export const DrawloomPackageExtensionSchema = z.strictObject({

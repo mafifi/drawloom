@@ -25,6 +25,7 @@ export * as Bubble from "./components/bubble/index.js";
 export * as Marker from "./components/marker/index.js";
 export { Spinner } from "./components/spinner/index.js";
 export { default as WorkflowRun, type WorkflowRunProps } from "./components/workflow-run/workflow-run.svelte";
+export { default as EvaluationWorkbench, type EvaluationWorkbenchProps } from "./components/evaluation-workbench/evaluation-workbench.svelte";
 export { Toaster, toast } from "./components/sonner/index.js";
 export { default as PlusIcon } from "@lucide/svelte/icons/plus";
 export { default as PanelIcon } from "@lucide/svelte/icons/panel-left";

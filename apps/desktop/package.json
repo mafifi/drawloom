@@ -17,6 +17,10 @@
     "bundle:host": "bun run --cwd ../.. build:packages && bun run ../../scripts/stage-temporal-runtime.ts && bun run ../../scripts/stage-knowledge-runtime.ts && bun build --compile host/main.ts --outfile src-tauri/binaries/drawloom-host"
   },
   "dependencies": {
+    "@drawloom/evaluation": "workspace:*",
+    "@drawloom/evaluation-orchestration": "workspace:*",
+    "@drawloom/sqlite-evaluation": "workspace:*",
+    "@drawloom/braintrust-assessment": "workspace:*",
     "@drawloom/orchestration": "workspace:*",
     "@drawloom/temporal-orchestration": "workspace:*",
     "@drawloom/knowledge": "workspace:*",

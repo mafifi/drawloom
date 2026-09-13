@@ -1,0 +1,100 @@
+{
+  "date": "2026-09-13",
+  "baseline": "16bc88ded49dfffc4f12e41627023543f536df05",
+  "status": "retained proof; ADR Proposed; uncommitted",
+  "modelCalls": 0,
+  "nativeTasksCreated": 0,
+  "targetCalls": 0,
+  "focused": {
+    "passed": 15,
+    "failed": 0,
+    "assertions": 73
+  },
+  "canonical": {
+    "passed": true,
+    "bunPassed": 861,
+    "bunSkipped": 6,
+    "bunFailed": 0,
+    "bunAssertions": 4206,
+    "nodeConformancePassed": true
+  },
+  "afterReview": {
+    "nodeTypes": true,
+    "svelteErrors": 0,
+    "svelteWarnings": 0,
+    "explicitUiPolicy": true,
+    "dependencyViolations": 0,
+    "modules": 1646,
+    "dependencies": 5186,
+    "browserExercise": true,
+    "browserAfterWholeHostRestart": true
+  },
+  "review": {
+    "reviewer": "Astra",
+    "importantFindings": 3,
+    "importantFindingsResolved": 3,
+    "verification": "Targeted regression tests and root source/browser verification; no second full review"
+  },
+  "sources": [
+    {
+      "path": "spikes/adr-0025-evaluation/inspection-contract.ts",
+      "sha256": "02ee5b3d4e65e87a8ac56424207f7578a6e178814c09c4bf1c4e2ef286f50eba"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/knowledge-inspection.ts",
+      "sha256": "49f088458c2207234f69f079e48c92689d69acce13c936f7588dffd73cd45d91"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/knowledge-inspection.test.ts",
+      "sha256": "00292a5a0e26ea531062e2511eabbbd243e15ac4c9e3642c46af9d80b779289e"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/inspection-server.ts",
+      "sha256": "e1c45f231fe224f7b26d1c26ce6c047cc6bd8ac8a650c7bdb83f4bf8cd3c059f"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/inspection-server.test.ts",
+      "sha256": "a07fbac26611a37672a666fa8c248dabc3786930286e2d2f292fabce70bca0e8"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/inspection-build.ts",
+      "sha256": "e3d7455b9d2943d2a6e14f6bdab6b5ea661a6e48264715b849e40b09071eae98"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/inspection-build.test.ts",
+      "sha256": "68cbc6c9bd7c36bad55bd10e4ce724ddcc8b4ecf4722bb2237b298e088b74c94"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/inspection-desktop.mjs",
+      "sha256": "75f2f0fa5706c9c56dce24d44ea9cc4eac09b5de23f11271c2f6ec054431ca7b"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/inspection-browser.mjs",
+      "sha256": "ed400b56ee84a510c2731013acbbff5b4c64b3f38988143ecc191d4319bba84e"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/inspection/InspectionApp.svelte",
+      "sha256": "abcad7dc15e2ffe192c0361143aad489553deae081e0739122d0cd0761eba66e"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/inspection/InspectionView.svelte",
+      "sha256": "352c887cae58629dca5b459c277003cbdf9374018d12a653d057fa777a5d968c"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/inspection/app.ts",
+      "sha256": "f2c306650ecf8d909f00e315624ac30561c3bcee40a4bda167f99113995ac4a5"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/inspection/backend.ts",
+      "sha256": "fb94958d4fbfe9d3a16252795aeabd470eea6f00ab54f20977f2b6b0852a6278"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/inspection/inspection-view-model.ts",
+      "sha256": "7569a1cd4ada5e3c963f158b82b05faa7c160473d0947cc04a18435e376b4616"
+    },
+    {
+      "path": "spikes/adr-0025-evaluation/inspection/inspection-view-model.test.ts",
+      "sha256": "51476f7e0ab74a9ffc19dac0bb64a8a2ef3ccacb871352844077b0c8a573065f"
+    }
+  ]
+}

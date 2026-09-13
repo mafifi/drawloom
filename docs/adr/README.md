@@ -14,6 +14,12 @@ links back.
 
 ## Latest decision
 
+- [ADR 0025: Evaluation boundaries and a comparative proof](0025-evaluation-boundaries-and-comparative-proof.md)
+  is Accepted for the demonstrated interfaces and supported implementation
+  direction. Evaluation composes with orchestration for durable execution and
+  uses local Braintrust/Autoevals assessment within steps. Implementation is in
+  progress; delivery and wider judgement quality remain separate from acceptance.
+
 - [ADR 0024: Local knowledge, memory and evidence-based retrieval](0024-local-knowledge-memory-and-retrieval.md)
   is Accepted. Local storage, hybrid retrieval and maintenance are implemented;
   broader retrieval value and remaining verification follow-ups are explicit,

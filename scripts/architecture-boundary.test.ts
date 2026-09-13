@@ -7,6 +7,34 @@ import { join, resolve } from "node:path";
 // fail these tests. Exercise the installed checker, not the config's text.
 const repository = resolve(import.meta.dir, "..");
 
+for (const [source, vendor, allowed] of [
+  ["packages/evaluation/braintrust-assessment/src/index.ts", "braintrust", true],
+  ["packages/evaluation/braintrust-assessment/src/index.ts", "autoevals", true],
+  ["packages/evaluation/braintrust-assessment/src/index.ts", "promptfoo", false],
+  ["apps/example.ts", "braintrust", false],
+  ["spikes/adr-0025-evaluation/example.ts", "promptfoo", true],
+] as const) {
+  test(`evaluation vendor boundary: ${source} importing ${vendor}`, async () => {
+    const fixture = await mkdtemp(join(tmpdir(), "drawloom-evaluation-boundary-"));
+    try {
+      const directory = source.slice(0, source.lastIndexOf("/"));
+      await mkdir(join(fixture, directory), { recursive: true });
+      if (source.startsWith("packages/")) {
+        await writeFile(join(fixture, "packages/evaluation/braintrust-assessment/package.json"),
+          JSON.stringify({ drawloom: { role: "provider", runtime: "node" } }));
+        await mkdir(join(fixture, "packages/example/other"), { recursive: true });
+        await writeFile(join(fixture, "packages/example/other/package.json"),
+          JSON.stringify({ drawloom: { role: "provider", runtime: "node" } }));
+      }
+      await writeFile(join(fixture, "tsconfig.json"), "{}");
+      await writeFile(join(fixture, source), `import ${JSON.stringify(vendor)};`);
+      const result = Bun.spawnSync([join(repository, "node_modules/.bin/depcruise"),
+        "--config", join(repository, ".dependency-cruiser.mjs"), source], { cwd: fixture });
+      expect(result.exitCode, result.stdout.toString() + result.stderr.toString()).toBe(allowed ? 0 : 1);
+    } finally { await rm(fixture, { recursive: true, force: true }); }
+  });
+}
+
 for (const [role, target, forbidden] of [
   ["contract", "../provider/index.ts", true],
   ["provider", "../provider/index.ts", true],

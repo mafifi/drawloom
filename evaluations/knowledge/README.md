@@ -105,6 +105,11 @@ This initiates real model calls. A durable receipt records each attempted
 submission; an uncertain call is reconciled, not automatically repeated. Reuse
 the same root serially after interruption; concurrent evaluator processes sharing
 a root are unsupported. Case deadlines cover transport and receipt persistence.
+After a durable terminal result is saved, the evaluator closes its writer
+transport and archives only the exact native thread named by that case receipt.
+Uncertain submissions remain unarchived for recovery. Archive failures stay on
+the primary result, fail the runner after progress is saved, and are retried from
+a cached terminal receipt without another model call.
 The fixed evidence limit applies to the complete records/chain package; oversized
 cases are reported blocked, never silently trimmed against the expected answer.
 

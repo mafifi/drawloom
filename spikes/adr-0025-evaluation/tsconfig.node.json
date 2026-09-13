@@ -1,0 +1,31 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "types": ["node", "bun"],
+    "skipLibCheck": true
+  },
+  "files": [
+    "contract.ts",
+    "fixtures.ts",
+    "common.ts",
+    "promptfoo.ts",
+    "braintrust.ts",
+    "conformance.ts",
+    "result-files.ts",
+    "run.ts",
+    "audio-run.ts",
+    "codex-live-observer.ts",
+    "codex-passage-judge.ts",
+    "codex-judge-live.ts",
+    "passage-cases.ts",
+    "passage-tool-effect.ts",
+    "inspection-contract.ts",
+    "knowledge-inspection.ts",
+    "inspection-server.ts",
+    "inspection-build.ts",
+    "inspection/backend.ts",
+    "inspection/inspection-view-model.ts"
+  ],
+  "include": []
+}

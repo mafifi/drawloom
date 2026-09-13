@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Drawloom evaluation — discussion proposal",
+    "locale": "en",
+    "quality_profile": "showcase"
+  },
+  "layout": { "mode": "grid", "origin": [50, 60], "cols": 4, "cellW": 205, "cellH": 90, "gapX": 125, "gapY": 150 },
+  "components": [
+    { "id": "cases", "type": "database", "label": "Evaluation cases", "sublabel": "Inputs · criteria · revisions", "row": 1, "col": 0, "size": [205,90] },
+    { "id": "runner", "type": "backend", "label": "Replaceable runner", "sublabel": "Trials · limits · cancellation", "row": 1, "col": 1, "size": [205,90] },
+    { "id": "scorers", "type": "backend", "label": "Evaluators", "sublabel": "Code · model · human", "row": 1, "col": 2, "size": [205,90] },
+    { "id": "results", "type": "frontend", "label": "Results and comparison", "sublabel": "Findings · evidence · cost", "row": 1, "col": 3, "size": [205,90] },
+    { "id": "plugins", "type": "external", "label": "Plugin-owned criteria", "sublabel": "Video · documents · knowledge", "row": 0, "col": 0, "size": [205,90] },
+    { "id": "execution", "type": "backend", "label": "Existing execution", "sublabel": "Agents · tools · orchestration", "row": 0, "col": 1, "size": [205,90] },
+    { "id": "evidence", "type": "database", "label": "Selected evidence", "sublabel": "Authorised artifact references", "row": 2, "col": 2, "size": [205,90] },
+    { "id": "decisions", "type": "security", "label": "Existing authority", "sublabel": "Review · policy · acceptance", "row": 2, "col": 3, "size": [205,90] }
+  ],
+  "connections": [
+    { "id": "case-inputs", "from": "cases", "to": "runner", "label": "cases" },
+    { "id": "run-output", "from": "runner", "to": "scorers", "label": "outputs" },
+    { "id": "score-results", "from": "scorers", "to": "results", "label": "findings" },
+    { "id": "plugin-cases", "from": "plugins", "to": "cases", "label": "contributes", "fromSide": "bottom", "toSide": "top", "labelAt": [152.5,225] },
+    { "id": "runner-execution", "from": "runner", "to": "execution", "label": "authorised run", "fromSide": "top", "toSide": "bottom" },
+    { "id": "evidence-score", "from": "evidence", "to": "scorers", "label": "assess existing", "fromSide": "top", "toSide": "bottom" },
+    { "id": "advisory-result", "from": "results", "to": "decisions", "label": "advisory only", "fromSide": "bottom", "toSide": "top", "variant": "dashed", "labelAt": [1142.5,465] }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Reuse", "items": ["Choose a runner after an integration test; do not rebuild its internals."] },
+    { "dot": "emerald", "title": "Keep ownership", "items": ["Plugins define quality. Drawloom connects evidence and presents findings."] },
+    { "dot": "rose", "title": "Not a decision", "items": ["A score grants no permission and never silently publishes or changes a model."] }
+  ]
+}

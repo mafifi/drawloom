@@ -104,6 +104,79 @@ test("completed cases are cached and unexpected native tool activity is visible 
   assert.equal(starts, 1);
 });
 
+test("a completed answer archives only its exact receipt-owned thread after saving the result", async () => {
+  const store = memoryStore(); const archived: unknown[] = [];
+  const result = await runAnswerCase({ value: evidenceCase, model: "gpt-5.6-terra", effort: "low", store, timeoutMs: 1_000,
+    connect: async () => scriptedTransport(async (method, params) => {
+      if (method === "turn/start") return { turn: { id: "turn-complete" } };
+      if (method === "thread/turns/list") return { data: [{ id: "turn-complete", status: "completed" }], nextCursor: null };
+      if (method === "thread/items/list") return { data: [{ turnId: "turn-complete", item: { type: "agentMessage", phase: "final", text: JSON.stringify({ answer: "Use Willow Lane.", citations: [ref], abstained: false }) } }], nextCursor: null };
+      if (method === "thread/archive") { archived.push(params); return {}; }
+      return baseResponse(method);
+    }),
+  });
+  assert.equal(result.kind, "completed");
+  assert.deepEqual(archived, [{ threadId: "thread-1" }]);
+});
+
+test("closes the answer writer transport before opening the archive cleanup transport", async () => {
+  const store = memoryStore(); let writerOpen = false, connections = 0;
+  const result = await runAnswerCase({ value: evidenceCase, model: "gpt-5.6-terra", effort: "low", store, timeoutMs: 1_000,
+    connect: async () => {
+      const owner = connections++ === 0;
+      return scriptedTransport(async (method) => {
+        if (method === "turn/start") { writerOpen = true; return { turn: { id: "turn-complete" } }; }
+        if (method === "thread/turns/list") return { data: [{ id: "turn-complete", status: "completed" }], nextCursor: null };
+        if (method === "thread/items/list") return { data: [{ turnId: "turn-complete", item: { type: "agentMessage", phase: "final", text: JSON.stringify({ answer: "Use Willow Lane.", citations: [ref], abstained: false }) } }], nextCursor: null };
+        if (method === "thread/archive") { if (writerOpen) throw Error("active writer"); return {}; }
+        return baseResponse(method);
+      }, { onClose: () => { if (owner) writerOpen = false; } });
+    },
+  });
+  assert.equal(result.kind, "completed");
+  assert.equal(result.cleanupFailure, undefined);
+  assert.equal(connections, 2);
+});
+
+test("a failed archive preserves the completed result and receipt, then a cached retry cleans up without another model call", async () => {
+  const store = memoryStore(); let archives = 0, starts = 0;
+  const connect = async () => scriptedTransport(async (method) => {
+    if (method === "turn/start") { starts++; return { turn: { id: "turn-complete" } }; }
+    if (method === "thread/turns/list") return { data: [{ id: "turn-complete", status: "completed" }], nextCursor: null };
+    if (method === "thread/items/list") return { data: [{ turnId: "turn-complete", item: { type: "agentMessage", phase: "final", text: JSON.stringify({ answer: "Use Willow Lane.", citations: [ref], abstained: false }) } }], nextCursor: null };
+    if (method === "thread/archive" && ++archives === 1) throw Error("archive unavailable");
+    return baseResponse(method);
+  });
+  const first = await runAnswerCase({ value: evidenceCase, model: "gpt-5.6-terra", effort: "low", store, connect, timeoutMs: 1_000 });
+  assert.equal(first.kind, "completed");
+  assert.equal(first.cleanupFailure, "archive unavailable");
+  const second = await runAnswerCase({ value: evidenceCase, model: "gpt-5.6-terra", effort: "low", store, connect, timeoutMs: 1_000 });
+  assert.equal(second.kind, "completed");
+  assert.equal(second.cleanupFailure, undefined);
+  assert.equal(starts, 1); assert.equal(archives, 2);
+});
+
+test("a stalled archive-confirmation write preserves the completed result within deadline and retries from cache without a model call", async () => {
+  const values = new Map<string, JsonValue>(); let writes = 0, starts = 0;
+  const store: JsonStore = { async get(key) { return values.get(key); }, async set(key, value) {
+    writes++; if (writes === 6) return new Promise<void>(() => {}); values.set(key, structuredClone(value));
+  } };
+  const connect = async () => scriptedTransport(async method => {
+    if (method === "turn/start") { starts++; return { turn: { id: "turn-complete" } }; }
+    if (method === "thread/turns/list") return { data: [{ id: "turn-complete", status: "completed" }], nextCursor: null };
+    if (method === "thread/items/list") return { data: [{ turnId: "turn-complete", item: { type: "agentMessage", phase: "final", text: JSON.stringify({ answer: "Use Willow Lane.", citations: [ref], abstained: false }) } }], nextCursor: null };
+    return baseResponse(method);
+  });
+  const first = await Promise.race([
+    runAnswerCase({ value: evidenceCase, model: "gpt-5.6-terra", effort: "low", store, connect, timeoutMs: 20 }),
+    new Promise<"test-timeout">(resolve => setTimeout(() => resolve("test-timeout"), 250)),
+  ]);
+  assert.notEqual(first, "test-timeout");
+  if (first !== "test-timeout") { assert.equal(first.kind, "completed"); assert.equal(first.cleanupFailure, "Archived thread confirmation could not be saved"); }
+  const second = await runAnswerCase({ value: evidenceCase, model: "gpt-5.6-terra", effort: "low", store, connect, timeoutMs: 100 });
+  assert.equal(second.kind, "completed"); assert.equal(second.cleanupFailure, undefined); assert.equal(starts, 1);
+});
+
 test("malformed model output is terminal and is never blindly resubmitted", async () => {
   const store = memoryStore(); let starts = 0;
   const connect = async () => scriptedTransport(async method => {
@@ -299,7 +372,7 @@ function baseResponse(method: string): unknown {
 
 function scriptedTransport(
   request: (method: string, params: unknown) => Promise<unknown>,
-  options: { nativeMessage?: RpcMessage; recoverFromStore?: JsonStore; stallClose?: boolean } = {},
+  options: { nativeMessage?: RpcMessage; recoverFromStore?: JsonStore; stallClose?: boolean; onClose?: () => void } = {},
 ): RpcTransport {
   let receive: (message: RpcMessage) => void = () => {};
   return {
@@ -308,6 +381,6 @@ function scriptedTransport(
       return request(method, params);
     },
     notify() {}, respond() {}, subscribe(next) { receive = next; return () => { receive = () => {}; }; },
-    async close() { if (options.stallClose) await new Promise(() => {}); },
+    async close() { if (options.stallClose) await new Promise(() => {}); options.onClose?.(); },
   };
 }

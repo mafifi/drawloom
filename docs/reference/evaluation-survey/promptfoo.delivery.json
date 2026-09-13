@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/evaluation-survey/promptfoo.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/generated/evaluation-survey/promptfoo.html",
+  "specification": {
+    "sha256": "6a4a47bc4aa72c9a4f5ef02e9e7b0477bcaa1b40e226b66b9d85b53e7e82fc26",
+    "bytes": 4848
+  },
+  "artifact": {
+    "sha256": "35cdc667908be08326e03c77a9b474c4e1ecd6c7a8dd081fc765e06761e278f6",
+    "bytes": 807820
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/promptfoo/promptfoo",
+    "revision": "b532fbae55b3706f13ccde6255f4e611788ce577",
+    "references": 9
+  }
+}

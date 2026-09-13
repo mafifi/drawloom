@@ -93,15 +93,30 @@ export const AgentOperationFailureSchema = z.strictObject({
   ]),
   summary: z.string().max(512),
 });
+const usageCount = z.number().int().safe().nonnegative();
+/** Provider-reported token counts attributable to one operation; not a bill. */
+export const AgentOperationUsageSchema = z.strictObject({
+  inputTokens: usageCount.optional(),
+  cachedInputTokens: usageCount.optional(),
+  outputTokens: usageCount.optional(),
+  reasoningTokens: usageCount.optional(),
+  totalTokens: usageCount.optional(),
+}).superRefine((value, context) => {
+  if (Object.values(value).every((item) => item === undefined)) context.addIssue({ code: "custom", message: "Usage must contain an observed value" });
+  if (value.inputTokens !== undefined && value.cachedInputTokens !== undefined && value.cachedInputTokens > value.inputTokens) context.addIssue({ code: "custom", path: ["cachedInputTokens"], message: "Cached input is included in input" });
+  if (value.outputTokens !== undefined && value.reasoningTokens !== undefined && value.reasoningTokens > value.outputTokens) context.addIssue({ code: "custom", path: ["reasoningTokens"], message: "Reasoning tokens are included in output" });
+});
+export type AgentOperationUsage = z.infer<typeof AgentOperationUsageSchema>;
 export const AgentSessionSignalSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("artifact.available"), operationId: id, asset: AssetSchema, messageId: id.optional() }),
   z.strictObject({ kind: z.literal("operation.started"), operationId: id }),
-  z.strictObject({ kind: z.literal("operation.completed"), operationId: id }),
-  z.strictObject({ kind: z.literal("operation.interrupted"), operationId: id }),
+  z.strictObject({ kind: z.literal("operation.completed"), operationId: id, usage: AgentOperationUsageSchema.optional() }),
+  z.strictObject({ kind: z.literal("operation.interrupted"), operationId: id, usage: AgentOperationUsageSchema.optional() }),
   z.strictObject({
     kind: z.literal("operation.failed"),
     operationId: id,
     failure: AgentOperationFailureSchema,
+    usage: AgentOperationUsageSchema.optional(),
   }),
   z.strictObject({
     kind: z.literal("message.delta"),

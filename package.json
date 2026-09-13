@@ -26,6 +26,10 @@
       "packages/*/*"
     ],
     "catalog": {
+      "promptfoo": "0.123.0",
+      "braintrust": "3.32.0",
+      "autoevals": "0.3.0",
+      "playwright": "1.63.0",
       "@types/node": "20.19.19",
       "sqlite-vec": "0.1.9",
       "@cedar-policy/cedar-wasm": "4.12.0",
@@ -115,7 +119,8 @@
     "check:architecture": "bun run check:ui-policy && depcruise --config .dependency-cruiser.mjs .",
     "check:dependency-policy": "bun run scripts/check-dependency-policy.ts",
     "check:design": "designmd lint DESIGN.md && designmd lint publishing/DESIGN.md",
-    "check:types": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p spikes/adr-0017-orchestration/tsconfig.portable.json && tsc --noEmit -p spikes/adr-0017-orchestration/tsconfig.temporal.json && tsc --noEmit -p packages/orchestration/temporal-orchestration/tsconfig.tests.json",
+    "check:types": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p spikes/adr-0017-orchestration/tsconfig.portable.json && tsc --noEmit -p spikes/adr-0017-orchestration/tsconfig.temporal.json && tsc --noEmit -p packages/orchestration/temporal-orchestration/tsconfig.tests.json && tsc --noEmit -p spikes/adr-0025-evaluation/tsconfig.portable.json && tsc --noEmit -p spikes/adr-0025-evaluation/tsconfig.node.json",
+    "spike:adr-0025": "node spikes/adr-0025-evaluation/verify-local.mjs",
     "test:temporal": "DRAWLOOM_TEMPORAL_TEST=1 node --test --test-concurrency=1 packages/orchestration/temporal-orchestration/real.test.mjs packages/orchestration/temporal-orchestration/installed-host.test.mjs",
     "test:temporal:compiled": "bun run build:packages && bun run scripts/stage-temporal-runtime.ts && DRAWLOOM_TEMPORAL_COMPILED=1 node --test packages/orchestration/temporal-orchestration/compiled-runtime.test.mjs",
     "test": "bun --conditions=svelte test",
@@ -125,6 +130,9 @@
     "spike:adr-0017": "bun run build:packages && node --experimental-strip-types --test spikes/adr-0017-orchestration/temporal-host.test.ts && bun build spikes/adr-0017-orchestration/temporal-worker.ts --target node --packages external --outdir spikes/adr-0017-orchestration/dist && node --experimental-strip-types spikes/adr-0017-orchestration/temporal-run.ts"
   },
   "devDependencies": {
+    "promptfoo": "catalog:",
+    "braintrust": "catalog:",
+    "autoevals": "catalog:",
     "sqlite-vec": "catalog:",
     "@cedar-policy/cedar-wasm": "catalog:",
     "casbin": "catalog:",

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createCodexAssessment } from '../../packages/knowledge/codex-assessment/dist/index.js';
 import { createNodeJsonStore, createStdioTransport, codexCommand } from '../../packages/host/node-host/dist/index.js';
+import { finishDisposableCodexThread } from '../../scripts/codex-thread-cleanup.ts';
 
 if (process.env.DRAWLOOM_KNOWLEDGE_LIVE !== '1') throw Error('Set DRAWLOOM_KNOWLEDGE_LIVE=1 to authorize this explicit native integration check.');
 const recovering = process.env.DRAWLOOM_KNOWLEDGE_RECOVER_DIR;
@@ -23,8 +24,10 @@ const request = recovering ? JSON.parse(await readFile(join(root, 'receipts', (a
   },
 };
 const calls = []; const errors = [];
+const receiptsDirectory = join(root, 'receipts');
+const store = createNodeJsonStore(receiptsDirectory);
 const provider = createCodexAssessment({ model: process.env.DRAWLOOM_NIGHTLOOM_MODEL ?? 'gpt-5.6-terra', effort: 'low', workingDirectory: root, timeoutMs: 300000,
-  store: createNodeJsonStore(join(root, 'receipts')),
+  store,
   authorizer: { authorize: async () => ({ decision: true }) },
   resolveResource: async ({ ref }) => ({ type: ref ? 'knowledge-record' : 'model-destination', id: ref?.id ?? 'configured-codex', properties: {} }),
   connect: async () => {
@@ -33,15 +36,38 @@ const provider = createCodexAssessment({ model: process.env.DRAWLOOM_NIGHTLOOM_M
   },
 });
 const started = performance.now();
+let result;
+let proofFailure;
+let closeFailure;
 try {
-  let result = recovering ? await provider.reconcile(subject, { requestId: request.requestId, payloadFingerprint: request.payloadFingerprint }) : await provider.assess(subject, request);
+  result = recovering ? await provider.reconcile(subject, { requestId: request.requestId, payloadFingerprint: request.payloadFingerprint }) : await provider.assess(subject, request);
   const deadline = Date.now() + 300000;
   while ((result.kind === 'running' || result.kind === 'uncertain') && Date.now() < deadline) {
     await new Promise(resolve => setTimeout(resolve, 1000));
     result = await provider.reconcile(subject, { requestId: request.requestId, payloadFingerprint: request.payloadFingerprint });
   }
-  console.log(JSON.stringify({ kind: 'live-codex-assessment', recovering: Boolean(recovering), result, milliseconds: performance.now() - started, calls: Object.fromEntries([...new Set(calls)].map(method => [method, calls.filter(value => value === method).length])), errors, runtimeDirectory: root }, null, 2));
   assert.equal(result.kind, 'completed');
   if (result.kind === 'completed') assert.ok(result.proposals.length > 0);
   assert.equal(calls.filter(method => method === 'turn/start').length, recovering ? 0 : 1);
-} finally { await provider.close(); }
+} catch (cause) {
+  proofFailure = cause;
+} finally { try { await provider.close(); } catch (cause) { closeFailure = cause; } }
+const expectedSubject = JSON.stringify([subject.type, subject.id]);
+const receiptCandidates = await Promise.all((await readdir(receiptsDirectory)).filter(name => name.startsWith('knowledge-assessment')).map(async name => JSON.parse(await readFile(join(receiptsDirectory, name), 'utf8'))));
+const matchingReceipts = receiptCandidates.filter(value => value?.request?.requestId === request.requestId && value?.request?.payloadFingerprint === request.payloadFingerprint && value?.subject === expectedSubject);
+const receipt = matchingReceipts.length === 1 ? matchingReceipts[0] : undefined;
+const terminal = ['completed', 'cancelled', 'failure'].includes(receipt?.outcome?.kind);
+const terminalThreadId = terminal ? receipt.threadId : undefined;
+const ownedThreadId = terminalThreadId && !closeFailure ? terminalThreadId : undefined;
+const finished = await finishDisposableCodexThread(result, {
+  threadId: ownedThreadId,
+  connect: async () => createStdioTransport({ ...codexCommand(), cwd: root, requestTimeoutMs: 300000, maxMessageBytes: 2 * 1024 * 1024 }),
+});
+console.log(JSON.stringify({ kind: 'live-codex-assessment', recovering: Boolean(recovering), result: finished.primary, cleanup: finished.cleanup, milliseconds: performance.now() - started, calls: Object.fromEntries([...new Set(calls)].map(method => [method, calls.filter(value => value === method).length])), errors, runtimeDirectory: root }, null, 2));
+const receiptFailure = result?.kind === 'completed' && matchingReceipts.length !== 1 ? Error('Completed assessment did not resolve to one exact owned receipt for cleanup') : undefined;
+const cleanupFailure = receiptFailure ?? (terminalThreadId && closeFailure ? Error('Assessment writer closure was not confirmed; native thread archive was not attempted') : ownedThreadId && finished.cleanup.kind !== 'archived' ? Error('Completed assessment evidence was saved, but its disposable native thread was not archived') : undefined);
+if (proofFailure && (cleanupFailure || closeFailure)) throw new AggregateError([proofFailure, ...(closeFailure ? [closeFailure] : []), ...(cleanupFailure ? [cleanupFailure] : [])], 'Live assessment and cleanup both failed');
+if (proofFailure) throw proofFailure;
+if (closeFailure && cleanupFailure) throw new AggregateError([closeFailure,cleanupFailure],'Assessment connection close and disposable-thread cleanup both failed');
+if (closeFailure) throw closeFailure;
+if (cleanupFailure) throw cleanupFailure;

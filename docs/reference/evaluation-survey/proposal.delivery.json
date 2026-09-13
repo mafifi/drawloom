@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/evaluation-survey/proposal.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/generated/evaluation-survey/proposal.html",
+  "specification": {
+    "sha256": "f9265c2e653e92e2d7bf64f3ddc4dc0e012018178ca9df946a058ad0c488127c",
+    "bytes": 2908
+  },
+  "artifact": {
+    "sha256": "a591da87944672060aea05e548ab2f35e953e58f5b8dbac490bc14fab7428397",
+    "bytes": 807113
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

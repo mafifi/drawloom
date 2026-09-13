@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/evaluation-survey/autoevals.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/generated/evaluation-survey/autoevals.html",
+  "specification": {
+    "sha256": "11eecf59a1e8bb701a0da8dbce6fb1453896b8fbf5e02e961f1e767ea126f423",
+    "bytes": 4005
+  },
+  "artifact": {
+    "sha256": "7c19dd5aa205ea286f301c8f5e04acea984dc2be4c45ce034f39344b1a1ecffa",
+    "bytes": 804075
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/braintrustdata/autoevals",
+    "revision": "b0e1055892bea1305a10f8d42fdc47ff1b41ffa4",
+    "references": 9
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "date": "2026-09-13",
+  "scenario": "Supported host assessment composition and real local Temporal; two saved synthetic passages",
+  "modelRequested": "gpt-5.6-terra",
+  "effortConfigured": "low",
+  "actualModel": null,
+  "elapsedMsIncludingRuntimeStartup": 8220,
+  "targetCalls": 0,
+  "successfulNativeStarts": 2,
+  "successfulNativeArchives": 2,
+  "reopen": { "cachedResults": 2, "sameFindingsAndUsage": true, "orchestration": "unavailable", "nativeProvider": "unconfigured", "modelCalls": 0 },
+  "scorers": [
+    {
+      "caseId": "faithful",
+      "durationMs": 5656,
+      "score": 1,
+      "explanation": "It preserves both facts in plain language and does not add a guarantee.",
+      "inputTokens": 23356,
+      "cachedInputTokens": 12032,
+      "outputTokens": 27,
+      "reasoningTokens": 0,
+      "totalTokens": 23383
+    },
+    {
+      "caseId": "poor",
+      "durationMs": 5816,
+      "score": 0,
+      "explanation": "It contradicts both facts: the test takes ten minutes and results may vary. It also invents an unsupported guarantee.",
+      "inputTokens": 19031,
+      "cachedInputTokens": 12032,
+      "outputTokens": 37,
+      "reasoningTokens": 0,
+      "totalTokens": 19068
+    }
+  ],
+  "cost": null,
+  "limitations": [
+    "A tiny deliberately obvious check, not broad judge calibration or production usefulness.",
+    "Cached input is a subset of input, not additional tokens.",
+    "Fresh native sessions carry provider context overhead beyond the supplied short passages.",
+    "Direct supported composition check, not an installed private video UI walkthrough."
+  ]
+}

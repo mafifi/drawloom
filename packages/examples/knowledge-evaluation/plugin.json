@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "drawloom-knowledge-evaluation",
+  "version": "0.0.0",
+  "description": "Frozen public knowledge evaluation through Drawloom's supported evaluation capability.",
+  "license": "Apache-2.0",
+  "extensions": {
+    "io.github.mafifi.drawloom": {
+      "version": 1,
+      "backend": { "entrypoint": "./dist/backend.js" },
+      "workflows": { "entrypoint": "./dist/workflows.js" },
+      "requires": [{ "kind": "capability", "id": "evaluation" }],
+      "optional": [{ "kind": "capability", "id": "orchestration" }],
+      "workbenches": [{
+        "id": "knowledge-evaluation",
+        "title": "Knowledge evaluation",
+        "openingTool": { "server": "knowledge-evaluation", "tool": "evaluation.open" }
+      }]
+    }
+  }
+}

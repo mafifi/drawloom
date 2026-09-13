@@ -26,6 +26,10 @@ export interface InstalledWorkflowRegistration {
   attach(handlers: readonly RegisteredTaskHandler[]): Promise<void>;
   close(): Promise<void>;
 }
+export interface InstalledEvaluationRegistration {
+  evaluation: NonNullable<PluginBackendCapabilities['evaluation']>;
+  close(): Promise<void>;
+}
 export async function loadInstalledPackages(options: {
   project?: { readonly id: string; readonly directory: string };
   mediaPolicy?: MediaPolicy;
@@ -36,6 +40,7 @@ export async function loadInstalledPackages(options: {
   elicitation?: ToolElicitationHandler;
   toolsFor?: (installation: Installation, tools: readonly ToolDefinition[], workbenchIds: readonly string[]) => ToolGateway;
   prepareWorkflows?: (installation: Installation, inventory: PackageInventory) => Promise<InstalledWorkflowRegistration>;
+  prepareEvaluation?: (installation: Installation, inventory: PackageInventory, workflow?: InstalledWorkflowRegistration) => Promise<InstalledEvaluationRegistration>;
 }) {
   const installs: PluginInstaller[] = [];
   const toolIds = new Set<string>();
@@ -55,6 +60,7 @@ export async function loadInstalledPackages(options: {
   const backendClients: Client[] = [];
   const backends = createBackendLoader();
   const workflowRegistrations: InstalledWorkflowRegistration[] = [];
+  const evaluationRegistrations: InstalledEvaluationRegistration[] = [];
   const prepared: { installation: Installation; inventory: PackageInventory; connections: ActivePackage; status: InstalledPackageStatus }[] = [];
   const available: PluginRequirement[] = [{ kind: 'capability', id: 'host' }];
   const dependencies: { packageName: string; requirement: PluginRequirement; alias?: string }[] = [];
@@ -147,7 +153,7 @@ export async function loadInstalledPackages(options: {
     };
     const present = new Set(available.map(r => `${r.kind}:${r.id}`));
     if (tools) present.add('capability:tools');
-    const prerequisites = (inventory.drawloom?.requires ?? []).filter(r => r.kind !== 'capability' || r.id !== 'orchestration');
+    const prerequisites = (inventory.drawloom?.requires ?? []).filter(r => r.kind !== 'capability' || (r.id !== 'orchestration' && r.id !== 'evaluation'));
     let workflow: InstalledWorkflowRegistration | undefined;
     if (installation.trustedBackend && inventory.drawloom?.backend && inventory.drawloom.workflows &&
       prerequisites.every(r => present.has(`${r.kind}:${r.id}`)) && options.prepareWorkflows) {
@@ -157,10 +163,30 @@ export async function loadInstalledPackages(options: {
         if (workflow.capabilities.orchestration) present.add('capability:orchestration');
       } catch { status.codes.push('orchestration:unavailable'); }
     }
+    let evaluation: InstalledEvaluationRegistration | undefined;
+    const declared = [...(inventory.drawloom?.requires ?? []), ...(inventory.drawloom?.optional ?? [])];
+    if (installation.trustedBackend && inventory.drawloom?.backend &&
+      declared.some(r => r.kind === 'capability' && r.id === 'evaluation') &&
+      prerequisites.every(r => present.has(`${r.kind}:${r.id}`)) && options.prepareEvaluation) {
+      try {
+        evaluation = await options.prepareEvaluation(installation, inventory, workflow);
+        evaluationRegistrations.push(evaluation);
+        present.add('capability:evaluation');
+      } catch { status.codes.push('evaluation:unavailable'); }
+    }
+    const releaseEvaluation = async () => {
+      if (!evaluation) return;
+      try {
+        await evaluation.close();
+        const index = evaluationRegistrations.indexOf(evaluation);
+        if (index !== -1) evaluationRegistrations.splice(index, 1);
+        evaluation = undefined;
+      } catch { status.codes.push('evaluation:cleanup-failed'); }
+    };
     const requirementsResolved = (inventory.drawloom?.requires ?? []).every(r => present.has(`${r.kind}:${r.id}`) &&
       (r.kind !== 'tool' || !tools || aliases.has(r.id)));
     if (!requirementsResolved) {
-      status.codes.push('extension:unavailable'); status.status = 'partial'; continue;
+      status.codes.push('extension:unavailable'); status.status = 'partial'; await releaseEvaluation(); continue;
     }
     const result = await observed('host.package.activate', { 'drawloom.plugin.id': installation.id }, async () => {
       const result = await backends.activate(inventory, {
@@ -170,7 +196,7 @@ export async function loadInstalledPackages(options: {
       capabilities: { host: { ...options.host, store: {
         get: key => options.host.store.get(JSON.stringify(['plugin', installation.id, key])),
         set: (key, value) => options.host.store.set(JSON.stringify(['plugin', installation.id, key]), value),
-      } }, ...(tools ? { tools } : {}), ...workflow?.capabilities },
+      } }, ...(tools ? { tools } : {}), ...workflow?.capabilities, ...(evaluation ? {evaluation:evaluation.evaluation} : {}) },
       });
       if (result.status === 'untrusted') observeOutcome('denied');
       else if (result.status === 'failed' || result.status === 'unavailable') observeOutcome('error');
@@ -213,7 +239,10 @@ export async function loadInstalledPackages(options: {
           connections.servers.set(server.name, { client, callTool: async (params, context) => CallToolResultSchema.parse(await client.callTool(params, undefined, { signal: context.signal })), close: () => Promise.resolve() });
         } catch { await client.close(); status.codes.push(`backend-server:${server.name}:failed`); }
       }
-    } else if (result.status !== 'absent') status.codes.push(`backend:${result.status}`);
+    } else {
+      if (result.status !== 'absent') status.codes.push(`backend:${result.status}`);
+      await releaseEvaluation();
+    }
     for (const placement of inventory.drawloom?.workbenches ?? []) {
       const view = ownedViews.find(view => view.workbenchId === placement.id);
       if (!view || mcpApps.has(placement.id) ||
@@ -294,7 +323,10 @@ export async function loadInstalledPackages(options: {
       await Promise.allSettled([...mcpApps.values()].map(async app => app.close()));
       await Promise.allSettled(backendClients.map(async client => client.close()));
       try { await backends.close(); }
-      finally { await Promise.allSettled(active.map(async pkg => pkg.close())); }
+      finally {
+        await Promise.allSettled(evaluationRegistrations.map(evaluation => evaluation.close()));
+        await Promise.allSettled(active.map(async pkg => pkg.close()));
+      }
       });
     },
   };

@@ -4,7 +4,7 @@ id: drawloom-knowledge-index
 title: Drawloom knowledge index
 status: active
 created: 2026-09-02
-updated: 2026-09-12
+updated: 2026-09-13
 ---
 
 # Drawloom knowledge index
@@ -20,6 +20,8 @@ updated: 2026-09-12
 - No assumption records yet.
 
 ## Evidence and computations
+
+- [Supported evaluation implementation](evidence/adr-0025-supported-evaluation.md)
 
 - [Local knowledge implementation and retrieval evaluation](evidence/adr-0024-local-knowledge.md)
 - [Qwen embedding acceleration on Apple Silicon](evidence/adr-0024-mlx-acceleration.md)
@@ -37,6 +39,11 @@ updated: 2026-09-12
 - [Memory-driven action selection and irrelevant-evidence control](evidence/adr-0022-memory-action-sprint.md)
 
 - [First knowledge, memory and context sprint](evidence/adr-0022-memory-sprint.md)
+
+- [Evaluation boundaries and comparative proof](evidence/adr-0025-evaluation.md)
+- [Existing-media evaluation consumers](evidence/adr-0025-media-consumers.md)
+- [Tool effects and native Codex judgement](evidence/adr-0025-tools-and-codex-judge.md)
+- [Frozen knowledge evaluation and MCP App inspection](evidence/adr-0025-knowledge-and-presentation.md)
 
 - [Local Temporal orchestration implementation](evidence/adr-0021-local-temporal.md)
 

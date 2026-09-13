@@ -1,0 +1,950 @@
+{
+  "kind": "real_vector_evaluation",
+  "corpus": {
+    "version": "drawloom-public-knowledge-v1",
+    "sha256": "70ab90e0be0e1ba9e7872dbd1e7286b1ef5c5fd343660b5e950cbd8c7a90e5e5",
+    "records": 10000
+  },
+  "ingestion": {
+    "elapsedMs": 3077.2543330000003,
+    "cpuMicros": 2664618,
+    "startRssBytes": 109854720,
+    "peakRssBytes": 194658304
+  },
+  "lexical": {
+    "queries": 24,
+    "metrics": {
+      "relevantEvidence": {
+        "precision": 0.1201923076923077,
+        "recall": 0.9259259259259259
+      },
+      "exactIdentifierRecall": 0.75,
+      "chainCompleteness": 0.6,
+      "irrelevantAbstention": 0
+    },
+    "categoryMetrics": {
+      "semantic": {
+        "relevantEvidence": {
+          "precision": 0.14285714285714285,
+          "recall": 0.9375
+        },
+        "exactIdentifierRecall": 1,
+        "chainCompleteness": 1,
+        "irrelevantAbstention": 1
+      },
+      "identifier": {
+        "relevantEvidence": {
+          "precision": 0.17647058823529413,
+          "recall": 0.75
+        },
+        "exactIdentifierRecall": 0.75,
+        "chainCompleteness": 1,
+        "irrelevantAbstention": 1
+      },
+      "chain": {
+        "relevantEvidence": {
+          "precision": 0.1111111111111111,
+          "recall": 1
+        },
+        "exactIdentifierRecall": 1,
+        "chainCompleteness": 0.6666666666666666,
+        "irrelevantAbstention": 1
+      },
+      "contradiction": {
+        "relevantEvidence": {
+          "precision": 0.2,
+          "recall": 1
+        },
+        "exactIdentifierRecall": 1,
+        "chainCompleteness": 0.5,
+        "irrelevantAbstention": 1
+      },
+      "irrelevant": {
+        "relevantEvidence": {
+          "precision": 0,
+          "recall": 1
+        },
+        "exactIdentifierRecall": 1,
+        "chainCompleteness": 1,
+        "irrelevantAbstention": 0
+      }
+    },
+    "questions": {
+      "s1": {
+        "category": "semantic",
+        "retrieved": [
+          "ferry-guidance@r1",
+          "package-report@r1",
+          "observatory-rule@r1",
+          "museum-access@r1",
+          "archive-recovery@r1",
+          "package-claim@r1",
+          "museum-visiting@r1",
+          "archive-policy@r1",
+          "book-binding@r1",
+          "rail-closure@r1"
+        ]
+      },
+      "s2": {
+        "category": "semantic",
+        "retrieved": [
+          "museum-access@r1",
+          "museum-visiting@r1",
+          "archive-recovery@r1",
+          "ferry-guidance@r1",
+          "release-retry@r1",
+          "museum-hours@r1",
+          "package-claim@r1",
+          "book-binding@r1",
+          "ferry-rule@r2",
+          "rail-travel@r1"
+        ]
+      },
+      "s3": {
+        "category": "semantic",
+        "retrieved": [
+          "archive-recovery@r1",
+          "museum-hours@r1",
+          "rail-travel@r1",
+          "rail-closure@r1",
+          "ferry-guidance@r1",
+          "book-binding@r1",
+          "package-claim@r1",
+          "garden-water@r1",
+          "ferry-rule@r2",
+          "workshop-storage@r1"
+        ]
+      },
+      "s4": {
+        "category": "semantic",
+        "retrieved": [
+          "rail-closure@r1",
+          "rail-travel@r1",
+          "ferry-guidance@r1",
+          "museum-hours@r1",
+          "package-claim@r1",
+          "garden-water@r1",
+          "ferry-rule@r2",
+          "workshop-storage@r1",
+          "package-status@r1",
+          "museum-access@r1"
+        ]
+      },
+      "s5": {
+        "category": "semantic",
+        "retrieved": [
+          "ferry-rule@r2",
+          "rail-travel@r1",
+          "workshop-storage@r1",
+          "package-status@r1",
+          "museum-access@r1",
+          "package-report@r1",
+          "rail-cycle@r1",
+          "museum-visiting@r1",
+          "archive-recovery@r1",
+          "archive-policy@r1"
+        ]
+      },
+      "s6": {
+        "category": "semantic",
+        "retrieved": [
+          "museum-access@r1",
+          "rail-travel@r1",
+          "museum-hours@r1",
+          "package-status@r1",
+          "package-report@r1",
+          "ferry-guidance@r1",
+          "ferry-rule@r2",
+          "garden-access@r1",
+          "workshop-storage@r1",
+          "garden-water@r1"
+        ]
+      },
+      "s7": {
+        "category": "semantic",
+        "retrieved": [
+          "garden-access@r1",
+          "ferry-guidance@r1",
+          "observatory-rule@r1",
+          "book-repair@r1",
+          "release-retry@r1",
+          "package-report@r1",
+          "package-claim@r1",
+          "archive-recovery@r1",
+          "museum-visiting@r1",
+          "book-binding@r1"
+        ]
+      },
+      "s8": {
+        "category": "semantic",
+        "retrieved": [
+          "book-binding@r1",
+          "archive-recovery@r1",
+          "workshop-storage@r1",
+          "ferry-rule@r2",
+          "rail-travel@r1",
+          "book-repair@r1",
+          "package-status@r1",
+          "museum-access@r1",
+          "observatory-rule@r1",
+          "package-report@r1"
+        ]
+      },
+      "s9": {
+        "category": "semantic",
+        "retrieved": [
+          "release-retry@r1",
+          "museum-visiting@r1",
+          "museum-hours@r1",
+          "rail-closure@r1",
+          "observatory-rule@r1"
+        ]
+      },
+      "s10": {
+        "category": "semantic",
+        "retrieved": [
+          "observatory-rule@r1",
+          "package-claim@r1",
+          "archive-policy@r1",
+          "book-repair@r1",
+          "package-report@r1",
+          "ferry-guidance@r1",
+          "museum-access@r1",
+          "museum-visiting@r1",
+          "export-profile@r1",
+          "rail-closure@r1"
+        ]
+      },
+      "s11": {
+        "category": "semantic",
+        "retrieved": [
+          "workshop-storage@r1",
+          "observatory-rule@r1",
+          "museum-hours@r1",
+          "rail-closure@r1",
+          "archive-policy@r1",
+          "package-claim@r1",
+          "ferry-rule@r2",
+          "garden-water@r1",
+          "rail-travel@r1",
+          "package-status@r1"
+        ]
+      },
+      "i1": {
+        "category": "identifier",
+        "retrieved": [
+          "release-retry@r1",
+          "workshop-storage@r1",
+          "garden-water@r1"
+        ]
+      },
+      "i2": {
+        "category": "identifier",
+        "retrieved": [
+          "release-cache@r1",
+          "workshop-storage@r1",
+          "garden-water@r1"
+        ]
+      },
+      "i3": {
+        "category": "identifier",
+        "retrieved": [
+          "garden-water@r1",
+          "ferry-guidance@r1",
+          "museum-hours@r1",
+          "export-other@r1",
+          "package-claim@r1"
+        ]
+      },
+      "i4": {
+        "category": "identifier",
+        "retrieved": [
+          "export-other@r1",
+          "release-cache@r1",
+          "book-repair@r1",
+          "archive-policy@r1",
+          "observatory-rule@r1",
+          "package-claim@r1"
+        ]
+      },
+      "c1": {
+        "category": "chain",
+        "retrieved": [
+          "museum-visiting@r1",
+          "museum-access@r1",
+          "ferry-rule@r2",
+          "release-retry@r1",
+          "workshop-storage@r1",
+          "archive-policy@r1",
+          "ferry-guidance@r1",
+          "package-claim@r1",
+          "museum-hours@r1",
+          "rail-travel@r1"
+        ]
+      },
+      "c2": {
+        "category": "chain",
+        "retrieved": [
+          "ferry-guidance@r1",
+          "rail-closure@r1",
+          "package-claim@r1",
+          "archive-policy@r1",
+          "package-report@r1",
+          "rail-travel@r1",
+          "museum-access@r1",
+          "museum-visiting@r1",
+          "book-repair@r1",
+          "observatory-rule@r1"
+        ]
+      },
+      "c3": {
+        "category": "chain",
+        "retrieved": [
+          "book-repair@r1",
+          "release-cache@r1",
+          "archive-policy@r1",
+          "observatory-rule@r1",
+          "package-claim@r1",
+          "book-binding@r1",
+          "package-report@r1"
+        ]
+      },
+      "x1": {
+        "category": "contradiction",
+        "retrieved": [
+          "ferry-guidance@r1",
+          "ferry-rule@r2",
+          "museum-hours@r1",
+          "package-claim@r1",
+          "garden-water@r1",
+          "rail-travel@r1",
+          "workshop-storage@r1",
+          "package-status@r1",
+          "museum-access@r1",
+          "package-report@r1"
+        ]
+      },
+      "x2": {
+        "category": "contradiction",
+        "retrieved": [
+          "museum-hours@r1",
+          "package-report@r1",
+          "package-claim@r1",
+          "package-status@r1",
+          "museum-access@r1",
+          "museum-visiting@r1",
+          "rail-travel@r1",
+          "ferry-guidance@r1",
+          "garden-water@r1",
+          "ferry-rule@r2"
+        ]
+      },
+      "n1": {
+        "category": "irrelevant",
+        "retrieved": [
+          "observatory-rule@r1",
+          "ferry-guidance@r1",
+          "package-claim@r1",
+          "museum-hours@r1",
+          "rail-closure@r1",
+          "garden-water@r1",
+          "book-repair@r1",
+          "package-report@r1",
+          "museum-visiting@r1",
+          "garden-access@r1"
+        ]
+      },
+      "n2": {
+        "category": "irrelevant",
+        "retrieved": [
+          "museum-access@r1",
+          "museum-visiting@r1",
+          "release-retry@r1",
+          "museum-hours@r1",
+          "ferry-rule@r2",
+          "rail-travel@r1",
+          "workshop-storage@r1",
+          "package-status@r1",
+          "package-report@r1",
+          "release-cache@r1"
+        ]
+      },
+      "n3": {
+        "category": "irrelevant",
+        "retrieved": [
+          "ferry-guidance@r1",
+          "ferry-rule@r2",
+          "museum-visiting@r1",
+          "release-cache@r1",
+          "book-repair@r1",
+          "book-binding@r1",
+          "archive-policy@r1",
+          "observatory-rule@r1",
+          "package-claim@r1"
+        ]
+      },
+      "n4": {
+        "category": "irrelevant",
+        "retrieved": [
+          "book-binding@r1",
+          "ferry-rule@r2",
+          "rail-travel@r1",
+          "workshop-storage@r1",
+          "package-status@r1",
+          "museum-access@r1",
+          "observatory-rule@r1",
+          "package-report@r1",
+          "export-profile@r1",
+          "export-other@r1"
+        ]
+      }
+    },
+    "measurement": {
+      "elapsedMs": 57.887165999999525,
+      "cpuMicros": 65390,
+      "startRssBytes": 194658304,
+      "peakRssBytes": 195133440
+    },
+    "latency": {
+      "coldMs": 1.7120000000004438,
+      "warm30MedianMs": 0.6361669999996593,
+      "warm30P95Ms": 5.641832999999679,
+      "cpuMicros": 65390,
+      "startRssBytes": 194658304,
+      "peakRssBytes": 195133440,
+      "storeBytes": 24644552
+    },
+    "storeBytes": {
+      "database": 19177472,
+      "wal": 5434312,
+      "shm": 32768,
+      "total": 24644552
+    }
+  },
+  "hybrid": {
+    "kind": "real_vectors",
+    "model": "qwen3-embedding-0.6b-mlx-8bit",
+    "indexing": {
+      "elapsedMs": 281828.623416,
+      "cpuMicros": 172525066,
+      "startRssBytes": 188809216,
+      "peakRssBytes": 292438016
+    },
+    "queries": 24,
+    "metrics": {
+      "relevantEvidence": {
+        "precision": 0.1125,
+        "recall": 1
+      },
+      "exactIdentifierRecall": 1,
+      "chainCompleteness": 0.8,
+      "irrelevantAbstention": 0
+    },
+    "categoryMetrics": {
+      "semantic": {
+        "relevantEvidence": {
+          "precision": 0.14545454545454545,
+          "recall": 1
+        },
+        "exactIdentifierRecall": 1,
+        "chainCompleteness": 1,
+        "irrelevantAbstention": 1
+      },
+      "identifier": {
+        "relevantEvidence": {
+          "precision": 0.1,
+          "recall": 1
+        },
+        "exactIdentifierRecall": 1,
+        "chainCompleteness": 1,
+        "irrelevantAbstention": 1
+      },
+      "chain": {
+        "relevantEvidence": {
+          "precision": 0.1,
+          "recall": 1
+        },
+        "exactIdentifierRecall": 1,
+        "chainCompleteness": 1,
+        "irrelevantAbstention": 1
+      },
+      "contradiction": {
+        "relevantEvidence": {
+          "precision": 0.2,
+          "recall": 1
+        },
+        "exactIdentifierRecall": 1,
+        "chainCompleteness": 0.5,
+        "irrelevantAbstention": 1
+      },
+      "irrelevant": {
+        "relevantEvidence": {
+          "precision": 0,
+          "recall": 1
+        },
+        "exactIdentifierRecall": 1,
+        "chainCompleteness": 1,
+        "irrelevantAbstention": 0
+      }
+    },
+    "questions": {
+      "s1": {
+        "category": "semantic",
+        "retrieved": [
+          "museum-access@r1",
+          "museum-visiting@r1",
+          "rail-cycle@r1",
+          "ferry-guidance@r1",
+          "package-report@r1",
+          "observatory-rule@r1",
+          "inventory-7879@r1",
+          "archive-recovery@r1",
+          "inventory-7478@r1",
+          "inventory-7375@r1"
+        ]
+      },
+      "s2": {
+        "category": "semantic",
+        "retrieved": [
+          "museum-access@r1",
+          "museum-visiting@r1",
+          "museum-hours@r1",
+          "release-retry@r1",
+          "ferry-rule@r2",
+          "ferry-guidance@r1",
+          "package-claim@r1",
+          "package-report@r1",
+          "workshop-storage@r1",
+          "release-cache@r1"
+        ]
+      },
+      "s3": {
+        "category": "semantic",
+        "retrieved": [
+          "archive-recovery@r1",
+          "package-claim@r1",
+          "archive-policy@r1",
+          "observatory-rule@r1",
+          "package-report@r1",
+          "museum-hours@r1",
+          "book-repair@r1",
+          "rail-travel@r1",
+          "rail-closure@r1",
+          "ferry-guidance@r1"
+        ]
+      },
+      "s4": {
+        "category": "semantic",
+        "retrieved": [
+          "rail-closure@r1",
+          "rail-travel@r1",
+          "ferry-guidance@r1",
+          "ferry-rule@r2",
+          "package-claim@r1",
+          "rail-cycle@r1",
+          "museum-visiting@r1",
+          "package-report@r1",
+          "museum-access@r1",
+          "museum-hours@r1"
+        ]
+      },
+      "s5": {
+        "category": "semantic",
+        "retrieved": [
+          "rail-travel@r1",
+          "ferry-rule@r2",
+          "rail-cycle@r1",
+          "museum-visiting@r1",
+          "package-report@r1",
+          "package-status@r1",
+          "rail-closure@r1",
+          "museum-access@r1",
+          "ferry-guidance@r1",
+          "workshop-storage@r1"
+        ]
+      },
+      "s6": {
+        "category": "semantic",
+        "retrieved": [
+          "rail-travel@r1",
+          "museum-access@r1",
+          "garden-access@r1",
+          "garden-water@r1",
+          "workshop-storage@r1",
+          "ferry-rule@r2",
+          "ferry-guidance@r1",
+          "package-status@r1",
+          "museum-visiting@r1",
+          "package-report@r1"
+        ]
+      },
+      "s7": {
+        "category": "semantic",
+        "retrieved": [
+          "garden-access@r1",
+          "ferry-guidance@r1",
+          "book-repair@r1",
+          "museum-visiting@r1",
+          "garden-water@r1",
+          "observatory-rule@r1",
+          "release-retry@r1",
+          "book-binding@r1",
+          "museum-access@r1",
+          "rail-closure@r1"
+        ]
+      },
+      "s8": {
+        "category": "semantic",
+        "retrieved": [
+          "book-binding@r1",
+          "book-repair@r1",
+          "archive-recovery@r1",
+          "workshop-storage@r1",
+          "archive-policy@r1",
+          "package-report@r1",
+          "package-claim@r1",
+          "ferry-rule@r2",
+          "release-cache@r1",
+          "rail-travel@r1"
+        ]
+      },
+      "s9": {
+        "category": "semantic",
+        "retrieved": [
+          "release-retry@r1",
+          "museum-visiting@r1",
+          "rail-closure@r1",
+          "observatory-rule@r1",
+          "package-claim@r1",
+          "museum-hours@r1",
+          "release-cache@r1",
+          "package-report@r1",
+          "package-status@r1",
+          "rail-cycle@r1"
+        ]
+      },
+      "s10": {
+        "category": "semantic",
+        "retrieved": [
+          "observatory-rule@r1",
+          "book-repair@r1",
+          "museum-visiting@r1",
+          "museum-access@r1",
+          "ferry-guidance@r1",
+          "archive-policy@r1",
+          "rail-closure@r1",
+          "package-report@r1",
+          "rail-cycle@r1",
+          "workshop-storage@r1"
+        ]
+      },
+      "s11": {
+        "category": "semantic",
+        "retrieved": [
+          "workshop-storage@r1",
+          "garden-water@r1",
+          "museum-access@r1",
+          "release-cache@r1",
+          "museum-hours@r1",
+          "book-repair@r1",
+          "museum-visiting@r1",
+          "release-retry@r1",
+          "book-binding@r1",
+          "observatory-rule@r1"
+        ]
+      },
+      "i1": {
+        "category": "identifier",
+        "retrieved": [
+          "release-retry@r1",
+          "workshop-storage@r1",
+          "release-cache@r1",
+          "garden-water@r1",
+          "museum-access@r1",
+          "inventory-4082@r1",
+          "museum-visiting@r1",
+          "inventory-4080@r1",
+          "inventory-2042@r1",
+          "inventory-4284@r1"
+        ]
+      },
+      "i2": {
+        "category": "identifier",
+        "retrieved": [
+          "release-cache@r1",
+          "workshop-storage@r1",
+          "release-retry@r1",
+          "garden-water@r1",
+          "museum-access@r1",
+          "inventory-2044@r1",
+          "ferry-rule@r2",
+          "inventory-2042@r1",
+          "inventory-1924@r1",
+          "inventory-24@r1"
+        ]
+      },
+      "i3": {
+        "category": "identifier",
+        "retrieved": [
+          "export-other@r1",
+          "package-claim@r1",
+          "export-profile@r1",
+          "garden-water@r1",
+          "ferry-guidance@r1",
+          "museum-hours@r1",
+          "release-cache@r1",
+          "inventory-2037@r1",
+          "inventory-1917@r1",
+          "inventory-1617@r1"
+        ]
+      },
+      "i4": {
+        "category": "identifier",
+        "retrieved": [
+          "export-other@r1",
+          "export-profile@r1",
+          "release-cache@r1",
+          "book-repair@r1",
+          "inventory-1971@r1",
+          "archive-policy@r1",
+          "inventory-7371@r1",
+          "inventory-7071@r1",
+          "observatory-rule@r1",
+          "inventory-2071@r1"
+        ]
+      },
+      "c1": {
+        "category": "chain",
+        "retrieved": [
+          "museum-access@r1",
+          "museum-visiting@r1",
+          "release-retry@r1",
+          "museum-hours@r1",
+          "ferry-rule@r2",
+          "workshop-storage@r1",
+          "ferry-guidance@r1",
+          "release-cache@r1",
+          "rail-cycle@r1",
+          "package-report@r1"
+        ]
+      },
+      "c2": {
+        "category": "chain",
+        "retrieved": [
+          "rail-closure@r1",
+          "ferry-guidance@r1",
+          "rail-travel@r1",
+          "museum-visiting@r1",
+          "package-report@r1",
+          "package-claim@r1",
+          "rail-cycle@r1",
+          "book-repair@r1",
+          "museum-access@r1",
+          "observatory-rule@r1"
+        ]
+      },
+      "c3": {
+        "category": "chain",
+        "retrieved": [
+          "book-repair@r1",
+          "release-cache@r1",
+          "book-binding@r1",
+          "archive-policy@r1",
+          "package-claim@r1",
+          "package-report@r1",
+          "observatory-rule@r1",
+          "release-retry@r1",
+          "archive-recovery@r1",
+          "workshop-storage@r1"
+        ]
+      },
+      "x1": {
+        "category": "contradiction",
+        "retrieved": [
+          "ferry-guidance@r1",
+          "ferry-rule@r2",
+          "package-claim@r1",
+          "rail-travel@r1",
+          "rail-cycle@r1",
+          "release-retry@r1",
+          "package-status@r1",
+          "museum-access@r1",
+          "museum-visiting@r1",
+          "package-report@r1"
+        ]
+      },
+      "x2": {
+        "category": "contradiction",
+        "retrieved": [
+          "package-report@r1",
+          "package-claim@r1",
+          "museum-hours@r1",
+          "package-status@r1",
+          "museum-visiting@r1",
+          "rail-travel@r1",
+          "book-repair@r1",
+          "rail-closure@r1",
+          "rail-cycle@r1",
+          "book-binding@r1"
+        ]
+      },
+      "n1": {
+        "category": "irrelevant",
+        "retrieved": [
+          "observatory-rule@r1",
+          "ferry-guidance@r1",
+          "museum-hours@r1",
+          "rail-closure@r1",
+          "museum-visiting@r1",
+          "book-repair@r1",
+          "museum-access@r1",
+          "export-other@r1",
+          "export-profile@r1",
+          "rail-cycle@r1"
+        ]
+      },
+      "n2": {
+        "category": "irrelevant",
+        "retrieved": [
+          "museum-access@r1",
+          "museum-visiting@r1",
+          "museum-hours@r1",
+          "workshop-storage@r1",
+          "release-cache@r1",
+          "release-retry@r1",
+          "ferry-rule@r2",
+          "inventory-1315@r1",
+          "rail-travel@r1",
+          "inventory-618@r1"
+        ]
+      },
+      "n3": {
+        "category": "irrelevant",
+        "retrieved": [
+          "ferry-guidance@r1",
+          "ferry-rule@r2",
+          "release-cache@r1",
+          "book-binding@r1",
+          "book-repair@r1",
+          "package-claim@r1",
+          "museum-visiting@r1",
+          "release-retry@r1",
+          "rail-cycle@r1",
+          "rail-travel@r1"
+        ]
+      },
+      "n4": {
+        "category": "irrelevant",
+        "retrieved": [
+          "rail-travel@r1",
+          "observatory-rule@r1",
+          "workshop-storage@r1",
+          "ferry-rule@r2",
+          "rail-cycle@r1",
+          "book-binding@r1",
+          "package-status@r1",
+          "museum-visiting@r1",
+          "package-report@r1",
+          "rail-closure@r1"
+        ]
+      }
+    },
+    "measurement": {
+      "elapsedMs": 42760.519625000015,
+      "cpuMicros": 41719433,
+      "startRssBytes": 292438016,
+      "peakRssBytes": 304611328
+    },
+    "latency": {
+      "coldMs": 802.044916999992,
+      "warm30MedianMs": 788.1638750000275,
+      "warm30P95Ms": 816.452917000046,
+      "cpuMicros": 41719433,
+      "startRssBytes": 292438016,
+      "peakRssBytes": 304611328,
+      "storeBytes": 233778120
+    },
+    "storeBytes": {
+      "database": 228311040,
+      "wal": 5434312,
+      "shm": 32768,
+      "total": 233778120
+    }
+  },
+  "answerEvaluation": "not_configured",
+  "acceleration": {
+    "startup": {
+      "device": "Device(gpu, 0)",
+      "metal_available": true,
+      "startup_ms": 1307.4686671607196,
+      "counts": {
+        "document": 0,
+        "query": 0
+      },
+      "inference_ms": {
+        "document": 0,
+        "query": 0
+      },
+      "peak_rss_bytes": 1001799680,
+      "cpu_seconds": 1.42372,
+      "mlx_peak_allocated_bytes": 633111560,
+      "versions": {
+        "mlx": "0.32.2",
+        "mlx-metal": "0.32.2",
+        "mlx-embeddings": "0.1.0",
+        "transformers": "5.17.0",
+        "tokenizers": "0.23.2"
+      }
+    },
+    "indexedWorker": {
+      "device": "Device(gpu, 0)",
+      "metal_available": true,
+      "startup_ms": 1307.4686671607196,
+      "counts": {
+        "document": 9999,
+        "query": 0
+      },
+      "inference_ms": {
+        "document": 104077.91772345081,
+        "query": 0
+      },
+      "peak_rss_bytes": 1001799680,
+      "cpu_seconds": 57.02315299999999,
+      "mlx_peak_allocated_bytes": 768155710,
+      "versions": {
+        "mlx": "0.32.2",
+        "mlx-metal": "0.32.2",
+        "mlx-embeddings": "0.1.0",
+        "transformers": "5.17.0",
+        "tokenizers": "0.23.2"
+      }
+    },
+    "worker": {
+      "device": "Device(gpu, 0)",
+      "metal_available": true,
+      "startup_ms": 1307.4686671607196,
+      "counts": {
+        "document": 9999,
+        "query": 54
+      },
+      "inference_ms": {
+        "document": 104077.91772345081,
+        "query": 571.4796655811369
+      },
+      "peak_rss_bytes": 1001799680,
+      "cpu_seconds": 57.424214,
+      "mlx_peak_allocated_bytes": 798183210,
+      "versions": {
+        "mlx": "0.32.2",
+        "mlx-metal": "0.32.2",
+        "mlx-embeddings": "0.1.0",
+        "transformers": "5.17.0",
+        "tokenizers": "0.23.2"
+      }
+    },
+    "inferenceRoundTripMs": {
+      "document": 109727.96825900063,
+      "query": 605.8527529997518
+    }
+  }
+}

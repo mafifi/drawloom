@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Autoevals — small composable scoring functions",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/braintrustdata/autoevals",
+      "revision": "b0e1055892bea1305a10f8d42fdc47ff1b41ffa4"
+    }
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [
+      50,
+      60
+    ],
+    "cols": 4,
+    "cellW": 205,
+    "cellH": 90,
+    "gapX": 125,
+    "gapY": 390
+  },
+  "components": [
+    {
+      "id": "input",
+      "label": "Public scorer input",
+      "sublabel": "output · expected · context",
+      "type": "backend",
+      "row": 0,
+      "col": 0,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/index.ts"
+        },
+        {
+          "path": "js/score.ts"
+        }
+      ]
+    },
+    {
+      "id": "judge",
+      "label": "Model-backed scorers",
+      "sublabel": "Rubrics and RAG metrics",
+      "type": "backend",
+      "row": 0,
+      "col": 1,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/llm.ts"
+        },
+        {
+          "path": "js/ragas.ts"
+        }
+      ]
+    },
+    {
+      "id": "client",
+      "label": "Model client selection",
+      "sublabel": "Explicit client / init / defaults",
+      "type": "backend",
+      "row": 0,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/oai.ts"
+        }
+      ]
+    },
+    {
+      "id": "model",
+      "label": "Model endpoint",
+      "sublabel": "Gateway default; overrideable",
+      "type": "external",
+      "row": 0,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/oai.ts"
+        }
+      ]
+    },
+    {
+      "id": "local",
+      "label": "Deterministic scorers",
+      "sublabel": "JSON · exact · numeric checks",
+      "type": "backend",
+      "row": 1,
+      "col": 0,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/json.ts"
+        },
+        {
+          "path": "js/value.ts"
+        }
+      ]
+    },
+    {
+      "id": "score",
+      "label": "Named score",
+      "sublabel": "number or null · metadata",
+      "type": "backend",
+      "row": 1,
+      "col": 1,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/score.ts"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "input-judge",
+      "from": "input",
+      "to": "judge",
+      "label": "arguments"
+    },
+    {
+      "id": "judge-client",
+      "from": "judge",
+      "to": "client",
+      "label": "grade"
+    },
+    {
+      "id": "client-model",
+      "from": "client",
+      "to": "model",
+      "label": "model API"
+    },
+    {
+      "id": "input-local",
+      "from": "input",
+      "to": "local",
+      "label": "arguments",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        152.5,
+        345
+      ]
+    },
+    {
+      "id": "local-score",
+      "from": "local",
+      "to": "score",
+      "label": "score"
+    },
+    {
+      "id": "judge-score",
+      "from": "judge",
+      "to": "score",
+      "label": "score",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        482.5,
+        345
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Smallest seam",
+      "items": [
+        "Scorer functions can assess supplied outputs without an experiment runner or hosted dataset."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Ownership",
+      "items": [
+        "The caller owns cases, scheduling, durable results, comparison and human feedback."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Explicit models",
+      "items": [
+        "The default endpoint is Braintrust Gateway. Local models need an explicit compatible client."
+      ]
+    }
+  ]
+}

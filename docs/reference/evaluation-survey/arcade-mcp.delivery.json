@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/evaluation-survey/arcade-mcp.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/generated/evaluation-survey/arcade-mcp.html",
+  "specification": {
+    "sha256": "a36f6cf3553dd84f6a4138e99611826e3fb8cf5614695b80cf6363fca354d1d2",
+    "bytes": 4591
+  },
+  "artifact": {
+    "sha256": "a7c55a51340a37047b28bdd9ad22fb99e2a9f789bee093dbb2f2aef307b30a9d",
+    "bytes": 806301
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/ArcadeAI/arcade-mcp",
+    "revision": "7246e9d6500f213ce42e8e84dd9ee72ebfec926b",
+    "references": 9
+  }
+}

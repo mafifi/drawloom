@@ -19,6 +19,24 @@ Unresolved effects are reported separately from the workflow's terminal status.
 Cancellation requested is not cancellation completed. Consumer ViewModels own
 pagination, input validation, permissions, stale-response handling and recovery.
 
+### EvaluationWorkbench (ADR 0025)
+
+`EvaluationWorkbench` is a controlled evaluation View. It receives the
+`EvaluationPresentation` and `EvaluationActions` exported by
+`@drawloom/evaluation-presentation`; an installed consumer owns the standard MCP
+App adapter and supplies no provider or scope to the View. Browsing shows bounded
+definition, run and result pages without starting work. Start, cancellation and
+feedback use separate controlled pending states, and cancellation requested is
+not displayed as cancelled.
+
+Combined result detail may be unavailable at the accepted size bound. The View
+keeps the exact saved summary and offers one retained scorer checkpoint at a
+time. Missing usage is labelled unknown rather than zero. Baseline comparison
+requires the ViewModel's exact case input/expected and scorer
+identity/revision/configuration checks; presentation cannot bypass them. Feedback
+is advisory, attributed to an exact result, and never changes a score or accepts
+work.
+
 Import controls through `@drawloom/ui` and its declared public exports. Preserve
 the upstream component props, bindings, events and accessibility behaviour;
 consumers supply their content, state and handlers. Add missing shadcn-svelte

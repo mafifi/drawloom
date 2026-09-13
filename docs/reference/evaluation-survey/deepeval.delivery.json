@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/evaluation-survey/deepeval.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/generated/evaluation-survey/deepeval.html",
+  "specification": {
+    "sha256": "e0be85e0ba0e8fb36fb950fda85bff24625fe2faadeb0a3e4e06cdd55f1ee5e3",
+    "bytes": 4903
+  },
+  "artifact": {
+    "sha256": "2da400103f783966fb37735330d1cf140a4eed538288d0e773d8a12790a80d2f",
+    "bytes": 807881
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/confident-ai/deepeval",
+    "revision": "f94d940c1e5afc4b280420fe73fe17d146274018",
+    "references": 9
+  }
+}

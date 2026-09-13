@@ -5,6 +5,7 @@ import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { ToolGateway } from '@drawloom/tools';
 import { z } from 'zod';
 import type { Orchestrator, RegisteredTaskHandler } from '@drawloom/orchestration';
+import type { EvaluationComposer } from '@drawloom/evaluation';
 export interface DesktopCompositionContext {
   /** Namespaced persistence; the host owns its project/navigation records. */
   readonly store: JsonStore;
@@ -24,12 +25,14 @@ export interface PluginBackendCapabilities {
   readonly host?: DesktopCompositionContext;
   readonly tools?: ToolGateway;
   readonly orchestration?: Orchestrator;
+  /** Fixed installation/project scope; startup bindings grant no execution authority. */
+  readonly evaluation?: EvaluationComposer;
   /** Provider/service state stays separate from portable run management. */
   readonly orchestrationReadiness?: () => Promise<OrchestrationReadiness>;
 }
 export type PluginBackendDependency =
   | { readonly kind: 'tool' | 'skill'; readonly id: string; readonly available: boolean }
-  | { readonly kind: 'capability'; readonly id: 'orchestration'; readonly available: boolean };
+  | { readonly kind: 'capability'; readonly id: 'orchestration' | 'evaluation'; readonly available: boolean };
 export interface PluginBackendContext {
   /** Fixed for this activation. Desktop hosts always supply it; headless proofs may omit it. */
   readonly project?: { readonly id: string; readonly directory: string };

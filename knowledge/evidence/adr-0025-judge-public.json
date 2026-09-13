@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "recorded": "2026-09-13",
+  "codexVersion": "0.153.4",
+  "runtime": "Node 24.20.0",
+  "mode": "assess-existing",
+  "requestedModel": "gpt-5.6-terra",
+  "effort": "low",
+  "caseSourceSha256": "764d3e9a2bad42cc16b1bb7b9188f8063a05003cf503c1daf513e7f9338b7c37",
+  "freshSessionPerCase": true,
+  "expectedLabelsDisclosed": false,
+  "targetCalls": 0,
+  "retries": 0,
+  "parentObservedOutboundEvents": 0,
+  "codexChildIntentionallyNetworked": true,
+  "networkDeniedByOS": false,
+  "monetaryCost": "unknown",
+  "cases": [
+    {
+      "id": "passage-02", "expected": "fail", "observed": "fail",
+      "elapsedMs": 4947.657083, "responseBytes": 464,
+      "inputTokens": 23535, "cachedInputTokens": 12032, "outputTokens": 108,
+      "providerTerminal": "completed", "cleanup": "archived"
+    },
+    {
+      "id": "passage-03", "expected": "fail", "observed": "fail",
+      "elapsedMs": 6104.255541, "responseBytes": 593,
+      "inputTokens": 23545, "cachedInputTokens": 12032, "outputTokens": 129,
+      "providerTerminal": "completed", "cleanup": "archived"
+    },
+    {
+      "id": "passage-04", "expected": "fail", "observed": "fail",
+      "elapsedMs": 5036.210958, "responseBytes": 505,
+      "inputTokens": 23551, "cachedInputTokens": 12032, "outputTokens": 119,
+      "providerTerminal": "completed", "cleanup": "archived"
+    },
+    {
+      "id": "passage-05", "expected": "pass", "observed": "pass",
+      "elapsedMs": 5304.490625, "responseBytes": 516,
+      "inputTokens": 23549, "cachedInputTokens": 20224, "outputTokens": 114,
+      "providerTerminal": "completed", "cleanup": "archived"
+    }
+  ],
+  "limits": [
+    "Four small synthetic cases do not establish general accuracy or robust latency percentiles.",
+    "Fine-grained criterion explanations showed overlap or inconsistency despite matching overall decisions.",
+    "Native whole-turn input usage includes context beyond the passage and rubric; attribution was not measured.",
+    "Parent network observation does not establish OS isolation or visibility into the Codex child.",
+    "No model rerouting was observed; requested model recorded from launch configuration.",
+    "Ambient native tool isolation was not established by an empty Drawloom tool exposure."
+  ]
+}

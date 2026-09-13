@@ -117,6 +117,59 @@ test("steering targets the active turn and concurrent interrupt waits for provid
     operationId: "active",
   });
 });
+
+test("fresh exclusive operation reports the latest cumulative turn usage once", async () => {
+  const f = recorded();
+  const opened = await f.driver.openSession({ sessionId: "fresh-usage", context: { text: "" }, tools: { id: "none", tools: [] } });
+  if (opened.status !== "ok") throw Error("open");
+  const session = opened.value;
+  const events: unknown[] = [];
+  const drain = (async () => { for await (const event of session.signals()) events.push(event); })();
+  await session.execute({ operationId: "usage-operation", text: "work" });
+  const usage = (inputTokens: number, cachedInputTokens: number, outputTokens: number, reasoningOutputTokens: number, totalTokens: number) => ({
+    threadId: "private-thread", turnId: "private-turn",
+    tokenUsage: { total: { inputTokens, cachedInputTokens, cacheWriteInputTokens: 0, outputTokens, reasoningOutputTokens, totalTokens }, last: { inputTokens, cachedInputTokens, cacheWriteInputTokens: 0, outputTokens, reasoningOutputTokens, totalTokens }, modelContextWindow: 200000 },
+  });
+  f.emit({ method: "thread/tokenUsage/updated", params: usage(100, 40, 20, 5, 120) });
+  f.emit({ method: "thread/tokenUsage/updated", params: usage(250, 100, 50, 10, 300) });
+  f.emit({ method: "thread/tokenUsage/updated", params: usage(250, 100, 50, 10, 300) });
+  await f.complete();
+  await session.close(); await drain;
+  expect(events.find((event) => (event as { kind?: string }).kind === "operation.completed")).toEqual({
+    kind: "operation.completed", operationId: "usage-operation",
+    usage: { inputTokens: 250, cachedInputTokens: 100, outputTokens: 50, reasoningTokens: 10, totalTokens: 300 },
+  });
+});
+
+test("opt-in dedicated fresh session archives only after terminal settlement", async () => {
+  const f = recorded({ archiveOnClose: true });
+  const opened = await f.driver.openSession({ sessionId: "managed-judge", context: { text: "" }, tools: { id: "none", tools: [] } });
+  if (opened.status !== "ok") throw Error("open");
+  const session = opened.value; session.signals();
+  await session.execute({ operationId: "judge", text: "Do not use tools" });
+  await f.complete();
+  expect(await session.close()).toMatchObject({ status: "ok" });
+  expect(f.requests.filter((request) => request.method === "thread/archive")).toEqual([{ method: "thread/archive", params: { threadId: "private-thread" } }]);
+
+  const uncertain = recorded({ archiveOnClose: true });
+  const second = await uncertain.driver.openSession({ sessionId: "managed-judge-uncertain", context: { text: "" }, tools: { id: "none", tools: [] } });
+  if (second.status !== "ok") throw Error("open");
+  second.value.signals(); await second.value.execute({ operationId: "judge", text: "work" });
+  await second.value.close();
+  expect(uncertain.requests.some((request) => request.method === "thread/archive")).toBeFalse();
+});
+test("opt-in dedicated fresh session archives after exact native failure or interruption settlement", async () => {
+  for (const status of ["failed", "interrupted"] as const) {
+    const fixture = recorded({ archiveOnClose: true });
+    const opened = await fixture.driver.openSession({ sessionId: `managed-judge-${status}`, context: { text: "" }, tools: { id: "none", tools: [] } });
+    if (opened.status !== "ok") throw Error("open");
+    opened.value.signals();
+    await opened.value.execute({ operationId: "judge", text: "Do not use tools" });
+    await fixture.complete(status);
+    expect(await opened.value.close()).toMatchObject({ status: "ok" });
+    expect(fixture.requests.filter((request) => request.method === "thread/archive")).toEqual([{ method: "thread/archive", params: { threadId: "private-thread" } }]);
+  }
+});
 test("provider message ordering and terminal cleanup reject stale interactions", async () => {
   const f = recorded();
   const opened = await f.driver.openSession({
@@ -253,7 +306,7 @@ test("MCP failure projection retains unknown execution", async () => {
     ),
   ).toMatchObject({ isError: true, _meta: { execution: "unknown" } });
 });
-export function recorded() {
+export function recorded(options: { archiveOnClose?: boolean } = {}) {
   let receive: (m: RpcMessage) => void = () => {};
   let failure: () => void = () => {};
   const requests: { method: string; params: unknown }[] = [];
@@ -292,6 +345,7 @@ export function recorded() {
         values.set(k, v);
       },
     },
+    ...options,
   });
   return {
     driver,
@@ -300,12 +354,12 @@ export function recorded() {
     replies,
     emit: (m: RpcMessage) => receive(m),
     fail: () => failure(),
-    complete: async () => {
+    complete: async (status: "completed" | "interrupted" | "failed" = "completed") => {
       receive({
         method: "turn/completed",
         params: {
           threadId: "private-thread",
-          turn: { id: "private-turn", status: "completed" },
+          turn: { id: "private-turn", status },
         },
       });
     },

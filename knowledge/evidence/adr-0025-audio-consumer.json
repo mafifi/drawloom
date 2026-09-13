@@ -1,0 +1,58 @@
+{
+  "verified": true,
+  "code": 0,
+  "timedOut": false,
+  "network": [
+    {
+      "kind": "summary",
+      "counts": {},
+      "detailTruncated": false
+    }
+  ],
+  "report": {
+    "schemaVersion": 1,
+    "scenario": "independently generated public PCM podcast previews",
+    "checks": {
+      "zeroTargetCalls": true,
+      "expectedScores": true,
+      "revokedReadDenied": true,
+      "closedAllReaders": true,
+      "sourceBytesUnchanged": true,
+      "reloadedFeedback": true
+    },
+    "elapsedMs": 11.890209000000027,
+    "cpu": {
+      "user": 16392,
+      "system": 3265
+    },
+    "peakRssBytes": 151388160,
+    "bytesDeliveredToScorer": 112176,
+    "opens": 4,
+    "closes": 4,
+    "metrics": {
+      "targetCalls": 0,
+      "scorerCalls": 4,
+      "peakConcurrency": 0
+    },
+    "limits": "Canonical mono PCM16 fixtures only, at most 1 MiB; not general WAV support or voice/intelligibility scoring. Asset access is caller-permitted; media preparation occurs before assessment. Bytes delivered are logical reader output, not physical disk I/O."
+  },
+  "sourceHashes": {
+    "contract.ts": "241cd4367a9f97561266a1812ea23980e5f2f70c6d72dfc532af4e1c61729d79",
+    "braintrust.ts": "4b1623cfc3302b6f47bc0513c452443e9510fbcda7fd738df342cc20fd584636",
+    "common.ts": "1b693e81b18c0e1ae057dc31695cba33089f9d0481168ddfb4e39538b1e8a34f",
+    "result-files.ts": "271bb54e7059fc6e001872311a3808cb46f6548e2c8a838cf512ee4dd79e7aa9",
+    "audio-delivery.ts": "64ea8dc3f03c4ddb008438980b16fbffdaa9b6a906f6de7d5dee58e891ac69be",
+    "audio-fixtures.ts": "d1580e5f3212a93e398aa240737f51e697dcc511cbd86cc20588d36a15fe4a49",
+    "audio-run.ts": "4723fe61f71fde075f2f79f8c74594015070f98796ac676ddfe1c2f9d972b00b",
+    "audio-proof.mjs": "12f8a9e422e4f29479dfeccf81eecfc68a1959f50ac9693987492b68979e72d0"
+  },
+  "method": {
+    "date": "2026-09-13",
+    "repetitions": 1,
+    "scope": "functional consumer observation, not overhead benchmark",
+    "cpuScope": "first four-case assessment",
+    "rssScope": "whole process",
+    "networkEnforcement": "macOS sandbox-exec deny network*",
+    "node": "v24.20.0"
+  }
+}

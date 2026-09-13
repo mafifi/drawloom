@@ -15,6 +15,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { createElicitationPresenter } from './elicitation.js';
 import type { AssetLibrary } from '@drawloom/host';
+import {createSqliteEvaluationStore} from '@drawloom/sqlite-evaluation';
 
 function unusedAssets(): AssetLibrary {
   const unused = async (): Promise<never> => { throw Error('unused'); };
@@ -77,6 +78,62 @@ function packageHost(root: string) {
 }
 const ownerPlacement = { id: 'owner', title: 'Owner', openingTool: { server: 'remote', tool: 'open' } };
 
+test('installed evaluation prepares only for trusted declared consumers and survives unavailable orchestration', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-evaluation-loading-'));
+  const remote = packageServer();
+  const events: string[] = [];
+  try {
+    const installation = await installedFixture(root, 'evaluation-documents', remote.server.url.href, {
+      version:1,backend:{entrypoint:'./backend.mjs'},workflows:{entrypoint:'./workflows.mjs'},
+      requires:[{kind:'capability',id:'evaluation'}],optional:[{kind:'capability',id:'orchestration'}],
+    });
+    await writeFile(join(installation.root,'workflows.mjs'),'export default {workflows:[],tasks:[]}');
+    await writeFile(join(installation.root,'backend.mjs'),`export default context => {
+      if (!context.capabilities.evaluation || context.capabilities.orchestration) throw Error('Incorrect capabilities');
+      return {taskHandlers:[],dispose(){}};
+    }`);
+    const base = {root,project:{id:'project-a',directory:root},installations:[installation],host:packageHost(root),
+      prepareWorkflows:async()=> {events.push('workflow');return {capabilities:{},attach:async()=>{events.push('attach');},close:async()=>{events.push('stop');}};},
+      prepareEvaluation:async()=> {events.push('evaluation');return {
+        evaluation:{compose(){throw Error('No composition during discovery');}},close:async()=>{events.push('storage-close');},
+      };},
+    };
+    const untrusted = await loadInstalledPackages({...base,installations:[{...installation,trustedBackend:false}]});
+    await untrusted.close();
+    expect(events).toEqual([]);
+    const unrelated = await installedFixture(root,'unrelated-documents',remote.server.url.href,{version:1,backend:{entrypoint:'./backend.mjs'}});
+    const undeclared = await loadInstalledPackages({...base,installations:[unrelated]});
+    await undeclared.close();
+    expect(events).toEqual([]);
+    const loaded = await loadInstalledPackages(base);
+    try {
+      expect(events).toEqual(['workflow','evaluation','attach']);
+      expect(loaded.statuses[0]?.codes).not.toContain('extension:unavailable');
+      expect(loaded.statuses[0]?.codes).not.toContain('backend:backend_activation_failed');
+    } finally {await loaded.close();}
+    expect(events).toEqual(['workflow','evaluation','attach','stop','storage-close']);
+  } finally {remote.server.stop(true);await rm(root,{recursive:true,force:true});}
+});
+
+test('failed backend activation releases its prepared evaluation immediately and only once', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-evaluation-failed-backend-'));
+  const remote = packageServer();
+  let closes = 0;
+  try {
+    const installation = await installedFixture(root, 'failed-evaluation', remote.server.url.href, {
+      version: 1, backend: { entrypoint: './backend.mjs' }, requires: [{ kind: 'capability', id: 'evaluation' }],
+    });
+    await writeFile(join(installation.root, 'backend.mjs'), `export default context => { context.capabilities.evaluation.compose({scorers:[]}); throw Error('activation failed'); };`);
+    const loaded = await loadInstalledPackages({ root, project: { id: 'project-a', directory: root }, installations: [installation], host: packageHost(root),
+      prepareEvaluation: async () => ({ evaluation: { compose() { return { service: {}, taskHandlers: [] }; } } as never, close: async () => { closes++; } }),
+    });
+    expect(loaded.statuses[0]).toMatchObject({ status: 'partial', codes: expect.arrayContaining(['backend:failed']) });
+    expect(closes).toBe(1);
+    await loaded.close();
+    expect(closes).toBe(1);
+  } finally { remote.server.stop(true); await rm(root, { recursive: true, force: true }); }
+});
+
 test('installed workflow preparation is trusted, precedes backend activation, and closes before backend cleanup', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-workflow-loading-'));
   const remote = packageServer();
@@ -130,6 +187,41 @@ test('desktop discovery shows friendly standard and app-only tools without execu
       expect(remote.events).not.toContain('tools/call');
     } finally { await app.close(); }
   } finally { remote.server.stop(true); await rm(root, { recursive: true, force: true }); }
+});
+
+test('desktop supplies scoped saved evaluation to installed backends across restart without running checks', async()=>{
+  const root=await mkdtemp(join(tmpdir(),'drawloom-desktop-evaluation-'));
+  const remote=packageServer();
+  try {
+    const installation=await installedFixture(root,'evaluation-reader',remote.server.url.href,{
+      version:1,backend:{entrypoint:'./backend.mjs'},requires:[{kind:'capability',id:'evaluation'}],
+    });
+    await writeFile(join(installation.root,'backend.mjs'),`export default async context=>{
+      const {service}=context.capabilities.evaluation.compose({scorers:[]});
+      const page=await service.listDefinitions();
+      return {contributions:{skills:[{id:'saved-checks',title:'Saved checks '+page.items.length,instructions:'Inspect saved checks only.'}]},dispose(){}};
+    }`);
+    await createNodeJsonStore(join(root,'state')).set('plugin-installations',{version:1,installations:[installation]});
+    const app=await createDesktopApplication(root);
+    let projectId:string;
+    try {
+      const snapshot=await app.snapshot();
+      projectId=snapshot.projects[0]!.id;
+      const catalogue=await app.discover(snapshot.selectedId);
+      expect(catalogue.entries.some(e=>e.kind==='skill' && e.name==='Saved checks 0')).toBe(true);
+      expect(remote.events).not.toContain('tools/call');
+    } finally {await app.close();}
+    const saved=createSqliteEvaluationStore({dataDirectory:root,scope:{installationId:installation.id,projectId}});
+    try {await saved.saveDefinition({schemaVersion:1,id:'prior',revision:'1',name:'Prior assessment',mode:'assess_existing',
+      scorers:[{id:'check',revision:'1'}],cases:[{id:'one',revision:'1',input:null,suppliedOutput:'saved',references:[]}]});}
+    finally {await saved.close();}
+    const reopened=await createDesktopApplication(root);
+    try {
+      const catalogue=await reopened.discover((await reopened.snapshot()).selectedId);
+      expect(catalogue.entries.some(e=>e.kind==='skill' && e.name==='Saved checks 1')).toBe(true);
+      expect(remote.events).not.toContain('tools/call');
+    } finally {await reopened.close();}
+  } finally {remote.server.stop(true);await rm(root,{recursive:true,force:true});}
 });
 
 test('backend collision with built-in workbench is isolated without losing standard skills', async () => {

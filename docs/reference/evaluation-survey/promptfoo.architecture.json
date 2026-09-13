@@ -1,0 +1,250 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Promptfoo — cases to graded results",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/promptfoo/promptfoo",
+      "revision": "b532fbae55b3706f13ccde6255f4e611788ce577"
+    }
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [
+      50,
+      60
+    ],
+    "cols": 4,
+    "cellW": 205,
+    "cellH": 90,
+    "gapX": 125,
+    "gapY": 150
+  },
+  "components": [
+    {
+      "id": "suite",
+      "label": "SDK and suite",
+      "sublabel": "Prompts · providers · cases",
+      "type": "backend",
+      "row": 1,
+      "col": 0,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "src/node/evaluate.ts"
+        },
+        {
+          "path": "src/evaluate.ts"
+        }
+      ]
+    },
+    {
+      "id": "run",
+      "label": "Evaluation runner",
+      "sublabel": "Repeat · schedule · transform",
+      "type": "backend",
+      "row": 1,
+      "col": 1,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "src/evaluator.ts"
+        }
+      ]
+    },
+    {
+      "id": "grade",
+      "label": "Assertions and judges",
+      "sublabel": "Code · rubric · named metrics",
+      "type": "backend",
+      "row": 1,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "src/assertions/index.ts"
+        }
+      ]
+    },
+    {
+      "id": "result",
+      "label": "Evaluation record",
+      "sublabel": "Per-case results and summary",
+      "type": "database",
+      "row": 1,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "src/models/eval.ts"
+        }
+      ]
+    },
+    {
+      "id": "provider",
+      "label": "Target provider",
+      "sublabel": "callApi / ProviderResponse",
+      "type": "external",
+      "row": 0,
+      "col": 1,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "src/types/providers.ts"
+        }
+      ]
+    },
+    {
+      "id": "trajectory",
+      "label": "Trajectory grading",
+      "sublabel": "Tool sequence · goal success",
+      "type": "backend",
+      "row": 0,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "src/assertions/trajectory.ts"
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "label": "Optional local store",
+      "sublabel": "SQLite evaluation records",
+      "type": "database",
+      "row": 2,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "src/database/index.ts"
+        }
+      ]
+    },
+    {
+      "id": "telemetry",
+      "label": "Usage event channel",
+      "sublabel": "Separate outbound path",
+      "type": "external",
+      "row": 2,
+      "col": 1,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "src/telemetry.ts"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "suite-run",
+      "from": "suite",
+      "to": "run",
+      "label": "resolve"
+    },
+    {
+      "id": "run-grade",
+      "from": "run",
+      "to": "grade",
+      "label": "outputs"
+    },
+    {
+      "id": "grade-result",
+      "from": "grade",
+      "to": "result",
+      "label": "graded rows"
+    },
+    {
+      "id": "run-provider",
+      "from": "run",
+      "to": "provider",
+      "label": "callApi",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "grade-trajectory",
+      "from": "grade",
+      "to": "trajectory",
+      "label": "trace checks",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "result-store",
+      "from": "result",
+      "to": "store",
+      "label": "persist",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        1142.5,
+        465
+      ]
+    },
+    {
+      "id": "run-telemetry",
+      "from": "run",
+      "to": "telemetry",
+      "label": "events",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "variant": "dashed",
+      "labelAt": [
+        482.5,
+        465
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Local runner",
+      "items": [
+        "Ordinary evaluations need no Promptfoo Cloud; targets and judges still need explicit configuration."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Public seam",
+      "items": [
+        "evaluate(suite, options) returns an Eval record; toEvaluateSummary() projects its result."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Limits",
+      "items": [
+        "Remote generation, caches and telemetry are separate choices; no offline egress test was run."
+      ]
+    }
+  ]
+}

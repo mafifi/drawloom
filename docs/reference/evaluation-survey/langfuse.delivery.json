@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/evaluation-survey/langfuse.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/generated/evaluation-survey/langfuse.html",
+  "specification": {
+    "sha256": "64e55427f761d778057c1d351276007f5a49b512ac29ed176ace0e839a7c8e05",
+    "bytes": 4934
+  },
+  "artifact": {
+    "sha256": "a85b21a0bac0ad04f69bb2a014f35736f631c601def16b4d1c85ded585cb2be9",
+    "bytes": 808546
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/langfuse/langfuse",
+    "revision": "39e3cd7d6572236fa9d88e475297941eb118d74b",
+    "references": 9
+  }
+}

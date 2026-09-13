@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "DeepEval — cases, metrics and model judges",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/confident-ai/deepeval",
+      "revision": "f94d940c1e5afc4b280420fe73fe17d146274018"
+    }
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [
+      50,
+      60
+    ],
+    "cols": 4,
+    "cellW": 205,
+    "cellH": 90,
+    "gapX": 125,
+    "gapY": 150
+  },
+  "components": [
+    {
+      "id": "data",
+      "label": "Datasets / goldens",
+      "sublabel": "Expected fixtures",
+      "type": "database",
+      "row": 1,
+      "col": 0,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "deepeval/dataset/dataset.py"
+        }
+      ]
+    },
+    {
+      "id": "case",
+      "label": "Test cases",
+      "sublabel": "Outputs · retrieval · media",
+      "type": "backend",
+      "row": 1,
+      "col": 1,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "deepeval/test_case/llm_test_case.py"
+        }
+      ]
+    },
+    {
+      "id": "run",
+      "label": "Local evaluation",
+      "sublabel": "Batch and component checks",
+      "type": "backend",
+      "row": 1,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "deepeval/evaluate/evaluate.py"
+        }
+      ]
+    },
+    {
+      "id": "metric",
+      "label": "Metric execution",
+      "sublabel": "Score · reason · threshold",
+      "type": "backend",
+      "row": 1,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "deepeval/metrics/base_metric.py"
+        }
+      ]
+    },
+    {
+      "id": "trace",
+      "label": "OTel-to-trace bridge",
+      "sublabel": "Content-bearing observations",
+      "type": "backend",
+      "row": 0,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "deepeval/tracing/otel/exporter.py"
+        }
+      ]
+    },
+    {
+      "id": "hosted",
+      "label": "Confident AI API",
+      "sublabel": "Optional hosted trace judging",
+      "type": "external",
+      "row": 0,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "deepeval/tracing/tracing.py"
+        },
+        {
+          "path": "deepeval/tracing/offline_evals/trace.py"
+        }
+      ]
+    },
+    {
+      "id": "report",
+      "label": "Result reports",
+      "sublabel": "Local / optional upload",
+      "type": "database",
+      "row": 2,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "deepeval/test_run/test_run.py"
+        }
+      ]
+    },
+    {
+      "id": "model",
+      "label": "Selected judge model",
+      "sublabel": "Local or remote implementation",
+      "type": "external",
+      "row": 2,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "deepeval/models/base_model.py"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "data-case",
+      "from": "data",
+      "to": "case",
+      "label": "fixtures"
+    },
+    {
+      "id": "case-run",
+      "from": "case",
+      "to": "run",
+      "label": "cases"
+    },
+    {
+      "id": "run-metric",
+      "from": "run",
+      "to": "metric",
+      "label": "measure"
+    },
+    {
+      "id": "trace-run",
+      "from": "trace",
+      "to": "run",
+      "label": "components",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        812.5,
+        225
+      ]
+    },
+    {
+      "id": "trace-hosted",
+      "from": "trace",
+      "to": "hosted",
+      "label": "post-hoc",
+      "variant": "dashed"
+    },
+    {
+      "id": "run-report",
+      "from": "run",
+      "to": "report",
+      "label": "results",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        812.5,
+        465
+      ]
+    },
+    {
+      "id": "metric-model",
+      "from": "metric",
+      "to": "model",
+      "label": "judge call",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        1142.5,
+        465
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Engine",
+      "items": [
+        "Python metric functions can assess existing outputs without adopting the Confident AI platform."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Coverage",
+      "items": [
+        "Retrieval, tools, conversations and selected multimodal metrics have distinct input requirements."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Network boundary",
+      "items": [
+        "The offline_evals trace endpoint is hosted post-hoc evaluation, not disconnected operation."
+      ]
+    }
+  ]
+}

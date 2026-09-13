@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/afifim/Development/drawloom/docs/reference/evaluation-survey/langsmith-sdk.architecture.json",
+  "output": "/Users/afifim/Development/drawloom/docs/reference/generated/evaluation-survey/langsmith-sdk.html",
+  "specification": {
+    "sha256": "1eac7cdbfef97830bb926aa564599643395a5263672ff32916a8da0a433ba8bb",
+    "bytes": 4306
+  },
+  "artifact": {
+    "sha256": "9a19ef948011deccd3d94fca246a863ad701c8cbdbb7f95d5d9f9164e6da6216",
+    "bytes": 805944
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  },
+  "evidence": {
+    "verified": true,
+    "repository": "https://github.com/langchain-ai/langsmith-sdk",
+    "revision": "4083bc191d12e79ae05a9da8efde91bcee60ab28",
+    "references": 8
+  }
+}

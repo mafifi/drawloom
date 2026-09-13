@@ -88,6 +88,27 @@ export default {
       },
     },
     {
+      name: "evaluation-proof-portable-consumers",
+      severity: "error",
+      comment: "ADR 0025 candidate schemas and consumer fixtures must not import vendor SDKs or host APIs.",
+      from: { path: "^spikes/adr-0025-evaluation/(?:contract|fixtures)\\.ts$" },
+      to: { pathNot: "^(?:spikes/adr-0025-evaluation/(?:contract|fixtures)\\.ts$|node_modules/zod/|zod$)" },
+    },
+    {
+      name: "evaluation-promptfoo-stays-in-proof",
+      severity: "error",
+      comment: "ADR 0025 retains Promptfoo for comparison only.",
+      from: { pathNot: "^spikes/adr-0025-evaluation/" },
+      to: { path: "^(?:node_modules/promptfoo(?:/|$)|promptfoo(?:/|$))" },
+    },
+    {
+      name: "evaluation-assessment-vendors-stay-in-provider",
+      severity: "error",
+      comment: "ADR 0025 confines Braintrust and Autoevals to the selected assessment provider and retained comparison.",
+      from: { pathNot: "^(?:spikes/adr-0025-evaluation/|packages/evaluation/braintrust-assessment/)" },
+      to: { path: "^(?:node_modules/(?:braintrust|autoevals)(?:/|$)|(?:braintrust|autoevals)(?:/|$))" },
+    },
+    {
       name: "no-import-from-spikes",
       severity: "error",
       comment:

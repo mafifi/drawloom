@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "LangSmith SDK — JavaScript evaluation path",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/langchain-ai/langsmith-sdk",
+      "revision": "4083bc191d12e79ae05a9da8efde91bcee60ab28"
+    }
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [
+      50,
+      60
+    ],
+    "cols": 4,
+    "cellW": 205,
+    "cellH": 90,
+    "gapX": 125,
+    "gapY": 390
+  },
+  "components": [
+    {
+      "id": "api",
+      "label": "Evaluation exports",
+      "sublabel": "evaluate and comparison API",
+      "type": "backend",
+      "row": 1,
+      "col": 0,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/src/evaluation/index.ts"
+        }
+      ]
+    },
+    {
+      "id": "runner",
+      "label": "Target / dataset runner",
+      "sublabel": "Repetitions · task queues",
+      "type": "backend",
+      "row": 1,
+      "col": 1,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/src/evaluation/_runner.ts"
+        }
+      ]
+    },
+    {
+      "id": "evaluate",
+      "label": "Evaluator callbacks",
+      "sublabel": "Run · example · attachments",
+      "type": "backend",
+      "row": 1,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/src/evaluation/evaluator.ts"
+        }
+      ]
+    },
+    {
+      "id": "results",
+      "label": "Evaluation rows",
+      "sublabel": "Runs and structured findings",
+      "type": "backend",
+      "row": 1,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/src/evaluation/_runner.ts"
+        }
+      ]
+    },
+    {
+      "id": "trace",
+      "label": "Target / judge tracing",
+      "sublabel": "Enabled by the JS runner",
+      "type": "backend",
+      "row": 0,
+      "col": 1,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/src/traceable.ts"
+        },
+        {
+          "path": "js/src/evaluation/_runner.ts"
+        }
+      ]
+    },
+    {
+      "id": "client",
+      "label": "Backend client",
+      "sublabel": "Projects · runs · feedback",
+      "type": "backend",
+      "row": 0,
+      "col": 2,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/src/client.ts"
+        }
+      ]
+    },
+    {
+      "id": "service",
+      "label": "LangSmith API",
+      "sublabel": "External platform required",
+      "type": "external",
+      "row": 0,
+      "col": 3,
+      "size": [
+        205,
+        90
+      ],
+      "sources": [
+        {
+          "path": "js/src/client.ts"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "api-runner",
+      "from": "api",
+      "to": "runner",
+      "label": "evaluate"
+    },
+    {
+      "id": "runner-evaluate",
+      "from": "runner",
+      "to": "evaluate",
+      "label": "run + case"
+    },
+    {
+      "id": "evaluate-results",
+      "from": "evaluate",
+      "to": "results",
+      "label": "findings"
+    },
+    {
+      "id": "runner-trace",
+      "from": "runner",
+      "to": "trace",
+      "label": "trace",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "trace-client",
+      "from": "trace",
+      "to": "client",
+      "label": "runs"
+    },
+    {
+      "id": "evaluate-client",
+      "from": "evaluate",
+      "to": "client",
+      "label": "feedback",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "client-service",
+      "from": "client",
+      "to": "service",
+      "label": "API calls"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "SDK, not server",
+      "items": [
+        "MIT libraries do not provide the hosted LangSmith platform."
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "JS coupling",
+      "items": [
+        "Local example inputs do not disable project creation, tracing or feedback upload."
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Python differs",
+      "items": [
+        "The Python target-evaluation path has beta upload_results=False; not all modes support it."
+      ]
+    }
+  ]
+}
