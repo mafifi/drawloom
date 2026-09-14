@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -13,6 +14,8 @@ jobs:
   check:
     name: Repository checks
     runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.publication.outputs.publish }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -30,3 +33,26 @@ jobs:
 
       - name: Run canonical checks
         run: bun run check:ci
+
+      - name: Select publication changes
+        id: publication
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ "$BEFORE" = 0000000000000000000000000000000000000000 ]; then
+            echo 'publish=true' >> "$GITHUB_OUTPUT"
+          else
+            [[ "$BEFORE" =~ ^[0-9a-f]{40}$ ]]
+            git fetch --no-tags --depth=1 origin "$BEFORE"
+            git diff --no-renames --name-only -z "$BEFORE" "$GITHUB_SHA" | bun scripts/publishing-scope.ts >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    needs: check
+    if: github.ref == 'refs/heads/main' && needs.check.outputs.publish == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/publishing.yml

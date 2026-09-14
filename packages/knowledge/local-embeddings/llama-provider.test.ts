@@ -45,13 +45,16 @@ test("the supported GGUF identity replaces the old index generation", () => {
   expect(formatEmbeddingInput(modelId, "document", "There.")).toBe("There.");
 });
 
-test("setup is honestly unavailable before any download when the runtime has no published URL", async () => {
+test.each([
+  { platform: "darwin" as const, arch: "arm64", code: "runtime_unavailable" as const },
+  { platform: "linux" as const, arch: "x64", code: "unsupported_hardware" as const },
+])("setup makes no download on $platform/$arch when unavailable ($code)", async ({ platform, arch, code }) => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-llama-unavailable-"));
   let fetched = 0;
   try {
-    const setup = createModelSetup({ root, manifest: KnownModelManifests[modelId], fetch: async () => { fetched++; throw Error("must not fetch"); } });
+    const setup = createModelSetup({ root, manifest: KnownModelManifests[modelId], llamaRuntime: { platform, arch }, fetch: async () => { fetched++; throw Error("must not fetch"); } });
     await expect(setup.install()).resolves.toEqual({ kind: "pending_consent" });
-    await expect(setup.install({ consent: true })).resolves.toEqual({ kind: "failed", code: "runtime_unavailable" });
+    await expect(setup.install({ consent: true })).resolves.toEqual({ kind: "failed", code });
     expect(fetched).toBe(0);
   } finally { await rm(root, { recursive: true, force: true }); }
 });

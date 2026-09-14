@@ -186,4 +186,4 @@ test("packed public knowledge consumer executes outside the checkout and preserv
     expect((feedback.structuredContent as { items: unknown[] }).items).toEqual([]);
   } finally { await otherProject.close(); }
   expect(await installedSourceHashes()).toEqual(sourceHashesBefore);
-});
+}, 60_000); // Includes rebuilding the packaged application before host/restart checks.

@@ -179,7 +179,7 @@ test("a generic MCP client can poll and acknowledge the packed server outside th
     rmSync(packed, { recursive: true, force: true });
     rmSync(fixture.root, { recursive: true, force: true });
   }
-});
+}, 60_000); // Includes a cold TypeScript build and packed Node process startup.
 
 test("a restarted durable consumer deduplicates a replayed multi-update page before acknowledgement", async () => {
   const fixture = repository();
@@ -238,7 +238,7 @@ test("a restarted durable consumer deduplicates a replayed multi-update page bef
     rmSync(packed, { recursive: true, force: true });
     rmSync(fixture.root, { recursive: true, force: true });
   }
-});
+}, 60_000); // Includes a cold TypeScript build and packed Node process restart.
 
 test("reports force-push reconciliation and never treats corrupt private state as empty", async () => {
   const fixture = repository();

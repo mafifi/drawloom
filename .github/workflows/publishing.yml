@@ -1,16 +1,7 @@
 name: Publishing
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'publishing/**'
-      - 'scripts/build-journal.ts'
-      - 'packages/plugins/plugins/src/**'
-      - 'package.json'
-      - 'bun.lock'
-      - '.github/workflows/publishing.yml'
-  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -33,7 +24,6 @@ jobs:
           node-version: '24.20.0'
       - uses: oven-sh/setup-bun@v2.2.0
       - run: bun install --frozen-lockfile
-      - run: bun run check:ci
       - run: bun run journal:render:article
       - run: bun run journal:build
       - uses: actions/upload-pages-artifact@v3

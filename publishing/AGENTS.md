@@ -8,7 +8,8 @@
 - Never invent customer anecdotes or represent a spike as production Drawloom.
 - Publication requires explicit authorisation. A build does not publish.
 - Approved non-draft content deploys automatically after relevant changes reach
-  `main`; keep unfinished pieces marked `draft: true`. Manual dispatch remains.
+  `main` and the same commit passes CI; keep unfinished pieces marked `draft: true`.
+  Manual publication uses the CI workflow dispatch on `main`, never bypassing checks.
 - Keep generated media/build output out of source history. Use root Bun catalog
   dependencies and never import retained spike modules from this directory.
 - Selected, publication-approved screenshots may be retained in a piece's

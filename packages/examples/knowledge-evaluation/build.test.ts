@@ -45,4 +45,4 @@ test("builds a self-contained shared EvaluationWorkbench MCP App and packs exact
   expect(extracted.exitCode, extracted.stderr.toString()).toBe(0);
   const module = await import(`${pathToFileURL(join(installed, "dist", "index.js")).href}?ancestor-src=${Date.now()}`) as { loadKnowledgeEvaluation(): Promise<unknown> };
   await expect(module.loadKnowledgeEvaluation()).resolves.toBeDefined();
-});
+}, 60_000); // Build/pack/extract is an integration check, not a five-second unit test.

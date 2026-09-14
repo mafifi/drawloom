@@ -73,6 +73,21 @@ selection and passed afterwards. The full local gate passed again (1,036 Bun
 tests, eight opt-in skips, and all Node suites). Linux Actions and deployed asset
 verification are still pending; local success is not deployment success.
 
+The second [publishing run](https://github.com/mafifi/drawloom/actions/runs/34848893772)
+passed licensing but exposed five-second build/pack test timeouts and a
+hardware-dependent setup fixture. The corrections retain assertions, give only
+four build integrations bounded 60-second limits, and explicitly exercise both
+Mac and Linux setup outcomes. All 29 targeted tests passed (172 assertions).
+
+At the maintainer's request, publication now depends on CI instead of repeating
+the complete gate. CI invokes the same-commit reusable publication workflow only
+after success on `main`, for relevant changes or manual CI dispatch. Unrelated
+changes skip publication; there is no independent publication dispatch. The
+nine workflow/scope checks passed (27 assertions), including a real Git rename
+out of the publishing directory that must remove the old published page. Rename
+detection is disabled in path selection so both paths are considered. `actionlint` validated
+both workflow files. This is local wiring verification, not yet an Actions result.
+
 OAuth tests use controlled transport and a session credential store. The native
 keychain service name was source-reviewed. An opt-in synthetic OS credential
 round trip passed (one test, two assertions), deleting its UUID-scoped test record

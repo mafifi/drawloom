@@ -63,15 +63,18 @@ Production and preview output tests use isolated temporary artifacts and media
 copy fixtures. Actual rendering and browser playback are separate checks.
 
 The author authorised the journal and “Why Drawloom?” for publication on
-2026-09-05. The main-only Pages workflow runs the checks,
-`bun run journal:render:article`, and `bun run journal:build`, then deploys
+2026-09-05. CI runs the canonical checks once. After success, it calls the
+same-commit, main-only Pages workflow to run `bun run journal:render:article`
+and `bun run journal:build`, then deploy
 `publishing/site/dist`. The illustrative example remains a draft and is excluded.
 Selected screenshots are retained in the piece's `assets/`; the build copies
 only referenced files, preferring those sources to generated media.
 
 `bun run publishing:placeholder` remains available to stage the original fallback
 page. Pushes to `main` touching `publishing/**`, the build script, root dependency
-files, the plugin contract sources or the publishing workflow trigger deployment automatically. Manual dispatch
-also remains available. Feature-branch pushes and local builds do not publish.
+files, the plugin contract sources or either workflow trigger deployment after CI
+succeeds. Unrelated changes skip publication. Manual dispatch of **CI** on `main`
+also publishes after its checks pass; the publication workflow cannot be dispatched
+independently. Feature-branch pushes and local builds do not publish.
 Only articles explicitly marked `draft: false` with a quoted ISO publication date
 are emitted. New content stays private by default.
