@@ -1,5 +1,9 @@
 /** Deliberately narrow admission policy, not a general SPDX or legal parser. */
 const approved = new Set(["MIT", "ISC", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "0BSD", "CC0-1.0", "Unlicense", "Python-2.0", "BlueOak-1.0.0", "CC-BY-4.0"]);
+// Upstream v0.1.9 LICENSE-MIT and Linux npm metadata reviewed on 2026-09-14.
+// Exact versions only; optional platforms not inspected here remain subject to review.
+const selections: Readonly<Record<string, string>> = { "sqlite-vec@0.1.9": "MIT", "sqlite-vec-darwin-arm64@0.1.9": "MIT", "sqlite-vec-linux-x64@0.1.9": "MIT" };
+export function selectedLicense(identity: string): string | undefined { return selections[identity]; }
 // Exact locked variants, not a licence-wide or future-version exemption.
 const reviewedMpl = new Set([
   "lightningcss", "lightningcss-android-arm64", "lightningcss-darwin-arm64",

@@ -1,5 +1,12 @@
 import { expect, test } from "bun:test";
-import { assessLicense, isReviewedMpl } from "./license-policy.js";
+import { assessLicense, isReviewedMpl, selectedLicense } from "./license-policy.js";
+
+test("the Linux CI sqlite-vec binary uses the explicitly reviewed MIT alternative", () => {
+  expect(selectedLicense("sqlite-vec-linux-x64@0.1.9")).toBe("MIT");
+  expect(assessLicense("MIT OR Apache", selectedLicense("sqlite-vec-linux-x64@0.1.9")).kind).toBe("allowed");
+  expect(selectedLicense("sqlite-vec-linux-x64@0.2.0")).toBeUndefined();
+  expect(selectedLicense("unreviewed@0.1.9")).toBeUndefined();
+});
 
 test("MPL admission binds locked platform versions to the reviewed licence text", () => {
   const hash = "5eba353fe5076ac3432177f8ab1cf75e3afcd0584251e37c3bfead5f447d040e";

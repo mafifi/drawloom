@@ -57,10 +57,21 @@ keeps both under `org.drawloom/`. Contract and activation checks cover containme
 unknown namespaces and invalid enhancements without disabling portable features.
 The public package and website slices passed independent review.
 
-Private consumer checks, reviewed commits, public Actions deployment and deployed
-asset verification remain pending. The inspected running desktop had no installed
+Public commit `0a4113f` passed final integration review and was pushed. Private
+consumer changes were independently reviewed and committed separately; their
+scenario evidence and limitations remain private. The inspected running desktop had no installed
 local packages to update; no installation, conversation, grant or user data was
 changed to manufacture an upgrade observation.
+
+The first [publishing run](https://github.com/mafifi/drawloom/actions/runs/34848167281)
+stopped at the Linux licence gate, before rendering or deployment. The installed
+`sqlite-vec-linux-x64@0.1.9` required an explicit MIT alternative selection, already
+present for the macOS variant. The exact Linux metadata and upstream MIT licence
+were reviewed; [the licence record](../../LICENSES/README.md) documents that
+selection, with no policy-wide exemption. Its regression test failed before the
+selection and passed afterwards. The full local gate passed again (1,036 Bun
+tests, eight opt-in skips, and all Node suites). Linux Actions and deployed asset
+verification are still pending; local success is not deployment success.
 
 OAuth tests use controlled transport and a session credential store. The native
 keychain service name was source-reviewed. An opt-in synthetic OS credential

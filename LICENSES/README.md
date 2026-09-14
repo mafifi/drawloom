@@ -13,6 +13,12 @@ are in [MPL-REVIEW.md](MPL-REVIEW.md).
 
 ## Remaining review boundaries
 
+The Linux CI package `sqlite-vec-linux-x64@0.1.9` explicitly selects MIT, matching
+the reviewed macOS variant. Its [npm metadata](https://registry.npmjs.org/sqlite-vec-linux-x64/0.1.9)
+declares `MIT OR Apache`; the [upstream v0.1.9 MIT text](https://github.com/asg017/sqlite-vec/blob/v0.1.9/LICENSE-MIT)
+was inspected on 2026-09-14. This exact-version selection fixes a Linux-only gate
+failure; it does not admit unreviewed platforms or waive native-binary attribution.
+
 - Missing local legal files are listed, not replaced with guessed copyrights.
 - Installed peer traversal also reaches MPL-2.0 `lightningcss@1.33.0` and its
   native package via `bits-ui -> runed -> @sveltejs/kit -> vite-plugin-svelte ->
