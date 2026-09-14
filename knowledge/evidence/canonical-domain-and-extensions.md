@@ -2,7 +2,7 @@
 type: evidence
 id: canonical-domain-and-extensions
 title: Canonical domain and plugin extension cutover
-status: draft
+status: active
 created: 2026-09-14
 updated: 2026-09-14
 ---
@@ -71,7 +71,7 @@ were reviewed; [the licence record](../../LICENSES/README.md) documents that
 selection, with no policy-wide exemption. Its regression test failed before the
 selection and passed afterwards. The full local gate passed again (1,036 Bun
 tests, eight opt-in skips, and all Node suites). Linux Actions and deployed asset
-verification are still pending; local success is not deployment success.
+verification were still pending at that checkpoint; the completed result is below.
 
 The second [publishing run](https://github.com/mafifi/drawloom/actions/runs/34848893772)
 passed licensing but exposed five-second build/pack test timeouts and a
@@ -86,7 +86,42 @@ changes skip publication; there is no independent publication dispatch. The
 nine workflow/scope checks passed (27 assertions), including a real Git rename
 out of the publishing directory that must remove the old published page. Rename
 detection is disabled in path selection so both paths are considered. `actionlint` validated
-both workflow files. This is local wiring verification, not yet an Actions result.
+both workflow files. These local wiring checks were subsequently confirmed by the
+successful chained Actions run below.
+
+The earlier CI log also exposed an intermittent concurrent JSON read returning
+absence. Inspection of [Bun 1.2.23 realpath](https://github.com/oven-sh/bun/blob/bun-v1.2.23/src/bun.js/node/node_fs.zig#L5026-L5040)
+and its [Linux descriptor-path lookup](https://github.com/oven-sh/bun/blob/bun-v1.2.23/src/sys.zig#L2394-L2401)
+identified an atomic-replacement interleaving that can resolve to a deleted inode
+path. ENOENT after successfully opening a file was incorrectly treated as a missing
+key. The original log did not capture the failing syscall; an isolated subprocess
+regression reproduces this intermediate result without changing production APIs.
+Only post-open target verification now classifies ENOENT as replacement and uses
+the existing three-attempt retry. Persistent races fail explicitly; containment,
+root checks and genuinely absent keys retain their behavior. All 16 host tests
+passed (182 assertions), including persistent replacement and outside-root cases;
+the focused fix passed independent review.
+
+## Deployment verified — 2026-09-14
+
+[CI run 34851443162](https://github.com/mafifi/drawloom/actions/runs/34851443162)
+successfully checked commit `b4b3fe4`, then built and deployed publication. The
+Linux Bun suite reported 1,043 passes, ten opt-in/platform skips and zero failures;
+the remaining canonical checks, including Node conformance, also succeeded.
+Publication ran no second canonical gate.
+
+At 13:56 UTC, ordinary HTTPS requests verified the root and published article,
+their canonical URLs and all 24 unique same-origin URLs discovered through their
+links, media, stylesheets and font references (HTTP 200). The live versioned
+extension schema equals the generated contract schema. OAuth metadata contains
+the canonical client identity and root URI. `https://www.drawloom.org/` returns
+HTTP 301 to `https://drawloom.org/`. GitHub reports ownership verified, an approved
+certificate and HTTPS enforcement enabled. No CNAME file was introduced.
+
+The subsequent JSON-store correction changes no publication inputs and therefore
+must receive CI without rebuilding or redeploying the site. Its focused host
+tests, type check and rebuilt Node conformance passed locally. Private configured
+orchestration was not rerun; its precise consumer evidence remains private.
 
 OAuth tests use controlled transport and a session credential store. The native
 keychain service name was source-reviewed. An opt-in synthetic OS credential

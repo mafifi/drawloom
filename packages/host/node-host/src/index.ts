@@ -121,11 +121,18 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
       const info = await file.stat();
       if (!info.isFile() || !Number.isSafeInteger(info.size) || info.size < 0)
         throw Error('Invalid asset file');
-      const canonicalTarget = await realpath(target);
-      if (!inside(canonical, canonicalTarget)) throw Error('Invalid asset file');
-      const pathInfo = await lstat(canonicalTarget);
-      if (!pathInfo.isFile() || pathInfo.dev !== info.dev || pathInfo.ino !== info.ino)
-        throw new AssetReplacedDuringOpen();
+      try {
+        const canonicalTarget = await realpath(target);
+        if (!inside(canonical, canonicalTarget)) throw Error('Invalid asset file');
+        const pathInfo = await lstat(canonicalTarget);
+        if (!pathInfo.isFile() || pathInfo.dev !== info.dev || pathInfo.ino !== info.ino)
+          throw new AssetReplacedDuringOpen();
+      } catch (error) {
+        // The handle already exists. Linux realpath can resolve an inode replaced
+        // by rename to a deleted path; that is not evidence of a missing key.
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new AssetReplacedDuringOpen();
+        throw error;
+      }
       await canonicalRoot(false);
       let closed = false;
       let closing: Promise<void> | undefined;

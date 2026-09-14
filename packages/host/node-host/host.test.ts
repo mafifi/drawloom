@@ -3,6 +3,44 @@ import { access, mkdir, mkdtemp, open, rename, rm, symlink, writeFile, stat } fr
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RpcRequestError } from "@drawloom/host";
+test.each([
+  {mode: 'once', expected: {revision: 1}, attempts: 2},
+  {mode: 'persistent', expected: 'Stored value unavailable', attempts: 3},
+  {mode: 'outside', expected: 'Stored value unavailable', attempts: 1},
+])('JSON post-open path verification handles $mode without false absence or bypassing checks', async ({mode, expected, attempts}) => {
+  // Isolate the fs interception from every other test. On Linux Bun can resolve
+  // an open inode to a " (deleted)" path while an atomic rename replaces it.
+  const script = `
+    import { mock } from 'bun:test';
+    import * as fs from 'node:fs/promises';
+    import { join } from 'node:path';
+    import { tmpdir } from 'node:os';
+    const actual = { ...fs };
+    const root = await actual.mkdtemp(join(tmpdir(), 'drawloom-open-race-'));
+    const target = join(await actual.realpath(root), 'state.json');
+    const mode = process.argv[2];
+    let intercepted = 0;
+    mock.module('node:fs/promises', () => ({ ...actual, realpath: async (path, ...args) => {
+      if (path === target) {
+        intercepted++;
+        if (mode === 'outside') return join(root, '..', 'outside.json');
+        if (mode === 'persistent' || intercepted === 1) return path + ' (deleted)';
+      }
+      return actual.realpath(path, ...args);
+    }}));
+    try {
+      await actual.writeFile(join(root, 'state.json'), JSON.stringify({revision: 1}));
+      const { createNodeJsonStore } = await import(process.argv[1]);
+      const reader = createNodeJsonStore(root);
+      const value = await reader.get('state').catch(error => error.message);
+      console.log(JSON.stringify({value, missing: await reader.get('absent') === undefined, intercepted}));
+    } finally { await actual.rm(root, {recursive: true, force: true}); }
+  `;
+  const child = Bun.spawn([process.execPath, '-e', script, new URL('./src/index.ts', import.meta.url).href, mode], {stdout: 'pipe', stderr: 'pipe'});
+  const [exit, stdout, stderr] = await Promise.all([child.exited, new Response(child.stdout).text(), new Response(child.stderr).text()]);
+  expect(exit, stderr).toBe(0);
+  expect(JSON.parse(stdout)).toEqual({value: expected, missing: true, intercepted: attempts});
+});
 test("a managed provider may finish child cleanup before transport escalation", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-shutdown-grace-"));
   const marker = join(root, "closed");
