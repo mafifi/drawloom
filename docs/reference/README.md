@@ -1,18 +1,40 @@
-# Technical reference
+# Developer reference
 
-Current API, package, protocol, operational and external-reference material.
+Use these guides when building with Drawloom or investigating how it behaves.
+For the bigger picture, start with [Architecture](../../ARCHITECTURE.md).
 
-- [Foundation API](foundation-api.md)
-- [Orchestration interface design](../design/orchestration-contract.md) — Accepted
-  ADR 0017; retained proof only, not a supported package.
-- [Discovery and resource API](discovery-and-resources.md)
-- [Conversation history API and operation](conversation-history.md)
-- [Conversation history implementation evidence](conversation-history-evidence.md)
-- [Harness and workbench capability survey](harness-workbench-survey/README.md)
-  — revision-bound DeepSeek Harness and Open Design maps, evidence and candidate
-  follow-ups. Discovery evidence, not a new architecture decision.
+## Build and connect
 
-The survey keeps its authored specifications, reproducible inventories and
-generated standalone diagrams together as a self-contained evidence bundle.
-Future cross-repository generated dependency graphs and contract inventories
-should use a clearly marked `generated/` subtree.
+- [Foundation APIs](foundation-api.md): the shared interfaces and implementations.
+- [Plugin packages](plugin-packages.md): package and install skills, tools,
+  workbenches and Drawloom extensions.
+- [Discovery and resources](discovery-and-resources.md): find available
+  contributions and supply selected context.
+- [Desktop host](../design/desktop-host.md): connect plugins to the application.
+- [Dependency policy](dependency-policy.md): package roles, versions and checks.
+
+## Follow and assess work
+
+- [Conversation history](conversation-history.md): save, search and page through
+  messages without replaying agent execution.
+- [Orchestration](../design/orchestration-contract.md): define and run workflows.
+- [Knowledge and memory](../design/local-knowledge.md): store and curate learnings.
+- [Evaluation](../design/evaluation.md): run checks and compare results.
+- [Observability](observability.md): inspect activity through traces and metrics.
+
+## Explore the implementation and its evidence
+
+The [repository walkthrough](repository-audit/README.md) links the code maps
+and reading route. The [evidence guide](evidence/README.md) explains where
+retained publication evidence and newly generated reports live.
+
+Research surveys explain what we learned from other implementations:
+
+- [Harnesses and workbenches](harness-workbench-survey/README.md)
+- [Knowledge and memory](knowledge-memory-survey/README.md)
+- [Evaluation](evaluation-survey/README.md)
+- [Authorization](authorization-survey/README.md)
+
+Surveys record the source versions inspected and the limits of their findings.
+They do not, by themselves, approve a new interface or prove that Drawloom
+implements the same behaviour.

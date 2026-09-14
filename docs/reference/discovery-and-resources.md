@@ -1,102 +1,132 @@
-# Discovery and resource API — ADR 0016
+# Discover skills, tools and resources
 
-Implementation reference; [ADR 0016](../adr/0016-discoverable-contributions-and-resources.md)
-was accepted on 2026-09-10 after the integrated acceptance walkthrough and checks.
+Discovery lets a user see what is available and select it as context without
+running a tool or starting an agent turn. Resources are content a server lists or
+returns, such as a document, image or audio file. Drawloom keeps the source identity
+when presenting and reading them.
+
+Use this guide when adding a discoverable contribution, presenting tool results
+or passing selected material to an agent.
+[ADR 0016](../adr/0016-discoverable-contributions-and-resources.md) records the
+accepted design. Current behaviour is explained first; dated verification follows.
 
 ## Discovery and input
 
-`AgentSession.discovery?` supports `list({refresh?, wait?, cursor?})`, `invalidate()` and optional
-`readResource({id, revision})`. A snapshot contains its revision, origin-qualified
-entries, optional opaque `nextCursor` and per-category loading/availability. Entries distinguish selection, readiness
-and resource readability. None grants execution permission. Native tool inventory
-is unverified where Codex does not establish callability.
+### List what is available
 
-Codex uses installed protocol methods `skills/list`, `app/list`,
-`mcpServerStatus/list`, and optional experimental `plugin/list`, concurrently.
-`wait:false` returns ready categories while others load; the default waits for the
-current reads and one coalesced update. A constantly changing provider may still
-report loading. Polling a snapshot never loads another app page automatically.
-The first native app page is limited to 100; `cursor` explicitly requests the next
-page. The returned snapshot is cumulative, and completed pages retain the same
-selection revision. Cursors are opaque, session-bound, validated and coalesced on
-repeated delivery; native cursors never reach the browser. Native server-status
-reads retain their bounded metadata scan. Each paginated scan is bounded to 100
-pages and the catalogue to 10,000 entries. Category failures preserve other
-categories and previously completed pages.
+An agent may expose `AgentSession.discovery`. Its `list({refresh?, wait?, cursor?})`
+returns a snapshot with a revision, entries and loading/availability for each
+category. An entry says where it came from, whether it can be selected and whether
+its resource is readable. Being listed does not grant permission or prove a native
+tool can actually be called.
 
-The session caches summaries and private native mappings. Explicit refresh joins
-active discovery rather than issuing overlapping reads. When idle it invalidates
-the catalogue. Native category updates invalidate only that category, rotate the
-selection revision and queue one reread after an active request finishes. An MCP
-startup notification therefore cannot restart a slow app request. Identical app
-notifications are deduplicated. Explicit invalidation/closure rejects stale results.
+The Codex adapter reads skills, apps and MCP status through `skills/list`,
+`app/list` and `mcpServerStatus/list`. Experimental `plugin/list` is read-only
+and disabled unless the host explicitly enables it. These provider methods stay
+inside the adapter; browser code uses the shared discovery interface.
 
-The desktop returns registered contributions immediately, including while its
-native connection or package resource listing is pending. Its browser polls only
-loading discovery, coalesces requests, and ignores navigation-late responses.
-“Load more apps” requests another native page; search is explicitly limited to
-loaded results. Native latency remains visible as loading, not an eight-second
-fallback error. Normal transport timeouts and category errors remain authoritative.
-The [measured follow-up](../../knowledge/evidence/discovery-latency-fix.md) records
-the live timing, counters and browser regression.
+Registered Drawloom contributions appear immediately, even while native discovery
+or resource listing is loading. `wait:false` returns ready categories without
+waiting for slower ones. The default waits for current reads and one combined
+update; a continuously changing provider may still report loading.
 
-Browser selections carry only validated IDs and revisions. Native selections map
-to Codex `skill` or `mention` inputs inside the adapter. Registered Drawloom skills
-use the established trusted instruction path. Required workbench skills are not
-removed, duplicated or loaded merely by browsing. Plugin discovery is read-only,
-experimental and off unless the host setting enables it.
+### Load more and refresh safely
+
+Native apps load in explicit pages, initially up to 100. Polling does not fetch the
+next page. A `cursor` requests it, and the returned snapshot includes completed
+earlier pages. Search covers only loaded results. Each scan is limited to 100 pages
+and the catalogue to 10,000 entries.
+
+Cursors are opaque: callers pass them back unchanged rather than interpreting
+them. They belong to one session; native provider cursors never reach the browser.
+Completed pages retain their selection revision. Repeated page requests share
+one read instead of starting duplicates.
+
+Refresh joins active work; when idle it invalidates the cache. Upstream changes
+refresh only the affected category. Duplicate notifications are ignored, and one
+follow-up read is scheduled after an active request. A slow app request therefore
+does not restart whenever MCP status changes. Category errors preserve healthy
+categories and completed pages; closure or explicit invalidation rejects stale
+results.
+
+The browser polls only while loading and ignores responses arriving after
+navigation. Loading remains visible rather than becoming a made-up fallback error.
+Normal transport timeouts and errors still apply. The
+[discovery latency record](../../knowledge/evidence/discovery-latency-fix.md)
+contains the measured follow-up.
+
+### Select without granting access
+
+Selections carry validated `{id, revision}` values. The adapter resolves native
+skills and mentions privately; callers do not supply native paths or provider
+input objects. Registered skills use the trusted instruction path only when
+selected or required by the workbench. Browsing does not load their bodies.
+Required skills remain active without duplication.
+
+Resources and attachments are different: they are untrusted reference material,
+not new skills or trusted developer instructions. Selecting one never grants
+access to another file, tool or service.
 
 ## Standard results and safe retrieval
 
-Tools may supply `renderContent` returning standard MCP text, image, audio,
-resource-link or embedded-resource blocks. Canonical structured output and
-authoritative execution evidence retain their existing ownership. Arbitrary JSON
-does not register a skill, file or tool.
+### Present a result once
 
-The desktop captures recognised content through its existing asset library and
-stores display references in history. Capture is bounded to 256 blocks and 16 MiB
-of aggregate asset bytes per result. Unsupported/oversized content stays visible
-as an unavailable reference. Storage failure is explicit and does not retry an
-execution. Native history capture joins the history/checkpoint transaction rather
-than recursively writing through the live queue.
+A tool can implement `renderContent` to return standard MCP text, image, audio,
+resource-link or embedded-resource blocks alongside its validated structured
+result. Arbitrary JSON does not register a resource, skill or tool.
+
+The desktop saves recognised display content through its asset library and history.
+Capture is limited to 256 blocks and 16 MiB of aggregate asset bytes per result.
+Unsupported or oversized content remains an unavailable reference. Storage failure
+is visible; it never causes the tool to execute again.
+
+If Drawloom result capture fails, recovery reads the existing tool execution record
+and retries only display storage. Pending records are loaded once per conversation.
+History synchronisation cannot clear its warning or advance past failed recovery.
+Cached history can recover those records without reconnecting to Codex.
+
+### Read from the original source
 
 MCP Apps use their existing connection for standard `resources/list` and
-`resources/read`. Only source-advertised URIs may be requested; a stored returned
-link is a source-bound receipt after restart even if it was absent from listing.
-Only the requested URI is captured from a response. Public listing exposes
-descriptive fields, not server `_meta`. Codex resource discovery uses the installed
-`mcpServer/resource/read` endpoint with adapter-owned server/URI mappings.
-An unsupported URI is a reference, not permission to fetch a URL or local file.
+`resources/read`. Requests must identify an advertised resource or a link the
+source previously returned. A saved returned link acts as a **receipt**: it records
+the source and resource that can be requested again after restart.
 
-Native tool-returned links use that same read endpoint even when never listed.
-The adapter records their server/URI mapping in its existing private session
-store and supplies an opaque `ResourceReference.retrieval` ID/revision. Browser
-requests still identify a stored history entry and resource; they cannot submit
-native targets. The host retrieves the receipt from history and uses the existing
-agent discovery read method. Receipts are scoped to the originating native thread;
-cached asset reads do not contact the provider.
+The host captures only the requested URI from a response. Public listings include
+descriptive fields, not server `_meta`. A URI is not general permission to fetch
+a URL or local file.
 
-Failed Drawloom result capture is retried from the existing canonical tool evidence,
-never by reinvoking a tool. The host loads pending display projections once per
-conversation and retains failures until stored. Native history synchronization
-cannot advance or clear its warning while this recovery fails. Cached history
-can recover these records without connecting to Codex.
+Codex resource reads use its installed `mcpServer/resource/read` endpoint. The
+adapter privately records the server/URI mapping, including links returned by
+tools but never listed. It exposes only a `ResourceReference.retrieval` ID and
+revision. The browser identifies a saved history entry/resource; it cannot replace
+the native target. Receipts belong to their originating native thread. Reading a
+cached asset does not contact the provider.
 
 ## History and attachments
 
-`HistoryEntry.resources` and `.selections` retain safe display provenance. SQLite
-schema version 2 adds these nullable columns through a transactional version-1
-migration, preserving records, checkpoints and cursors. Newer versions are refused.
-Native reconciliation preserves the submitted user-facing text and selected
-references rather than replacing them with expanded attachment/context input.
+`HistoryEntry.resources` and `.selections` retain the displayed resource and
+selection identities. Their nullable columns were added transactionally in
+SQLite schema version 2, preserving existing records, checkpoints and cursors.
+Later storage changes are described in the [history guide](conversation-history.md);
+the version-2 change is historical, not a claim that it is today's latest schema.
 
-Attachments are scoped to the originating conversation even if navigation changes
-during upload. Native images use verified image input; text follows the existing
-reference path. Viewable audio/video/PDF is not advertised as direct model input.
-Unsupported submission is explicit. Resource context is untrusted user reference
-material, never automatically trusted instructions or installed skills.
+Native history reconciliation preserves the text the user submitted and their
+selected references. It does not replace the visible message with expanded
+attachment instructions. Native capture participates in the history/checkpoint
+transaction rather than recursively writing through the live event queue.
+
+Uploads stay attached to the originating conversation even if navigation changes
+while bytes are arriving. Codex image input uses verified managed images; text
+uses the reference path. Viewable audio, video or PDF is not advertised as direct
+model input. Unsupported submissions fail explicitly.
 
 ## Evidence status
+
+The remaining sections retain observations from the 2026-09-10 acceptance work.
+They describe those versions and fixtures, not fresh verification of today's UI,
+account inventory or test totals. Detailed consumer receipts remain with their
+owning repository. No model work was repeated for this documentation rewrite.
 
 Focused synthetic tests cover identity, invalidation, discovery without execution,
 source-bound reads, cache recovery, capture limits, schema migration and history

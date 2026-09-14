@@ -124,7 +124,7 @@ bounded. Exact enforcement and cleanup limits live in the
 ## Reference comparison and alternatives
 
 The authoritative escalation rule is
-[reference-led changes and approval](../../ARCHITECTURE.md#reference-led-changes-and-approval).
+[reference-led changes and approval](../../CONTRIBUTING.md#reference-led-changes-and-approval).
 Apply it to registration, dependencies, authority, ownership, lifecycle and UI,
 not only additional bridge methods. Method counts alone do not measure authority.
 

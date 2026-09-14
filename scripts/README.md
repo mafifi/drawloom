@@ -25,4 +25,4 @@ Current checks:
 both checks. `architecture-boundary.test.ts` runs the real checker against
 synthetic allowed and forbidden imports. These gates do not detect copied
 confidential content or decide whether a public abstraction is product-biased;
-see [ARCHITECTURE.md](../ARCHITECTURE.md#enforcement-and-limits).
+see [CONTRIBUTING.md](../CONTRIBUTING.md#enforcement-and-limits).

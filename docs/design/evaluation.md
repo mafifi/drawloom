@@ -1,120 +1,139 @@
-# Evaluation implementation
+# Evaluate work and compare results
 
-Status: supported implementation and verification complete under
-[Accepted ADR 0025](../adr/0025-evaluation-boundaries-and-comparative-proof.md).
-The [execution plan](../plans/adr-0025-supported-evaluation.md) tracks delivery.
-This page records integration ownership. The linked delivery evidence distinguishes
-verified paths from broader judgement-quality and platform limitations. Changes
-were accepted for commit by the maintainer on 2026-09-13.
+Use evaluation to assess an existing result or run the same cases against
+different targets. A **case** is the input and expectations for a test. A
+**target** performs the work, and a **scorer** checks the result. Findings explain
+what each scorer observed; a score is optional.
 
-## One scheduler, separate durable findings
+Start with saved output when you want to judge work without regenerating it.
+Use an experiment when you want the target to run, for example to compare model
+configurations. [ADR 0025](../adr/0025-evaluation-boundaries-and-comparative-proof.md)
+records the accepted interfaces, implementation and evidence.
 
-Evaluation describes what to assess and retains what each check found.
-Orchestration owns running, waiting, cancellation and recovery. The supported
-consumer depends on the orchestration contract, never its Temporal provider.
-Braintrust and Autoevals run within an assessment step, not around an experiment
-with another scheduler.
+## How an assessment runs
 
-Each case repetition has separate target and scorer steps. Existing-output
-assessment skips target execution. Expected answers go to scorers only. Each
-completed output or set of findings is stored before the step acknowledges
-completion. A scorer error preserves completed sibling findings and is not a
-numeric quality score.
+Evaluation uses orchestration to schedule work, wait, cancel and recover.
+It does not add a second scheduler. Braintrust and Autoevals operate inside an
+assessment step rather than controlling the whole experiment.
 
-Run state is not duplicated in evaluation storage. The run binding identifies
-the versioned definition and orchestration run. Results, checkpoints and feedback
-are evaluation facts; orchestration remains authoritative for execution state.
-Cached findings can therefore be read when orchestration is unavailable.
+Each repetition has separate target and scorer steps. Assessing existing output
+makes no target call. Expected answers go only to scorers, never to the target.
 
-## Scope and authority
+Outputs and findings are saved before a step reports completion. If one scorer
+fails, successful sibling findings remain available. A scorer failure is an
+error to investigate, not a numeric zero for output quality.
 
-Host composition fixes the installation and project for each evaluation service.
-Browser requests cannot choose a different scope. Trusted installed code supplies
-versioned target and scorer implementations using existing backend/workflow
-registration. No function bodies or executable paths come from the browser.
+Orchestration stores execution state. Evaluation stores definitions, outputs,
+findings, progress records and feedback, together with the link to the
+orchestration run. Saved findings can therefore be read when orchestration is
+unavailable.
 
-Targets invoking agents or tools use the existing authority. Starting an
-evaluation does not grant tool access or approve an edit. References identify
-evidence; they do not authorize reading it. Domain checks and media preparation
-stay in the owning plugin. Shared presentation uses standard MCP Apps and
-Drawloom's existing UI components.
+## Permissions and project access
 
-`EvaluationInvocationContext.runId` identifies the evaluation;
-`EvaluationInvocationContext.operationId` identifies its owning execution
-operation. The orchestration consumer supplies the latter
-from its existing task context; assessment providers preserve it when forwarding
-the invocation. Tool-using consumers use that explicit identity, not an inferred
-mapping from cancellation signals. It is provenance for existing gateway checks,
-never a new permission or browser input.
+An evaluation service belongs to a particular installation and project, fixed
+by the host. Browser requests cannot select another scope or supply code to run.
+Trusted installed code registers versioned targets and scorers through the
+existing backend and workflow mechanism.
 
-The trusted evaluation capability has one startup composition call accepting
-versioned target/scorer bindings. It returns the scoped service and ordinary
-orchestration task handlers. The backend includes those handlers in its existing
-`taskHandlers`; its portable workflow module includes the reusable evaluation
-definitions. The host selects storage and assessment providers. This is one
-immutable composition per activation, not a global registry or hot-registration
-API. Missing orchestration prevents starts, not reading saved results.
+Starting an evaluation does not grant tool access or approve an edit. A target
+using an agent or tool goes through the normal controls. Evidence references
+identify material; they do not give permission to read it. Plugins retain
+responsibility for domain checks and preparing media for their scorers.
 
-`EvaluationService.readiness()` reports the host's current start availability
-without scheduling anything. Shared presentation uses this fact to explain a
-disabled Start action. It does not infer setup from the status of a selected run;
-saved findings and advisory feedback remain separately usable.
+Shared presentation uses existing Drawloom controls and standard MCP Apps.
+Feedback remains attributed advice, not business approval.
 
-Existing workflow bundle protection and declared handler-version checks still
-apply. They do not attest backend implementation bytes. A plugin author must
-change its declared version when changing judgement or execution behaviour;
-unchanged-version edits are a trusted-package limitation, not a new guarantee
-introduced by evaluation.
+### Connect evaluation to a workbench
+
+During activation, the trusted backend composes evaluation once with its
+versioned targets and scorers. The returned service is used to start or inspect
+evaluations; the returned handlers join the backend's existing `taskHandlers`.
+The portable workflow module includes the reusable evaluation definitions.
+The host selects storage and assessment implementations.
+
+This setup is fixed for that activation, not a global registry where browser
+requests can add functions. Existing workflow bundle and handler-version checks
+still apply. Authors must update declared versions when execution or scoring
+behaviour changes; a version declaration does not verify every backend byte.
+
+Call `EvaluationService.readiness()` to see whether new work can start. It
+does not schedule anything. Missing orchestration prevents new evaluations, but
+saved findings and feedback remain separately usable.
+
+### Identify the work correctly
+
+`EvaluationInvocationContext.runId` identifies the evaluation.
+`operationId` identifies the execution operation, supplied from the existing
+orchestration task context. Assessment providers preserve that identity when
+forwarding calls.
+
+Consumers invoking tools use this explicit operation identity for existing
+gateway checks. They must not infer it from a cancellation signal. It records
+where the invocation belongs; it is not new permission or browser-supplied
+authority.
+
+## Comparing saved findings
+
+A useful baseline compares different results against the same question and
+checks. A matching display title is not enough.
+
+Cases must match in identity, revision, input and expected material. Scorers
+must match in identity, revision and configuration. Different definitions can
+contain those same cases, while their supplied outputs or target configurations
+differ—that is what the comparison measures.
+
+Missing or incompatible results are shown as incomparable, not as zero change.
+The UI reads the selected case and definition header without loading the entire
+case collection. Output-specific references belong with the output, not a
+rewritten case identity. Feedback does not overwrite earlier findings.
 
 ## Recovery and usage
 
-An interrupted operation is not automatically safe to repeat. Recovery first
-checks persisted findings and existing execution receipts. If they cannot
-establish an outcome, report uncertainty rather than submitting another edit or
-model request. Explicit retry policies cannot override that rule.
+After interruption, check saved findings and execution receipts before deciding
+whether to repeat work. If they cannot establish the outcome, report uncertainty
+rather than submit another edit or model request. A retry policy cannot override
+that safeguard.
 
-Usage belongs to individual target or scorer invocations. Missing provider
-measurements remain unknown. Cached input tokens are a subset of input tokens,
-not an extra quantity to add to the total. Evaluation content remains outside
-content-free operational telemetry; execution evidence retains its existing home.
+Record usage for each target or scorer invocation. Missing measurements remain
+unknown. Cached input tokens are part of the input token count, not extra tokens
+to add again. Evaluation content does not belong in content-free operational
+telemetry; tool evidence stays in its existing store.
 
-The desktop host exposes the optional native rubric scorer only when
-`DRAWLOOM_EVALUATION_MODEL` explicitly names a model. Without it, deterministic
-checks remain available. Configuring or discovering the scorer starts no session.
-The selected label describes the requested model, not measured response metadata.
-Each installation/project owns separate native session mappings beneath
-`evaluation-agents/` in the selected Drawloom data directory. The ordinary native
-read-only sandbox and human review policy remain in effect; an empty Drawloom
-tool list is not a claim of complete native-tool isolation. Fresh judge sessions
-are archived only after their native terminal outcome is established.
+## Optional Codex scoring
+
+The host offers the native rubric scorer only when
+`DRAWLOOM_EVALUATION_MODEL` names a model explicitly. Without that setting,
+deterministic checks remain available. Configuring or discovering the scorer
+does not start a session.
+
+The configured label tells you which model was requested; it is not measured
+response metadata. Session mappings are separate for each installation and
+project beneath `evaluation-agents/` in the Drawloom data directory.
+The native read-only sandbox and human review policy remain in effect.
+An empty Drawloom tool list does not prove that every native tool is isolated.
+
+New judge sessions are archived only after their native terminal outcome is
+known. A later failure to parse the scorer's response does not undo that native
+completion or prevent archival. An uncertain outcome does not justify resubmitting
+the work.
 
 ## Verification record
 
-### Comparing saved findings
+The ADR links the retained comparisons and implementation evidence. Keep proof
+experiments, supported integration tests and model-quality measurements distinct:
+working interfaces do not establish that every scorer makes useful judgements.
 
-A baseline compares different outputs against the same test. Matching a display
-title is insufficient: the selected cases must share identity, revision, input
-and expected material, and the selected scorers must share identities, revisions
-and configuration. Different immutable definitions may contain those same cases.
-Their supplied outputs or target configurations may differ—that is the point of
-the comparison. Missing or incompatible records are reported as incomparable,
-not as a zero difference.
+The optional `scripts/fixtures/evaluation-native-live.ts` exercise uses the real
+host and local orchestration to assess two saved synthetic passages. After
+building packages, it requires both `DRAWLOOM_LIVE_EVALUATION=1` and an explicit
+`DRAWLOOM_EVALUATION_MODEL`. It uses the signed-in account and requests low
+effort, so do not run it as a routine documentation check.
 
-The presentation reads the selected case and definition header, not the entire
-case collection. Mode-specific provenance belongs with the supplied output and
-its references, rather than changing the underlying question identity. Feedback
-is separately attributed advice; saving it neither rewrites findings nor accepts
-the assessed work.
+That exercise reports findings and usage without demanding a canned model answer
+and verifies that both owned sessions are archived. If verification fails, the
+fixture keeps its temporary diagnostic state for inspection rather than repeating
+the model submission. It is separate from public deterministic tests.
 
-The retained comparisons and consumer tests are linked from the ADR. Supported
-implementation results will be recorded separately, including runtime, restart,
-installed consumers and any remaining limitations. Historical proof success is
-not silently relabelled as supported integration evidence.
-
-The opt-in `scripts/fixtures/evaluation-native-live.ts` exercise uses the supported
-host composition and real local orchestration for two saved synthetic passages.
-After building packages, run with `DRAWLOOM_LIVE_EVALUATION=1` and an explicit
-`DRAWLOOM_EVALUATION_MODEL`. It uses the signed-in account, requests low effort,
-reports findings/usage without enforcing a canned model answer, and verifies
-both owned sessions archived. Failed or uncertain runs retain their isolated
-state for inspection rather than automatically repeating a model submission.
+For implementation examples, read
+[the evaluation package](../../packages/evaluation/evaluation/README.md) and
+[the public knowledge-evaluation example](../../packages/examples/knowledge-evaluation/README.md).

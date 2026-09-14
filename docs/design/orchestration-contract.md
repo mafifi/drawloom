@@ -1,59 +1,47 @@
-# Orchestration contract
+# Organising work with workflows
 
-`@drawloom/orchestration` is the supported portable authoring and run-management
-contract accepted by [ADR 0017](../adr/0017-orchestration-interfaces.md).
-[Accepted ADR 0021](../adr/0021-local-temporal-orchestration.md) adds the workflow
-module and backend-handler packaging seam described here without selecting a
-provider in portable code. The [ADR 0017 proof record](../../knowledge/evidence/adr-0017-orchestration.md)
-still separates demonstrated behavior from provider assumptions.
+Use orchestration when work has several steps, needs to wait for input or should
+continue independently of the conversation that started it. A workflow can run
+tasks in sequence or parallel, start child workflows and revisit its own agent
+conversations.
 
-## Four surfaces, one ownership boundary
+`@drawloom/orchestration` defines the shared interface.
+`@drawloom/temporal-orchestration` provides the local implementation.
+[ADR 0017](../adr/0017-orchestration-interfaces.md) records the interface decision;
+[ADR 0021](../adr/0021-local-temporal-orchestration.md) adopts local Temporal.
+Temporal's development server is not a production service or a high-availability
+guarantee.
 
-| Surface | Caller | Responsibility |
-| --- | --- | --- |
-| Workflow module and workflow context | Trusted plugin author | Typed definitions, child runs, input waits, sleeps and owned conversations |
-| Run management | Authorised host caller | Start, inspect, list, await, answer input, request cancellation |
-| Backend task handlers | Trusted plugin backend | Implement declared tasks and reconcile interrupted dispatch from existing receipts |
-| Host bridges | Selected implementation/composition | Invoke existing capabilities, enforce authority, retain reconciliation receipts |
+## Who defines, runs and controls the work?
 
-There is no plugin-specific service protocol. A package's prebuilt workflow
-entrypoint has a default `Registry` export containing definitions only. Its
-trusted backend returns matching `RegisteredTaskHandler` values separately.
-Workflow code may import portable schemas and definition references, but not task
-handlers or Temporal, Node.js, Bun, Cloudflare or Tauri APIs. Context methods are
-the explicit boundary for durable work.
+There are four parts to understand:
 
-Enhanced package metadata may declare `workflows.entrypoint`, a package-relative
-prebuilt `.js` or `.mjs` file. It may list the existing `orchestration` capability
-as optional. Inspection validates the package-relative metadata syntax but does not
-import or execute the workflow module. The host verifies resolved containment when
-it loads the declared file. Composition validates the module before
-starting the backend, then requires exactly one handler with the same task ID and
-version for every registered task. Missing, extra and duplicate handler identities
-reject activation. Module-owned schemas and limits remain authoritative.
+- **Workflow definitions** describe the order of work and valid inputs/outputs.
+- **Task handlers** do the actual work: call tools, read files or submit work to
+  an agent through existing authorised services.
+- **Run management** lets the host start, inspect, answer and cancel a workflow.
+- **Host bridges** connect tasks to existing Drawloom capabilities and preserve
+  the records needed to recover safely after interruption.
+
+A workflow does not create another agent loop, permission system or general
+file store. The workbench still decides what its results mean and when a person
+has accepted them.
 
 ## Authoring signatures
 
-The package export is authoritative. Its workflow surface remains deliberately
-short:
+A `Workflow<I, O>` has an ID, version, input/output schemas and an async `run`
+function. Its `WorkflowContext` offers four ways to coordinate work:
 
-```ts
-interface Workflow<I, O> extends Definition<I, O> {
-  run(context: WorkflowContext, input: I): Promise<O>;
-}
+| Method | Use it to |
+| --- | --- |
+| `task(step, task, input, retry?)` | Perform a declared task, optionally with bounded retries. |
+| `child(step, workflow, input)` | Start and await a child workflow. |
+| `input(step, schema)` | Wait for an answer matching the supplied schema. |
+| `sleep(step, milliseconds)` | Wait without keeping an ordinary process timer alive. |
 
-interface WorkflowContext {
-  readonly runId: string;
-  task<I, O>(step: string, task: Task<I, O>, input: I,
-    retry?: { maxAttempts: number }): Promise<O>;
-  child<I, O>(step: string, workflow: Workflow<I, O>, input: I): Promise<O>;
-  input<T>(step: string, schema: z.ZodType<T>): Promise<T>;
-  sleep(step: string, milliseconds: number): Promise<void>;
-}
-```
-
-Definitions carry `id`, `version`, `input` and `output` schemas. For example,
-the synthetic spine joins two branches and then waits for a typed number:
+The following definition fragment runs two branches, then asks for an
+adjustment. It assumes `branch` is an existing number-in/number-out workflow
+and `context` and `input` come from the surrounding `run` function.
 
 ```ts
 const [left, right] = await Promise.all([
@@ -61,173 +49,182 @@ const [left, right] = await Promise.all([
   context.child("right", branch, input + 1),
 ]);
 const adjustment = await context.input("confirm", z.number());
+return left + right + adjustment;
 ```
 
-The [owned-agent helper](../../packages/orchestration/orchestration/src/owned-agent.ts)
-adds named, schema-backed tasks for conversation creation, submission, inspection,
-awaiting, interruption, optional steering and existing approval/input responses.
-It does not pass live sessions into workflow state or invent another agent loop.
-The host supplies each task's handler and authority separately.
+Use ordinary TypeScript loops, conditions and `Promise.all`; there is no
+Drawloom workflow language to learn. Give each logical step a stable name so
+records and recovery refer to the same work. A step and each attempt to perform
+it have different identities.
 
-`defineWorkflowModule` and `parseWorkflowModule` strictly validate definition
-fields and reject duplicate workflow or task `(id, version)` identities without
-running workflow code. A task may add strict execution limits:
-
-```ts
-interface Task<I, O> extends Definition<I, O> {
-  readonly limits?: { startToCloseTimeoutMs: number };
-}
-```
-
-The timeout must be an integer from 1 millisecond through 24 hours. Definitions
-without limits retain the 30-second local-v1 default, preserving existing callers.
-Retries remain a separate, explicit per-step choice capped by
-`MAX_TASK_ATTEMPTS`.
-
-Management uses `start`, `get`, `getSteps`, `list`, `result`, `respond` and
-`cancel`. `workflowResult` validates both definition identity and the typed final
-output. `result` is the generic JSON management read, not a claim about a caller's
-specific workflow output type. A running snapshot with nonempty `pendingInputs`
-indicates an input wait; `cancellationRequested` is independent of terminal status.
-Step summaries are capped at 100 and have a separate paginated read.
-`MAX_TASK_ATTEMPTS` is 10; conforming providers reject larger limits.
-Reusing an input key with a different schema rejects rather than reinterpreting a
-previous answer under a different TypeScript type.
-The proof also caps children and concurrent input waits at 100 per run; excessive
-fan-out rejects before creating more children. These are explicit proof limits,
-not a claim that every production workflow engine shares them.
+The [contract source](../../packages/orchestration/orchestration/src/index.ts)
+defines the complete interfaces and validation rules.
 
 ## Authoring expectations
 
-A workflow is an async TypeScript function with schema-backed input and output.
-Its version is part of definition identity. Ordinary loops, conditionals and
-Promise.all express orchestration; the adapter does not interpret a graph DSL.
-Authors give logical steps stable keys so retries, observations and recovery refer
-to the same work. Actual attempts have separate identities for execution evidence.
+Workflow code must make the same coordination decisions when the engine
+replays its recorded history. Put file access, network calls, tool execution and
+agent work in task handlers—not directly in the workflow function. Use
+`context.sleep` rather than an ordinary timer for a workflow wait.
 
-This is not permission to run arbitrary TypeScript effects inside a workflow.
-Coordination must replay deterministically. File access, network requests, tools
-and agent execution cross host task/bridge boundaries. A task's output is recorded
-by the workflow engine; it is not proof that an unrecorded effect never happened.
-The same workflow version is retained throughout the restart proof. Hot code
-upgrades and cross-engine replay are deliberately not promised.
+Keep workflow data as validated JSON and authorised references. Do not place
+live sessions, credentials, media bytes or duplicate transcripts in workflow
+state. TypeScript types help authors, but do not make arbitrary code safe or
+deterministic. Workflow modules are trusted code, not a sandbox.
+
+Versions identify definitions and their saved work. The tested recovery path
+uses the same code throughout. Changing code while work is unfinished is not a
+supported workflow upgrade; the local implementation blocks incompatible
+replacement rather than silently replaying with different code.
+
+## Package definitions separately from handlers
+
+A plugin's prebuilt workflow module exports a default `Registry` containing
+workflow and task definitions. Its backend separately returns matching
+`RegisteredTaskHandler` values. This lets the engine load coordination code
+without loading the backend's file, network or provider operations.
+
+Declare the module in `extensions["org.drawloom"].workflows.entrypoint`, using
+a prebuilt `.js` or `.mjs` file under `./org.drawloom/`. Backend and workflow
+files must remain inside that directory after symlink resolution. Inspection
+checks files without executing the module. Activation loads trusted definitions
+and requires exactly one handler with the same ID/version for each task.
+Missing, extra or duplicate handlers reject activation.
+
+Use `defineWorkflowModule` or `parseWorkflowModule` to validate definitions.
+Workflow code can import portable schemas and definitions, not Temporal, Bun,
+Node.js, Cloudflare or Tauri APIs, or backend task handlers.
+See [plugin packaging](../reference/plugin-packages.md) for the full manifest and
+trust checks.
 
 ## Backend handlers and interrupted dispatch
 
-`registerTaskHandler(task, {run, recover?})` preserves the task's input and output
-types for backend authors. `matchTaskHandlers` binds the returned handlers to the
-validated workflow module. It validates inputs and outputs with the module-owned
-schemas and rejects missing, extra or duplicate identities before execution.
+`registerTaskHandler(task, { run, recover? })` connects a task definition to its
+implementation while preserving the input/output types. `matchTaskHandlers`
+checks the complete set of handlers and validates values using the definitions'
+schemas.
 
-The optional `recover(input, context)` hook is reconciliation-only. It inspects
-existing provider or tool receipts after an interrupted prior dispatch; it must
-not submit the effect again. It returns exactly one of:
+The handler receives a `TaskContext` with its task version, run, step, attempt
+and cancellation signal. Use those identities to distinguish repeated delivery
+from new work. The local provider records intended dispatch before calling a
+handler and records its result before acknowledging completion.
 
-- `{status: "completed", output}` after the module output schema accepts the
-  already-settled result;
-- `{status: "retryable"}` only when evidence establishes that repeating the task
-  is safe;
-- `{status: "unknown"}` when completion cannot be determined safely.
+If the process stops between those events, `recover` may inspect existing
+receipts to determine what happened. It **must not perform the action again**.
+It returns one of:
 
-`TaskContext` keeps its existing task version, run, step, attempt and cancellation
-identities. Recovery adds no generic event surface and uncertainty never becomes
-permission to redispatch.
+- `{ status: "completed", output }`: the earlier work finished and its output
+  passes validation.
+- `{ status: "retryable" }`: evidence establishes that repeating the task is safe.
+- `{ status: "unknown" }`: the outcome cannot safely be determined.
 
-`PluginBackend.taskHandlers` carries these handlers. The desktop context reports
-optional orchestration dependency presence separately from actual readiness.
-`PluginBackendCapabilities.orchestrationReadiness` returns a strict bounded
-`ready`, `configuration_required` or `unavailable` report; provider lifecycle
-state is not added to the portable `Orchestrator` interface.
+An absent recovery handler or unknown result does not permit another dispatch.
+A recorded result can be reused without running the effect again.
 
-## Identity and data
+## Manage a run
 
-Keep workflow run, logical step, step attempt, child run, agent conversation and
-agent operation identities separate. Native Temporal and Codex identifiers stay
-adapter-private. Bind management access to an authorised host scope; ownership is
-not a model-controlled argument that can be changed to read another run.
+The host receives an `Orchestrator` scoped to the installation and project;
+host-owned capabilities have their own separate scope. Run IDs and pagination
+cursors are checked within that scope. A model-supplied owner ID must not become
+permission to read someone else's work.
 
-Schema-validate inputs and outputs. Workflow state contains bounded JSON data and
-references; managed assets and authoritative tool evidence retain their existing
-owners. No duplicate transcript, memory substrate or general event store is added.
+- `start` uses a caller request identity, workflow definition and input. Reusing
+  the same identity and input returns the existing run; conflicting reuse rejects.
+- `get` reads a snapshot; `getSteps` and `list` provide bounded pages.
+- `result` waits for generic JSON output. Use `workflowResult` to also check
+  the expected workflow ID/version and validate its output type.
+- `respond` answers one pending input request by run and request ID. Repeating
+  the same response is harmless; stale, conflicting or cross-run answers reject.
+- `cancel` requests cancellation of unfinished owned work.
+
+A running snapshot with `pendingInputs` is waiting for information.
+`cancellationRequested` is separate from terminal status.
+`unresolvedEffects` records work whose external outcome remains uncertain.
+The summary includes at most 100 steps; use `getSteps` for the rest.
+
+The backend's separate `orchestrationReadiness` reports `ready`,
+`configuration_required` or `unavailable`. An installed dependency being
+present does not mean its service is ready. Provider startup state is not added
+to the portable run-management API.
 
 ## Lifecycle and failure meaning
 
-| Event | Required meaning |
-| --- | --- |
-| Initiating turn finishes or client disconnects | Workflow remains independent |
-| Client stops awaiting a result | Only that local wait ends |
-| Explicit workflow cancellation | Request cancellation of owned unfinished work; no rollback claim |
-| A branch fails terminally | Request cancellation of unfinished siblings; preserve completed results |
-| A step fails | One attempt by default; only explicit bounded retries may repeat it |
-| Effect occurred but acknowledgement is missing | Preserve uncertainty and reconcile; do not infer safe resubmission |
-| Human input is pending | Address its stable run/request identity; response is not a tool grant |
-| Backend worker/service restarts | Recover engine state; reconcile external work separately |
+A run can outlive its initiating turn and client connection. Leaving a page or
+stopping a local result wait does not cancel it.
 
-A management snapshot must not conflate the workflow engine finishing with every
-external process stopping. Provider limitations remain explicit. An exhausted
-retry is failure, not a new workflow. Resume is reconnect/answer, not reset.
+| Situation | Expected behaviour |
+| --- | --- |
+| The user explicitly cancels | Request cancellation of unfinished owned work; do not claim rollback. |
+| A branch fails terminally | Request cancellation of unfinished siblings and preserve completed results. |
+| A task fails | Use one attempt unless the author explicitly allowed safe retries. |
+| An effect may have happened without a saved acknowledgement | Investigate existing records; report unknown rather than blindly repeat. |
+| The host or worker restarts | Restore engine state, then separately check uncertain external work. |
+| The engine reports a terminal result | Do not assume every external process has stopped. |
+
+Retries are capped at `MAX_TASK_ATTEMPTS` (10). They do not override denial,
+invalid input or uncertainty. A task's optional `startToCloseTimeoutMs` is
+between 1 millisecond and 24 hours; omission uses 30 seconds. The shared context
+limits each run to 100 children and 100 simultaneous input waits. Reusing an
+input step with a different schema rejects rather than reinterpreting an old
+answer.
 
 ## Agent conversations
 
-The orchestration bridge uses the existing AgentDriver/AgentSession contract.
-It creates owned conversations and submits sequential operations, collects their
-safe outcomes and forwards existing approval/input resolution. Unsupported
-steering or interruption stays unsupported; opening a session does not imply
-those operations exist.
+The [owned-agent helpers](../../packages/orchestration/orchestration/src/owned-agent.ts)
+provide named tasks for creating a conversation, submitting work, inspecting or
+awaiting it, interrupting, steering where supported and answering existing
+approval/input requests.
 
-Existing grants still govern tools. A workflow choosing to wait for a human does
-not replace Codex's native reviewer. Native session continuity and display-history
-capture keep their accepted responsibilities. If a process dies after submission
-but before recording a response, a receipt prevents blind repetition. Where the
-existing provider contract cannot reconcile the operation, report unknown rather
-than invent another execution or claim live-provider crash recovery.
+They use `AgentDriver` and `AgentSession`; they do not take over unrelated
+user conversations or allow concurrent turns within one conversation. Codex
+still owns its native transcript and reviewer. Tool grants remain independent,
+and a workflow input answer is not permission to edit a file.
+
+If the host loses an active submission and cannot reconcile it through existing
+records, the result is unknown. Saving a session ID alone does not prove that a
+live Codex operation can be reattached after a crash.
 
 ## Temporal mapping and supported local implementation
 
-The mappings below were established by the ADR 0017 proof. Accepted ADR 0021
-promotes a separate supported implementation in `@drawloom/temporal-orchestration`,
-with installed workflow registration, local process ownership and durable receipts.
-See its [API and local limitations](../../packages/orchestration/temporal-orchestration/README.md)
-and [current evidence](../../knowledge/evidence/adr-0021-local-temporal.md).
+The local provider maps workflows to Temporal workflows, tasks to activities,
+children to child workflows, sleeps to durable timers and input responses to
+durable messages. It explicitly limits activity retries instead of inheriting
+the engine's defaults.
 
-DeepSeek's inspected `WorkflowStartRequest` accepts a script, JSON arguments,
-metadata, a live parent agent and optional cancellation signal. Its live run handle
-has a result, cancel and dispose. Drawloom's proposed management surface instead
-addresses a durable run independently of the caller. These are approved differences
-in the implementation plan, not claims of interface equivalence:
+Closing Drawloom stops its local dispatch and owned processes without issuing
+workflow cancellation. Timers and task deadlines still follow wall-clock time,
+so reopening is not an unconditional pause/resume promise. Unfinished runs
+prevent incompatible package updates; completed inspection also requires the
+matching code. Cross-engine replay and hot workflow migration are not promised.
 
-| Inspected DeepSeek seam | Candidate Drawloom seam |
-| --- | --- |
-| Script supplied at start | Registered workflow identity/version; trusted implementation selected at composition |
-| Live parent Agent supplied to script runtime | Owned conversations created through the existing provider-neutral bridge |
-| Holder-owned live result/cancel/dispose handle | Start/get/list/result/respond/cancel by run identity; leaving a result wait does not cancel work |
-| Process-local job and worker-thread lifetime | Durable engine proof; external agent continuity remains a separate limitation |
-
-Source: [revision-bound workflow runtime types](https://github.com/deepseek-ai/deepseek-harness/blob/b2e3b2a0125854567a4a5fcba75782e42fe84901/packages/workflow/workflow/src/runtime-types.ts),
-also linked in the [capability survey](../reference/harness-workbench-survey/deepseek.md).
-
-| Drawloom concept | Temporal proof mechanism |
-| --- | --- |
-| Registered async workflow | Bundled native workflow running a supplied Drawloom context |
-| External task | Activity with maximum attempts explicitly set |
-| Child run | Native child workflow with stable identity and parent cancellation |
-| Durable sleep | Native workflow timer |
-| Input response | Native durable message with application validation and duplicate handling |
-| Inspection/result | Native query/result plus bounded validated projection |
-| Agent operation | Host bridge outside deterministic coordination |
-
-Temporal is not concealed as a universal promise. A matching TypeScript interface alone does not prove another engine can
-implement the same semantics. Changes to the selected boundary require explicit
-maintainer review before implementation.
+See the [local provider guide](../../packages/orchestration/temporal-orchestration/README.md)
+for prerequisites, stored records and runtime-specific limits, and the
+[ADR 0021 evidence](../../knowledge/evidence/adr-0021-local-temporal.md) for
+recorded verification.
 
 ## Relationship to accepted contracts
 
-| Decision | What orchestration reuses; what it does not own |
-| --- | --- |
-| [ADR 0005](../adr/0005-partition-agent-platform-capabilities.md) | Cross-capability coordination and child lineage; no domain recipe in public core |
-| [ADR 0007](../adr/0007-provider-neutral-agent-execution.md) | Agent session, operation, outcome and resolution contracts; no replacement agent loop |
-| [ADR 0008](../adr/0008-tool-execution-and-exposure.md) | Tool grants and execution evidence; workflow start conveys neither |
-| [ADR 0013](../adr/0013-plugin-boundaries-and-host-integration.md) | Trusted explicit composition; no new UI bridge or dynamic service registry |
-| [ADR 0014](../adr/0014-persistent-paginated-conversation-history.md) | Display history remains separate; orchestration receipts are not transcripts or memory |
-| [ADR 0015](../adr/0015-working-material-ownership-and-edit-approval.md) | Native review and plugin-owned material; a workflow input answer is not edit approval |
-| [ADR 0016](../adr/0016-discoverable-contributions-and-resources.md) | Discovery does not grant execution; installed orchestration readiness follows the existing contribution model |
+Orchestration coordinates existing capabilities rather than replacing them:
+
+- [Agent execution](agent-execution-contract.md) owns native session calls and
+  their outcomes.
+- [Tools](tool-execution-contract.md) own invocation checks and execution records.
+- [Conversation history](../reference/conversation-history.md) owns display
+  records, not workflow receipts.
+- [Plugin boundaries](../adr/0013-plugin-boundaries-and-host-integration.md) and
+  [working material](../adr/0015-working-material-ownership-and-edit-approval.md)
+  keep UI integration, native review and business acceptance with their owners.
+
+## Tests and supporting evidence
+
+The [ADR 0017 proof record](../../knowledge/evidence/adr-0017-orchestration.md)
+retains the original comparison with DeepSeek Harness and Temporal, and
+separates scripted-agent tests from live-provider assumptions. Drawloom's
+independent run management is an intentional difference from DeepSeek's
+process-local live handles, not a claim of equivalent APIs.
+
+Current shared tests exercise workflows, retries, input, cancellation and run
+management; provider tests separately exercise receipts and actual local-service
+recovery. Passing the TypeScript interface is not proof that another engine
+offers the same behaviour. In particular, scripted agent recovery does not
+establish live-model crash recovery or production Temporal guarantees.

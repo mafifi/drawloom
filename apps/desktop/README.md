@@ -1,96 +1,138 @@
-# Drawloom desktop
+# Run the Drawloom desktop
 
-Public SvelteKit/TypeScript UI with a small Tauri shell and a shared Bun local
-host. No private package, credential, service or model is needed to boot.
+The desktop brings projects, conversations, workbenches and their results into
+one application. You can run its UI in a browser on your own machine or build
+the macOS application. Both use the same local host.
 
-From the repository root:
+## Start from source
+
+Use the Bun version pinned in the root `package.json`. From the repository root:
 
 ```sh
 bun install --frozen-lockfile
 bun run desktop:build
-DRAWLOOM_DATA_DIR=/your/chosen/project-directory bun run desktop:start
+bun run desktop:start
 ```
 
-Open the one-use bootstrap URL printed by the host. It binds only to 127.0.0.1
-on a random port; optionally set `DRAWLOOM_PORT`. Reuse the data directory to
-restore project navigation, assets, revisions, review and grants. A new directory
-is an independent project, allowing a second consumer scenario without source
-changes. Each browser/native host should have its own data directory; simultaneous
-processes writing one directory are not supported.
+Open the one-use sign-in URL printed by the host. It listens only on
+`127.0.0.1`, using an available port. Treat that URL as private.
+Press Ctrl+C in the terminal to stop the host.
 
-Synthetic mode supports Text studio, saves supplied text as a draft and uses the
-real word-count gateway. The grant starts denied. Settings can grant it explicitly.
-Select Codex to create a separate real process-backed conversation. Selection
-initializes the local Codex process; sending starts a model operation and uses
-the existing Codex account. The app never falls back from Codex to synthetic.
-Codex must be installed and signed in using its own setup flow. The default host
-does not download models or request a new API key.
+You can start the application without a model or private workbench. To ask a real
+agent to do work, install Codex and complete its own sign-in first. Sending work
+uses that account. Drawloom does not silently substitute a simulated response
+if Codex is unavailable.
 
-The composer offers **Ask me** (default) and **Approve for me** when the connected
-provider supports native delegated review. The choice is saved per conversation,
-changes only while idle, and applies to the next turn. Codex reviews mutating and
-unclassified Drawloom MCP tools; explicit read-only annotations bypass that
-review, not Drawloom's independent tool grant. Native review never accepts
-business content. The sandbox and approval policy remain unchanged. See
-[ADR 0015](../../docs/adr/0015-working-material-ownership-and-edit-approval.md).
+### Keep application data separate from project files
 
-The composer stays editable during execution. Codex supports steering and stopping;
-synthetic does not claim those optional methods. Imported images can be sent to
-Codex. Imported audio/video/PDF/text files have viewers, but are not claimed as
-native agent input. Text artifacts can be chosen as untrusted reference context.
-Editing documents creates immutable revisions. Comparison, selection and review
-are separate commands; none triggers generation or publication.
-An editor is pinned to its original document. Changing document/conversation
-cancels unsaved document edits; incoming artifacts cannot retarget Save.
-Composer edits made while Send waits are retained as the next unsent draft.
+New installations store application data in `~/.drawloom`. This includes
+conversation records, installed-package state and managed assets. A project
+folder is where your working files live; it is not the application's data folder.
 
-Conversation display persists separately in `history.sqlite`, including synthetic
-conversations. Open the latest 50 entries and use “Load earlier” to page backward;
-cached pages do not require Codex. Native transcript, compaction and execution
-continuity remain with Codex. Stored history is never automatically model context.
-The UI reports synchronization errors without retrying execution.
-New installs default to `~/.drawloom`; the old Application Support location is
-retained when it is the only existing default. If both exist, select explicitly
-with `DRAWLOOM_DATA_DIR`. Nothing is moved or deleted. See
-[history operation and API](../../docs/reference/conversation-history.md).
+To try a separate installation without touching existing data:
+
+```sh
+DRAWLOOM_DATA_DIR=/absolute/path/to/separate-drawloom-data bun run desktop:start
+```
+
+Choose the path before running the command. Reuse it to reopen the same local
+installation; do not run two hosts against it at once. Set `DRAWLOOM_PORT` if
+you need a particular port.
+
+An existing `~/Library/Application Support/Drawloom` directory is selected
+when it is the only existing default. If both defaults exist, set
+`DRAWLOOM_DATA_DIR` explicitly. Startup does not merge, move or delete them.
+See [conversation storage](../../docs/reference/conversation-history.md#local-provider-and-data-selection).
+
+## Start working
+
+Add a project, choose a workbench and explicitly create a conversation.
+Selecting a project or workbench alone should not start agent work. Conversations
+retain the project and workbench they were created with.
+
+The built-in Text studio also supports a synthetic test driver for local tests.
+It uses supplied text rather than a model and exercises the word-count tool.
+This is a development fixture, not a second AI integration; its tool grant starts
+denied. Tests can select it explicitly without making a paid request.
+
+The composer supports sending selected context and images to Codex. Audio,
+video, PDFs and text files have viewers, but viewing a file is not proof that
+the agent can consume that format natively. While Codex is working you can
+continue drafting, steer supported work or stop it.
+
+Use **Ask me** for human review, or **Approve for me** when native delegated
+review is available. The choice belongs to the conversation, changes while idle
+and applies to the next turn. Review never replaces Drawloom's tool grants or
+accepts the result as finished. Read-only tool annotations can avoid native
+review, but not the independent grant check.
+[ADR 0015](../../docs/adr/0015-working-material-ownership-and-edit-approval.md)
+explains these distinctions.
+
+## Find conversations and inspect results
+
+Search covers cached titles and message text, including optional project and
+archive filters. Opening a match shows its surrounding messages; “Back to latest”
+returns to the newest page. Search does not call a model or fetch older Codex
+history. Saved pages remain readable when Codex is unavailable.
+
+Rename, archive and restore organise Drawloom conversations without deleting
+their history or archiving native Codex sessions. Archive is unavailable while
+the conversation has active work or pending input or approval.
+
+Open result cards to inspect their material. Editing, comparison and selection
+depend on what the owning workbench supports; none automatically generates or
+publishes work. Composer changes made while Send is waiting remain as the next
+draft. The built-in document editor stays attached to its original document;
+changing documents or conversations cancels its unsaved edits. Plugin editors
+manage their own saving behaviour.
+
+The interface follows the operating system's light or dark appearance.
+Shared controls and layout guidance live in [DESIGN.md](../../DESIGN.md).
 
 ## Trusted package backends
 
-Install a standard package in Plugins and explicitly trust its namespaced backend
-entrypoint. The default export satisfies `PluginBackendFactory` from
-`@drawloom/desktop-host`. The host calls it once with declared capabilities and
-dependency availability. Return contributions, controllers, named MCP connections
-and cleanup. Requested host storage is installation-scoped. Use
-`assets.put(bytes,mediaType)` to create assets the host can serve safely. Configuration
-is not a grant. Snapshot fields must be explicitly safe for display; credentials
-stay inside the connection owner. Plugin browser code runs only through MCP Apps.
-Managed media and streamed browser imports may be up to 256 MiB per asset;
-native model-input limits remain separate. Large-file paths use streaming readers
-and writers rather than the bounded whole-buffer helper. See
-[memory and upload limits](../../docs/design/desktop-host.md).
+Use Plugins to install a standard package and explicitly trust any Drawloom
+backend it declares. Ordinary skills and MCP servers do not need a custom
+backend. See [plugin packages](../../docs/reference/plugin-packages.md) for the
+directory layout and installation steps.
 
-The backend module is an explicit trusted-code choice by the local operator. No
-marketplace, auto-install, hot reload or arbitrary HTTP/file routes are supported.
-Invalid package components fail visibly without blocking unrelated packages.
-Readiness failures after startup belong in the controller's snapshot.
+A backend runs trusted local code. Its default export implements
+`PluginBackendFactory` from `@drawloom/desktop-host` and returns its
+contributions, controllers, MCP connections and cleanup function. It receives
+only the declared host capabilities. Configuration is not permission to use a
+tool, and credentials must stay out of UI snapshots.
+
+Use the host asset APIs to save material for viewers. Large files use streaming
+reads and writes; managed assets and browser uploads may be up to 256 MiB, while
+model input has separate limits. Plugin browser UI uses MCP Apps, not arbitrary
+host routes or a new browser API.
+
+Package problems are reported without disabling unrelated packages. Backends
+must report later readiness problems in their controller state.
+The [desktop host guide](../../docs/design/desktop-host.md) covers these APIs and
+project-specific state in detail.
 
 ## Native macOS verification
 
+Building the app requires the Rust/Tauri build tools as well as the source
+dependencies. With those tools installed and Cargo on your PATH, run:
+
 ```sh
-PATH="$HOME/.cargo/bin:$PATH" bun run --cwd apps/desktop tauri build --bundles app
+bun run --cwd apps/desktop tauri build --bundles app
 ```
 
-The output is `src-tauri/target/release/bundle/macos/Drawloom.app`. The app includes
-the static frontend and a compiled Bun host; it does not depend on Bun being
-installed on the user's PATH. The frozen Node worker dependencies are included
-as resources for optional local workflows; Node and Temporal themselves remain
-external prerequisites, as documented by the
-[local orchestration provider](../../packages/orchestration/temporal-orchestration/README.md).
-Codex remains an external, explicitly selected prerequisite.
-The native shell launches the host, accepts only its exact loopback
-origin, exposes no Tauri commands to web content, and closes the host on exit.
-Release builds and native synthetic transport are verified on macOS. Windows,
-Linux, signing, notarization and distribution are not claimed.
+The output is
+`apps/desktop/src-tauri/target/release/bundle/macos/Drawloom.app`.
+It packages the frontend, compiled Bun host and staged worker dependencies.
+Codex remains a separate prerequisite. Optional workflows also require Node and
+Temporal as described in the
+[Temporal guide](../../packages/orchestration/temporal-orchestration/README.md).
 
-Appearance automatically follows the OS light/dark setting using Tailwind neutral
-colours, with no persistent manual override. The journal has a separate design.
+The native shell opens only the local host's exact origin, exposes no Tauri
+commands to web content and stops the host when it exits. A local build is not
+a signed or notarized release. Do not infer Windows or Linux support from the
+macOS setup.
+
+Optional knowledge setup and its current runtime-download limitations are
+documented in the [knowledge guide](../../docs/design/local-knowledge.md).
+Starting the desktop does not consent to a model download.

@@ -1,101 +1,174 @@
-# Tool execution contract
+# Defining and running tools
 
-- **Status:** Working contract design supporting Accepted ADR 0008; not a supported API
-- **Decision:** [ADR 0008](../adr/0008-tool-execution-and-exposure.md)
-- **Evidence:** [Verified proof and limitations](../../knowledge/evidence/adr-0008-tool-execution.md)
+A tool gives an agent a named function it can call: count words, inspect a file
+or perform some workbench action. Define its inputs, outputs and handler once.
+Drawloom's gateway then checks incoming arguments and permission, runs the
+handler and records the outcome. The same path serves direct callers and tools
+exposed through MCP.
 
-## Proof scope
-
-The retained implementation under `spikes/adr-0008-tool-execution/` exercises
-the agreed tool behaviour. It is not a supported package. It uses the root
-Zod and MCP dependencies and reuses only ADR 0007's app-server transport.
+`@drawloom/tools` defines the shared API; `@drawloom/local-tools` implements the
+in-process gateway. [ADR 0008](../adr/0008-tool-execution-and-exposure.md)
+explains the decision. The original experiment is retained evidence, not the
+current package implementation.
 
 ## Authoring and invocation
 
-`defineTool({ name, description, input, output, execute, render? })` infers
-handler input and output from Zod schemas. A handler receives validated input
-and `{ invocationId, operationId, signal }`; provider identities, policy grants,
-and unrestricted service locators are absent. Dependencies are closures supplied
-by composition. Names are nonempty and unique within a fixed catalogue; a
-provider adapter must reject or map unsupported wire names explicitly.
+Use `defineTool` with Zod schemas to describe valid inputs and outputs.
+TypeScript infers the handler's types from those schemas.
 
-Both input and successful output must be JSON-representable. JSON Schema
-projection must succeed when the tool is registered. Default rendering is
-`JSON.stringify(value)`; an optional renderer returns text from the validated
-value. It cannot change that value. A renderer failure is distinguishable from
-handler failure. The executable proof contract owns exact schemas and types.
-Input projection describes values before defaults; output projection describes
-the validated result. JSON Schema does not advertise runtime-only refinements
-as equivalent validation.
+```ts
+import { z } from "zod";
+import { defineTool } from "@drawloom/tools";
 
-The gateway exposes `invoke(binding, name, arguments, signal)`. `binding` is an
-opaque in-process handle obtained through the trusted composition, never a
-model argument. Policy supplies a live decision for that binding and tool.
-The invocation captures its binding before awaiting any work and rechecks it
-after acknowledging the start record, immediately before handler dispatch.
-An inactive or unknown binding denies execution. Closing a binding never
-retargets existing calls to another operation.
+export const wordCount = defineTool({
+  name: "text.word_count",
+  description: "Count whitespace-separated words in text.",
+  annotations: { readOnlyHint: true },
+  input: z.object({ text: z.string() }),
+  output: z.object({ count: z.number().int().nonnegative() }),
+  execute: ({ text }) => ({
+    count: text.trim() ? text.trim().split(/\s+/).length : 0,
+  }),
+});
+```
 
-Results carry an invocation ID, an outcome, and a separate evidence state.
-Successful outcomes retain a canonical JSON value and rendered text. Failure
-outcomes carry a bounded code and execution knowledge: `not_started`,
-`completed`, or `unknown`. `completed` describes handler settlement and does
-not mean no side effects occurred. A throw after handler entry is conservatively
-`unknown`; raw exception messages do not cross the boundary.
-Validation failures include the first invalid path, not the rejected value or
-raw validation message, following ADR 0004.
+This defines a tool; it does not install it or grant permission to call it.
+The application supplies dependencies when registering the handler. A handler
+receives validated input and a `ToolContext` containing its invocation ID,
+operation ID and cancellation signal. It does not receive credentials,
+provider identities or a general service locator.
 
-Evidence state distinguishes `recorded`, `start_failed`, and `outcome_failed`.
-A start failure prevents handler dispatch. An outcome-recording failure retains
-the known outcome and sets `outcome_failed`; adapters must not present the
-overall invocation as an unqualified success. The proof sink acknowledges
-records in memory or by writing, syncing, and closing a temporary file; it makes
-no production crash-durability claim. Observability will own stronger
-acknowledgement semantics.
+Both inputs and successful outputs must be JSON-compatible. Schema conversion
+to draft-07 JSON Schema must succeed when defining the tool. Tool names must
+be non-empty and unique within the gateway's fixed catalogue. A provider must
+explicitly map or reject names its protocol cannot support.
 
-The gateway dispatches a handler at most once per invocation. It never retries.
-Pre-aborted calls do not enter the handler. After entry, it forwards cancellation
-and waits for handler settlement; it cannot kill in-process code or promise
-rollback. Cancellation observed before successful settlement yields a cancelled
-outcome with honest execution knowledge. Non-cooperative code remains a sandbox
-concern.
+Input schemas describe the incoming value before defaults are applied; output
+schemas describe the validated result. Runtime refinements still run locally,
+but are not necessarily expressible in JSON Schema. Do not describe a projected
+schema as enforcing checks that the target format cannot represent.
 
-## Provider-private authority binding
+See the [tool contract source](../../packages/tools/tools/src/index.ts) for all
+fields and validation rules.
 
-The Codex adapter projects only `_meta.callId` and the `thread_id` / `turn_id`
-fields of `_meta["x-codex-turn-metadata"]` from its isolated stdio connection.
-The live probe verified their presence and relation to app-server turn IDs on
-the version recorded in the evidence; upgrades must rerun that compatibility gate.
-These fields are provider-authored transport metadata, not tool arguments.
-They are not authenticated merely because they are named `_meta`: the proof
-trusts only the stdio pipe launched and owned by its composition.
+## Register tools and call the gateway
 
-Composition maps the exact provider thread/turn pair to one Drawloom operation
-and its policy binding. Binding is published from `turn/start` acceptance.
-If a call arrives first, the adapter may wait briefly for that exact key; it
-never falls back to a mutable current-operation pointer. A missing, expired,
-or closed mapping fails closed. Entries are not reused for another operation.
-The same catalogue and MCP server remain available across operations.
+The host creates a gateway with its tools, a permission check, a record writer
+and a function that issues unique invocation IDs. The gateway's `exposure`
+describes its tools for the agent; it is not permission to use them.
 
-The proof delays a real operation-A request across the transition to operation
-B, replays a saved A envelope over a controlled test connection, and verifies
-neither can borrow B's authority. Raw metadata stays in temporary runtime files
-and is removed after the run. Public results carry Drawloom correlation only.
+Call `bind(operationId)` to obtain an in-process handle for one operation,
+then use `invoke(binding, name, args, signal)`. Only trusted application code
+should create and pass that handle. It is not an argument the model chooses.
+
+The gateway remembers the operation before awaiting any work. It checks
+permission again after writing the start record, just before entering the
+handler. If the binding is unknown, revoked or no longer allowed, execution is
+denied. `revoke(binding)` prevents later dispatch; it cannot undo a handler
+that has already started. A delayed invocation cannot borrow a newer
+operation's permission.
+
+Call the gateway rather than `ToolDefinition.execute` directly. Calling the
+handler yourself bypasses the checks and recording described here.
+
+## Read data separately from its presentation
+
+A successful result contains the validated JSON `value` and its rendered
+`text`. Use the value in code instead of extracting fields from prose.
+The default renderer uses `JSON.stringify`; an optional `render` function
+can make the same result easier to read.
+
+`renderContent` can provide standard MCP content blocks, such as images or
+resource links. These are checked against the MCP content schema. Rendering
+does not replace the validated result or grant permission to fetch a resource.
+
+Output validation and rendering happen after execution. Invalid output or a
+renderer failure does not mean the handler had no effects, and is not a reason
+to run it again. Rendering failures have their own `render_failed` outcome.
+
+## Understand failures and execution records
+
+A `ToolResult` separates two questions: **what happened to the work**, and
+**whether its record was saved**.
+
+Failures identify denial, unknown tools, invalid input/output, handler or
+rendering failure, cancellation, and recording failure. They also describe
+what is known about execution:
+
+| Execution value | Meaning |
+| --- | --- |
+| `not_started` | The handler was not entered. |
+| `completed` | The handler returned; its effects may already have happened. |
+| `unknown` | Execution began but its effects cannot safely be determined. |
+
+A thrown handler error is conservatively unknown. Errors do not expose raw
+exception messages. Validation failures identify the first invalid field path,
+not the rejected value or a potentially sensitive validation message.
+
+The separate `evidence` field describes recording:
+
+- **`recorded`:** The configured `ToolEvidenceSink` acknowledged the records.
+- **`start_failed`:** Recording the start failed, so the handler did not run.
+- **`outcome_failed`:** Recording the outcome failed after the work. The known
+  outcome is retained; do not present it as unqualified success or assume a retry
+  is safe.
+
+Acknowledgement is only as durable as the configured writer. The gateway does
+not itself promise crash-proof storage. These execution records are not a
+substitute for permissions, nor ordinary best-effort diagnostic logs. Keep
+content-bearing records separate from
+[operational telemetry](../reference/observability.md).
+
+## Cancellation does not roll back work
+
+The gateway enters a handler at most once per invocation and never retries it.
+A call cancelled before entry does not run. Once a handler starts, the gateway
+forwards cancellation and waits for it to settle.
+
+Handlers must observe the signal or pass it to the operations they call.
+In-process cancellation cannot kill uncooperative code, undo a file write or
+prove that a remote operation stopped. Cancellation detected after a handler
+returns is reported as cancelled with completed execution. A throw after entry
+remains unknown. Process termination belongs to the selected execution
+environment, not this interface.
+
+## Match a native tool call to the right operation
+
+The Codex integration maps provider-authored thread/turn metadata on its
+host-owned connection to one Drawloom operation and gateway binding. Missing
+or closed mappings deny the call. If metadata arrives before the matching turn
+is registered, the adapter may wait briefly for that exact identity; it must
+not fall back to the current operation.
+
+The original live proof used `_meta.callId` and
+`_meta["x-codex-turn-metadata"]`. Those names are not credentials, and ordinary
+MCP callers cannot gain authority merely by supplying them. Trust came from the
+isolated stdio connection owned by the test host. Other transports need their
+own authentication and correlation evidence.
+
+The [Codex guide](codex-app-server-adapter.md) describes native review.
+Native approval and Drawloom tool grants are separate checks. Tool annotations
+are descriptions, not permission. Form elicitation asks for information and
+does not authorise execution.
 
 ## Required evidence
 
-- Direct invocation and MCP projection produce the same canonical value.
-- Invalid input never calls the handler; invalid output is reported after one
-  handler execution; duplicate names and unprojectable schemas are rejected.
-- Default and custom rendering preserve canonical data; renderer failure does
-  not masquerade as a handler failure.
-- Denied, forged, stale, and pre-aborted bindings do not execute. Revocation
-  during start acknowledgement prevents dispatch. Overlapping calls remain
-  attached to their original operation.
-- Start-record failure prevents effects. Outcome-record failure preserves known
-  effects and never retries. Cancellation after an effect does not claim rollback.
-- A live Codex call supplies usable metadata, executes the word-count tool,
-  preserves explicit result correlation, and retains one exposure while policy
-  changes. Controlled delay/replay verifies cross-operation isolation.
-- All temporary files, MCP processes, and created Codex threads are cleaned up;
-  cleanup failure makes the live command fail.
+The [shared tool tests](../../packages/tools/tools/src/conformance.ts) and
+[local gateway tests](../../packages/tools/local-tools/gateway.test.ts) cover:
+
+- Input/output checks, duplicate names, schema conversion and rendering.
+- Denied, forged, revoked and pre-cancelled calls making no handler call.
+- Permission revoked while a start record is being written.
+- Recording failures, overlapping calls and cancellation after effects.
+- A single handler dispatch without automatic retries.
+
+The [ADR 0008 evidence](../../knowledge/evidence/adr-0008-tool-execution.md)
+records the original live MCP word-count call, explicit result correlation and
+controlled delay/replay checks across operations. Those results apply to the
+recorded environment, not every later provider version. Retained tests and
+spikes do not establish remote transport authentication or stronger storage
+guarantees.
+
+Live verification must save its evidence and clean up the exact temporary files,
+processes and Codex tasks it created. Report cleanup failures and retry cleanup
+without repeating model work; never sweep user conversations by title.

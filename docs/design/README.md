@@ -1,24 +1,42 @@
-# Working designs
+# How the systems work
 
-This directory holds detailed designs that refine Proposed or Accepted ADRs
-before a supported contract or implementation exists.
+These guides explain how Drawloom's components work together. Read the
+[architecture overview](../../ARCHITECTURE.md) first, then choose the area you
+want to understand or change.
 
-Working designs may contain exact interfaces, schemas, conformance cases, and
-provider mappings that are too volatile or detailed for an ADR. They are not a
-supported API and do not authorize implementation. Once implemented, current
-contract and protocol reference moves to `docs/reference/` or is generated from
-the authoritative package.
+## Agents and tools
 
-Each design links to the ADRs that establish its architectural boundaries and
-states which decisions remain open. ADRs link back rather than copying detailed
-contract material.
+- [Agent execution](agent-execution-contract.md): send work, follow progress and
+  handle input, approval and interruption through the shared agent interface.
+- [Codex integration](codex-app-server-adapter.md): how that interface connects
+  to Codex App Server.
+- [Tool execution](tool-execution-contract.md): define callable tools, check
+  access and record their results.
 
-## Current designs
+## Workbenches and the desktop
 
-- [Agent execution contract](agent-execution-contract.md): exact portable
-  interfaces, schemas, and conformance requirements under active design.
-- [Codex app-server adapter](codex-app-server-adapter.md): provider mapping and
-  retained non-production integration evidence for the first accepted agent
-  driver.
-- [Tool execution contract](tool-execution-contract.md): typed definitions,
-  invocation semantics, evidence handoff, and origin-bound MCP proof for ADR 0008.
+- [Desktop host](desktop-host.md): connect projects, plugins, conversations
+  and files without mixing their permissions or state.
+- [Desktop shell](desktop-shell.md): the desktop layout and presentation design.
+- [Orchestration](orchestration-contract.md): organise tasks and workflows,
+  including waiting, retrying and recovering after interruption.
+
+## Learning from work
+
+- [Knowledge and memory](local-knowledge.md): record observations, curate
+  learnings and retrieve their evidence.
+- [Evaluation](evaluation.md): assess saved results or run comparisons using
+  reusable checks.
+- [Knowledge interactions](knowledge-interactions.md) and
+  [evaluation interactions](evaluation-interactions.md): the related user journeys.
+
+## Using a design as a reference
+
+This directory contains both implementation guides and retained design material.
+Read the linked ADR and evidence when a distinction matters: an accepted design
+does not mean every proposed feature was implemented or tested.
+
+Current exported types and package tests determine how to call the code.
+The [foundation API guide](../reference/foundation-api.md) links to those
+packages. Use the ADRs for decisions and alternatives, not as an installation
+manual.

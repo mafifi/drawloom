@@ -3,6 +3,7 @@
 import {execFileSync} from 'node:child_process';
 import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';
 import {resolve,dirname,relative} from 'node:path';
+import {addAtlasNavigation} from './atlas-navigation.mjs';
 const root=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim();
 const revision=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
 const output=resolve(root,'docs/reference/evidence/generated/repository-atlas');
@@ -50,6 +51,11 @@ fileMap('desktop-views','Desktop — purposeful destinations',[
  'apps/desktop/src/lib/PrimaryView.svelte','apps/desktop/src/lib/NavigationLanding.svelte','apps/desktop/src/lib/WorkflowRuns.svelte','apps/desktop/src/lib/Knowledge.svelte','apps/desktop/src/lib/DiscoveryInventory.svelte','apps/desktop/src/lib/ArchivedConversations.svelte']);
 fileMap('desktop-host','Desktop — integration entry points',[
  'apps/desktop/host/main.ts','apps/desktop/host/server.ts','apps/desktop/host/application.ts','apps/desktop/host/composition.ts','apps/desktop/host/history-coordinator.ts','apps/desktop/host/plugin-backend.ts','apps/desktop/host/view-context.ts']);
+for(const map of maps){
+ const path=resolve(output,map.name+'.html');
+ const destinations=map.name==='overview'?families.map(f=>({id:f,name:f,title:f})):[];
+ writeFileSync(path,addAtlasNavigation(readFileSync(path,'utf8'),maps,map.name,destinations));
+}
 const inventory=files.map(path=>{
  const bytes=readFileSync(resolve(root,path));
  const text=!bytes.includes(0),lines=text?(bytes.length?bytes.toString('utf8').split('\n').length-(bytes.at(-1)===10?1:0):0):null;

@@ -1,110 +1,141 @@
 # Local knowledge and memory
 
-Implementation reference for [Accepted ADR 0024](../adr/0024-local-knowledge-memory-and-retrieval.md).
-This is not an acceptance record. See the [evidence and gaps](../../knowledge/evidence/adr-0024-local-knowledge.md)
-before relying on unverified behavior.
+Drawloom records observations and distils them into learnings, keeping evidence
+that supports or disputes them. Nightloom is the background process that
+coordinates this curation. Use this guide to understand how records arrive,
+how they are assessed and how an agent can find them again.
 
-## Ownership
+[ADR 0024](../adr/0024-local-knowledge-memory-and-retrieval.md) describes the
+local implementation. [ADR 0026](../adr/0026-permissive-dependencies-and-local-gguf-embeddings.md)
+replaces its original embedding runtime. The
+[evidence record](../../knowledge/evidence/adr-0024-local-knowledge.md) separates
+tested behaviour from remaining quality and deployment questions.
 
-Knowledge belongs to the local owner across projects. Projects identify where an
-observation or source came from; they do not create separate knowledge stores.
-Conversation history remains separate and is never replayed into an assessment.
+## Who can use the knowledge?
 
-The authenticated desktop host selects the trusted subject. Browser requests and
-model tool arguments cannot select a user, authorization attributes or policy.
-The local composition permits its owner. The portable contracts and contrasting
-policy tests exercise denial without assigning enterprise classifications.
+Knowledge belongs to the local user across projects. A record's project tells
+you where it came from; it does not put the record in a separate knowledge
+database. Saved conversation history remains separate and is not replayed
+wholesale into an assessment.
+
+The host determines who is requesting access. A browser request or model tool
+argument cannot choose a different user or invent permissions. The current local
+implementation permits its owner; the shared interfaces and denial tests support
+other policies without prescribing an organisation's classifications.
+
+## From observations to learnings
+
+A configured source supplies observations and source revisions. SQLite stores
+them before acknowledging receipt. Nightloom then takes a limited batch of
+pending work, asks an assessor to review its evidence, and publishes the resulting
+changes together with its progress marker.
+
+A **lease** reserves a particular batch for a worker. A **checkpoint** records
+how far processing has safely completed. Publication must use that exact lease
+so results and progress cannot get out of step.
+
+If a batch is too large, Nightloom releases it and retries with less work,
+without marking any of it complete. A single item that still exceeds the limits
+is reported as blocked; evidence is not silently cut off. The assessor receives
+the selected root records and a size-limited set of related records and links,
+with duplicates removed.
 
 ## Interfaces and implementations
 
-The authoritative TypeScript schemas are in
+The types and validation rules live in
 [`@drawloom/knowledge`](../../packages/knowledge/knowledge/src/index.ts).
 
-| Interface | Responsibility | Local implementation |
+| Interface | What it does | Local implementation |
 | --- | --- | --- |
-| Intake | Conditional, duplicate-safe observations, claims and source revisions | SQLite |
-| Retrieval | Search, inspect, follow evidence and export authorized records | SQLite plus local semantic composition |
-| Maintenance | Lease bounded work and publish changes with the exact checkpoint | SQLite |
-| Assessment | Judge supplied evidence; report running, completed or uncertain work | Signed-in Codex App Server |
-| Embeddings | Encode a bounded batch using one explicit configuration | Qwen GGUF with llama.cpp on Apple Silicon; text search remains available without it |
-| Index work and vector index | Maintain rebuildable, revision-bound derived indexes | SQLite and sqlite-vec |
+| Intake | Saves observations, claims and source revisions, checking revisions and duplicates | SQLite |
+| Retrieval | Searches, opens records, follows evidence and exports permitted material | SQLite with optional local semantic search |
+| Maintenance | Reserves pending work and saves changes with the matching progress marker | SQLite |
+| Assessment | Reviews supplied evidence and reports completed, running or uncertain work | Signed-in Codex App Server |
+| Embeddings | Converts text into numerical vectors for similarity search | Qwen GGUF through llama.cpp on Apple Silicon |
+| Index work and vector index | Builds searchable vectors from specific record revisions | SQLite and sqlite-vec |
 
-Provider choice lives in
-[`local-knowledge-runtime`](../../packages/knowledge/local-knowledge-runtime/src/runtime.ts),
-not plugin code. Replacing the assessor does not replace storage or Nightloom.
-Replacing embeddings requires a new configuration fingerprint and a rebuilt index;
-vectors from different configurations are not mixed.
+The [local runtime](../../packages/knowledge/local-knowledge-runtime/src/runtime.ts)
+selects these implementations. Plugins do not select them internally. Changing
+the assessor does not replace storage or Nightloom.
 
-Maintenance may release an exact owner-bound lease without acknowledging its
-work. This lets Nightloom reduce an oversized batch and try again without
-discarding updates or advancing its processing checkpoint. A single evidence
-package that still exceeds the limits is reported as blocked, never silently
-truncated. An assessment receives the batch's root references and a deduplicated,
-bounded collection of records and links; the same exact lease is used to publish
-the resulting changes atomically.
+Changing the embedding configuration requires a new index. Its fingerprint
+identifies the configuration that produced the vectors; matching vector lengths
+alone are not enough to combine them.
 
 ## Local operation
 
-The selected Drawloom data directory contains `knowledge/knowledge.sqlite`, local
-model artifacts and state. History and assets retain their existing locations.
-Node owns the knowledge SQLite connection because the installed Bun SQLite cannot
-load sqlite-vec. No custom library is substituted beneath open history databases.
+Records live in `knowledge/knowledge.sqlite` beneath the selected Drawloom data
+directory. History and assets keep their own storage locations.
 
-The desktop bundles a separate Node runtime through `scripts/stage-knowledge-runtime.ts`.
-Source launches require the normal package build first. The managed sidecar uses
-bounded stdio requests; it exposes no network listener or plugin browser protocol.
-Native prerequisites and unavailable models must be visible rather than replaced
-with hosted embeddings.
+A separate Node process owns the knowledge database because this implementation
+needs sqlite-vec, which the installed Bun SQLite cannot load. The desktop stages
+its Node worker dependencies using `scripts/stage-knowledge-runtime.ts`; source
+launches need the normal package build first. The host and worker exchange
+size-limited messages over standard input and output, not a new network or
+plugin-browser API.
 
-The replacement accepted in [ADR 0026](../adr/0026-permissive-dependencies-and-local-gguf-embeddings.md)
-uses an isolated llama.cpp server behind the same Node embedding interface.
-Knowledge settings requires consent before downloading the pinned runtime and
-verified GGUF weights. Neither ships inside the desktop application. The initial
-target is Apple Silicon with Metal, without Python or `uv`. A public runtime
-artifact has not been published: setup must report that limitation, not invent a
-download URL. Trusted local fixture delivery exercises installation separately.
-The server binds authenticated loopback and loads only the explicit local model;
-closing the host closes its child process. Its configuration identity differs
-from MLX and ONNX even for vectors of the same length. Existing knowledge remains
-intact while the new index rebuilds; incompatible vectors are never combined.
-Old MLX files are not executed. Removing Drawloom-owned obsolete files requires
-an explicit cleanup action and does not remove knowledge or global tools.
+### Optional local similarity search
 
-Search first obtains bounded candidates, then resolves authorized records. Evidence
-pages preserve endpoint identities independently of which page contains a record.
-Larger chains have explicit continuations; inspecting another endpoint permits
-continued exploration. A page is not a promise that all knowledge fits in context.
+An **embedding** is a numerical representation of text used to find similar
+meaning. Without the embedding runtime and model, text search remains available;
+Drawloom does not silently send the text to a hosted embedding service.
 
-OKF export produces an explicitly labeled Drawloom OKF-profile Markdown page with
-authorized record metadata, bodies and relationships. It is not a second editable
-database or a claim of universal OKF bundle compatibility.
+The accepted replacement uses llama.cpp with Qwen GGUF weights on Apple Silicon
+and Metal. It needs neither Python nor `uv`. Settings requires consent before
+downloading either runtime or model, and verifies the pinned artifacts before
+using them. Neither is bundled with the desktop.
+
+The public runtime archive has not yet been published. Setup must explain that
+limitation rather than offer an invented URL. Installation tests use explicitly
+trusted local fixture delivery.
+
+The llama.cpp process listens only on authenticated loopback and loads the
+explicit local model. It is closed with the host. The replacement uses a new
+configuration identity, separate from MLX and ONNX. Existing records remain
+intact while the new index is built; incompatible vectors are never mixed.
+Old MLX files are not executed. Their removal requires an explicit cleanup
+action, limited to obsolete Drawloom-owned files—not knowledge or global tools.
+
+### Reading results and evidence
+
+Search first selects a limited set of candidates, then resolves the records the
+caller may read. Evidence pages retain the identities of linked records even
+when the records are on another page. Follow the continuation or open a linked
+record to explore a larger chain; a page is not a promise that an entire
+knowledge collection fits in model context.
+
+OKF export creates a Markdown page following Drawloom's Open Knowledge Format
+profile, including permitted records and relationships. It is an export, not
+another editable database or a promise of compatibility with every OKF bundle.
 
 ## Sources and disclosure
 
-The installable Git MCP package owns configured repositories and paths. Merely
-installing it or changing model settings does not enable collection. The user
-explicitly chooses the installed source for a selected project. Acknowledgement
-follows durable intake, not a successful model call. Stopping collection does not
-delete retained knowledge.
+The Git MCP package owns the configured repositories and paths it reads.
+Installing it or changing a model setting does not start collection: the user
+must select the installed source for a project. Collection acknowledges data
+after it is saved, not after a model call succeeds. Stopping collection does
+not delete previously retained knowledge.
 
-Semantic inference is local. Codex assessment is **not**: supplied evidence is
-disclosed to the configured Codex destination. Durable assessment receipts and
-Codex's native history are separate from SQLite knowledge records. Deleting a
-knowledge record does not currently erase those copies. This limitation must
-remain visible; no enterprise retention or deletion guarantee is claimed.
+Embedding inference runs locally. **Codex assessment does not:** the selected
+evidence is sent to the configured Codex destination. Assessment receipts and
+Codex's native history are separate copies from the SQLite knowledge records.
+Deleting a knowledge record does not currently erase those copies. Do not
+promise enterprise retention or complete deletion based on local record removal.
 
 ## Current limits
 
-- Verified local model downloads and small synthetic semantic evaluations have
-  completed. Their accepted resource costs and limited quality evidence are in
-  the ADR and its linked measurement records; production retrieval value and
-  100k semantic search remain unproven.
-- Nightloom batches up to 50 work units within the evidence limits. Oversized
-  batches are reduced without acknowledging a prefix; a single oversized unit
-  remains visibly blocked. A two-root live assessment and two-unit Temporal batch
-  have passed separately; larger live maintenance journeys remain to verify.
-- The source UI currently selects one active Git feed. Retained knowledge is
-  cross-project; this is not simultaneous multi-repository source scheduling.
-- Local SQLite/process tests, scripted provider transports and observed live
-  assessment results are different evidence categories. None proves enterprise
-  policy deployment or local generation-model judgement quality.
+- Retained evidence includes verified model downloads and small synthetic search
+  evaluations. Broader retrieval value and 100,000-record semantic search remain
+  unproven; see the ADR measurements for resource costs and test conditions.
+- Nightloom accepts up to 50 work units per batch within the evidence limits.
+  Retained live evidence includes a two-root assessment and a separate two-unit
+  Temporal batch, not every larger maintenance journey.
+- The source UI selects one active Git feed. Cross-project knowledge storage is
+  not simultaneous scheduling of multiple repository feeds.
+- SQLite tests, scripted model responses and live assessments prove different
+  things. None alone establishes enterprise policy deployment or judgement
+  quality across real workloads.
+
+For a change to this system, test the affected interfaces and the full source,
+curation or retrieval journey. Keep provider calls opt-in and use synthetic
+records for public tests.

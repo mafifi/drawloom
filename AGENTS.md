@@ -37,7 +37,7 @@ area you change.
   `ARCHITECTURE.md` before adding material abstraction or lifecycle machinery.
 - Before cross-repository work, state which repository owns each change and
   whether it is public. Follow the public/private boundary and admission test
-  in `ARCHITECTURE.md`; keep proprietary work outside this repository.
+  in `CONTRIBUTING.md`; keep proprietary work outside this repository.
 - Never copy private code, prompts, fixtures, data or assets here without
   explicit publication approval. This applies to tests, examples and spikes
   too. A package's `private: true` flag does not make its source confidential.
@@ -133,7 +133,7 @@ area you change.
   are not tests run. Findings and candidate interfaces are not accepted contracts.
   Keep provenance, confidence, retrieval relevance, scope and entitlements distinct.
 
-- Apply [proven boundaries before invention](ARCHITECTURE.md#reference-led-changes-and-approval).
+- Apply [proven boundaries before invention](CONTRIBUTING.md#reference-led-changes-and-approval).
   Plugin contract and proof revisions follow the explicit approval gate in
   [ADR 0013](docs/adr/0013-plugin-boundaries-and-host-integration.md#reference-comparison-and-alternatives).
   Compare both OpenAI/Rosalind and DeepSeek Harness before changing a boundary.

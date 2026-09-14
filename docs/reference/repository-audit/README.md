@@ -1,94 +1,119 @@
-# Drawloom: architecture audit and reading route
+# Walk through the Drawloom code
 
-Status: review preparation, not a completed architecture audit. Public Drawloom
-only; private workbench code and data remain in their own repository.
+Use this guide to read the repository in a useful order: first understand a
+capability, then follow how the application uses it. The maps help you find code;
+they are not a completed architecture review.
 
 ## Start here
 
-1. Open the [Archify ownership map](../evidence/generated/repository-atlas/overview.html).
-2. Use the [complete reading ledger](../evidence/generated/repository-atlas/index.md) to
-   open family maps and every tracked file. Keep personal checkmarks in a copy:
-   regeneration replaces this generated ledger.
-3. Follow the route below, recording findings against exact file paths and the
-   reviewed commit. A green test suite is not an architecture sign-off.
+1. Read [Architecture](../../../ARCHITECTURE.md) for the ten capabilities and
+   their responsibilities.
+2. Open the [ownership map](../evidence/generated/repository-atlas/overview.html).
+   Choose a capability to open its detailed map.
+3. Use the [reading checklist](../evidence/generated/repository-atlas/index.md)
+   to track the files you have inspected. Keep notes in a separate copy because
+   regenerating the atlas replaces this checklist.
 
-Rebuild from the repository root:
+Generated maps are local files and may be absent in a fresh checkout.
+To build them, install Archify separately and run from the repository root,
+replacing the example path with your checkout's path:
 
 ```sh
-node scripts/repository-atlas.mjs /Users/afifim/Development/archify/archify/bin/archify.mjs
+node scripts/repository-atlas.mjs /path/to/archify/archify/bin/archify.mjs
 ```
 
-Archify is a local authoring tool, not a product dependency. Tested tool revision:
-`c1443b31b496eebf4a68bf83151816c955ddb796`. Generated HTML, graph JSON and the
-inventory stay ignored. Graph edges are package-manifest dependencies; absence
-of an edge does not prove absence of runtime coupling. Source links and actual
-code inspection are the next layer of proof.
-
-The initial build delivered all 18 maps through Archify's standard schema/layout
-checks. Automated browser inspection of the local HTML was blocked by the browser
-URL policy, so visual inspection remains a manual review step. Desktop detail
-maps show selected literal source imports rather than manifest edges.
+Archify is a documentation tool, not a product dependency. Its recorded tested
+revision is `c1443b31b496eebf4a68bf83151816c955ddb796`. Generated HTML, graph JSON
+and the file inventory stay ignored by Git.
 
 ## The reading plan
 
-Read by ownership first, then follow complete user journeys. For each package:
-README → exported schemas/interfaces → conformance → implementation → tests →
-composition sites. Read a provider's tests alongside it, not in a separate final
-pass. This makes the implementation's intended guarantees visible immediately.
+For each capability, read its README, exported interfaces, shared tests,
+implementation and application setup in that order. Read the implementation's
+tests alongside the code. Shared tests explain the promises that an alternative
+implementation must also keep.
 
-| Pass | Start with | Question to resolve | Deliverable |
-|---|---|---|---|
-| 1. Constitution | [Architecture](../../../ARCHITECTURE.md), [ADR 0005](../../adr/0005-partition-agent-platform-capabilities.md), ADRs 0003–0008 and DESIGN.md | Which of the eleven logical capabilities are implemented, delegated, combined or intentionally absent? | Capability-to-code matrix; no requirement for eleven physical packages |
-| 2. Contracts | Every contract-role package manifest and `src/index.ts`, then `conformance.ts` | Who owns each identity, fact, error, cancellation and authority decision? Can implementations actually be exchanged? | Contract/provider/conformance matrix with explicit gaps |
-| 3. Execution | `packages/agent`, `tools`, `host`, `context` | Does context stay bounded, native continuity opaque, and approval separate from independent grants? | Trace send → provider → tool → result; denial, cancellation and uncertain outcomes |
-| 4. Plugins and composition | `packages/plugins`, `workbench`, `desktop`; `apps/desktop/host` | Are extensions standard, clearly named and project-bound? Are providers selected only at composition roots? | Installation → activation → tool/MCP App lifecycle trace; cross-project and trust-boundary checks |
-| 5. Durable work | `packages/orchestration`, `evaluation`, `knowledge` | Do evaluation and Nightloom reuse orchestration? Who reconciles interrupted work without repeating effects? | Restart/recovery trace plus a single-authority ledger for checkpoints and outcomes |
-| 6. Data and privacy | `packages/observability`, SQLite providers, asset/file routes | Are display history, knowledge, context and telemetry genuinely distinct? What leaks or survives withdrawal/deletion? | Data lifecycle and permission matrix; record actual local-only/enterprise limits |
-| 7. Presentation | `apps/desktop/src`, `packages/ui`, example MCP Apps | Is application logic outside leaf Views? Does each screen inform and enable, using shared controls? | UI state/ownership review and comparison to DESIGN.md |
-| 8. Everything else | `scripts`, `.github`, `.agents`, publishing, spikes, docs, knowledge and root config | Do build outputs, stale claims, duplicate machinery or historical experiments obscure the supported product? | Complete reading ledger including binary/source assets; generated artifacts classified separately |
-| 9. End-to-end challenge | All preceding traces | Does the composition preserve every boundary under interruption, offline providers, stale responses and two projects? | Focused regressions and ranked findings before any repair plan |
+Then follow complete user journeys. A dependency diagram cannot show whether
+permissions are enforced or what happens when work is interrupted.
+
+| Pass | Read | What to look for |
+| --- | --- | --- |
+| 1. Understand the design | Architecture, DESIGN.md and the linked ADRs | What does each capability do, and which responsibilities are shared or delegated? The historical ADR 0005 map is not a requirement for eleven packages. |
+| 2. Understand the interfaces | Contract packages and their shared tests | What can callers rely on? Can another implementation keep the same promises? |
+| 3. Follow a message | Agent, tools, host and context packages | Follow send → agent → tool → result. Check denied access, cancellation and uncertain outcomes too. |
+| 4. Load a workbench | Plugin, workbench and desktop packages; desktop host | Follow installation, activation and an MCP App opening. Check project identity and permissions at each step. |
+| 5. Follow longer work | Orchestration, evaluation and knowledge | Do evaluation and Nightloom reuse orchestration? What happens after a restart without repeating an edit? |
+| 6. Follow the data | History, SQLite providers, asset and file routes | What is stored, what is sent to a provider, and what remains after deletion or stopping collection? |
+| 7. Inspect the UI | Desktop Views, ViewModels and shared UI components | Does each screen explain what the user can do? Is application logic kept out of display components? |
+| 8. Finish the inventory | Scripts, workflows, publishing, experiments, docs and root configuration | Separate product source from retained research and generated output. Account for assets as well as text files. |
+| 9. Challenge the whole journey | The connected paths above | Try offline providers, interruption, late responses and two projects. Does the application preserve the same rules? |
 
 ### Review protocol
 
-- Work in small sessions: one contract plus provider, or one host journey.
-- For each file mark **read**, **follow-up** or **not applicable with reason**;
-  a diagram node is not evidence that its files were reviewed.
-- Record each finding as: file/line, observed behavior, violated principle or
-  contract, concrete consumer consequence, severity, proposed smallest fix and
-  test that would demonstrate it. Distinguish defects from stylistic preference.
-- Prioritise authority/data loss/repeated effects, then correctness/recovery,
-  then coupling/replaceability, then naming and layout. Do not refactor while
-  still establishing the baseline.
-- After the reading pass, agree a bounded repair plan. Run targeted regressions
-  after fixes and the canonical public gate before integrating them. Private
-  consumer validation remains separately attributed and private.
+Work in small sessions: one interface and implementation, or one user journey.
+Mark files as **read**, **follow-up** or **not applicable**, with a reason.
+Clicking a diagram node does not mean its files have been reviewed.
+
+For a finding, record the file and line, what you observed, why it matters to a
+user, the rule it breaks and a test that would demonstrate a fix. Separate bugs
+from personal style preferences.
+
+Prioritise permission failures, data loss and repeated actions, then correctness
+and recovery, then replaceability and naming. Finish establishing the problem
+before refactoring. Agree a repair plan after the reading pass and verify repairs
+with focused tests and the repository checks.
+
+Private workbench checks stay in their own repository. They complement public
+tests rather than becoming a prerequisite for understanding the core.
+
+### Atlas navigation interaction brief
+
+Overview tiles are ordinary links to family maps. Each map links back to the
+ownership map and reading checklist and offers links to the other maps.
+Keyboard Enter, touch, opening another tab and browser Back work as navigation;
+hover and keyboard focus have a visible outline.
+
+Navigation uses no JavaScript or animation and does not write review state.
+Detailed nodes retain Archify's source inspection. Missing generated destinations
+fail generation rather than leaving dead navigation links.
+
+The initial build checked all 18 maps using Archify's schema and layout checks.
+Its first automated browser attempt was blocked by local-file URL policy.
+A later check on **2026-09-14** used a temporary local HTTP preview and verified
+tile clicks, Tab/Enter, browser Back and return to the overview. All 374 generated
+navigation links resolved. At 390px the toolbar and navigation did not overlap
+or overflow horizontally. Four regression tests covered nested SVG groups,
+accessible links, detail inspection and missing destinations. These are retained
+observations, not a new visual verification from this documentation edit.
 
 ## Initial leads, not audit conclusions
 
-- The UI baseline is commit `8c4ec74`; subsequent cleanup `4b1dc58` removed
-  forty generated survey HTML pages/reports, retaining their source specs.
-  After cleanup, cloc reports 148,349 code lines across 1,220 recognised text
-  files. The broader reading inventory includes all tracked files and counts
-  blanks/comments too: these are deliberately different measurements.
-  Those HTML pages have since been recovered as tracked publication evidence
-  under [evidence/surveys](../evidence/README.md), together with reports and PNGs.
-  The 148,349 figure describes the pre-restoration baseline, not the new total.
-  Review retained evidence separately from product source; the ledger includes
-  both, including nonignored files awaiting commit.
-- The introductory “current state” prose in README/ARCHITECTURE describes early
-  foundation progress alongside later implemented capabilities. Reconcile these
-  statements with code and accepted ADRs during the documentation pass.
-- Inspect the desktop host application and ViewModel early: they coordinate many
-  capabilities. Size alone is not a defect; duplicated ownership or rules would be.
-- A manifest dependency map cannot prove clean dynamic plugin boundaries,
-  permission checks, browser message handling or provider substitution. Those
-  require the traces and conformance inspection above.
+The maps show declared package dependencies. Desktop detail maps also show
+selected literal imports from source. Neither captures every dynamic connection,
+permission check or browser message. Follow the source and tests before drawing
+a conclusion.
+
+The desktop host and ViewModel are useful early review targets because they
+connect many capabilities. File size alone is not a defect; look for repeated
+rules or two components trying to own the same fact.
+
+The UI baseline was commit `8c4ec74`. Cleanup `4b1dc58` removed forty generated
+survey HTML pages and reports while retaining their source specifications.
+The recorded count then was 148,349 code lines across 1,220 recognised text files.
+Those pages were later recovered as publication evidence under
+[evidence/surveys](../evidence/README.md), with reports and PNGs. That earlier
+count is not the restored repository's current size.
+
+The atlas inventory includes tracked files and nonignored files awaiting commit;
+its line totals include comments and blank lines. Keep those measurements
+separate from a code-only count. README and Architecture have since received
+a plain-language rewrite; inspect remaining status claims against current code.
 
 ## Completion criteria
 
-Every tracked file is accounted for; every logical capability has a named owner
-or an explicit delegated/deferred status; every provider has identified shared
-conformance evidence; every critical journey has an authority and recovery trace.
-Findings have reproducible evidence and an agreed disposition. Only then decide
-whether the architecture is ready to present publicly—not because diagrams look
-clean or the automated gate passes.
+A complete review accounts for every file, identifies each capability's
+implementation and tests, and follows critical user journeys through permissions
+and recovery. Findings need reproducible evidence and an agreed next step.
+
+Use that review to decide whether the architecture is ready to present publicly.
+A clean diagram or passing test suite alone cannot make that decision.

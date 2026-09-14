@@ -1,189 +1,193 @@
-# Codex app-server adapter design
+# How Drawloom connects to Codex
 
-- **Status:** Accepted design with retained spike evidence
-- **Date:** 2026-09-04
-- **Capability:** [ADR 0007](../adr/0007-provider-neutral-agent-execution.md)
-- **Contract design:** [Agent execution contract](agent-execution-contract.md)
+Drawloom uses Codex's app-server to run conversations, receive progress and
+handle requests for approval or information. `@drawloom/codex-agent` translates
+that protocol into the shared [agent interface](agent-execution-contract.md).
+It does not run a second agent loop or replace Codex's native conversation.
 
-## Purpose
+Use this guide when working on the integration itself. Workbench authors
+normally use the shared interface instead. The
+[implementation](../../packages/agent/codex-agent/src/index.ts) is separate from
+the original experiments supporting
+[ADR 0007](../adr/0007-provider-neutral-agent-execution.md).
 
-This document records how Codex app-server may implement Drawloom's accepted
-agent-execution capability. It is provider-specific design and evidence, not a
-portable contract or supported integration.
+## What the host supplies
 
-The adapter uses Codex app-server rather than `codex exec`. It owns app-server
-transport, negotiation, translation, private continuity and recovery, context
-and tool projection, and normalization into the contract's signal vocabulary.
-It does not own Drawloom memory, tool execution, policy, sandboxing,
-orchestration, durable events, or evaluation.
+`createCodexDriver` receives an app-server connection factory and a `JsonStore`
+for private session mappings. The host can also supply:
+
+- A fixed, validated project directory.
+- The MCP configuration that exposes Drawloom tools.
+- Callbacks that bind accepted Codex turns to Drawloom operations.
+- Trusted readers and capture functions for image input and returned media.
+- Display-history capture, separate from tool execution permission.
+
+The driver does not discover arbitrary files, choose a user's project or
+install Codex itself. Project checks compare the native conversation directory
+with the supplied directory before resuming; a mismatch rejects the session.
+
+The host owns transport setup and shutdown. See the
+[desktop host guide](desktop-host.md) for application wiring and the
+[agent contract source](../../packages/agent/agent/src/index.ts) for public inputs.
 
 ## Accepted mapping
 
-| Drawloom concept | Codex projection |
-|---|---|
-| Open session | Adapter-private `thread/start` or `thread/resume` |
-| Execute operation | `turn/start` |
-| Steer operation | `turn/steer` with `expectedTurnId` |
-| Interrupt operation | `turn/interrupt` |
-| Additional context | per-turn `additionalContext` |
-| Session tool exposure | isolated MCP server configuration |
-| Operation authority | authoritative MCP gateway state keyed by operation |
-| Tool correlation | gateway identifier preserved through MCP result `_meta` |
-| Execution approval | app-server command, file, network, or permission request |
-| Requested input | app-server user-input or MCP elicitation request |
-| Provider delegation | `collabAgentToolCall` and `subAgentActivity` observation |
-| Operation correlation | Drawloom operation ID mapped privately to Codex turn ID |
-| Provider continuity | adapter-private Codex thread ID and recovery |
-| Terminal outcome | `turn/completed` status |
+The adapter keeps Codex identifiers private and translates the following calls:
 
-### Native review addition (ADR 0015)
+| Drawloom action | Codex request or notification |
+| --- | --- |
+| Open or resume a session | `thread/start` or `thread/resume` |
+| Submit work | `turn/start` |
+| Steer active work | `turn/steer` with `expectedTurnId` |
+| Request interruption | `turn/interrupt` |
+| Add per-operation context | `additionalContext` |
+| Advertise Drawloom tools | MCP server configuration |
+| Receive the final outcome | `turn/completed` |
+| Handle approval or requested input | Matching app-server request and response |
+| Describe native delegated work | Bounded provider observations |
 
-The supported adapter adds `human` / `delegated` operation review, mapped to
-`approvalsReviewer: user` / `auto_review`. Session `reviewerModes` reports support;
-omission means human, and unsupported selection rejects. Codex 0.153.4 is the
-verified minimum for this integration. Thread startup confirms the effective
-human reviewer, then each turn supplies its selected reviewer. No global config,
-sandbox, approval policy or organisation requirement is changed.
+Tool calls still go through Drawloom's gateway. The host maps the exact native
+thread/turn pair to the originating Drawloom operation; it must not use whichever
+operation happens to be current when a delayed call arrives. Tool result
+correlation uses explicit identifiers preserved through MCP, not matching names,
+text or timestamps. See [tool execution](tool-execution-contract.md).
 
-Drawloom MCP configuration sets `default_tools_approval_mode: prompt` and explicit
-per-tool `prompt`, except trusted `readOnlyHint: true` tools use `approve`.
-Annotations are behavioural hints, not permissions; the gateway still checks the
-current grant at invocation. Native MCP approval is identified only by
-`_meta.codex_approval_kind: mcp_tool_call`; ordinary elicitation remains input.
-The existing approval interaction carries bounded action details and provider
-decisions privately mapped to opaque options. Its identity is scoped to the
-session, originating turn and request and is invalidated by resolution or end.
+## Native review addition (ADR 0015)
 
-Native `item/autoApprovalReview/started|completed` notifications surface bounded
-`approval-review` observations only for delegated turns. Progress is distinct
-from approved, denied, timed-out and cancelled outcomes. No raw envelope or
-second tool-evidence store is introduced. These native notification fields remain
-upstream-unstable; incompatible responses fail explicitly. A plugin preview is
-not required. See [ADR 0015](../adr/0015-working-material-ownership-and-edit-approval.md)
-for ownership, proof and exclusions.
+The adapter supports human and delegated review through `reviewerModes` and the
+operation's `reviewer` selection. These map to Codex's `user` and `auto_review`
+reviewers. Human review is the default.
 
-Codex native cross-thread memory is disabled for Drawloom-managed sessions.
-Codex continues to own its thread transcript and internal compaction. Drawloom
-injects freshly compiled memory and other context for every execute or steer
-command. It does not persist compiled memory into the Codex transcript through
-`thread/inject_items`.
+Codex 0.153.4 is the recorded minimum for the native MCP review mapping. The
+adapter checks the reported version and rejects tool-bearing sessions without
+that support. It confirms the human reviewer at startup and supplies the chosen
+reviewer on each turn. A newer version passing that check is not, by itself,
+proof that every upstream protocol change is compatible.
 
-The adapter hides recoverable app-server connection changes and maps operation,
-content, interaction, and bounded provider activity into the safe signal
-vocabulary. Drawloom persists streamed observations as they arrive because
-app-server history can reconstruct completed items but cannot guarantee replay
-of lost deltas.
+For Drawloom MCP tools, approval defaults to `prompt`. Tools trusted by the
+host as read-only may use `approve`; their annotations are hints, not grants.
+The gateway independently checks permission on every invocation.
 
-The adapter exposes one ordered signal stream. The consumer attaches before the
-first `turn/start`; the adapter does not replay earlier notifications or drop a
-terminal outcome. Closing or unrecoverable app-server failure ends the stream
-only after any active operation receives its terminal signal.
+Native MCP approval is recognised through
+`_meta.codex_approval_kind: mcp_tool_call`. Ordinary form elicitation remains a
+request for information, not approval. Each approval is tied to its session,
+turn and request, and expires when resolved or when that operation ends.
 
-MCP is the stable initial tool-exposure boundary. App-server dynamic tools
-remain experimental adapter functionality and are not required for portable
-conformance. The earlier design required configured Codex plugins, apps, MCP
-servers and equivalent ambient integrations to be disabled unless the Drawloom
-composition root included them in the resolved exposure.
+Delegated-review notifications produce bounded `approval-review` observations.
+Review starting is not the same as an approval decision; denial, timeout and
+cancellation remain distinct. The adapter does not introduce a second reviewer,
+tool record store or mandatory plugin preview.
+[ADR 0015](../adr/0015-working-material-ownership-and-edit-approval.md) records
+the decision and tested limits.
 
-The [ADR 0015 live run](../reference/adr-0015-native-edit-review.md#boundaries-and-follow-up)
-found that the existing empty-map launch overrides did not achieve this on the
-installed 0.153.4 runtime: ambient integrations still appeared in thread-scoped
-inventory. This is not proof those tools were callable or bypassed review.
+## Context and native conversation history
 
-**Maintainer clarification, 2026-09-10:** the new
-[empowerment principle](../../ARCHITECTURE.md#application-to-native-tools-and-integrations)
-directs investigation toward retaining user-authorised native tools with coherent
-permissions and approval, rather than implementing blanket exclusion. The earlier
-isolation requirement above is a historical design assumption, not the default
-product goal. Verify actual availability, governing controls and surfaced outcomes
-before revising runtime configuration or contracts; this clarification changes
-neither. The native-review proof establishes neither full isolation nor review
-coverage for all ambient integrations.
+Codex owns its native transcript and compaction. Drawloom disables Codex
+cross-thread memory for its managed sessions and supplies selected context
+through session instructions and per-operation `additionalContext`. It does
+not write compiled memory back through `thread/inject_items`.
 
-The advertised MCP tool catalogue is immutable for one session. Gateway allow
-and deny decisions remain dynamic and do not require rebuilding the Codex
-thread. A changed advertised catalogue requires reopening the Drawloom session.
+The adapter saves the private native-thread mapping so an existing Drawloom
+session can resume. That is not a promise to recover every in-flight action
+after a crash. Lost or incompatible state must not cause a silent repeat of
+possibly completed work.
 
-Provider-native delegated workers remain bounded observations inside the parent
-Drawloom operation. The ordinary signal carries only a bounded name, safe
-summary, and optional protected-evidence reference. The adapter does not
-reconstruct portable child identities or lifecycle. Codex child-thread
-identifiers are protected evidence and do not become independently controllable
-Drawloom sessions.
+Drawloom captures display history separately. Completed native items can help
+populate it, but native history cannot guarantee replay of every lost text delta.
+See [conversation history](../reference/conversation-history.md) for capture,
+pagination and asset handling.
+
+## Models, discovery and media
+
+Explicit model selection applies to the next turn. The adapter reads Codex's
+model list and rejects unsupported models or effort settings before dispatch.
+Steering cannot change the active turn's model.
+
+Discovery lists what Codex reports, with availability and revision information.
+Listing an integration does not prove that it can execute, grant it permission
+or copy its resources into context. Resource reads and provider-owned
+authentication follow the
+[discovery interface](../reference/discovery-and-resources.md).
+
+Image input and returned images use host-supplied asset functions. Provider
+paths do not become portable asset identities, and a model-supplied path is not
+permission to read a local file. Tool content uses standard MCP content and the
+existing host viewers rather than a new provider-specific browser protocol.
+
+## Native tools and their permissions
+
+The driver requests read-only sandboxing and on-request approval at thread
+startup. Drawloom's advertised MCP catalogue stays fixed during a session,
+while the gateway's allow/deny decisions can change between calls.
+
+Do not infer complete isolation from empty plugin, app or MCP configuration
+maps. The [ADR 0015 live run](../reference/adr-0015-native-edit-review.md#boundaries-and-follow-up)
+found ambient integrations still listed on Codex 0.153.4. That observation proves
+neither that they were callable nor that they bypassed approval.
+
+The maintainer's 2026-09-10 clarification favours retaining authorised native
+tools with their existing controls, not excluding them merely because Drawloom
+does not own them. See the
+[architecture principle](../../ARCHITECTURE.md#application-to-native-tools-and-integrations).
+Verify actual access and review coverage before claiming either isolation or
+safe support. Drawloom's tool grants do not govern every native action.
+
+## Progress, failure and cleanup
+
+Attach the single signal consumer before starting work. The adapter translates
+ordered messages, interactions and terminal outcomes, without replaying old
+notifications or assigning late messages to a later operation. Raw provider
+envelopes, credentials and hidden reasoning do not belong in these signals.
+
+Native delegated workers remain observations within the parent operation.
+They are not independent Drawloom sessions with their own controls. Likewise,
+token usage is provider-reported information, not a cost guarantee.
+
+Closing releases the connection and active session resources. The optional
+`archiveOnClose` setting is for dedicated managed sessions and requires a fresh
+thread with an exact native terminal-turn signal. It is not a general cleanup
+policy for user conversations. Live tests must keep exact creation receipts and
+clean up only their own disposable tasks, following
+[AGENTS.md](../../AGENTS.md).
 
 ## Initial tool-boundary evidence
 
-A retained, explicitly non-production Bun and TypeScript spike on 2026-09-04
-exercised
-Codex app-server 0.149.0 with protocol schema SHA-256
-`4f4a8d8f53f971b97f818639f58c8d26bb68bfcdfa2d2f20572cb97e6761ab91`.
+The 2026-09-04 tool-exposure experiment used Codex app-server 0.149.0. One MCP
+server remained attached across three operations while the gateway allowed,
+denied and allowed calls. It verified schema projection and explicit Drawloom
+result correlation, including a denied invocation.
 
-One MCP server instance remained attached across three sequential operations
-while the authoritative gateway applied allow, deny, and allow decisions. A
-Drawloom-owned Zod 4 schema appeared as strict draft-07 JSON Schema. Codex
-preserved the gateway-allocated tool invocation identifier and Drawloom
-operation identifier in result `_meta`, including for the denied invocation,
-and represented the denial as a failed MCP tool item. This demonstrates that
-operation authority need not cross the agent contract as a separate grant.
-
-The spike also demonstrated that configured Codex plugins and apps remain
-ambient unless launch configuration disables them. This evidence closes only
-the tool exposure, gateway-authority, isolation, schema-projection, and
-exact-correlation questions. The harness and authoritative result are retained
-in the [ADR 0005 tool-exposure spike](../../spikes/adr-0005-tool-exposure/) and
-its [evidence record](../../knowledge/evidence/adr-0005-tool-exposure.md).
-Retention makes the evidence reproducible; the spike remains outside product
-packages and does not become production adapter code.
+The [evidence record](../../knowledge/evidence/adr-0005-tool-exposure.md) retains
+the exact version, protocol digest and results; the
+[experiment](../../spikes/adr-0005-tool-exposure/) remains outside supported
+packages. Its isolation observations apply to that test setup, not all later
+Codex versions.
 
 ## Current evidence boundary
 
-The retained [ADR 0007 Codex spike](../../spikes/adr-0007-codex-app-server/)
-produced a complete passing automated run on 2026-09-04. Its indexed
-[evidence record](../../knowledge/evidence/adr-0007-codex-app-server.md)
-records the exact environment, scoped results, and remaining gaps without raw
-provider traces.
+The [ADR 0007 evidence](../../knowledge/evidence/adr-0007-codex-app-server.md)
+records the original live tests for lifecycle, context, steering, interruption,
+approvals, requested input, resumption and bounded native-delegation observations.
 
-The retained non-production probes and manual Codex Desktop MCP smoke cover:
+Those tests supported the design decision. They do not replace the current
+[provider tests](../../packages/agent/codex-agent/driver.test.ts) or establish
+transparent recovery after every provider or host failure. Scripted transport
+tests check Drawloom's handling; they do not constitute a new live-model result.
 
-- supported app-server protocol version or schema digest detection;
-- disabled native Codex cross-thread memory;
-- sentinel memory and context supplied through `additionalContext` on execute
-  and steer;
-- one-active-operation and terminal-signal mapping;
-- ordered single-consumer signal delivery and coherent stream closure;
-- lossless approval choices and resolution;
-- requested-input mapping distinct from approval;
-- multiple pending interactions and invalidation on terminal outcome;
-- interruption and adapter-private start, resume, and recovery behaviour;
-- optional steering semantics;
-- bounded provider observations for reasoning, usage, and native
-  delegation using summaries and protected evidence without reconstructed child
-  lineage or arbitrary provider JSON;
-- durable observation with required Drawloom identities and without forbidden
-  raw data; and
-- Codex Desktop use of the same MCP boundary expected by the adapter.
-
-The automated run closes the protocol, context, memory-mode, lifecycle,
-steering, interruption, approval, requested-input, concurrent-interaction,
-private-resume, bounded usage/reasoning observation, provider-native
-delegation, and MCP tool-boundary items. Fresh Desktop tasks discovered and
-invoked the same retained MCP server and completed provider-native delegation.
-Desktop nevertheless returned `decline` immediately for both single and
-concurrent MCP form elicitation without presenting UI. This is retained as a
-Desktop host limitation rather than a requirement of Drawloom's app-server
-client. The initial Codex mapping does not project provider diagnostics into
-ordinary signals; that can be added later only with evidence and a consumer.
-
-This evidence supported acceptance of ADR 0007. Acceptance does not create a
-supported package or authorize reuse of the spike code.
+The recorded Codex Desktop smoke test discovered and invoked the MCP server,
+but declined single and concurrent form requests without displaying them.
+Retain that host limitation alongside the successful app-server tests.
+Do not describe it as universal form support or as a requirement that Drawloom's
+own app-server client must inherit the limitation.
 
 ## Compared integrations
 
-The boundary was informed by a Codex app-server integration that models thread
-start and resume, turns, approvals, interruption, MCP configuration, and
-ViewModel projection, and by Open Design's multi-provider runtime registry with
-shared launch, transport, parsing, continuation, and event normalization.
+The original work compared Codex app-server integration with Open Design's
+multi-provider runtime. Both informed how to keep connection handling, provider
+state and message translation out of application code. The comparison and
+revision-bound sources are retained in the
+[harness and workbench survey](../reference/harness-workbench-survey/README.md).
 
-Both show that provider adapters require substantial anti-corruption logic.
-Neither justifies moving orchestration, presentation, durable event identity,
-memory, or business authority into the adapter.
+These references informed the implementation; they do not justify moving
+memory, orchestration, business approval or content-bearing telemetry into
+the Codex adapter.
