@@ -1,12 +1,15 @@
 import { Database } from "bun:sqlite";
 import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { dirname } from 'node:path';
+import { createHash } from 'node:crypto';
 import {
   ConversationHistoryStatusSchema,
   HistoryChangeOptionsSchema,
   HistoryCommitInputSchema,
   HistoryEntrySchema,
   HistoryPageOptionsSchema,
+  HistorySearchOptionsSchema,
+  HistoryAroundOptionsSchema,
   HistoryStoreError,
   type ConversationHistoryStatus,
   type ConversationHistoryStore,
@@ -14,9 +17,11 @@ import {
   type HistoryCommitInput,
   type HistoryEntry,
   type HistoryPage,
+  type HistorySearchResult,
+  type HistoryAroundResult,
 } from "@drawloom/conversation-history";
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const DEFAULT_LIMIT = 50;
 const schema = {
   history_meta: 'CREATE TABLE history_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
@@ -27,7 +32,7 @@ const schema = {
   history_checkpoints: 'CREATE TABLE history_checkpoints (conversation_id TEXT NOT NULL, namespace TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (conversation_id, namespace, key))',
 };
 const normalizeSql = (sql: string) => sql.replace(/IF NOT EXISTS/gi, '').replace(/\s+/g, '').toLowerCase();
-type Cursor = { generation: string; conversationId: string; kind: "page"; position: [number, number] | null; id: string | null } | { generation: string; conversationId: string; kind: "changes"; sequence: number };
+type Cursor = { generation: string; conversationId: string; kind: "page"; position: [number, number] | null; id: string | null } | { generation: string; conversationId: string; kind: "changes"; sequence: number } | { generation: string; kind: 'search'; scope: string; position: [number, number]; conversationId: string; id: string };
 type EntryRow = { id: string; position_0: number; position_1: number; role: "user" | "assistant"; text: string; assets: string; resources: string | null; selections: string | null; operation_id: string | null; state: "partial" | "complete" | "interrupted"; changed_sequence: number };
 type StatusRow = { revision: number; sync: ConversationHistoryStatus["sync"]; has_older: number; message: string | null };
 
@@ -41,7 +46,7 @@ function parseId(value: unknown, label: string): string {
 function encodeCursor(value: Cursor): string {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
-function decodeCursor(value: string, generation: string, conversationId: string, kind: Cursor["kind"]): Cursor {
+function decodeCursor(value: string, generation: string, conversationId: string, kind: 'page' | 'changes'): Cursor {
   try {
     const decoded: unknown = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
     if (!decoded || typeof decoded !== "object") throw new Error("shape");
@@ -58,6 +63,17 @@ function decodeCursor(value: string, generation: string, conversationId: string,
     throw new HistoryStoreError("invalid_cursor", "Cursor is invalid for this conversation or store");
   }
 }
+function searchScope(query: string, conversationIds?: readonly string[]) {
+  return createHash('sha256').update(JSON.stringify([query, conversationIds ?? null])).digest('hex');
+}
+function decodeSearchCursor(value: string, generation: string, scope: string): Extract<Cursor, {kind:'search'}> {
+  try {
+    const cursor = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Record<string, unknown>;
+    if (cursor.generation !== generation || cursor.kind !== 'search' || cursor.scope !== scope || typeof cursor.conversationId !== 'string' || typeof cursor.id !== 'string' || !Array.isArray(cursor.position) || cursor.position.length !== 2 || !cursor.position.every(Number.isSafeInteger)) throw Error('shape');
+    return cursor as Extract<Cursor, {kind:'search'}>;
+  } catch { throw new HistoryStoreError('invalid_cursor', 'Search cursor is invalid for this query or store'); }
+}
+function ftsQuery(query: string) { return query.split(/\s+/u).filter(Boolean).map(term => `"${term.replaceAll('"', '""')}"`).join(' AND '); }
 function record(row: EntryRow): HistoryEntry {
   try {
     return HistoryEntrySchema.parse({ id: row.id, position: [row.position_0, row.position_1], role: row.role, text: row.text, assets: JSON.parse(row.assets), ...(row.resources ? { resources: JSON.parse(row.resources) } : {}), ...(row.selections ? { selections: JSON.parse(row.selections) } : {}), operationId: row.operation_id ?? undefined, state: row.state });
@@ -81,7 +97,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
   try {
     const version = Number((db.query("PRAGMA user_version").get() as { user_version: number } | null)?.user_version ?? 0);
     if (version > SCHEMA_VERSION) throw new HistoryStoreError("unsupported_version", "Conversation history schema is newer than this provider supports");
-    if (version === 1 || version === SCHEMA_VERSION) {
+    if (version === 1 || version === 2 || version === SCHEMA_VERSION) {
       // Validate before any PRAGMA that changes disk or any initialization DDL.
       for (const [name, expected] of Object.entries(schema)) {
         const row = db.query('SELECT sql FROM sqlite_master WHERE name=?').get(name) as { sql: string } | null;
@@ -90,6 +106,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
       }
       const meta = db.query("SELECT key,value FROM history_meta WHERE key IN ('generation','change_sequence')").all() as { key: string; value: string }[];
       if (!meta.some(row => row.key === 'generation' && /^[a-f0-9-]{36}$/.test(row.value)) || !meta.some(row => row.key === 'change_sequence' && /^\d+$/.test(row.value) && Number.isSafeInteger(Number(row.value)))) throw Error('Invalid history metadata');
+      if(version===SCHEMA_VERSION)for(const [name,type] of [['history_entries_fts','table'],['history_entries_fts_insert','trigger'],['history_entries_fts_delete','trigger'],['history_entries_fts_update','trigger']] as const){const row=db.query('SELECT 1 FROM sqlite_master WHERE name=? AND type=?').get(name,type);if(!row)throw Error('Invalid history search schema');}
     } else if ((db.query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all()).length) throw Error('Unrecognized history schema');
     chmodSync(dirname(path), 0o700);
     chmodSync(path, 0o600);
@@ -97,10 +114,15 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
     if (version === 0) db.transaction(() => {
       for (const sql of Object.values(schema)) db.exec(sql);
       db.query("INSERT OR IGNORE INTO history_meta(key,value) VALUES ('generation', ?), ('change_sequence', '0')").run(crypto.randomUUID());
-      if (version === 0) db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+      db.exec("CREATE VIRTUAL TABLE history_entries_fts USING fts5(text, content='history_entries', content_rowid='rowid'); CREATE TRIGGER history_entries_fts_insert AFTER INSERT ON history_entries BEGIN INSERT INTO history_entries_fts(rowid,text) VALUES (new.rowid,new.text); END; CREATE TRIGGER history_entries_fts_delete AFTER DELETE ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); END; CREATE TRIGGER history_entries_fts_update AFTER UPDATE OF text ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); INSERT INTO history_entries_fts(rowid,text) VALUES(new.rowid,new.text); END;");
+      db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
     })();
     if (version === 1) db.transaction(() => {
       db.exec('ALTER TABLE history_entries ADD COLUMN resources TEXT; ALTER TABLE history_entries ADD COLUMN selections TEXT;');
+      db.exec('PRAGMA user_version = 2');
+    })();
+    if (version <= 2 && version !== 0) db.transaction(() => {
+      db.exec("CREATE VIRTUAL TABLE history_entries_fts USING fts5(text, content='history_entries', content_rowid='rowid'); CREATE TRIGGER history_entries_fts_insert AFTER INSERT ON history_entries BEGIN INSERT INTO history_entries_fts(rowid,text) VALUES (new.rowid,new.text); END; CREATE TRIGGER history_entries_fts_delete AFTER DELETE ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); END; CREATE TRIGGER history_entries_fts_update AFTER UPDATE OF text ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); INSERT INTO history_entries_fts(rowid,text) VALUES(new.rowid,new.text); END; INSERT INTO history_entries_fts(history_entries_fts) VALUES('rebuild');");
       db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
     })();
     chmodSync(path, 0o600);
@@ -182,6 +204,35 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
       const selected = rows.slice(0, limit);
       const sequence = selected.at(-1)?.changed_sequence ?? cursor.sequence;
       return { entries: selected.map(record), cursor: encodeCursor({ generation, conversationId, kind: "changes", sequence }), hasMore, status: readStatus(conversationId) } satisfies HistoryChanges;
+      });
+    },
+    async search(options) {
+      available();
+      return safeRead(() => {
+        let parsed; try { parsed=HistorySearchOptionsSchema.parse(options); } catch { throw invalid('Invalid history search options'); }
+        const limit=parsed.limit??50, ids=parsed.conversationIds, scope=searchScope(parsed.query,ids);
+        const cursor=parsed.cursor?decodeSearchCursor(parsed.cursor,generation,scope):undefined;
+        const scopeSql=ids ? " AND e.conversation_id IN (SELECT value FROM json_each(?))" : '';
+        const cursorSql=cursor ? ' AND (e.position_0,e.position_1,e.conversation_id,e.id) < (?,?,?,?)' : '';
+        const sql=`SELECT e.conversation_id,e.id,e.position_0,e.position_1,e.role,substr(snippet(history_entries_fts,0,'','','…',24),1,240) AS snippet FROM history_entries_fts JOIN history_entries e ON e.rowid=history_entries_fts.rowid WHERE history_entries_fts MATCH ?${scopeSql}${cursorSql} ORDER BY e.position_0 DESC,e.position_1 DESC,e.conversation_id DESC,e.id DESC LIMIT ?`;
+        const args:(string|number|null|boolean|Uint8Array|bigint)[]=[ftsQuery(parsed.query)]; if(ids)args.push(JSON.stringify(ids)); if(cursor)args.push(cursor.position[0],cursor.position[1],cursor.conversationId,cursor.id); args.push(limit+1);
+        const rows=db.query(sql).all(...args) as {conversation_id:string;id:string;position_0:number;position_1:number;role:'user'|'assistant';snippet:string}[];
+        const selected=rows.slice(0,limit), last=selected.at(-1), hasMore=rows.length>limit;
+        return {items:selected.map(row=>({conversationId:row.conversation_id,entryId:row.id,role:row.role,snippet:row.snippet,position:[row.position_0,row.position_1] as const})),...(hasMore&&last?{cursor:encodeCursor({generation,kind:'search',scope,position:[last.position_0,last.position_1],conversationId:last.conversation_id,id:last.id})}:{}),hasMore} satisfies HistorySearchResult;
+      });
+    },
+    async around(conversationId, options) {
+      available(); parseId(conversationId,'conversationId');
+      return safeRead(() => {
+        let parsed; try { parsed=HistoryAroundOptionsSchema.parse(options); } catch { throw invalid('Invalid history around options'); }
+        const anchor=db.query('SELECT * FROM history_entries WHERE conversation_id=? AND id=?').get(conversationId,parsed.entryId) as EntryRow|null;
+        if(!anchor)throw invalid('History anchor does not exist');
+        const before=parsed.before??25, after=parsed.after??25;
+        const older=db.query('SELECT * FROM history_entries WHERE conversation_id=? AND (position_0,position_1,id)<(?,?,?) ORDER BY position_0 DESC,position_1 DESC,id DESC LIMIT ?').all(conversationId,anchor.position_0,anchor.position_1,anchor.id,before+1) as EntryRow[];
+        const newer=db.query('SELECT * FROM history_entries WHERE conversation_id=? AND (position_0,position_1,id)>(?,?,?) ORDER BY position_0 ASC,position_1 ASC,id ASC LIMIT ?').all(conversationId,anchor.position_0,anchor.position_1,anchor.id,after+1) as EntryRow[];
+        const selectedOlder=older.slice(0,before).reverse(), selectedNewer=newer.slice(0,after);
+        const status=readStatus(conversationId), first=selectedOlder[0]??anchor, hasOlder=older.length>before||status.hasOlder;
+        return {entries:[...selectedOlder,anchor,...selectedNewer].map(record),anchorIndex:selectedOlder.length,...(hasOlder?{olderCursor:encodeCursor({generation,conversationId,kind:'page',position:[first.position_0,first.position_1],id:first.id})}:{}),hasOlder,hasNewer:newer.length>after,changeCursor:encodeCursor({generation,conversationId,kind:'changes',sequence:maxSequence()}),status} satisfies HistoryAroundResult;
       });
     },
     async commit(conversationId, input) {

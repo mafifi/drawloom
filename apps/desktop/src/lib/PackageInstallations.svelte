@@ -8,8 +8,8 @@
 </script>
 
 <section class="flex flex-col gap-3" aria-label="Local plugin packages">
-  <h2>Local packages</h2>
-  <p class="text-sm text-muted-foreground">Choose an Agent Plugins package folder. Inspection does not run code, start servers or load instructions into a conversation.</p>
+  <h2>Install a plugin</h2>
+  <p class="text-muted-foreground">Choose a plugin folder to review what it offers before enabling it.</p>
   <Field.Field><Field.Label for="plugin-package-folder">Package folder</Field.Label><Input id="plugin-package-folder" placeholder="/path/to/plugin" bind:value={vm.root} /></Field.Field>
   <div class="flex gap-2"><StatefulButton variant="outline" pending={vm.pending === 'inspect'} disabled={Boolean(vm.pending) || !vm.root.trim()} onclick={() => vm.inspect()}>Inspect package</StatefulButton><StatefulButton variant="ghost" pending={vm.pending === 'refresh'} disabled={Boolean(vm.pending)} onclick={() => vm.refresh()}>Refresh</StatefulButton></div>
   {#if vm.error}<Alert.Root variant="destructive"><Alert.Description>{vm.error}</Alert.Description></Alert.Root>{/if}
@@ -23,9 +23,9 @@
     </section>
   {/if}
   {#each vm.installations as installation (installation.id)}
-    <section class="flex flex-col gap-2 border-t py-3">
-      <div class="flex items-center justify-between"><h3>{installation.name}</h3><Badge variant="outline">{installation.status}</Badge></div>
-      <p class="break-all text-sm text-muted-foreground">{installation.root}</p>
+    <Collapsible.Root class="border-t py-4">
+      <Collapsible.Trigger class="flex w-full items-center justify-between gap-3 py-3"><span>{installation.name}</span><span class="flex items-center gap-3"><Badge variant="outline">{installation.status}</Badge><span>Configure</span></span></Collapsible.Trigger>
+      <Collapsible.Content class="space-y-6 py-4">
       <form onsubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); const servers = data.getAll('server').map(String); void vm.configure(installation.id, data.get('enabled') === 'on', data.get('backend') === 'on', servers, String(data.get('approvedResourceOrigins') ?? '').split(/\r?\n/).map(origin => origin.trim()).filter(Boolean), data.getAll('parallel-server').map(String).filter(name => servers.includes(name))); }} class="flex flex-col gap-3">
         <Field.Field orientation="horizontal"><Checkbox id={'enable-' + installation.id} name="enabled" checked={installation.enabled} /><Field.Label for={'enable-' + installation.id}>Activate configured servers and skills on next restart</Field.Label></Field.Field>
         <Field.Field orientation="horizontal"><Checkbox id={'trust-' + installation.id} name="backend" checked={installation.trustedBackend} /><Field.Label for={'trust-' + installation.id}>Trust this package’s backend to execute in the host process</Field.Label></Field.Field>
@@ -72,8 +72,9 @@
         </div>
       {/each}
       {#each installation.diagnostics as diagnostic}<p class="text-sm text-muted-foreground">{diagnostic}</p>{/each}
-    </section>
+      <p class="break-all text-sm text-muted-foreground">{installation.root}</p>
+      </Collapsible.Content>
+    </Collapsible.Root>
   {/each}
-  <p class="text-sm text-muted-foreground">Trusted code is not sandboxed. Activation does not grant tools permission to run. Use tool grants separately.</p>
   <Separator />
 </section>

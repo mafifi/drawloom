@@ -20,7 +20,7 @@ export const DiscoveryAuthenticationSchema = DiscoverySelectionSchema.extend({ c
 export const ToolStartSchema = z.strictObject({ kind: z.literal('started'), invocationId: z.string().min(1), operationId: z.string().min(1).optional(), tool: z.string().min(1) });
 export const DirectoryProjectSchema = z.strictObject({ id, name: z.string().min(1).max(120), directory: z.string().min(1), device: z.string(), inode: z.string() });
 export type DirectoryProject = z.infer<typeof DirectoryProjectSchema>;
-export const ConversationSchema = z.strictObject({ id, title: z.string().max(120), workbenchId: id, projectId: id.optional(), provider: z.enum(['synthetic', 'codex']), reviewer: AgentReviewerSchema.default('human') });
+export const ConversationSchema = z.strictObject({ id, title: z.string().max(120), manualTitle: z.string().min(1).max(120).optional(), archived: z.boolean().default(false), pinned: z.boolean().optional(), workbenchId: id, projectId: id.optional(), provider: z.enum(['synthetic', 'codex']), reviewer: AgentReviewerSchema.default('human') });
 export const DesktopSnapshotSchema = z.strictObject({
   mediaPolicy: MediaPolicySnapshotSchema.default({revision:'initial',sources:[]}),
   workspace: z.string(), conversations: z.array(ConversationSchema), workbenches: z.array(WorkbenchSchema),
@@ -32,13 +32,20 @@ export const DesktopSnapshotSchema = z.strictObject({
   /** Display-only names for host aliases; never sent as invocation identities. */
   toolLabels: z.array(z.strictObject({ toolName: id, title: z.string(), origin: z.string() })).default([]),
   elicitations: z.array(ToolElicitationRequestSchema).default([]),
-  activeOperation: id.optional(), controls: z.strictObject({ steer: z.boolean(), interrupt: z.boolean(), reviewerModes: z.array(AgentReviewerSchema).default(['human']) }),
+  activeOperation: id.optional(), archiveBlockedConversationIds: z.array(id).default([]), controls: z.strictObject({ steer: z.boolean(), interrupt: z.boolean(), reviewerModes: z.array(AgentReviewerSchema).default(['human']) }),
   plugins: z.array(z.strictObject({ id, status: z.enum(['ready', 'unavailable']), summary: z.string() })),
   notice: z.string(),
   activeContext: z.string().default(''),
   views: z.array(RegisteredWorkbenchViewSchema).default([]),
 });
 export type DesktopSnapshot = z.infer<typeof DesktopSnapshotSchema>;
+export const ConversationSearchItemSchema = z.strictObject({
+  conversationId: id, title: z.string().max(120), projectId: id.optional(), projectName: z.string().max(120).optional(),
+  workbenchId: id, provider: z.enum(['synthetic', 'codex']), archived: z.boolean(), match: z.enum(['title', 'message']),
+  entryId: id.optional(), role: z.enum(['user', 'assistant']).optional(), snippet: z.string().max(240).optional(), position: z.tuple([z.number().int(), z.number().int()]).optional(),
+});
+export type ConversationSearchItem = z.infer<typeof ConversationSearchItemSchema>;
+export const ConversationSearchResultSchema = z.strictObject({ items: z.array(ConversationSearchItemSchema).max(25), cursor: id.optional(), hasMore: z.boolean() });
 export const DesktopStateUpdateSchema = z.strictObject({
   kind: z.enum(['snapshot', 'patch']), token: z.string().min(1),
   sections: z.record(z.string(), z.unknown()), removed: z.array(z.string()),
@@ -49,6 +56,10 @@ export const DesktopCommandSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('assign_project'), projectId: id, conversationId: id }),
   z.strictObject({ kind: z.literal('create_conversation'), workbenchId: id, provider: z.enum(['synthetic', 'codex']) }),
   z.strictObject({ kind: z.literal('select_conversation'), conversationId: id }),
+  z.strictObject({ kind: z.literal('rename_conversation'), conversationId: id, title: z.string().trim().min(1).max(120) }),
+  z.strictObject({ kind: z.literal('archive_conversation'), conversationId: id }),
+  z.strictObject({ kind: z.literal('set_conversation_pinned'), conversationId: id, pinned: z.boolean() }),
+  z.strictObject({ kind: z.literal('restore_conversation'), conversationId: id }),
   z.strictObject({ kind: z.literal('set_reviewer'), conversationId: id, reviewer: AgentReviewerSchema }),
   z.strictObject({ kind: z.literal('send'), conversationId: id, text: z.string().min(1).max(100000), attachmentKeys: z.array(id).max(16), contextArtifactIds: z.array(id).max(16), selections: z.array(DiscoverySelectionSchema).max(32).default([]), resourceSelections: z.array(z.strictObject({ entryId: id, resourceId: id })).max(16).default([]) }),
   z.strictObject({ kind: z.literal('stop'), conversationId: id }),
@@ -59,7 +70,7 @@ export const DesktopCommandSchema = z.discriminatedUnion('kind', [
 ]);
 export type DesktopCommand = z.input<typeof DesktopCommandSchema>;
 export const ImportSchema = z.strictObject({ conversationId: id, name: z.string().max(256), mediaType: z.string().min(1).max(128) });
-export const ProjectSchema = z.strictObject({ version: z.literal(1), conversations: z.array(ConversationSchema), selectedId: z.string(), assets: z.array(AssetSchema), projects: z.array(DirectoryProjectSchema).default([]), selectedProjectId: id.optional() });
+export const ProjectSchema = z.strictObject({ version: z.literal(1), metadataRevision: z.number().int().nonnegative().default(0), conversations: z.array(ConversationSchema), selectedId: z.string(), assets: z.array(AssetSchema), projects: z.array(DirectoryProjectSchema).default([]), selectedProjectId: id.optional() });
 export const ConfigurationSchema = z.record(z.string(), JsonValueSchema);
 export const ViewTargetSchema = z.strictObject({ conversationId: id, viewId: id });
 export const ResourceReadSchema = z.strictObject({ conversationId: id, entryId: z.string().min(1).max(1024), resourceId: id });

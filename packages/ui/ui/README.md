@@ -1,5 +1,15 @@
 # @drawloom/ui
 
+## Composer mentions
+
+`MentionPicker` composes the same Bits UI Popover primitive used by shadcn-svelte
+with the shared Command components. It receives an anchor, text input, controlled
+open/active state and typed options. It owns positioning, outside dismissal and
+row presentation, not discovery, permissions or draft mutation. The composer
+adapts textarea caret/mention tokens to those controls and links the active option
+with `aria-activedescendant`. This is not a generic rich-text editor. Keep one
+picker per composer and keep diagnostics/resource viewers outside its quick list.
+
 The shared Svelte control boundary for Drawloom applications. Components come
 from shadcn-svelte, including its Bits UI behaviour where applicable, and use
 the visual rules in [DESIGN.md](../../../DESIGN.md). This package exposes reusable
@@ -154,6 +164,28 @@ Command and Dialog are upstream shadcn-svelte 1.6.1 Nova compositions added on
 2026-09-10 for searchable keyboard selection. Internal imports are relative;
 applications own selection, filtering and commands. They use the existing Bits UI
 dependency and semantic theme without adding a desktop-specific control API.
+
+DropdownMenu is the corresponding upstream contextual-action composition. It owns
+menu focus, keyboard navigation, dismissal and trigger focus restoration; consumers
+own action labels, authority, pending state and outcomes.
+
+ContextMenu is the shared right-click/keyboard/long-press action surface. Its
+Nova source was obtained from the official `registry/styles/nova/context-menu.json`
+registry on 2026-09-14. Only registry placeholders were resolved: package-local
+utils imports and Lucide icons. No dependency versions were changed. Applications
+provide the same commands used by inline actions; this component owns no pin,
+archive or other persistence policy.
+The trigger forwards Shift+F10 and the ContextMenu key as a standard contextmenu
+event anchored to the focused row, for WebKit keyboard access. It preserves caller
+handlers and disabled state; Bits UI still owns opening, focus and dismissal.
+
+The DropdownMenu sources were generated from the official registry with the
+repository-pinned `shadcn-svelte` 1.6.1 CLI and Nova/neutral `components.json` on
+2026-09-13. The only source adjustment is the same package-local `../../utils.js`
+import used by the existing generated components; the CLI's attempted dependency
+specifier/version rewrites were discarded so the root Bun catalog remains
+authoritative. The namespace, styles and Bits UI behavior otherwise remain the
+generated registry output.
 
 `bun run check:ui-policy` parses maintained Svelte with the Svelte compiler and
 checks source imports in maintained JavaScript and TypeScript. It reports file

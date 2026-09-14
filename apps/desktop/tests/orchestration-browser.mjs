@@ -33,15 +33,17 @@ try {
     await page.getByRole('textbox', { name: 'Message', exact: true }).waitFor();
     assert.equal(await page.title(), 'Drawloom — Local workbench');
     if (width < 768) await page.getByRole('button', { name: 'Toggle navigation' }).click();
-    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByRole('button', { name: 'Activity', exact: true }).click();
     const workflows = page.getByRole('region', { name: 'Local workflows', exact: true });
     await workflows.getByRole('button', { name: 'Documents', exact: true }).click();
     await workflows.getByText('Waiting for input', { exact: true }).waitFor();
+    await workflows.getByRole('button', { name: /Prepare documents.*Waiting for input/ }).click();
     await workflows.getByRole('button', { name: 'Browse all steps' }).click();
     await workflows.getByText('Prepare reference', { exact: true }).waitFor();
     await workflows.getByRole('button', { name: 'More steps', exact: true }).click();
     await workflows.getByText('Assemble document', { exact: true }).waitFor();
     assert.equal(await workflows.getByText('Prepare reference', { exact: true }).count(), 0);
+    await workflows.getByText('Advanced input', { exact: true }).click();
     await workflows.getByRole('textbox', { name: 'review', exact: true }).fill('{"keep":true}');
     await workflows.getByRole('button', { name: 'Submit input' }).click();
     await workflows.getByRole('alert').waitFor();

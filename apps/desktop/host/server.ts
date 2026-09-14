@@ -143,6 +143,14 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
           if ('cursor' in data && !data.entries.length && request.headers.get('if-none-match') === etag) return new Response(null, { status: 204, headers });
           return Response.json(data, { headers });
         }
+        if(url.pathname==='/api/history/around'&&request.method==='GET') {
+          const value=(name:string)=>url.searchParams.get(name)??undefined;
+          return json(await app.historyAround(value('conversationId')??'',{entryId:value('entryId')??'',...(value('before')!==undefined?{before:Number(value('before'))}:{}),...(value('after')!==undefined?{after:Number(value('after'))}:{})}));
+        }
+        if(url.pathname==='/api/conversations/search'&&request.method==='GET') {
+          const value=(name:string)=>url.searchParams.get(name)??undefined;
+          return json(await app.searchConversations({query:value('q')??'',...(value('projectId')?{projectId:value('projectId')}:{}),archived:value('archived')??'active',...(value('cursor')?{cursor:value('cursor')}:{}),...(value('limit')!==undefined?{limit:Number(value('limit'))}:{})}));
+        }
         if (url.pathname === '/api/view-session' && request.method === 'POST') {
           const raw: unknown = await request.json();
           const next = commandQueue.then(() => app.viewSession(raw)); commandQueue = next.catch(() => {});
@@ -230,7 +238,7 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
       } catch (error) {
         if (error instanceof WorkflowControlError) return json({ error: error.message }, 400);
         if (error instanceof ProjectDirectoryError) return json({error:error.message},400);
-        if (error instanceof HistoryStoreError) return json({ error: error.message, code: error.code }, error.code === 'invalid_cursor' ? 409 : 503);
+        if (error instanceof HistoryStoreError) return json({ error: error.message, code: error.code }, error.code === 'invalid_input' ? 400 : error.code === 'invalid_cursor' || error.code === 'conflict' ? 409 : 503);
         const known = error instanceof Error && !('issues' in error) ? error.message : 'Invalid request';
         const safe = ['Conversation unavailable', 'Workbench unavailable', 'Controller unavailable', 'Candidate unavailable', 'Document revision unavailable', 'Attachment unavailable', 'Asset unavailable', 'Only text documents can be attached as context', 'Unsupported or oversized file', 'This provider does not support interruption', 'Steering unavailable', 'provider unavailable', 'provider rejected', 'invalid state', 'Artifact title must be 1–120 characters', 'Synthetic mode accepts text. Attachments remain available as artifacts; choose Codex to send images.'];
         const discoveryErrors = ['Selection unavailable. Refresh the catalogue and select it again.', 'Resource unavailable', 'Selected context is too large', 'Only ready text resources can be selected as context', 'This file is viewable, but is not supported as direct model input. Use a suitable tool instead.'];

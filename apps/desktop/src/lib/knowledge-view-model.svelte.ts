@@ -52,7 +52,7 @@ export function createKnowledgeViewModel(options: { send?: typeof send; download
         if (version !== searchVersion || life !== epoch) return;
         if (result.kind !== 'ok') { results = []; resultCursor = undefined; hasMoreResults = false; throw Error(outcomeMessage(result)); }
         results = result.items; resultCursor = result.cursor; hasMoreResults = Boolean(result.cursor); searched = true;
-        searchStatus = result.mode === 'hybrid' ? 'Text and local semantic search' : 'Text search · semantic index is unavailable or rebuilding';
+        searchStatus = result.mode === 'hybrid' ? 'Matched by words and meaning' : 'Matched by words · search by meaning is not ready yet';
       } catch (cause) { if (version === searchVersion && life === epoch) fail(cause); }
       finally { if (version === searchVersion && life === epoch) searchPending = false; }
     },

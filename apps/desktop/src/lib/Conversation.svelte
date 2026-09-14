@@ -23,11 +23,23 @@
   import AttachmentCard from "./AttachmentCard.svelte";
   import ResourceCard from './ResourceCard.svelte';
   import ElicitationForm from './ElicitationForm.svelte';
+  import { presentToolOutcome } from './tool-outcome.js';
   import type { DesktopViewModel } from "./view-model.svelte.js";
   let { vm }: { vm: DesktopViewModel } = $props();
   let inputValue = $state("{}");
   let assignmentProjectId = $state('');
   let scroll: HTMLDivElement;
+  let focusedSearchAnchor = '';
+  $effect(() => {
+    const anchorId = vm.history.anchorId;
+    if (!anchorId) { focusedSearchAnchor = ''; return; }
+    if (anchorId === focusedSearchAnchor) return;
+    void tick().then(() => {
+      const anchor = [...scroll.querySelectorAll<HTMLElement>('[data-history-id]')].find(element => element.dataset.historyId === anchorId);
+      if (!anchor) return;
+      focusedSearchAnchor = anchorId; anchor.scrollIntoView({ block: 'center' }); anchor.focus({ preventScroll: true });
+    });
+  });
   async function earlier() {
     const anchor = [...scroll.querySelectorAll<HTMLElement>('[data-history-id]')].find(element => element.getBoundingClientRect().bottom >= scroll.getBoundingClientRect().top);
     const offset = anchor?.getBoundingClientRect().top;
@@ -54,6 +66,7 @@
             ? "Codex"
             : "Synthetic mode"}</Badge
         >{/if}
+        {#if vm.conversationProject}<Badge variant="outline">{vm.conversationProject.name}</Badge>{/if}
       </p>
     </div>
     <Button
@@ -104,17 +117,27 @@
       >
     {/if}
     {#each vm.history.entries as message (message.id)}
-      <Message.Root role="article" class="mb-7" data-history-id={message.id} align={message.role === 'user' ? 'end' : 'start'} aria-label={message.role === 'user' ? 'Your message' : 'Drawloom message'}>
+      <Message.Root role="article" class={'mb-7 outline-none ' + (message.id === vm.history.anchorId ? 'bg-muted' : '')} data-history-id={message.id} data-search-anchor={message.id === vm.history.anchorId ? 'true' : undefined} tabindex={message.id === vm.history.anchorId ? -1 : undefined} align={message.role === 'user' ? 'end' : 'start'} aria-label={(message.role === 'user' ? 'Your message' : 'Drawloom message') + (message.id === vm.history.anchorId ? ' · Search match' : '')}>
         <Message.Content>
           <h2 class="sr-only">{message.role === "user" ? "You" : "Drawloom"}</h2>
           {#if message.text}<Bubble.Root variant={message.role === 'user' ? 'default' : 'ghost'} align={message.role === 'user' ? 'end' : 'start'}><Bubble.Content><p class="conversation-text">{message.text}</p></Bubble.Content></Bubble.Root>{/if}
           {#if message.selections?.length}<Message.Footer class="flex-wrap gap-2">{#each message.selections as selection}<Badge variant="outline">{selection.title} · {selection.source}</Badge>{/each}</Message.Footer>{/if}
           {#each message.assets as asset}<AttachmentCard {asset} title={vm.attachmentName(asset.key)} />{/each}
-          {#each message.resources ?? [] as resource}<ResourceCard {vm} entryId={message.id} reference={resource} />{/each}
+          {#each message.resources ?? [] as reference}
+            <ResourceCard
+              presentation={vm.resourceCardPresentation(message.id, reference)}
+              actions={{
+                openWorkspace: () => vm.openResourceWorkspace(message.id, reference),
+                read: () => void vm.readResource(message.id, reference),
+                toggleContext: () => vm.toggleResource(message.id, reference),
+              }}
+            />
+          {/each}
         </Message.Content>
       </Message.Root>
     {/each}
     {#each vm.state?.activity ?? [] as result}
+      {@const outcome = presentToolOutcome(result)}
       <Collapsible.Root class="tool-row"
         ><Collapsible.Trigger
           >{#snippet child({ props })}<Button
@@ -122,26 +145,23 @@
               variant="ghost"
               class="w-full justify-between"
               ><Marker.Root class="flex-1"><Marker.Content
-                >{vm.conversation?.workbenchId === "text"
-                  ? "Count words"
-                  : "Tool result"}</Marker.Content></Marker.Root
+                >{outcome.label}</Marker.Content></Marker.Root
               ><Badge variant="secondary"
-                >{result.outcome.status === "ok"
-                  ? "Complete"
-                  : result.outcome.code}</Badge
+                >{outcome.statusLabel}</Badge
               ></Button
             >{/snippet}</Collapsible.Trigger
-        ><Collapsible.Content
-          ><pre>{JSON.stringify(result, null, 2)}</pre></Collapsible.Content
+        ><Collapsible.Content>
+          <p class="text-sm text-muted-foreground">{outcome.description}</p>
+          <pre>{JSON.stringify(result, null, 2)}</pre>
+        </Collapsible.Content
         ></Collapsible.Root
       ><Separator />
     {/each}
     {#if vm.artifact}<Button
         variant="outline"
-        class="artifact-row justify-between"
+        class="artifact-row mx-auto justify-between"
         onclick={() => {
-          vm.detailsOpen = true;
-          vm.pane = "preview";
+          vm.openArtifactWorkspace();
         }}
         ><DocumentIcon aria-hidden="true" /><span class="truncate"
           >{vm.artifact.title}{vm.candidate &&

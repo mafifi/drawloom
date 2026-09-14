@@ -16,7 +16,7 @@ import { readClientRegistration } from './plugin-registration.js';
 import { createDiscoveryCache } from './discovery-cache.js';
 import { PackageOAuthActionSchema } from '../src/lib/package-protocol.js';
 import { createSqliteConversationHistory } from '@drawloom/sqlite-conversation-history';
-import { HistoryPageOptionsSchema, HistoryChangeOptionsSchema, type HistoryEntry, type HistoryPageOptions, type HistoryChangeOptions } from '@drawloom/conversation-history';
+import { HistoryPageOptionsSchema, HistoryChangeOptionsSchema, HistoryAroundOptionsSchema, HistoryStoreError, type HistoryEntry, type HistoryPageOptions, type HistoryChangeOptions, type HistoryAroundOptions } from '@drawloom/conversation-history';
 import { createHistoryCoordinator } from './history-coordinator.js';
 import { bindProjectDirectory, verifyProjectDirectory } from './projects.js';
 import { createResourceRecovery } from './resource-recovery.js';
@@ -143,6 +143,7 @@ export async function createDesktopApplication(
   const discoveryConnections = new Map<string, ReturnType<typeof createDiscoveryCache<Live>>>();
   const submissions = new Map<string, { text: string; assets: Asset[]; selections: NonNullable<HistoryEntry['selections']>; resources: NonNullable<HistoryEntry['resources']> }[]>();
   const localRevision = crypto.randomUUID();
+  const conversationSearchSchema=z.strictObject({query:z.string().trim().min(1).max(500),projectId:z.string().min(1).max(256).optional(),archived:z.enum(['active','archived','all']).default('active'),cursor:z.string().min(1).optional(),limit:z.number().int().min(1).max(100).default(50)});
   const pumps = new Set<Promise<void>>();
   const viewContext = createViewContext();
   let viewMount: { conversationId: string; viewId: string; mountId: string } | undefined;
@@ -241,6 +242,11 @@ export async function createDesktopApplication(
     return oauth.connection({ installationId: id, serverName, serverUrl: server.config.url });
   }
   const elicitation = createElicitationPresenter(operationId => project.conversations.find(c => live.get(c.id)?.active === operationId)?.id);
+  function archiveBlocked(conversationId:string) {
+    const state=live.get(conversationId);
+    const pendingSignal=state?.signals.some((signal,index,all)=>signal.kind==='approval.requested'&&!all.slice(index+1).some(next=>next.kind==='approval.resolved'&&next.approvalId===signal.request.approvalId)||signal.kind==='input.requested'&&!all.slice(index+1).some(next=>next.kind==='input.resolved'&&next.requestId===signal.request.requestId));
+    return Boolean(state?.active||pendingSignal||elicitation.pending(conversationId).length);
+  }
   const runtimes = new Map<string, Promise<Awaited<ReturnType<typeof createRuntime>>>>();
   const workflowAuthority = createWorkflowAuthority();
   const createTemporalManager = options.orchestration?.manager ?? (async () => {
@@ -856,6 +862,31 @@ export async function createDesktopApplication(
       const error = writer(conversationId).error;
       return error ? { ...changes, status: { ...changes.status, sync: 'error' as const, message: error } } : writer(conversationId).syncing ? { ...changes, status: { ...changes.status, sync: 'syncing' as const } } : changes;
     },
+    async historyAround(conversationId:string,raw:HistoryAroundOptions) {
+      if(!project.conversations.some(c=>c.id===conversationId))throw Error('Conversation unavailable');
+      return history.around(conversationId,HistoryAroundOptionsSchema.parse(raw));
+    },
+    async searchConversations(raw:unknown) {
+      const input=conversationSearchSchema.parse(raw);
+      const scope=JSON.stringify([project.metadataRevision,input.query,input.projectId??null,input.archived]);
+      let titleOffset=0,historyCursor:string|undefined;
+      if(input.cursor)try{const parsed=JSON.parse(Buffer.from(input.cursor,'base64url').toString('utf8')) as {scope:string;titleOffset:number;historyCursor?:string};if(parsed.scope!==scope||!Number.isSafeInteger(parsed.titleOffset)||parsed.titleOffset<0)throw Error();titleOffset=parsed.titleOffset;historyCursor=parsed.historyCursor;}catch{throw new HistoryStoreError('invalid_cursor','Conversation search cursor is invalid for this search');}
+      const eligible=project.conversations.filter(c=>(!input.projectId||c.projectId===input.projectId)&&(input.archived==='all'||(c.archived===true)===(input.archived==='archived')));
+      const titleMatches=eligible.filter(c=>c.title.toLocaleLowerCase().includes(input.query.toLocaleLowerCase())).sort((a,b)=>a.title.localeCompare(b.title)||a.id.localeCompare(b.id));
+      const eligibleById=new Map(eligible.map(c=>[c.id,c]));
+      const metadata=(conversationId:string)=>{const c=eligibleById.get(conversationId)!;return {conversationId:c.id,title:c.title,projectId:c.projectId,projectName:project.projects.find(p=>p.id===c.projectId)?.name,workbenchId:c.workbenchId,provider:c.provider,archived:c.archived===true};};
+      const items:Array<Record<string,unknown>>=titleMatches.slice(titleOffset,titleOffset+input.limit).map(c=>({...metadata(c.id),match:'title'}));
+      titleOffset+=items.length;
+      let messageHasMore=false,searchedMessages=false;
+      if(items.length<input.limit&&titleOffset>=titleMatches.length){
+        searchedMessages=true;
+        const message=await history.search({query:input.query,conversationIds:eligible.map(c=>c.id),...(historyCursor?{cursor:historyCursor}:{}),limit:input.limit-items.length});
+        items.push(...message.items.map(hit=>({...metadata(hit.conversationId),match:'message',entryId:hit.entryId,role:hit.role,snippet:hit.snippet,position:hit.position})));
+        historyCursor=message.cursor;messageHasMore=message.hasMore;
+      }
+      const hasMore=titleOffset<titleMatches.length||messageHasMore||(!searchedMessages&&items.length===input.limit&&titleOffset===titleMatches.length);
+      return {items,...(hasMore?{cursor:Buffer.from(JSON.stringify({scope,titleOffset,...(historyCursor?{historyCursor}:{})})).toString('base64url')}:{}),hasMore};
+    },
     async viewSession(raw: unknown) {
       const input = DesktopViewSessionSchema.parse(raw);
       const target = { conversationId: input.conversationId, viewId: input.viewId };
@@ -1010,6 +1041,7 @@ export async function createDesktopApplication(
         elicitations: conversation ? elicitation.pending(conversation.id) : [],
         operator,
         ...(state?.active ? { activeOperation: state.active } : {}),
+        archiveBlockedConversationIds: project.conversations.filter(c=>archiveBlocked(c.id)).map(c=>c.id),
         controls: {
           steer: Boolean(state?.session.steer),
           interrupt: Boolean(state?.session.interrupt),
@@ -1060,11 +1092,11 @@ export async function createDesktopApplication(
         await verifyProjectDirectory(binding, root);
         // Assignment does not manufacture native continuity. The adapter checks
         // saved native cwd before any resume and confirms cwd on opening.
-        conversation.projectId = binding.id;
+        const previous={selectedId:project.selectedId,selectedProjectId:project.selectedProjectId,metadataRevision:project.metadataRevision};conversation.projectId = binding.id;project.metadataRevision++;
         try { if (conversation.provider === 'codex') await connect(conversation.id); }
-        catch(error) {delete conversation.projectId;throw error;}
+        catch(error) {delete conversation.projectId;project.metadataRevision=previous.metadataRevision;throw error;}
         project.selectedId = conversation.id; project.selectedProjectId = binding.id;
-        viewContext.clear(); viewMount = undefined; await persist();
+        viewContext.clear(); viewMount = undefined;try{await persist();}catch(error){delete conversation.projectId;project.selectedId=previous.selectedId;project.metadataRevision=previous.metadataRevision;if(previous.selectedProjectId===undefined)delete project.selectedProjectId;else project.selectedProjectId=previous.selectedProjectId;throw error;}
       } else if (command.kind === "create_conversation") {
         const binding = project.projects.find(p => p.id === project.selectedProjectId);
         if (!binding) throw Error('Choose a project directory before starting a conversation');
@@ -1072,7 +1104,7 @@ export async function createDesktopApplication(
         const { registry } = await runtimeFor(binding);
         if (!registry.workbenches.some((w) => w.id === command.workbenchId))
           throw Error("Workbench unavailable");
-        const id = crypto.randomUUID();
+        const id = crypto.randomUUID(),previousSelectedId=project.selectedId;
         project.conversations.push({
           id,
           title: "New conversation",
@@ -1080,11 +1112,13 @@ export async function createDesktopApplication(
           projectId: binding.id,
           provider: command.provider,
           reviewer: 'human',
+          archived: false,
         });
+        project.metadataRevision++;
         project.selectedId = id;
         viewContext.clear();
         viewMount = undefined;
-        await persist();
+        try{await persist();}catch(error){project.conversations=project.conversations.filter(c=>c.id!==id);project.selectedId=previousSelectedId;project.metadataRevision--;throw error;}
         if (command.provider === "codex") await this.restore();
       } else if (command.kind === "select_conversation") {
         if (!project.conversations.some((c) => c.id === command.conversationId))
@@ -1097,6 +1131,22 @@ export async function createDesktopApplication(
         viewMount = undefined;
         await persist();
         await this.restore();
+      } else if(command.kind==='rename_conversation') {
+        const conversation=project.conversations.find(c=>c.id===command.conversationId);if(!conversation)throw Error('Conversation unavailable');
+        const previous={title:conversation.title,manualTitle:conversation.manualTitle,metadataRevision:project.metadataRevision};conversation.title=command.title;conversation.manualTitle=command.title;project.metadataRevision++;
+        try{await persist();}catch(error){conversation.title=previous.title;project.metadataRevision=previous.metadataRevision;if(previous.manualTitle===undefined)delete conversation.manualTitle;else conversation.manualTitle=previous.manualTitle;throw error;}
+      } else if(command.kind==='set_conversation_pinned') {
+        const conversation=project.conversations.find(c=>c.id===command.conversationId);if(!conversation)throw Error('Conversation unavailable');
+        const previous={pinned:conversation.pinned,metadataRevision:project.metadataRevision};conversation.pinned=command.pinned;project.metadataRevision++;
+        try{await persist();}catch(error){conversation.pinned=previous.pinned;project.metadataRevision=previous.metadataRevision;throw error;}
+      } else if(command.kind==='archive_conversation') {
+        const conversation=project.conversations.find(c=>c.id===command.conversationId);if(!conversation)throw Error('Conversation unavailable');
+        if(archiveBlocked(conversation.id))throw Error('Conversation cannot be archived while work or approval is active');
+        const previous={archived:conversation.archived,selectedId:project.selectedId,metadataRevision:project.metadataRevision};conversation.archived=true;project.metadataRevision++;if(project.selectedId===conversation.id)project.selectedId=project.conversations.find(c=>!c.archived&&c.projectId===conversation.projectId)?.id??'';
+        try{await persist();}catch(error){conversation.archived=previous.archived;project.selectedId=previous.selectedId;project.metadataRevision=previous.metadataRevision;throw error;}
+      } else if(command.kind==='restore_conversation') {
+        const conversation=project.conversations.find(c=>c.id===command.conversationId);if(!conversation)throw Error('Conversation unavailable');const previous={archived:conversation.archived,metadataRevision:project.metadataRevision};conversation.archived=false;project.metadataRevision++;
+        try{await persist();}catch(error){conversation.archived=previous.archived;project.metadataRevision=previous.metadataRevision;throw error;}
       } else if (command.kind === 'elicitation') {
         elicitation.resolve(command.conversationId, command.requestId, command.result);
       } else if (command.kind === "operator") {
@@ -1249,16 +1299,17 @@ export async function createDesktopApplication(
             if (starting) operationTelemetry.end(op, 'unknown');
             throw error;
           }
-          if (
+          if (!conversation.manualTitle && (
             conversation.title === "New conversation" ||
             conversation.title === "A clearer introduction"
-          ) {
+          )) {
+            const previousTitle=conversation.title,previousRevision=project.metadataRevision;
             const title = command.text.replace(/\s+/g, " ").trim();
             conversation.title =
               title.length > 64
                 ? title.slice(0, 61).replace(/\s+\S*$/, "") + "…"
                 : title;
-            await persist();
+            project.metadataRevision++;try{await persist();}catch(error){conversation.title=previousTitle;project.metadataRevision=previousRevision;throw error;}
           }
           if (conversation.provider === "synthetic")
             await syntheticInvoke.get(conversation.id)?.(op, command.text);

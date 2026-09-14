@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { tick } from 'svelte';
+  import { mentionToken } from './mention-token.js';
+  import ComposerResources from './ComposerResources.svelte';
   import {
     Alert,
     Button,
@@ -8,6 +11,9 @@
     InputGroup,
     StatefulButton,
     Select,
+    DropdownMenu,
+    ShieldIcon,
+    HandIcon,
     Attachment,
     DocumentIcon,
     Spinner,
@@ -19,15 +25,27 @@
   let { vm }: { vm: DesktopViewModel } = $props();
   let fileInput = $state<HTMLInputElement | null>(null);
   let messageInput = $state<HTMLTextAreaElement | null>(null);
+  let anchor = $state<HTMLDivElement|null>(null);
+  let picker: {keydown(event:KeyboardEvent):void};
+  let tokenStart:number|undefined;
+  let resourcesOpen=$state(false);
+  function updateToken(){
+    if(!messageInput)return;
+    const token=mentionToken(messageInput.value,messageInput.selectionStart,messageInput.selectionEnd);
+    tokenStart=token?.start;
+    if(token)vm.openPicker(token.kind,token);else vm.pickerOpen=false;
+  }
+  async function selected(){await tick();messageInput?.focus();if(tokenStart!==undefined)messageInput?.setSelectionRange(tokenStart,tokenStart);tokenStart=undefined;}
+  function openPicker(kind:'skill'|'context'){tokenStart=undefined;messageInput?.focus();vm.openPicker(kind);}
   function typedReference(event: Event) {
     const input = event.currentTarget as HTMLTextAreaElement;
     vm.draft = input.value;
-    const end = input.selectionStart, match = /(?:^|\s)([$@])([^\s$@]*)$/.exec(input.value.slice(0, end));
-    if (match) vm.openPicker(match[1] === '$' ? 'skill' : 'context', { start: end - match[2]!.length - 1, end });
+    updateToken();
   }
 </script>
 
 <div class="composer-area">
+  {#if resourcesOpen}<section class="max-h-72 overflow-auto rounded-xl border bg-popover"><Button variant="ghost" onclick={()=>resourcesOpen=false}>Close resources</Button><ComposerResources {vm}/></section>{/if}
   {#if vm.error}<Alert.Root variant="destructive"
       ><Alert.Description>{vm.error}</Alert.Description></Alert.Root
     >{/if}
@@ -47,7 +65,7 @@
   >
     <Collapsible.Root bind:open={vm.contextOpen}>
       <Field.Label for="message-draft" class="sr-only">Message</Field.Label>
-      <InputGroup.Root variant="filled" class="relative">
+      <InputGroup.Root variant="filled" class="relative" bind:ref={anchor}>
           <InputGroup.Textarea
             id="message-draft"
             class="min-h-20 max-h-60 px-3 pt-3"
@@ -55,14 +73,22 @@
             disabled={!vm.canExecute}
             bind:value={vm.draft}
             bind:ref={messageInput}
+            role="combobox"
+            aria-autocomplete="list"
+            aria-controls={vm.pickerOpen?'composer-mention-list':undefined}
+            aria-expanded={vm.pickerOpen}
+            aria-haspopup="listbox"
+            aria-activedescendant={vm.pickerOpen&&vm.pickerActiveId?'mention-'+encodeURIComponent(vm.pickerActiveId):undefined}
+            onkeyup={event=>{if(vm.pickerOpen&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key))updateToken();}}
+            onclick={()=>{if(vm.pickerOpen)updateToken();}}
+            onselect={()=>{if(vm.pickerOpen && messageInput && messageInput.selectionStart!==messageInput.selectionEnd)updateToken();}}
             oninput={typedReference}
             onpaste={(event) => { const files = event.clipboardData?.files; if (files?.length) { event.preventDefault(); void vm.importFiles(files); } }}
             onkeydown={(event) => {
               if (event.isComposing) return;
               if (vm.pickerOpen) {
-                if (event.key === "Escape") { event.preventDefault(); vm.pickerOpen = false; return; }
-                if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); vm.movePicker(event.key === "ArrowDown" ? 1 : -1); return; }
-                if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); vm.selectActivePicker(); return; }
+                picker.keydown(event);
+                if(event.defaultPrevented)return;
               }
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
@@ -70,7 +96,7 @@
               }
             }}
           />
-      <DiscoveryPicker {vm} />
+      <DiscoveryPicker bind:this={picker} {vm} input={messageInput} {anchor} onSelected={selected} onAttach={()=>fileInput?.click()} onBrowse={()=>resourcesOpen=true}/>
       {#if vm.attachments.length}<Attachment.Group class="w-full px-3" role="list" aria-label="Attachments" tabindex={0}>
         {#each vm.attachments as attachment (attachment.id)}<div role="listitem" class="flex w-56 shrink-0 snap-start flex-col gap-2">
           <Attachment.Root state={attachment.status === 'pending' ? 'uploading' : attachment.status === 'failed' ? 'error' : 'done'} class="w-full" aria-busy={attachment.status === 'pending'}>
@@ -119,26 +145,34 @@
           aria-label="Attach files"
           onclick={() => fileInput?.click()}><PlusIcon aria-hidden="true" /></StatefulButton
         >
-        <Button variant="ghost" disabled={!vm.canExecute} aria-label="Choose a skill" onclick={() => vm.openPicker('skill')}>$ Skills</Button>
-        <Button variant="ghost" disabled={!vm.canExecute} aria-label="Choose integrations and context" onclick={() => vm.openPicker('context')}>@ Context</Button>
+        <Button variant="ghost" disabled={!vm.canExecute} aria-label="Choose a skill" onclick={() => openPicker('skill')}>$ Skills</Button>
+        <Button variant="ghost" disabled={!vm.canExecute} aria-label="Choose integrations and context" onclick={() => openPicker('context')}>@ Context</Button>
         <div class="composer-spacer"></div>
-        <Select.Root
-          type="single"
-          value={vm.conversation?.reviewer ?? 'human'}
-          disabled={vm.busy || Boolean(vm.state?.activeOperation)}
-          onValueChange={(reviewer) => {
-            if (vm.conversation && (reviewer === 'human' || reviewer === 'delegated'))
-              void vm.command({ kind: 'set_reviewer', conversationId: vm.conversation.id, reviewer });
-          }}
-        >
-          <Select.Trigger variant="ghost" aria-label="Execution review"
-            >{vm.conversation?.reviewer === 'delegated' ? 'Approve for me' : 'Ask me'}</Select.Trigger
-          >
-          <Select.Content><Select.Group>
-            <Select.Item value="human" label="Ask me" />
-            <Select.Item value="delegated" label="Approve for me" disabled={!vm.state?.controls.reviewerModes.includes('delegated')} />
-          </Select.Group></Select.Content>
-        </Select.Root>
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger>
+            {#snippet child({ props })}
+              <StatefulButton {...props} variant="ghost" class="rounded-full" aria-label="Execution review"
+                disabled={vm.busy || Boolean(vm.state?.activeOperation)}
+                pending={vm.pendingCommand?.kind === 'set_reviewer'} pendingLabel="Saving review mode">
+                <ShieldIcon aria-hidden="true" />{vm.conversation?.reviewer === 'delegated' ? 'Approve for me' : 'Ask me'}
+              </StatefulButton>
+            {/snippet}
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content side="top" align="end" sideOffset={8} class="w-96 max-w-[calc(100vw-2rem)] rounded-xl p-2">
+            <DropdownMenu.Label class="px-2 py-2 font-normal text-muted-foreground">How should actions be reviewed?</DropdownMenu.Label>
+            <DropdownMenu.RadioGroup value={vm.conversation?.reviewer ?? 'human'} onValueChange={(reviewer) => {
+              if (vm.conversation && (reviewer === 'human' || reviewer === 'delegated'))
+                void vm.command({ kind: 'set_reviewer', conversationId: vm.conversation.id, reviewer });
+            }}>
+              <DropdownMenu.RadioItem value="human" class="gap-3 p-2 pr-8">
+                <HandIcon aria-hidden="true" /><span><span class="block">Ask for approval</span><span class="block text-sm text-muted-foreground">You decide when Codex requests approval.</span></span>
+              </DropdownMenu.RadioItem>
+              <DropdownMenu.RadioItem value="delegated" disabled={!vm.state?.controls.reviewerModes.includes('delegated')} class="gap-3 p-2 pr-8">
+                <ShieldIcon aria-hidden="true" /><span><span class="block">Approve for me</span><span class="block text-sm text-muted-foreground">{vm.state?.controls.reviewerModes.includes('delegated') ? 'Codex reviews actions within your permissions.' : 'Not available with the current agent.'}</span></span>
+              </DropdownMenu.RadioItem>
+            </DropdownMenu.RadioGroup>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
         <Select.Root
           type="single"
           value={vm.conversation?.provider ?? "synthetic"}

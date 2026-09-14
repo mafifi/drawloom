@@ -66,3 +66,29 @@ test('background bootstrap reveals older history and obtains a usable page bound
   expect(pager.value.hasOlder).toBe(true);
   expect(reads).toBe(2);
 });
+
+test('a stable search hit opens a bounded around window and polling never replaces it with newest', async () => {
+  const urls: string[] = [];
+  const pager = createHistoryPager(async url => {
+    urls.push(url);
+    if (url.includes('/around')) return Response.json({ ...page(25, 74), anchorIndex: 25, hasNewer: true });
+    if (url.includes('/changes')) return new Response(null, { status: 409 });
+    return Response.json(page(950, 1000));
+  });
+  await pager.openAround('a', '49');
+  expect(pager.value.anchorId).toBe('49');
+  expect(pager.value.entries[25]?.id).toBe('50');
+  expect(pager.value.atLatest).toBe(false);
+  await pager.poll();
+  expect(pager.value.entries.at(-1)?.id).toBe('73');
+  expect(urls.filter(url => url.includes('/api/history?'))).toEqual([]);
+  await pager.latest();
+  expect(pager.value.entries.at(-1)?.id).toBe('999');
+});
+
+test('a failed around read reports failure without pretending the exact hit opened', async () => {
+  const pager = createHistoryPager(async () => Response.json({ error: 'missing' }, { status: 404 }));
+  expect(await pager.openAround('a', 'missing')).toBe(false);
+  expect(pager.value.error).toContain('could not be opened');
+  expect(pager.value.anchorId).toBeUndefined();
+});

@@ -4,6 +4,7 @@ import { telemetryFetch as fetch } from './telemetry.js';
 export function createOrchestrationViewModel() {
   let projectId = $state(''), installationId = $state('');
   let owners = $state<WorkflowOwner[]>([]), runs = $state<WorkflowRun[]>([]);
+  let summaryRuns = $state<Array<{ installationId:string; ownerTitle:string; run:WorkflowRun }>>([]);
   let error = $state(''), loading = $state(false), cursor = $state<string>();
   let loadingAction = $state<'refresh' | 'more' | 'latest' | 'owner' | 'owners'>();
   let pageCursor = $state<string>();
@@ -76,7 +77,7 @@ export function createOrchestrationViewModel() {
   }
   return {
     get projectId() { return projectId; }, get installationId() { return installationId; },
-    get owners() { return owners; }, get runs() { return runs; }, get error() { return error; },
+    get owners() { return owners; }, get runs() { return runs; }, get summaryRuns() { return summaryRuns; }, get error() { return error; },
     get loading() { return loading; }, get cursor() { return cursor; }, get pendingAction() { return pendingAction; },
     get loadingAction() { return loadingAction; },
     get isFirstPage() { return pageCursor === undefined; },
@@ -96,6 +97,18 @@ export function createOrchestrationViewModel() {
       } catch (cause) { if (version === epoch) error = cause instanceof Error ? cause.message : 'Orchestration unavailable'; }
       finally { if (version === epoch) { loading = false; loadingAction = undefined; } }
     },
+    async openSummary(id:string) {
+      invalidate(); projectId=id; installationId=''; owners=[]; runs=[]; summaryRuns=[];
+      if(!id)return;
+      const version=epoch; loading=true; loadingAction='owners';
+      try {
+        const available=WorkflowOwnersSchema.parse(await body(await fetch('/api/orchestration/owners?'+new URLSearchParams({projectId:id}),{signal:read.signal})));
+        if(version!==epoch)return; owners=available;
+        const pages=await Promise.all(available.map(async owner=>({owner,page:WorkflowPageSchema.parse(await body(await fetch('/api/orchestration/runs?'+new URLSearchParams({projectId:id,installationId:owner.installationId,limit:'3'}),{signal:read.signal})))})));
+        if(version===epoch)summaryRuns=pages.flatMap(({owner,page})=>page.runs.map(run=>({installationId:owner.installationId,ownerTitle:owner.title,run})));
+      } catch(cause){if(version===epoch)error=cause instanceof Error?cause.message:'Workflow activity unavailable';}
+      finally{if(version===epoch){loading=false;loadingAction=undefined;}}
+    },
     async selectOwner(id: string) {
       if (!owners.some(owner => owner.installationId === id)) return;
       invalidate(); installationId = id; runs = []; cursor = undefined; pageCursor = undefined; await refresh(false, 'owner');
@@ -104,7 +117,7 @@ export function createOrchestrationViewModel() {
     latest() { if (loading || pendingAction) return; pageCursor = undefined; return refresh(false, 'latest'); },
     cancel: (runId: string) => action('cancel', runId),
     respond: (runId: string, requestId: string, raw: string) => action('respond', runId, requestId, raw),
-    close() { invalidate(); projectId = ''; installationId = ''; owners = []; runs = []; cursor = undefined; pageCursor = undefined; },
+    close() { invalidate(); projectId = ''; installationId = ''; owners = []; runs = []; summaryRuns=[]; cursor = undefined; pageCursor = undefined; },
   };
 }
 export type OrchestrationViewModel = ReturnType<typeof createOrchestrationViewModel>;

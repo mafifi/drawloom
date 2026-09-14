@@ -7,6 +7,7 @@
     Collapsible,
     Empty,
     Field,
+    Input,
     Select,
     Separator,
     Tabs,
@@ -15,35 +16,53 @@
   import { CloseIcon } from "@drawloom/ui";
   import ArtifactViewer from "./ArtifactViewer.svelte";
   import PluginView from './PluginView.svelte';
-  import type { DesktopViewModel } from "./view-model.svelte.js";
-  let { vm, embedded = false }: { vm: DesktopViewModel; embedded?: boolean } = $props();
-  const pluginView = $derived(vm.state?.views.find(view => view.workbenchId === vm.conversation?.workbenchId));
-  let showPluginView = $state(false);
+  import WorkspaceResourceViewer from './WorkspaceResourceViewer.svelte';
+  import type { DetailsPaneActions, DetailsPanePresentation } from './details-pane.js';
+  let { presentation, actions, embedded = false }: { presentation: DetailsPanePresentation; actions: DetailsPaneActions; embedded?: boolean } = $props();
+  const pluginView = $derived(presentation.pluginView);
+  let pluginOpened = $state(false);
+  const showPluginView = $derived(presentation.workspaceMode === 'plugin');
 </script>
 
 <aside class="details-pane" aria-label="Artifact and details">
   {#if !embedded}<header>
     <h2>
-      {vm.artifact?.title ?? "Artifacts"}
+      {presentation.workspaceResource?.resource.title ?? presentation.artifact?.title ?? "Workspace"}
     </h2>
     <Button
       variant="ghost"
       size="icon"
       aria-label="Close artifact pane"
-      onclick={() => (vm.detailsOpen = false)}><CloseIcon aria-hidden="true" /></Button
+      onclick={actions.close}><CloseIcon aria-hidden="true" /></Button
     >
+    <div class="workspace-header-actions">
+      {#if presentation.narrow}<Button variant="ghost" onclick={actions.close}>Back to conversation</Button>{/if}
+      <div class="workspace-size-controls">
+        <Field.Label for="workspace-width" class="sr-only">Workspace width</Field.Label>
+        <Input id="workspace-width" aria-label="Workspace width" type="range" min="320" max="720" step="20" value={presentation.detailsWidth} oninput={(event) => actions.setWidth(Number(event.currentTarget.value))} />
+        <Button variant="ghost" aria-pressed={presentation.detailsExpanded} onclick={() => actions.setExpanded(!presentation.detailsExpanded)}>{presentation.detailsExpanded ? 'Restore workspace' : 'Expand workspace'}</Button>
+      </div>
+    </div>
   </header>
   <Separator />{/if}
-  {#if pluginView && vm.state}
-    <div class="px-5 pt-4"><Button variant="outline" onclick={() => showPluginView = !showPluginView}>{showPluginView ? 'Show shared viewer' : `Open ${pluginView.title}`}</Button></div>
+  {#if pluginView}
+    <div class="px-5 pt-4"><Button variant="outline" onclick={() => { const mode = showPluginView ? 'shared' : 'plugin'; actions.setWorkspaceMode(mode); if (mode === 'plugin') pluginOpened = true; }}>{showPluginView ? 'Show shared viewer' : `Open ${pluginView.title}`}</Button></div>
   {/if}
-  {#if showPluginView && pluginView && vm.state}
-    {#key vm.state.selectedId + ':' + pluginView.id}<PluginView view={pluginView} conversationId={vm.state.selectedId} mediaRevision={vm.state.mediaPolicy.revision} />{/key}
-  {:else}
+  {#if pluginOpened && pluginView}
+    <div class:workspace-content-hidden={!presentation.detailsOpen || !showPluginView} aria-hidden={!presentation.detailsOpen || !showPluginView} inert={!presentation.detailsOpen || !showPluginView}>
+      <PluginView view={pluginView} conversationId={presentation.conversationId} mediaRevision={presentation.mediaRevision} />
+    </div>
+  {/if}
+  {#if presentation.detailsOpen && !showPluginView}
+    {#if presentation.workspaceResource}
+      {#key presentation.workspaceResource.entryId + ':' + presentation.workspaceResource.resource.id}
+        <WorkspaceResourceViewer presentation={presentation.workspaceResource} />
+      {/key}
+    {:else}
     <Tabs.Root
-      value={vm.pane}
+      value={presentation.pane}
       onValueChange={(value) => {
-        if (value === "preview" || value === "details") vm.pane = value;
+        if (value === "preview" || value === "details") actions.setPane(value);
       }}
     >
       <Tabs.List class="mx-5 mt-4"
@@ -53,13 +72,13 @@
       >
       <section class="inspector-section">
         <Field.Group>
-          {#if vm.state?.operator.groups?.length}
+          {#if presentation.groups.length}
             <Field.Field
               ><Field.Label for="review-group">Review group</Field.Label>
-              <Select.Root type="single" bind:value={vm.groupId}>
+              <Select.Root type="single" value={presentation.groupId} onValueChange={actions.setGroup}>
                 <Select.Trigger id="review-group" class="w-full"
-                  >{vm.state.operator.groups.find(
-                    (group) => group.id === vm.groupId,
+                  >{presentation.groups.find(
+                    (group) => group.id === presentation.groupId,
                   )?.title ?? "All groups"}</Select.Trigger
                 >
                 <Select.Content
@@ -67,7 +86,7 @@
                     ><Select.Item
                       value=""
                       label="All groups"
-                    />{#each vm.state.operator.groups as group}<Select.Item
+                    />{#each presentation.groups as group}<Select.Item
                         value={group.id}
                         label={group.title}
                       />{/each}</Select.Group
@@ -78,13 +97,13 @@
           {/if}
           <Field.Field
             ><Field.Label for="artifact-selection">Artifact</Field.Label>
-            <Select.Root type="single" bind:value={vm.artifactId}>
+            <Select.Root type="single" value={presentation.artifactId} onValueChange={actions.setArtifact}>
               <Select.Trigger id="artifact-selection" class="w-full"
-                >{vm.artifact?.title ?? "Select an artifact"}</Select.Trigger
+                >{presentation.artifact?.title ?? "Select an artifact"}</Select.Trigger
               >
               <Select.Content
                 ><Select.Group
-                  >{#each vm.artifacts as item}<Select.Item
+                  >{#each presentation.artifacts as item}<Select.Item
                       value={item.id}
                       label={item.title}
                     />{/each}</Select.Group
@@ -96,8 +115,8 @@
       </section>
       <Tabs.Content value="preview">
         <section class="preview">
-          {#if vm.artifact}
-            {#if vm.editing}
+          {#if presentation.artifact}
+            {#if presentation.editing}
               <Field.Group
                 ><Field.Field
                   ><Field.Label for="document-revision"
@@ -105,7 +124,8 @@
                   ><Textarea
                     id="document-revision"
                     class="document-editor"
-                    bind:value={vm.editText}
+                    value={presentation.editText}
+                    oninput={(event) => actions.setEditText(event.currentTarget.value)}
                   /><Field.Description
                     >Changing document or conversation cancels this unsaved
                     edit.</Field.Description
@@ -113,18 +133,18 @@
                 ></Field.Group
               >
               <div class="actions">
-                <StatefulButton disabled={vm.busy} pending={vm.pendingCommand?.kind === 'operator' && vm.pendingCommand.command.kind === 'revise_document'} onclick={() => vm.saveRevision()}
+                <StatefulButton disabled={presentation.busy} pending={presentation.pendingCommand?.kind === 'operator' && presentation.pendingCommand.command.kind === 'revise_document'} onclick={() => actions.saveRevision()}
                   >Save revision</StatefulButton
-                ><Button variant="outline" onclick={() => (vm.editing = false)}
+                ><Button variant="outline" onclick={() => actions.setEditing(false)}
                   >Cancel</Button
                 >
               </div>
             {:else}
-              <ArtifactViewer artifact={vm.artifact} />
-              {#if vm.artifact.content.kind === "text" && vm.artifact.editable && vm.candidate}<Button
+              <ArtifactViewer artifact={presentation.artifact} />
+              {#if presentation.artifact.content.kind === "text" && presentation.artifact.editable && presentation.candidate}<Button
                   variant="outline"
                   class="edit-document"
-                  onclick={() => (vm.editing = true)}>Edit document</Button
+                  onclick={() => actions.setEditing(true)}>Edit document</Button
                 >{/if}
             {/if}
           {:else}<Empty.Root
@@ -133,13 +153,13 @@
               ></Empty.Root
             >{/if}
         </section>
-        {#if vm.compare && vm.state}
+        {#if presentation.compare}
           <section class="comparison">
             <h3>Compare revisions</h3>
-            {#each vm.comparableCandidates as candidate}<h4>
+            {#each presentation.comparableCandidates as candidate}<h4>
                 {candidate.label}
               </h4>
-              {#each vm.state.operator.artifacts.filter( (a) => candidate.artifactIds.includes(a.id), ) as artifact}<ArtifactViewer
+              {#each presentation.operatorArtifacts.filter( (a) => candidate.artifactIds.includes(a.id), ) as artifact}<ArtifactViewer
                   {artifact}
                 />{/each}
             {:else}<Empty.Root
@@ -153,29 +173,29 @@
       <Tabs.Content value="details">
         <section class="preview">
           <h3>Workbench readiness</h3>
-          <p>{vm.state?.operator.summary}</p>
+          <p>{presentation.operatorSummary}</p>
           <Badge variant="secondary"
-            >{vm.state?.operator.readiness.replaceAll("_", " ")}</Badge
+            >{presentation.readiness.replaceAll("_", " ")}</Badge
           >
-          {#if vm.artifact?.content.kind === "asset"}<dl>
+          {#if presentation.artifact?.content.kind === "asset"}<dl>
               <dt>Type</dt>
-              <dd>{vm.artifact.content.asset.mediaType}</dd>
+              <dd>{presentation.artifact.content.asset.mediaType}</dd>
               <dt>Size</dt>
-              <dd>{vm.artifact.content.asset.size.toLocaleString()} bytes</dd>
+              <dd>{presentation.artifact.content.asset.size.toLocaleString()} bytes</dd>
             </dl>{/if}
-          <p class="text-muted-foreground">{vm.state?.notice}</p>
+          <p class="text-muted-foreground">{presentation.notice}</p>
         </section>
       </Tabs.Content>
     </Tabs.Root>
     <Separator />
     <section class="candidate-section">
       <h3>Candidates</h3>
-      {#each vm.candidates as candidate}
+      {#each presentation.candidates as candidate}
         <Button
-          variant={vm.candidate?.id === candidate.id ? "secondary" : "ghost"}
+          variant={presentation.candidate?.id === candidate.id ? "secondary" : "ghost"}
           class="candidate-row h-auto w-full flex-col items-start"
-          aria-pressed={vm.candidate?.id === candidate.id}
-          onclick={() => (vm.candidateId = candidate.id)}
+          aria-pressed={presentation.candidate?.id === candidate.id}
+          onclick={() => actions.setCandidate(candidate.id)}
         >
           <span class="whitespace-normal text-left"
             >{candidate.label}{candidate.reviewAction
@@ -187,8 +207,7 @@
             class="max-w-full whitespace-normal text-left"
             >{candidate.selectedForOutput
               ? "Selected output"
-              : candidate.status.replace("_", " ")}{vm.state?.operator
-              .selectedCandidateId === candidate.id
+              : candidate.status.replace("_", " ")}{presentation.selectedCandidateId === candidate.id
               ? " · bookmarked"
               : ""}</Badge
           >
@@ -197,18 +216,18 @@
       <div class="actions">
         <Button
           variant="outline"
-          disabled={!vm.comparableCandidates.length}
-          aria-pressed={vm.compare}
-          onclick={() => (vm.compare = !vm.compare)}>Compare</Button
+          disabled={!presentation.comparableCandidates.length}
+          aria-pressed={presentation.compare}
+          onclick={() => actions.setCompare(!presentation.compare)}>Compare</Button
         ><StatefulButton
           variant="outline"
-          disabled={!vm.candidate || vm.busy}
-          pending={vm.pendingCommand?.kind === 'operator' && vm.pendingCommand.command.kind === 'select_candidate'}
+          disabled={!presentation.candidate || presentation.busy}
+          pending={presentation.pendingCommand?.kind === 'operator' && presentation.pendingCommand.command.kind === 'select_candidate'}
           onclick={() =>
-            vm.candidate &&
-            vm.operator({
+            presentation.candidate &&
+            actions.operator({
               kind: "select_candidate",
-              candidateId: vm.candidate.id,
+              candidateId: presentation.candidate.id,
             })}>Bookmark revision</StatefulButton
         >
       </div>
@@ -220,21 +239,22 @@
             {...props}
             variant="ghost"
             class="w-full justify-start"
-            >{vm.candidate?.reviewAction ? "Recovery action" : "Review"}</Button
+            >{presentation.candidate?.reviewAction ? "Recovery action" : "Review"}</Button
           >{/snippet}</Collapsible.Trigger
       >
       <Collapsible.Content class="flex flex-col gap-3">
-        {#if vm.candidate?.reviewAction}<p>
-            {vm.candidate.reviewAction.description}
+        {#if presentation.candidate?.reviewAction}<p>
+            {presentation.candidate.reviewAction.description}
           </p>
-          {#if vm.candidate.status === "accepted"}<p>
+          {#if presentation.candidate.status === "accepted"}<p>
               Recovery action already applied.
             </p>{/if}{/if}
         <Field.Group
           ><Field.Field
             ><Field.Label for="review-notes">Review notes</Field.Label><Textarea
               id="review-notes"
-              bind:value={vm.reviewSummary}
+              value={presentation.reviewSummary}
+              oninput={(event) => actions.setReviewSummary(event.currentTarget.value)}
               placeholder="What should be kept or changed?"
             /></Field.Field
           ></Field.Group
@@ -242,39 +262,39 @@
         <div class="actions">
           <StatefulButton
             variant="outline"
-            pending={vm.pendingCommand?.kind === 'operator' && vm.pendingCommand.command.kind === 'review_candidate' && vm.pendingCommand.command.decision === 'rejected'}
-            disabled={!vm.candidate ||
-              vm.busy ||
+            pending={presentation.pendingCommand?.kind === 'operator' && presentation.pendingCommand.command.kind === 'review_candidate' && presentation.pendingCommand.command.decision === 'rejected'}
+            disabled={!presentation.candidate ||
+              presentation.busy ||
               Boolean(
-                vm.candidate.reviewAction && vm.candidate.status === "accepted",
+                presentation.candidate.reviewAction && presentation.candidate.status === "accepted",
               )}
             onclick={() =>
-              vm.candidate &&
-              vm.operator({
+              presentation.candidate &&
+              actions.operator({
                 kind: "review_candidate",
-                candidateId: vm.candidate.id,
+                candidateId: presentation.candidate.id,
                 decision: "rejected",
-                summary: vm.reviewSummary,
+                summary: presentation.reviewSummary,
               })}>Reject</StatefulButton
           >
           <StatefulButton
-            pending={vm.pendingCommand?.kind === 'operator' && vm.pendingCommand.command.kind === 'review_candidate' && vm.pendingCommand.command.decision === 'accepted'}
-            disabled={!vm.candidate ||
-              vm.busy ||
+            pending={presentation.pendingCommand?.kind === 'operator' && presentation.pendingCommand.command.kind === 'review_candidate' && presentation.pendingCommand.command.decision === 'accepted'}
+            disabled={!presentation.candidate ||
+              presentation.busy ||
               Boolean(
-                vm.candidate.reviewAction && vm.candidate.status === "accepted",
+                presentation.candidate.reviewAction && presentation.candidate.status === "accepted",
               )}
             onclick={() =>
-              vm.candidate &&
-              vm.operator({
+              presentation.candidate &&
+              actions.operator({
                 kind: "review_candidate",
-                candidateId: vm.candidate.id,
+                candidateId: presentation.candidate.id,
                 decision: "accepted",
-                summary: vm.reviewSummary,
-              })}>{vm.candidate?.reviewAction?.label ?? "Accept"}</StatefulButton
+                summary: presentation.reviewSummary,
+              })}>{presentation.candidate?.reviewAction?.label ?? "Accept"}</StatefulButton
           >
         </div>
-        {#each vm.state?.operator.reviews.filter((r) => r.candidateId === vm.candidate?.id) ?? [] as review}<p
+        {#each presentation.reviews.filter((r) => r.candidateId === presentation.candidate?.id) as review}<p
           >
             {review.summary || "Review recorded."}
           </p>
@@ -293,18 +313,18 @@
           >{/snippet}</Collapsible.Trigger
       >
       <Collapsible.Content>
-        {#each vm.state?.pendingTools ?? [] as start}<Alert.Root
+        {#each presentation.pendingTools as start}<Alert.Root
             ><Alert.Description
               >Unresolved invocation: {start.tool}. No committed outcome; do not
               assume success or retry.</Alert.Description
             ></Alert.Root
           >
           <pre>{JSON.stringify(start, null, 2)}</pre>{/each}
-        {#each vm.state?.activity ?? [] as result}<pre>{JSON.stringify(
+        {#each presentation.activity as result}<pre>{JSON.stringify(
               result,
               null,
               2,
-            )}</pre>{:else}{#if !vm.state?.pendingTools.length}<Empty.Root
+            )}</pre>{:else}{#if !presentation.pendingTools.length}<Empty.Root
               ><Empty.Description
                 >No tool activity in this conversation.</Empty.Description
               ></Empty.Root
@@ -322,15 +342,16 @@
       >
       <Collapsible.Content>
         <p>
-          {vm.conversation?.provider === "synthetic"
+          {presentation.provider === "synthetic"
             ? "Synthetic agent mode makes no model calls."
             : "Native provider charges are separate and not reported here."}
         </p>
         <p class="text-muted-foreground">
-          {vm.state?.operator.spending?.summary ??
+          {presentation.spendingSummary ??
             "This workbench supplies no tool spending report. This does not establish that tools are free."}
         </p>
       </Collapsible.Content>
     </Collapsible.Root>
+    {/if}
   {/if}
 </aside>

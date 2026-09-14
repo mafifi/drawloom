@@ -11,19 +11,28 @@ test('10,000-entry public history uses bounded pages, no-body unchanged polls an
   const root = await mkdtemp(join(tmpdir(), 'drawloom-history-performance-'));
   const app = await createDesktopApplication(root);
   const id = (await app.snapshot()).selectedId;
-  const store = createSqliteConversationHistory(join(root, 'history.sqlite'));
+  let store = createSqliteConversationHistory(join(root, 'history.sqlite'));
   let server: ReturnType<typeof serveDesktop> | undefined;
   let sourceBytes = 0, peakRss = process.memoryUsage().rss;
   const sample = () => { peakRss = Math.max(peakRss, process.memoryUsage().rss); };
   try {
     for (let start = 0; start < 10000; start += 200) {
       const entries = Array.from({ length: 200 }, (_, offset) => {
-        const i = start + offset, text = `${i} ` + 'Public synthetic history. '.repeat(170);
+        const i = start + offset, text = `${i} ${i%50===0?'searchable-marker ':''}` + 'Public synthetic history. '.repeat(170);
         sourceBytes += Buffer.byteLength(text);
         return { id: `public-${i}`, position: [0, i] as const, role: 'assistant' as const, text, assets: [], state: 'complete' as const };
       });
       await store.commit(id, { expectedRevision: (await store.status(id)).revision, entries }); sample();
     }
+    let searchCursor:string|undefined,searchCount=0;
+    do{const result=await store.search({query:'searchable-marker',conversationIds:[id],limit:100,...(searchCursor?{cursor:searchCursor}:{})});searchCount+=result.items.length;searchCursor=result.cursor;}while(searchCursor);
+    expect(searchCount).toBe(200);
+    await store.close();store=createSqliteConversationHistory(join(root,'history.sqlite'));
+    expect((await store.search({query:'9999',conversationIds:[id]})).items[0]?.entryId).toBe('public-9999');
+    const indexed=(await store.get(id,'public-9950'))!;
+    await store.commit(id,{expectedRevision:(await store.status(id)).revision,entries:[{...indexed,text:'Restart-safe unique-search-update'}]});
+    expect((await store.search({query:'searchable-marker',conversationIds:[id],limit:100})).items).toHaveLength(100);
+    expect((await store.search({query:'unique-search-update',conversationIds:[id]})).items[0]?.entryId).toBe('public-9950');
     server = serveDesktop(app, resolve('apps/desktop/build'));
     const boot = await fetch(server.url, { redirect: 'manual' });
     const cookie = boot.headers.get('set-cookie')!.split(';')[0]!;

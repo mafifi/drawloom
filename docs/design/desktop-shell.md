@@ -49,8 +49,9 @@ use the Drawloom wordmark. Actual controls and records reflect working features.
   InputGroup. Primary actions use blue and send is circular; user messages sit
   right, assistant messages left. Root DESIGN.md owns the current exact tokens.
 - Tool details and candidate records use rows, separators and disclosures.
-- Plugins and Settings use dedicated main-content destinations with Back to
-  conversation, rather than sharing the artifact/details pane. The artifact pane
+- Plugins uses a dedicated main-content destination. Settings replaces the
+  navigation with categories and Back to app restores the prior destination.
+  Neither shares the artifact/details pane. The artifact pane
   remains docked and non-modal on wide screens; below 1050px an explicitly opened
   artifact is a main-content destination with the same back action, not a blocking
   detail drawer. Mobile navigation may continue to use Sidebar's standard Sheet.
@@ -60,7 +61,40 @@ use the Drawloom wordmark. Actual controls and records reflect working features.
 - Small screens avoid horizontal overflow. Respect reduced motion and keyboard
   focus.
 
+## Five connected journeys
+
+The [approved UI sprint](../plans/2026-09-13-five-ui-journeys.md) extends this
+direction without replacing the theme or MCP Apps boundary. Its implementation
+and verification are in progress; the sprint record owns current evidence.
+
+- Search is a keyboard-accessible dialog, opened from navigation or Cmd/Ctrl+K.
+  It searches local titles and cached messages, labels project/workbench origin,
+  and opens the exact message with a bounded history window. Incomplete cached
+  coverage is explicit. Rename and reversible Archive live in conversation menus;
+  Archived has a dedicated restore view.
+- Clicking a project row expands or collapses its conversations; Open project
+  in its menu opens the overview. Selecting a workbench opens its landing
+  page. Neither creates a conversation. Creation is an explicit action using the
+  chosen project/workbench; conversation headers show their fixed project binding.
+- Activity is a main-content destination for existing project-scoped workflows.
+  Project overview provides a current activity summary and link. Settings retains
+  runtime setup, not the primary workflow-management journey.
+- Working material remains a docked workspace on wide screens and a full-content
+  destination with Back to conversation on narrow screens. Pane controls must
+  preserve drafts, selection and conversation position; MCP Apps retain ownership
+  of editing and unsaved state. No host dirty-state inference is introduced.
+- Completion stays near its originating activity, with actual result links and
+  supported actions. Partial results and errors remain inspectable. Tool success,
+  saved drafts, business acceptance and publication are different outcomes.
+
 ## View and ViewModel responsibilities
+
+Root [DESIGN.md](../../DESIGN.md) is the authority for voice, information hierarchy,
+progressive disclosure and screen composition. The [purposeful-views pass](../plans/2026-09-14-purposeful-views.md)
+records inspected Mobbin references. Plugins groups children under their owner;
+Knowledge separates Search, Sources and Settings; Activity reveals one selected run;
+Archived offers readable project/workbench context and Restore. Technical identifiers
+remain unchanged for execution and evidence, not promoted into browsing titles.
 
 Route shells compose services and ViewModels. Views receive projected state
 and commands; they do not read native process messages, provider secrets or
@@ -78,6 +112,12 @@ Unavailable features explain their prerequisite. Native provider charges are
 not represented as tool spending controlled by Drawloom.
 
 ## Verification
+
+The [five-journey sprint record](../plans/2026-09-13-five-ui-journeys.md)
+records implemented states, selected interaction references, browser and private
+consumer results, and the limits of the captured baseline. Workspace presentation
+changes retain the conversation and mounted MCP App; changing conversation remains
+an explicit instance boundary. Shared media is released while inactive.
 
 Compare an actual browser screenshot with the design study, checking layout,
 neutral light/dark palette, typography, composer placement, artifact/review structure

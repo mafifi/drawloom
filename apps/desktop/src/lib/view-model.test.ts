@@ -12,11 +12,92 @@ Bun.plugin({ name: 'desktop-view-model-tests', setup(build) {
 } });
 const { createDesktopViewModel } = await import('./view-model.svelte.js');
 const originalFetch = globalThis.fetch;
+test('settings returns to the prior destination without losing a draft', async () => {
+  const h = await harness(); h.vm.primaryView = 'activity'; h.vm.draft = 'Keep this draft';
+  h.vm.primaryView = 'settings'; h.vm.settingsSection = 'media'; h.vm.closeSettings();
+  expect(String(h.vm.primaryView)).toBe('activity'); expect(h.vm.draft).toBe('Keep this draft');
+});
+test('project new conversation selects the project before creating and opens the conversation', async () => {
+  const h = await harness();
+  const projectId = h.vm.state!.selectedProjectId!;
+  await h.vm.newConversationInProject(projectId);
+  expect(h.commands.map(c => c.kind)).toEqual(['select_project', 'create_conversation']);
+  expect(h.vm.primaryView).toBe('conversation');
+});
+test('sending keeps the conversation visible instead of automatically opening result details', async () => {
+  const h = await harness();
+  h.vm.draft = 'Hello';
+  await h.vm.send();
+  expect(h.vm.primaryView).toBe('conversation');
+  expect(h.vm.detailsOpen).toBe(false);
+});
 const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
 test('a fresh desktop opens the conversation rather than replacing it with narrow artifact details', () => {
   const vm = createDesktopViewModel();
   expect(vm.primaryView).toBe('conversation');
   expect(vm.detailsOpen).toBe(false);
+});
+test('workspace presentation changes preserve draft and selected working material', async () => {
+  const h = await harness();
+  h.vm.draft = 'Keep this unsent draft';
+  h.vm.artifactId = 'artifact-a';
+  h.vm.detailsOpen = true;
+  h.vm.detailsWidth = 900;
+  h.vm.detailsExpanded = true;
+
+  h.vm.detailsOpen = false;
+  h.vm.detailsOpen = true;
+
+  expect(h.vm.draft).toBe('Keep this unsent draft');
+  expect(h.vm.artifactId).toBe('artifact-a');
+  expect(h.vm.detailsWidth).toBe(720);
+  expect(h.vm.detailsExpanded).toBe(true);
+
+  h.vm.detailsWidth = 100;
+  expect(h.vm.detailsWidth).toBe(320);
+});
+test('opening shared working material explicitly leaves the installed app view', async () => {
+  const h = await harness();
+  const resource = { id: 'image', title: 'Image', source: 'fixture', status: 'ready' as const, asset: { key: 'image-key', mediaType: 'image/png', size: 1 } };
+  h.vm.workspaceMode = 'plugin';
+  h.vm.openResourceWorkspace('entry-a', resource);
+  expect(String(h.vm.workspaceMode)).toBe('shared');
+  expect(h.vm.workspaceResource?.resource.id).toBe('image');
+  h.vm.workspaceMode = 'plugin';
+  h.vm.openArtifactWorkspace();
+  expect(String(h.vm.workspaceMode)).toBe('shared');
+  expect(h.vm.workspaceResource).toBeUndefined();
+});
+test('workspace resources resolve current history identity and never retain removed media URLs', async () => {
+  const h = await harness();
+  const first = { id: 'resource', title: 'First', source: 'fixture', status: 'unavailable' as const, uri: 'https://media.example/first.mp4', mimeType: 'video/mp4' };
+  h.setHistory([{ id: 'entry', position: [1, 0], role: 'assistant', text: '', assets: [], state: 'complete', resources: [first] }]);
+  await h.vm.loadLatest();
+  h.vm.openResourceWorkspace('entry', first);
+  expect(h.vm.workspaceResource?.remotePreviewUrl).toContain('resourceId=resource');
+
+  h.setHistory([{ id: 'entry', position: [1, 0], role: 'assistant', text: '', assets: [], state: 'complete', resources: [] }]);
+  await h.vm.loadLatest();
+  expect(h.vm.workspaceResource?.resource).toMatchObject({ id: 'resource', status: 'unavailable', title: 'Resource unavailable' });
+  expect(h.vm.workspaceResource?.remotePreviewUrl).toBeUndefined();
+});
+test('a successful resource read override is bound to the captured history revision', async () => {
+  const h = await harness();
+  const readable = { id: 'r1', title: 'Document', source: 'source-a', status: 'readable' as const };
+  h.setHistory([{ id: 'entry', position: [1, 0], role: 'assistant', text: '', assets: [], state: 'complete', resources: [readable] }]);
+  await h.vm.loadLatest();
+  const captured = h.vm.history.entries[0]!.resources![0]!;
+  await h.vm.readResource('entry', captured);
+  expect(h.vm.resourceError('entry', 'r1')).toBe('');
+  expect(h.vm.resource('entry', captured).asset?.key).toBe('text-asset');
+  h.vm.openResourceWorkspace('entry', captured);
+  expect(h.vm.workspaceResource?.resource.asset?.key).toBe('text-asset');
+
+  const changed = { ...readable, title: 'Changed document', uri: 'https://media.example/changed.txt', mimeType: 'text/plain' };
+  h.setHistory([{ id: 'entry', position: [1, 0], role: 'assistant', text: '', assets: [], state: 'complete', resources: [changed] }]);
+  await h.vm.loadLatest();
+  expect(h.vm.workspaceResource?.resource).toEqual(changed);
+  expect(h.vm.workspaceResource?.resource.asset).toBeUndefined();
 });
 test('attachment labels recover from existing artifact metadata after reconnect', async () => {
   const initial = snapshot();
@@ -53,6 +134,17 @@ test('project actions retain exact identities and missing directories block only
   expect(h.commands.at(-1)).toEqual({ kind: 'add_project', directory: '/work/new', name: 'New project' });
   await h.vm.selectProject('project-b');
   expect(h.commands.at(-1)).toEqual({ kind: 'select_project', projectId: 'project-b' });
+});
+
+test('workbench readiness never crosses projects that share the same workbench id', async () => {
+  const initial = snapshot();
+  initial.projects.push({ id: 'project-b', name: 'B', directory: '/work/b', available: true });
+  const h = await harness(initial);
+  h.vm.openWorkbench('text');
+  expect(h.vm.selectedWorkbenchReadiness).toBe('ready');
+  const otherProjectSelected = structuredClone(initial); otherProjectSelected.selectedProjectId = 'project-b';
+  h.setState(otherProjectSelected); await h.vm.start(); h.vm.stopPolling();
+  expect(h.vm.selectedWorkbenchReadiness).toBeUndefined();
 });
 
 test('native folder selection fills only the form and exposes pending feedback', async () => {
@@ -197,6 +289,7 @@ test('provider sign-in uses a catalogue identity and discards a late URL after n
 function snapshot(): DesktopSnapshot {
   return {
     mediaPolicy: { revision: 'initial', sources: [] },
+    archiveBlockedConversationIds: [],
     toolLabels: [],
     elicitations: [],
     views: [],
@@ -204,7 +297,7 @@ function snapshot(): DesktopSnapshot {
     pendingTools: [],
     workspace: 'Test workspace', selectedId: 'conversation-a',
     projects: [{ id: 'project-a', name: 'Project A', directory: '/work/a', available: true }], selectedProjectId: 'project-a',
-    conversations: [{ id: 'conversation-a', title: 'A', projectId: 'project-a', workbenchId: 'text', provider: 'synthetic', reviewer: 'human' }],
+    conversations: [{ id: 'conversation-a', title: 'A', archived: false, projectId: 'project-a', workbenchId: 'text', provider: 'synthetic', reviewer: 'human' }],
     workbenches: [{ id: 'text', title: 'Text', description: '', tools: [], skills: [] }],
     signals: [], activity: [], controls: { steer: false, interrupt: false, reviewerModes: ['human'] }, plugins: [], notice: '',
     operator: { artifacts: [{ id: 'artifact-a', editable: true, title: 'A', content: { kind: 'text', text: 'Original A' } }], candidates: [{ id: 'candidate-a', comparisonKey: 'document-a', label: 'A', artifactIds: ['artifact-a'], status: 'draft' }], reviews: [], readiness: 'ready', summary: '', configuration: [], grants: [] },
@@ -400,7 +493,7 @@ test('conversation navigation cancels the previous document editing session', as
   h.vm.editing = true; h.vm.editText = 'Do not apply to B';
   const next = snapshot();
   next.selectedId = 'conversation-b';
-  next.conversations = [{ id: 'conversation-b', title: 'B', workbenchId: 'other', provider: 'synthetic', reviewer: 'human' }];
+  next.conversations = [{ id: 'conversation-b', title: 'B', archived: false, workbenchId: 'other', provider: 'synthetic', reviewer: 'human' }];
   h.setState(next);
   await h.vm.select('conversation-b');
   expect(h.vm.editing).toBe(false);
@@ -454,7 +547,7 @@ test('accepted send clears an unchanged submitted composer', async () => {
 test('reloading untouched conversation B never restores conversation A draft', async () => {
   const h = await harness(); h.vm.draft = 'Draft belonging to A';
   const next = snapshot(); next.selectedId = 'conversation-b';
-  next.conversations.push({ id: 'conversation-b', title: 'B', workbenchId: 'text', provider: 'synthetic', reviewer: 'human' });
+  next.conversations.push({ id: 'conversation-b', title: 'B', archived: false, workbenchId: 'text', provider: 'synthetic', reviewer: 'human' });
   h.setState(next); await h.vm.select('conversation-b');
   expect(h.vm.draft).toBe('');
   const reloaded = createDesktopViewModel(); await reloaded.start(); reloaded.stopPolling();

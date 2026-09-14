@@ -27,6 +27,10 @@ export async function conversationHistoryConformance(factory: ConversationHistor
     const storedReference = (await store.get('resources', reference.id))?.resources?.[0];
     check(storedReference?.id === 'reference-1' && storedReference.source === 'plugin:public' && storedReference.asset?.key === 'asset-1' && storedReference.status === 'ready', 'resource display references survive storage');
     check(JSON.stringify((await store.page('resources')).entries[0]?.selections) === JSON.stringify(reference.selections), 'sent selections retain provenance');
+    const largeMetadata=entry(1,{id:'projection-hit',text:'bounded projection needle',selections:[{id:'large',title:'PRIVATE_METADATA_SENTINEL'.repeat(10_000),source:'public'}]});
+    await store.commit('projection',{expectedRevision:0,entries:[largeMetadata]});
+    const projected=await store.search({query:'needle',conversationIds:['projection']});
+    check(projected.items[0]?.entryId==='projection-hit'&&!JSON.stringify(projected).includes('PRIVATE_METADATA_SENTINEL')&&JSON.stringify(projected).length<1000,'search projects only bounded display metadata');
     await store.commit('empty-backfill', { expectedRevision: 0, sync: { sync: 'idle', hasOlder: true } });
     const empty = await store.page('empty-backfill');
     check(empty.hasOlder && empty.olderCursor, 'empty provider backfill exposes a usable continuation');
@@ -40,6 +44,10 @@ export async function conversationHistoryConformance(factory: ConversationHistor
     const newest = await store.page("alpha", { limit: 200 });
     check(newest.entries.length === 200 && newest.entries[0]?.id === "entry-1905" && newest.entries[199]?.id === "entry-2104", "bounded newest chronological page");
     check(newest.hasOlder && newest.olderCursor !== undefined, "older page cursor");
+    const found = await store.search({ query: 'text-2050', conversationIds: ['alpha'], limit: 10 });
+    check(found.items.length === 1 && found.items[0]?.entryId === 'entry-2050' && found.items[0].snippet.includes('text-2050') && found.items[0].snippet.length <= 240, 'bounded cached full-text search');
+    const around = await store.around('alpha', { entryId: 'entry-1000', before: 2, after: 2 });
+    check(around.entries.length === 5 && around.anchorIndex === 2 && around.entries[0]?.id === 'entry-998' && around.entries[4]?.id === 'entry-1002' && around.hasOlder && around.hasNewer && Boolean(around.olderCursor) && Boolean(around.changeCursor), 'bounded read around stable record identity');
     const older = await store.page("alpha", { before: newest.olderCursor, limit: 200 });
     check(older.entries[0]?.id === "entry-1705" && older.entries[199]?.id === "entry-1904", "keyset pagination remains chronological");
 
@@ -54,6 +62,8 @@ export async function conversationHistoryConformance(factory: ConversationHistor
     check(status.revision === 3, "record update revision");
     const updated = await store.get("alpha", "entry-5");
     check(updated?.text === "streaming" && updated.state === "partial" && JSON.stringify(updated.position) === "[0,5]", "partial update preserves position");
+    check((await store.search({ query: 'streaming', conversationIds: ['alpha'] })).items[0]?.entryId === 'entry-5', 'search index updates atomically with records');
+    check((await store.search({ query: 'text-5', conversationIds: ['alpha'] })).items.every(item => item.entryId !== 'entry-5'), 'old indexed text is removed on update');
     await code(store.commit("alpha", { expectedRevision: 3, entries: [entry(5, { position: [9, 9] })] }), "conflict", "position movement rejected");
     check((await store.status("alpha")).revision === 3, "rejected movement does not mutate");
 
@@ -77,6 +87,10 @@ export async function conversationHistoryConformance(factory: ConversationHistor
     check(new Set([...delta.entries, ...delta2.entries].map((value) => value.id)).size === 2, "changes project current records once");
 
     await code(store.page("beta", { before: newest.olderCursor }), "invalid_cursor", "page cursor bound to conversation");
+    const scoped = await store.search({ query: 'text', conversationIds: ['alpha'], limit: 1 });
+    check(scoped.hasMore && Boolean(scoped.cursor), 'search pagination is bounded');
+    await code(store.search({ query: 'text', conversationIds: ['beta'], cursor: scoped.cursor }), 'invalid_cursor', 'search cursor bound to scope');
+    await code(store.around('alpha', { entryId: 'missing' }), 'invalid_input', 'missing around anchor rejected');
     await code(store.changes("beta", { after: baseline.cursor }), "invalid_cursor", "change cursor bound to conversation");
     await code(store.commit("alpha", { expectedRevision: 5, entries: [{ ...entry(9), id: "" }] }), "invalid_input", "invalid record rejected");
     check((await store.status("alpha")).revision === 5, "invalid input does not mutate");

@@ -120,3 +120,10 @@ test('server validation feedback is visible and leaves the input unresolved', as
   await vm.respond('run', 'review', '{}');
   expect(vm.error).toContain('Correct the JSON'); expect(vm.runs[0]?.pendingInputs).toEqual(['review']);
 });
+
+test('project summary reads bounded runs for each actual scoped owner without commands', async () => {
+  const urls:string[]=[];
+  globalThis.fetch=(async(url,init)=>{urls.push(String(url));if(String(url).includes('/owners'))return Response.json([owner,{...owner,installationId:'second',title:'Second'}]);return Response.json({runs:[run]});}) as typeof fetch;
+  const vm=createOrchestrationViewModel();await vm.openSummary('project-a');
+  expect(vm.summaryRuns).toHaveLength(2);expect(urls.filter(url=>url.includes('/runs?')).every(url=>url.includes('projectId=project-a')&&url.includes('limit=3'))).toBe(true);
+});

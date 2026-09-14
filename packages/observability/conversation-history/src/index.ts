@@ -50,6 +50,23 @@ export const HistoryChangesSchema = z.strictObject({
 });
 export type HistoryChanges = z.infer<typeof HistoryChangesSchema>;
 
+export const HistorySearchOptionsSchema = z.strictObject({
+  query: z.string().trim().min(1).max(500),
+  conversationIds: z.array(nonEmptyId).max(10_000).optional(),
+  cursor: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+});
+export type HistorySearchOptions = z.infer<typeof HistorySearchOptionsSchema>;
+export const HistorySearchResultSchema = z.strictObject({
+  items: z.array(z.strictObject({ conversationId: nonEmptyId, entryId: nonEmptyId, role: z.enum(['user', 'assistant']), snippet: z.string().max(240), position: HistoryPositionSchema })),
+  cursor: z.string().min(1).optional(), hasMore: z.boolean(),
+});
+export type HistorySearchResult = z.infer<typeof HistorySearchResultSchema>;
+export const HistoryAroundOptionsSchema = z.strictObject({ entryId: nonEmptyId, before: z.number().int().min(0).max(199).optional(), after: z.number().int().min(0).max(199).optional() }).refine(value => (value.before ?? 25) + (value.after ?? 25) <= 199, 'An around window is limited to 200 entries');
+export type HistoryAroundOptions = z.infer<typeof HistoryAroundOptionsSchema>;
+export const HistoryAroundResultSchema = z.strictObject({ entries: z.array(HistoryEntrySchema).max(200), anchorIndex: z.number().int().nonnegative(), olderCursor: z.string().min(1).optional(), hasOlder: z.boolean(), hasNewer: z.boolean(), changeCursor: z.string().min(1), status: ConversationHistoryStatusSchema });
+export type HistoryAroundResult = z.infer<typeof HistoryAroundResultSchema>;
+
 export const HistoryCheckpointUpdateSchema = z.strictObject({ namespace: nonEmptyId, key: nonEmptyId, value: z.json() });
 export type HistoryCheckpointUpdate = z.infer<typeof HistoryCheckpointUpdateSchema>;
 export const HistorySyncUpdateSchema = z.strictObject({ sync: HistorySyncStateSchema, hasOlder: z.boolean().optional(), message: z.string().max(512).optional() });
@@ -76,6 +93,8 @@ export class HistoryStoreError extends Error {
 export interface ConversationHistoryStore {
   page(conversationId: string, options?: HistoryPageOptions): Promise<HistoryPage>;
   changes(conversationId: string, options?: HistoryChangeOptions): Promise<HistoryChanges>;
+  search(options: HistorySearchOptions): Promise<HistorySearchResult>;
+  around(conversationId: string, options: HistoryAroundOptions): Promise<HistoryAroundResult>;
   status(conversationId: string): Promise<ConversationHistoryStatus>;
   checkpoint(conversationId: string, namespace: string, key: string): Promise<unknown | undefined>;
   get(conversationId: string, id: string): Promise<HistoryEntry | undefined>;

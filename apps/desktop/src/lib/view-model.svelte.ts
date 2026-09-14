@@ -7,6 +7,9 @@ import type { OperatorCommand } from '@drawloom/workbench';
 import { z } from 'zod';
 import { elicitationContent } from './elicitation-form.js';
 import { workingFileReference } from './working-file.js';
+import { remoteMediaPreviewUrl } from './media-ui.js';
+import type { ResourceCardPresentation } from './resource-card.js';
+import { createConversationNavigationViewModel } from './conversation-navigation-view-model.svelte.js';
 import { initializeUiTelemetry, telemetryFetch as fetch } from './telemetry.js';
 type Discovery = DesktopCatalogue['entries'][number];
 type Attachment = { id: string; name: string; size: number; mediaType: string; status: 'pending' | 'ready' | 'failed'; error: string; asset?: Asset };
@@ -36,8 +39,13 @@ export function createDesktopViewModel() {
   let projectDirectoryPending = $state(false), projectDirectoryNote = $state('');
   let projectDirectoryRequest: AbortController | undefined;
   let detailsOpen = $state(false), contextOpen = $state(false);
+  let detailsWidth = $state(360), detailsExpanded = $state(false);
+  let workspaceMode = $state<'shared' | 'plugin'>('shared');
   let pane = $state<'preview' | 'details'>('preview');
-  let primaryView = $state<'conversation' | 'projects' | 'plugins' | 'settings' | 'knowledge'>('conversation');
+  let primaryView = $state<'conversation' | 'projects' | 'project' | 'workbench' | 'archived' | 'activity' | 'plugins' | 'settings' | 'knowledge'>('conversation');
+  let settingsReturnView: typeof primaryView = 'conversation';
+  let settingsSection = $state<'general' | 'workbench' | 'permissions' | 'media' | 'integrations'>('general');
+  let selectedWorkbenchId = $state('');
   let attachmentKeys = $state<string[]>([]), contextIds = $state<string[]>([]);
   let attachmentNames = $state<Record<string, string>>({});
   let attachments = $state<Attachment[]>([]), selections = $state<Discovery[]>([]);
@@ -71,9 +79,11 @@ export function createDesktopViewModel() {
   function resetDiscoveryPages() { catalogueLimit = discoveryPageSize; pickerLimit = discoveryPageSize; nativeResourceLimit = discoveryPageSize; contributionLimits = {}; }
   let pickerToken: { start: number; end: number; text: string } | undefined;
   let selectedResources = $state<SelectedResource[]>([]), resourceVersion = 0, resourceEpoch = 0;
-  let resourceOverrides = $state<Record<string, ResourceReference>>({}), resourcePending = $state<Record<string, boolean>>({}), resourceErrors = $state<Record<string, string>>({});
+  let workspaceResource = $state<{ entryId: string; resourceId: string }>();
+  let resourceOverrides = $state<Record<string, { base: string; value: ResourceReference }>>({}), resourcePending = $state<Record<string, boolean>>({}), resourceErrors = $state<Record<string, string>>({});
   let resourceListings = $state<Record<string, ListResourcesResult>>({}), openedResources = $state<HistoryEntry[]>([]);
   const resourceKey = (entryId: string, resourceId: string) => JSON.stringify([entryId, resourceId]);
+  const resourceRevision = (value: ResourceReference) => JSON.stringify(value);
   const selectedDiscoveries = $derived(selections.map(entry => ({ ...entry, unavailable: !catalogue?.entries.some(current => current.id === entry.id && current.revision === entry.revision && current.availability === 'available' && current.selectable) })));
   let candidateId = $state(''), artifactId = $state(''), groupId = $state(''), compare = $state(false), editing = $state(false), editText = $state('');
   let editTarget: Readonly<{ conversationId: string; workbenchId: string; candidateId: string; artifactId: string }> | undefined;
@@ -168,6 +178,8 @@ export function createDesktopViewModel() {
       contextIds = saved?.contextIds ?? []; selections = saved?.selections ?? []; selectedResources = saved?.resources ?? [];
       draftVersion++; attachmentVersion++; contextVersion++; selectionVersion++;
       resourceEpoch++; resourceVersion++; resourceOverrides = {}; resourcePending = {}; resourceErrors = {}; resourceListings = {}; openedResources = [];
+      workspaceResource = undefined;
+      workspaceMode = 'shared';
       catalogueEpoch++; cataloguePending = false; catalogueError = ''; catalogue = catalogueCache.get(next.selectedId); pickerOpen = false;
       integrationPending = {}; integrationUrls = {}; integrationErrors = {};
       catalogueQuery = ''; pickerQuery = ''; resetDiscoveryPages();
@@ -205,6 +217,17 @@ export function createDesktopViewModel() {
     catch (e) { error = e instanceof Error ? e.message : 'Operation failed'; return false; }
     finally { busy = false; pendingCommand = undefined; }
   }
+  async function selectConversation(id: string) {
+    const succeeded = await command({ kind: 'select_conversation', conversationId: id });
+    if (succeeded) { cancelEdit(); candidateId = ''; artifactId = ''; groupId = ''; primaryView = 'conversation'; }
+    return succeeded;
+  }
+  const navigation = createConversationNavigationViewModel({
+    selectConversation,
+    openAround: (conversationId, entryId) => pager.openAround(conversationId, entryId),
+    command,
+    commandError: () => error,
+  });
   async function operator(commandValue: OperatorCommand) { if (!conversation || !canExecute) return false; return command({ kind: 'operator', conversationId: conversation.id, workbenchId: conversation.workbenchId, command: commandValue }); }
   function changeAttachments(id: string, change: (items: Attachment[]) => Attachment[]) {
     if (state?.selectedId === id) { attachments = change(attachments); attachmentKeys = [...new Set(attachments.flatMap(item => item.status === 'ready' && item.asset ? [item.asset.key] : []))]; attachmentVersion++; saveCurrentReferences(); }
@@ -272,10 +295,26 @@ export function createDesktopViewModel() {
       finally { if (epoch === resourceEpoch) resourcePending[key] = false; }
     },
     get selectedResources() { return selectedResources; }, get resourceListings() { return resourceListings; }, get openedResources() { return openedResources; },
-    resource(entryId: string, value: ResourceReference) { return resourceOverrides[resourceKey(entryId, value.id)] ?? value; },
+    resource(entryId: string, value: ResourceReference) {
+      const override = resourceOverrides[resourceKey(entryId, value.id)];
+      return override?.base === resourceRevision(value) ? override.value : value;
+    },
     workingFile(value: ResourceReference) { return conversation && conversationProject?.available ? workingFileReference(value, conversation.id, conversationProject.directory) : undefined; },
     resourceIsPending(entryId: string, id: string) { return resourcePending[resourceKey(entryId, id)] ?? false; },
     resourceError(entryId: string, id: string) { return resourceErrors[resourceKey(entryId, id)] ?? ''; },
+    resourceCardPresentation(entryId: string, value: ResourceReference): ResourceCardPresentation {
+      const override = resourceOverrides[resourceKey(entryId, value.id)];
+      const resource = override?.base === resourceRevision(value) ? override.value : value;
+      const workingFile = conversation && conversationProject?.available ? workingFileReference(resource, conversation.id, conversationProject.directory) : undefined;
+      return {
+        resource,
+        isWorkingFile: Boolean(workingFile),
+        canOpen: Boolean(resource.asset || workingFile || remoteMediaPreviewUrl(state?.selectedId ?? '', entryId, resource)),
+        selectedForContext: selectedResources.some(item => item.entryId === entryId && item.resourceId === resource.id),
+        pending: resourcePending[resourceKey(entryId, resource.id)] ?? false,
+        error: resourceErrors[resourceKey(entryId, resource.id)] ?? '',
+      };
+    },
     toggleResource(entryId: string, value: ResourceReference) {
       const existing = selectedResources.some(item => item.entryId === entryId && item.resourceId === value.id);
       if (existing) selectedResources = selectedResources.filter(item => item.entryId !== entryId || item.resourceId !== value.id);
@@ -292,7 +331,7 @@ export function createDesktopViewModel() {
         const result = ResourceReferenceSchema.parse(await response(await fetch('/api/resource/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversationId: id, entryId, resourceId: value.id }) })));
         if (epoch !== resourceEpoch) return;
         if (result.id !== value.id || result.source !== value.source) throw Error('Resource identity changed. Refresh history to inspect it.');
-        resourceOverrides[key] = result;
+        resourceOverrides[key] = { base: resourceRevision(value), value: result };
       } catch (e) { if (epoch === resourceEpoch) resourceErrors[key] = e instanceof Error ? e.message : 'Resource unavailable'; }
       finally { if (epoch === resourceEpoch) resourcePending[key] = false; }
     },
@@ -323,7 +362,7 @@ export function createDesktopViewModel() {
     get selectedDiscoveries() { return selectedDiscoveries; },
     get pickerOpen() { return pickerOpen; }, set pickerOpen(v: boolean) { pickerOpen = v; if (!v) pickerToken = undefined; },
     get pickerKind() { return pickerKind; }, get pickerQuery() { return pickerQuery; }, set pickerQuery(v: string) { pickerQuery = v; pickerActiveId = ''; pickerLimit = discoveryPageSize; nativeResourceLimit = discoveryPageSize; }, openPicker,
-    get pickerActiveId() { return pickerActiveId; }, set pickerActiveId(v: string) { if (!v || pickerOptions.some(option => option.id === v && option.selectable)) pickerActiveId = v; },
+    get pickerActiveId() { return pickerActiveId; }, set pickerActiveId(v: string) { if (!v || ['action:attach','action:browse','action:more','action:apps'].includes(v) || pickerOptions.some(option => option.id === v && option.selectable)) pickerActiveId = v; },
     movePicker(delta: number) {
       const available = pickerOptions.filter(option => option.selectable);
       if (!available.length) return;
@@ -336,6 +375,7 @@ export function createDesktopViewModel() {
       else if (option?.kind === 'document') selectPickerContext(option.targetId);
     },
     selectDiscovery,
+    consumePickerToken,
     removeDiscovery(id: string) { selections = selections.filter(item => item.id !== id); selectionVersion++; saveCurrentReferences(); },
     selectPickerContext,
     get attachments() { return attachments; },
@@ -352,8 +392,17 @@ export function createDesktopViewModel() {
     get pendingCommand() { return pendingCommand; },
     get creationSource() { return creationSource; }, get importing() { return importing; },
     get detailsOpen() { return detailsOpen; }, set detailsOpen(v: boolean) { detailsOpen = v; },
+    get detailsWidth() { return detailsWidth; }, set detailsWidth(v: number) { detailsWidth = Math.min(720, Math.max(320, Math.round(v))); },
+    get detailsExpanded() { return detailsExpanded; }, set detailsExpanded(v: boolean) { detailsExpanded = v; },
+    get workspaceMode() { return workspaceMode; }, set workspaceMode(v: typeof workspaceMode) { workspaceMode = v; },
     get pane() { return pane; }, set pane(v: typeof pane) { pane = v; detailsOpen = true; },
-    get primaryView() { return primaryView; }, set primaryView(v: typeof primaryView) { if (v !== primaryView) { cancelUploads(); cancelDirectoryChooser(); } primaryView = v; pickerOpen = false; if (v === 'plugins') void refreshCatalogue(); },
+    get primaryView() { return primaryView; }, set primaryView(v: typeof primaryView) { if (v === 'settings' && primaryView !== 'settings') settingsReturnView = primaryView; if (v !== primaryView) { cancelUploads(); cancelDirectoryChooser(); } primaryView = v; pickerOpen = false; if (v === 'plugins') void refreshCatalogue(); },
+    get settingsSection() { return settingsSection; }, set settingsSection(v: typeof settingsSection) { settingsSection = v; },
+    closeSettings() { primaryView = settingsReturnView; },
+    get navigation() { return navigation; },
+    get selectedWorkbench() { return state?.workbenches.find(item => item.id === selectedWorkbenchId); },
+    get selectedWorkbenchReadiness() { return conversation?.projectId === selectedProject?.id && conversation?.workbenchId === selectedWorkbenchId ? state?.operator.readiness : undefined; },
+    openWorkbench(id: string) { if (!state?.workbenches.some(item => item.id === id)) return; selectedWorkbenchId = id; primaryView = 'workbench'; detailsOpen = false; },
     get contextOpen() { return contextOpen; }, set contextOpen(v: boolean) { contextOpen = v; },
     get attachmentKeys() { return attachmentKeys; }, get contextIds() { return contextIds; },
     attachmentName(key: string) {
@@ -362,7 +411,21 @@ export function createDesktopViewModel() {
         ?? 'Attachment';
     },
     get candidateId() { return candidateId; }, set candidateId(v: string) { cancelEdit(); candidateId = v; artifactId = ''; },
-    get artifactId() { return artifact?.id ?? ''; }, set artifactId(v: string) { cancelEdit(); artifactId = v; const owners = candidates.filter(c => c.artifactIds.includes(v)); candidateId = owners.find(c => c.selectedForOutput)?.id ?? owners.at(-1)?.id ?? ''; },
+    get artifactId() { return artifact?.id ?? ''; }, set artifactId(v: string) { cancelEdit(); workspaceResource = undefined; artifactId = v; const owners = candidates.filter(c => c.artifactIds.includes(v)); candidateId = owners.find(c => c.selectedForOutput)?.id ?? owners.at(-1)?.id ?? ''; },
+    get workspaceResource() {
+      const selection = workspaceResource;
+      if (!selection) return;
+      const captured = [...history.entries, ...openedResources]
+        .find(entry => entry.id === selection.entryId)?.resources
+        ?.find(resource => resource.id === selection.resourceId);
+      const override = resourceOverrides[resourceKey(selection.entryId, selection.resourceId)];
+      const resource = captured && override?.base === resourceRevision(captured) ? override.value : captured
+        ?? { id: selection.resourceId, source: 'history', title: 'Resource unavailable', status: 'unavailable' as const };
+      const workingFile = conversation && conversationProject?.available ? workingFileReference(resource, conversation.id, conversationProject.directory) : undefined;
+      return { entryId: selection.entryId, resource, workingFile, remotePreviewUrl: remoteMediaPreviewUrl(state?.selectedId ?? '', selection.entryId, resource) };
+    },
+    openResourceWorkspace(entryId: string, reference: ResourceReference) { workspaceResource = { entryId, resourceId: reference.id }; workspaceMode = 'shared'; detailsOpen = true; pane = 'preview'; },
+    openArtifactWorkspace() { workspaceResource = undefined; workspaceMode = 'shared'; detailsOpen = true; pane = 'preview'; },
     contextLabel,
     get compare() { return compare; }, set compare(v: boolean) { compare = v; },
     get editing() { return editing; },
@@ -379,7 +442,7 @@ export function createDesktopViewModel() {
       if (!busy) void refresh();
       if(!catalogueError && catalogue?.categories.some(category=>category.status==='loading'))void refreshCatalogue(false,undefined,true);
     }, 600); },
-    stopPolling() { clearInterval(timer); cancelUploads(); cancelDirectoryChooser(); stateRead.abort(); stateRead = new AbortController(); requestEpoch++; catalogueEpoch++; cataloguePending=false; pager.invalidate(); },
+    stopPolling() { clearInterval(timer); cancelUploads(); cancelDirectoryChooser(); navigation.dispose(); stateRead.abort(); stateRead = new AbortController(); requestEpoch++; catalogueEpoch++; cataloguePending=false; pager.invalidate(); },
     command, operator,
     elicitationChoice(requestId: string, name: string, fallback = '') { return elicitationChoices[JSON.stringify([requestId, name])] ?? fallback; },
     chooseElicitation(requestId: string, name: string, value: string) { elicitationChoices[JSON.stringify([requestId, name])] = value; },
@@ -404,8 +467,16 @@ export function createDesktopViewModel() {
         if (selectionVersion === submitted.selectionVersion) selections = [];
         if (resourceVersion === submitted.resourceVersion) selectedResources = [];
         saveCurrentReferences();
-        if (state.selectedId === submitted.conversationId && !editing) { candidateId = ''; detailsOpen = true; }
+        // Results remain available without replacing the conversation on narrow screens.
+        if (state.selectedId === submitted.conversationId && !editing) { candidateId = ''; }
       }
+    },
+    async newConversationInProject(projectId: string) {
+      if (busy) return false;
+      const workbenchId = selectedWorkbenchId || conversation?.workbenchId;
+      if (!await this.selectProject(projectId)) return false;
+      if (!workbenchId) return false; // Project overview offers the required workbench choice.
+      return this.create(workbenchId);
     },
     async create(workbenchId = conversation?.workbenchId ?? 'text', provider = conversation?.provider ?? 'synthetic', source: 'new' | 'workbench' | 'provider' = 'new') {
       if (busy) return false;
@@ -418,9 +489,7 @@ export function createDesktopViewModel() {
       } finally { creationSource = undefined; }
     },
     async select(id: string) {
-      const succeeded = await command({ kind: 'select_conversation', conversationId: id });
-      if (succeeded) { cancelEdit(); candidateId = ''; artifactId = ''; groupId = ''; primaryView = 'conversation'; }
-      return succeeded;
+      return selectConversation(id);
     },
     async addProject(directory: string, name = '') {
       if (!directory.trim()) { error = 'Enter a project directory.'; return false; }
@@ -446,7 +515,7 @@ export function createDesktopViewModel() {
     },
     async selectProject(projectId: string) {
       const succeeded = await command({ kind: 'select_project', projectId });
-      if (succeeded) { cancelEdit(); candidateId = ''; artifactId = ''; groupId = ''; detailsOpen = false; primaryView = 'conversation'; }
+      if (succeeded) { cancelEdit(); candidateId = ''; artifactId = ''; groupId = ''; detailsOpen = false; primaryView = 'project'; }
       return succeeded;
     },
     async assignProject(projectId: string) { if (!conversation || conversation.projectId) return false; return command({ kind: 'assign_project', conversationId: conversation.id, projectId }); },

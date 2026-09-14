@@ -3,6 +3,38 @@ import { expect, test } from "bun:test";
 const source = async (name: string) =>
   Bun.file(new URL(name, import.meta.url)).text();
 
+test('conversation actions share commands across context menu and inline controls', async () => {
+  const row = await source('./ConversationNavItem.svelte');
+  expect(row).toContain('<ContextMenu.Root>');
+  expect(row).toContain('onclick={a.pin}');
+  expect(row).toContain('onclick={a.archive}');
+  expect(row).toContain('p.busy || p.archiveBlocked');
+  expect(row).not.toContain('DropdownMenu');
+  expect(row).not.toContain('MoreIcon');
+});
+
+test('sidebar keeps compact reference hierarchy and keyboard-reachable hover actions', async () => {
+  const sidebar = await source('./Sidebar.svelte');
+  expect(sidebar.indexOf('>Workbenches</')).toBeLessThan(sidebar.indexOf('>Projects</'));
+  expect(sidebar).toContain('<FolderOpenIcon');
+  expect(sidebar).toContain('border-0 px-0');
+  expect(sidebar).toContain('aria-label="Search conversations"');
+  expect(sidebar).toContain('aria-label="Add project"');
+  expect(sidebar).not.toContain('<span>Add project</span>');
+  expect(sidebar).toContain('.sidebar-reveal:focus-visible');
+  expect(sidebar).toContain('(hover: hover) and (pointer: fine)');
+});
+
+test('conversation search composes the shared command palette without hand-built arrow navigation', async () => {
+  const search = await source('./ConversationSearch.svelte');
+  expect(search).toContain('<Command.Root shouldFilter={false}');
+  expect(search).toContain('<Command.Input');
+  expect(search).toContain('<Command.Item');
+  expect(search).toContain('presentation.recent');
+  expect(search).toContain('heading="Quick actions"');
+  expect(search).not.toContain('moveResult');
+});
+
 test('native media load failures have shared, actionable feedback without fetching a blob',async()=>{
   const viewer=await source('./FileViewer.svelte');
   expect(viewer).toContain('onerror={failed}');
@@ -18,8 +50,9 @@ test('projects use shared sidebar controls and a compact main-view directory for
   const conversation = await source('./Conversation.svelte');
   expect(sidebar).toContain('<Sidebar.GroupLabel>Projects</Sidebar.GroupLabel>');
   expect(sidebar).toContain('vm.selectProject(');
-  expect(primary).toContain('<Projects {vm}');
-  expect(projects).toContain('vm.addProject(');
+  expect(primary).toContain('<Projects presentation={projectPresentation} actions={projectActions}');
+  expect(primary).toContain('vm.addProject(');
+  expect(projects).toContain('a.add(directory, name)');
   expect(projects).toContain('<Input');
   expect(projects).not.toContain('Sheet.Root');
   expect(conversation).toContain('vm.assignProject(');
@@ -28,9 +61,9 @@ test('projects use shared sidebar controls and a compact main-view directory for
 
 test('the native folder action only populates the editable directory form', async () => {
   const projects = await source('./Projects.svelte');
-  expect(projects).toContain('vm.chooseProjectDirectory()');
-  expect(projects).toContain('pending={vm.projectDirectoryPending}');
-  expect(projects).toContain('vm.projectDirectoryNote');
+  expect(projects).toContain('a.chooseDirectory()');
+  expect(projects).toContain('pending={p.choosing}');
+  expect(projects).toContain('p.note');
   expect(projects).toContain('bind:value={directory}');
 });
 
@@ -53,13 +86,12 @@ test('changing an artifact replaces native viewers and releases inactive sources
 
 test('working files load only from an explicit preview with original provenance retained', async () => {
   const card = await source('./ResourceCard.svelte');
-  const artifact = await source('./ArtifactViewer.svelte');
-  expect(card).toContain('vm.workingFile(resource)');
-  expect(card).toContain('Preview working file');
-  expect(card).toContain('{#if workingFileOpen}<FileViewer');
+  const workspace = await source('./WorkspaceResourceViewer.svelte');
+  expect(card).toContain('presentation.isWorkingFile');
+  expect(card).toContain('Open in workspace');
   expect(card).toContain('Current project file; viewing does not import');
   expect(card).toContain('{resource.uri}');
-  expect(artifact).toContain('<FileViewer');
+  expect(workspace).toContain('<FileViewer');
 });
 
 test("discovery suggestions stay anchored to the composer instead of opening a dialog", async () => {
@@ -67,8 +99,8 @@ test("discovery suggestions stay anchored to the composer instead of opening a d
   const composer = await source("./Composer.svelte");
 
   expect(picker).not.toContain("Dialog.Root");
-  expect(picker).toContain('role="listbox"');
-  expect(picker).toContain('class="discovery-suggestions"');
+  expect(picker).toContain('<MentionPicker');
+  expect(picker).not.toContain('class="discovery-suggestions"');
   expect(composer).toContain("<DiscoveryPicker");
   expect(composer.indexOf("<DiscoveryPicker")).toBeGreaterThan(
     composer.indexOf("<InputGroup.Textarea"),
@@ -81,10 +113,35 @@ test("primary destinations are main-content views while artifact details remain 
 
   expect(page).toContain("<PrimaryView {vm}");
   expect(page).toContain("vm.primaryView === 'conversation'");
-  expect(page).toContain("drawer.current && vm.detailsOpen");
+  expect(page).toContain('class:workspace-pane-full={drawer.current || vm.detailsExpanded}');
+  expect(page).toContain("class:workspace-conversation-hidden={vm.primaryView !== 'conversation'");
+  expect(page).not.toContain("{#if vm.primaryView === 'conversation'}");
+  expect(page).toContain("detailsPanePresentation(vm, vm.primaryView === 'conversation', drawer.current)");
   expect(page).not.toContain("<Sheet.Root bind:open={vm.detailsOpen}");
   expect(details).not.toContain('vm.pane === "plugins"');
   expect(details).not.toContain('vm.pane === "settings"');
+});
+
+test('workspace presentation keeps one pane mounted across ordinary layout changes', async () => {
+  const page = await source('../routes/+page.svelte');
+  const details = await source('./DetailsPane.svelte');
+
+  expect(page).toContain("class:workspace-pane-hidden={vm.primaryView !== 'conversation' || !vm.detailsOpen}");
+  expect(page).toContain('class:workspace-pane-full={drawer.current || vm.detailsExpanded}');
+  expect(details).toContain('Back to conversation');
+  expect(details).toContain('aria-label="Workspace width"');
+  expect(details).toContain('aria-pressed={presentation.detailsExpanded}');
+  expect(details.match(/<PluginView /g)).toHaveLength(1);
+  expect(details).toContain('class:workspace-content-hidden={!presentation.detailsOpen || !showPluginView}');
+});
+
+test('result resources open in the workspace and never eagerly mount media', async () => {
+  const resource = await source('./ResourceCard.svelte');
+
+  expect(resource).toContain('Open in workspace');
+  expect(resource).not.toContain('<ArtifactViewer');
+  expect(resource).not.toContain('<FileViewer');
+  expect(resource).not.toContain('<iframe');
 });
 
 test("sent non-image references use compact closed previews and selection badges stay outside the bubble", async () => {
@@ -97,6 +154,6 @@ test("sent non-image references use compact closed previews and selection badges
   expect(conversation.indexOf("<Message.Footer")).toBeGreaterThan(conversation.indexOf("</Bubble.Root>"));
   expect(attachment).toContain("<Collapsible.Root>");
   expect(attachment).toContain("Preview attachment");
-  expect(resource).toContain("Preview resource");
-  expect(resource).toContain("<Collapsible.Content><ArtifactViewer");
+  expect(resource).toContain('Open in workspace');
+  expect(resource).not.toContain('<ArtifactViewer');
 });

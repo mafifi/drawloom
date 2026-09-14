@@ -18,6 +18,8 @@ to inject into the model.
 | `changes(conversationId, {after?, limit?})` | Changed current records, not a replayable event log. |
 | `status(conversationId)` | Committed revision, synchronization status and remaining provider history. |
 | `get(conversationId, id)` | One normalized stored record. |
+| `search({query, conversationIds?, cursor?, limit?})` | Cached message text only; at most 100 metadata hits with plain-text snippets of at most 240 characters. |
+| `around(conversationId, {entryId, before?, after?})` | At most 200 chronological records around a stable identity, with anchor index, earlier/newer availability and change cursor. |
 | `checkpoint(conversationId, namespace, key)` | Private ingestion state; never exposed to the browser. |
 | `commit(conversationId, {expectedRevision, entries?, checkpoints?, sync?})` | Atomic compare-and-set write; unchanged data is a no-op. |
 | `close()` | Release provider resources. |
@@ -66,11 +68,14 @@ cursors; the host does not interpret provider-specific recovery rules.
 SQLite API; importing it under Node is not supported. The contract remains
 portable and its schema/export smoke runs under Node. There is no ORM.
 
-The database uses schema version 1, WAL, full synchronous commits, indexes on
+The database uses schema version 3, WAL, full synchronous commits, indexes on
 chronological and change positions, optimistic conversation revisions and private
 keyed checkpoints. Stored records are current projections, not an append-only
 audit log. Unsupported or damaged schemas are rejected rather than rebuilt.
-No automatic pruning, reset, repair, migration or database replacement occurs.
+Known versions 1 and 2 migrate transactionally. Version 3 adds an FTS5 index with
+triggers so message changes and search indexing commit together. Existing cached
+text is indexed locally; no provider history is reread. No automatic pruning,
+reset, repair or database replacement occurs.
 
 `DRAWLOOM_DATA_DIR` selects an explicit directory. Otherwise new installations
 use `~/.drawloom`. An existing `~/Library/Application Support/Drawloom` remains
@@ -85,6 +90,42 @@ permission rewrite is performed. Treat this directory as private local data,
 not a source checkout.
 
 ## Browser transport
+
+### Five-journey UI amendment
+
+The approved [desktop sprint](../plans/2026-09-13-five-ui-journeys.md) adds
+search of locally stored message text and bounded reads around a stable record.
+This explicitly extends ADR 0014's original exclusion of search; it does not
+change ingestion, provider ownership, capture-once assets or context policy.
+Conversation titles and archive/manual-title metadata remain host navigation
+state. Archive hides a conversation from ordinary navigation and is reversible;
+it never deletes records, archives a provider thread or cancels execution.
+
+Search indexes only already-cached user/assistant text. It neither fetches older
+provider pages nor invokes embeddings or a model. Search results disclose cached
+coverage limits. A result anchor loads bounded local context rather than walking
+every page from the newest entry. Provider failures must not prevent these reads.
+
+`GET /api/conversations/search` combines host title matches and cached message
+matches. Parameters are `q`, optional `projectId`, `archived` (`active`, `archived`
+or `all`), `cursor` and bounded `limit`. Each hit identifies its conversation,
+project/workbench and match kind; message hits include the stable `entryId` and
+bounded snippet. Opaque cursors expire on host restart or search-visible metadata
+changes; HTTP 409 asks the caller to restart the query, not reuse an offset.
+
+`GET /api/history/around` takes `conversationId`, `entryId`, `before` and `after`.
+It never imports older history. The returned change cursor lets an anchored view
+apply message updates without jumping to the newest page.
+
+The ordered command endpoint accepts `rename_conversation` (with `title`),
+`archive_conversation` and `restore_conversation`, each targeting an explicit
+`conversationId`. Manual titles survive automatic naming. Archive is rejected
+while that conversation has active execution or unresolved live approval/input.
+The transient `archiveBlockedConversationIds` snapshot field lets every sidebar
+row reflect that same guard, including background conversations. It is not
+persisted execution state or a replacement for command-time validation.
+Persistence failure restores the prior metadata and selection rather than
+advertising an unsaved change. Existing conversations default to active.
 
 The authenticated loopback host serves `/api/history` and
 `/api/history/changes`, keyed by conversation identity. The UI initially reads 50
