@@ -123,6 +123,16 @@ must receive CI without rebuilding or redeploying the site. Its focused host
 tests, type check and rebuilt Node conformance passed locally. Private configured
 orchestration was not rerun; its precise consumer evidence remains private.
 
+The follow-up [CI run 34852456984](https://github.com/mafifi/drawloom/actions/runs/34852456984)
+passed the JSON-store regressions but failed one retained Cedar experiment: an
+expected allow became a fail-closed exception response. The suite reported 1,045
+passes, ten skips and one failure; publication was skipped. The original exception
+was not retained, so its cause is unresolved. Fifty fresh local test processes
+passed, as did 1,188 same-process repeated tests; these macOS checks do not prove
+Linux reliability. Test-only error capture now preserves engine exceptions without
+changing authorization behavior, adding retries or hiding a failure. This is a
+diagnostic improvement, not a demonstrated Cedar fix.
+
 OAuth tests use controlled transport and a session credential store. The native
 keychain service name was source-reviewed. An opt-in synthetic OS credential
 round trip passed (one test, two assertions), deleting its UUID-scoped test record

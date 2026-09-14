@@ -21,8 +21,14 @@ function fixture() {
 
 for (const [name, create] of [['cedar', cedarEngine], ['casbin', casbinEngine]] as const) describe(`${name} host`, () => {
   test('derives restrictions from both sources; denial never reads the claim body', async () => {
-    const f = fixture(); const host = knowledgeHost(await create(), f.facts);
-    expect(await host('owner', f.request, 100)).toEqual({ decision: true, content: 'Synthetic derived claim' });
+    const f = fixture(); const engine = await create(); const errors: string[] = [];
+    const host = knowledgeHost(async request => {
+      try { return await engine(request); }
+      catch (error) { errors.push(error instanceof Error ? error.stack ?? error.message : String(error)); throw error; }
+    }, f.facts);
+    const result = await host('owner', f.request, 100);
+    expect(errors).toEqual([]);
+    expect(result).toEqual({ decision: true, content: 'Synthetic derived claim' });
     expect(f.reads()).toBe(1);
     expect((await host('guest', { ...f.request, subject: { type: 'user', id: 'guest' } }, 100)).decision).toBe(false);
     expect(f.reads()).toBe(1);
