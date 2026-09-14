@@ -45,6 +45,10 @@ export const AgentSessionOpenInputSchema = z.strictObject({
 export type AgentSessionOpenInput = z.infer<typeof AgentSessionOpenInputSchema>;
 export const AgentReviewerSchema = z.enum(['human', 'delegated']);
 export type AgentReviewer = z.infer<typeof AgentReviewerSchema>;
+export const AgentModelSelectionSchema = z.strictObject({ model: z.string().min(1).max(256), effort: z.string().min(1).max(64).optional() });
+export type AgentModelSelection = z.infer<typeof AgentModelSelectionSchema>;
+export const AgentModelSchema = z.strictObject({ id: z.string().min(1).max(256), title: z.string().min(1).max(256), efforts: z.array(z.string().min(1).max(64)).max(32), defaultEffort: z.string().max(64).optional() });
+export type AgentModel = z.infer<typeof AgentModelSchema>;
 export const AgentOperationInputSchema = z.strictObject({
   operationId: id,
   text: z.string(),
@@ -53,6 +57,8 @@ export const AgentOperationInputSchema = z.strictObject({
   additionalContext: CompiledContextSchema.optional(),
   /** Omission retains human review. Providers reject unsupported selections. */
   reviewer: AgentReviewerSchema.optional(),
+  /** Explicit next-turn selection; unsupported providers reject before dispatch. */
+  modelSelection: AgentModelSelectionSchema.optional(),
 });
 export type AgentOperationInput = z.infer<typeof AgentOperationInputSchema>;
 export type AgentSteeringInput = AgentOperationInput;

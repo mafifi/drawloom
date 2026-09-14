@@ -4,6 +4,7 @@ name: Drawloom desktop
 description: A calm, capable place to do useful work with AI. Purposeful, familiar and quietly confident; work first, supporting detail on request. Journal design is maintained separately.
 colors:
   primary: "#2563eb"
+  effortAccent: "#8b5cf6"
   ink: "#262626"
   muted: "#666666"
   surface: "#ffffff"

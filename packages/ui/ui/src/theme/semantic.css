@@ -31,6 +31,8 @@
   --popover: var(--dl-white);
   --popover-foreground: var(--dl-neutral-800);
   --primary: var(--dl-blue-600);
+  --effort-fill-start: var(--dl-blue-400);
+  --effort-fill-end: var(--dl-purple-500);
   --primary-foreground: var(--dl-neutral-50);
   --secondary: var(--dl-neutral-100);
   --secondary-foreground: var(--dl-neutral-800);

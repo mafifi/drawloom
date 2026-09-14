@@ -2,6 +2,7 @@
   import { tick } from 'svelte';
   import { mentionToken } from './mention-token.js';
   import ComposerResources from './ComposerResources.svelte';
+  import CodexModelSelector from './CodexModelSelector.svelte';
   import {
     Alert,
     Button,
@@ -10,7 +11,6 @@
     Input,
     InputGroup,
     StatefulButton,
-    Select,
     DropdownMenu,
     ShieldIcon,
     HandIcon,
@@ -36,7 +36,13 @@
     if(token)vm.openPicker(token.kind,token);else vm.pickerOpen=false;
   }
   async function selected(){await tick();messageInput?.focus();if(tokenStart!==undefined)messageInput?.setSelectionRange(tokenStart,tokenStart);tokenStart=undefined;}
-  function openPicker(kind:'skill'|'context'){tokenStart=undefined;messageInput?.focus();vm.openPicker(kind);}
+  async function openAdd(){
+    if(vm.pickerOpen){vm.pickerOpen=false;messageInput?.focus();return;}
+    const start=messageInput?.selectionStart??vm.draft.length,end=messageInput?.selectionEnd??start;
+    const prefix=start>0&&!/\s/.test(vm.draft[start-1]!)?' ':'';
+    vm.draft=vm.draft.slice(0,start)+prefix+'@'+vm.draft.slice(end);
+    await tick();messageInput?.focus();messageInput?.setSelectionRange(start+prefix.length+1,start+prefix.length+1);updateToken();
+  }
   function typedReference(event: Event) {
     const input = event.currentTarget as HTMLTextAreaElement;
     vm.draft = input.value;
@@ -68,7 +74,7 @@
       <InputGroup.Root variant="filled" class="relative" bind:ref={anchor}>
           <InputGroup.Textarea
             id="message-draft"
-            class="min-h-20 max-h-60 px-3 pt-3"
+            class="min-h-20 max-h-60 px-3 pt-3 scroll-fade scroll-fade-2"
             placeholder="Ask or make a change…"
             disabled={!vm.canExecute}
             bind:value={vm.draft}
@@ -115,12 +121,13 @@
         </div>{/each}
       </Attachment.Group>{/if}
       <div class="flex w-full flex-wrap gap-2 px-3">
+        {#each vm.conversationContextIds as id}<Button variant="secondary" size="sm" title="Shares up to 12 completed cached messages, limited to 8,000 characters. No files or permissions are shared." aria-label={`Remove conversation ${vm.state?.conversations.find(c=>c.id===id)?.title??id}`} onclick={()=>vm.removeConversationContext(id)}>{vm.state?.conversations.find(c=>c.id===id)?.title??'Unavailable conversation'} · Recent context<CloseIcon aria-hidden="true" /></Button>{/each}
         {#each vm.selectedDiscoveries as selection}<Button variant="secondary" size="sm" aria-label={`Remove ${selection.name} from ${selection.origin}`} onclick={() => vm.removeDiscovery(selection.id)}>{selection.name} · {selection.origin}{selection.unavailable ? ' · unavailable' : ''}<CloseIcon aria-hidden="true" /></Button>{/each}
         {#each vm.contextIds as id}<Button variant="secondary" size="sm" aria-label={`Remove ${vm.contextLabel(id)}`} onclick={() => vm.toggleContext(id)}>{vm.contextLabel(id)}<CloseIcon aria-hidden="true" /></Button>{/each}
         {#each vm.selectedResources as resource}<Button variant="secondary" size="sm" aria-label={`Remove ${resource.title}`} onclick={() => vm.removeResource(resource.entryId, resource.resourceId)}>{resource.title} · {resource.source}<CloseIcon aria-hidden="true" /></Button>{/each}
       </div>
       {#if vm.state?.activeContext}<Collapsible.Root class="w-full px-3"><Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost" size="sm">Current app context</Button>{/snippet}</Collapsible.Trigger><Collapsible.Content><p class="whitespace-pre-wrap break-words text-sm text-muted-foreground">{vm.state.activeContext}</p></Collapsible.Content></Collapsible.Root>{/if}
-      <InputGroup.Addon align="block-end" class="gap-1 flex-wrap">
+      <InputGroup.Addon align="block-end" class="composer-toolbar gap-1 flex-nowrap">
         <Input
           class="hidden"
           aria-label="Choose attachments"
@@ -142,11 +149,8 @@
           pending={vm.importing}
           disabled={!vm.canExecute}
           pendingLabel="Importing attachments"
-          aria-label="Attach files"
-          onclick={() => fileInput?.click()}><PlusIcon aria-hidden="true" /></StatefulButton
-        >
-        <Button variant="ghost" disabled={!vm.canExecute} aria-label="Choose a skill" onclick={() => openPicker('skill')}>$ Skills</Button>
-        <Button variant="ghost" disabled={!vm.canExecute} aria-label="Choose integrations and context" onclick={() => openPicker('context')}>@ Context</Button>
+          aria-label="Add to message" title="Add files, skills or context"
+          onclick={()=>void openAdd()}><PlusIcon aria-hidden="true" /></StatefulButton>
         <div class="composer-spacer"></div>
         <DropdownMenu.Root>
           <DropdownMenu.Trigger>
@@ -154,7 +158,7 @@
               <StatefulButton {...props} variant="ghost" class="rounded-full" aria-label="Execution review"
                 disabled={vm.busy || Boolean(vm.state?.activeOperation)}
                 pending={vm.pendingCommand?.kind === 'set_reviewer'} pendingLabel="Saving review mode">
-                <ShieldIcon aria-hidden="true" />{vm.conversation?.reviewer === 'delegated' ? 'Approve for me' : 'Ask me'}
+                <ShieldIcon aria-hidden="true" /><span class="composer-review-label">{vm.conversation?.reviewer === 'delegated' ? 'Approve for me' : 'Ask me'}</span>
               </StatefulButton>
             {/snippet}
           </DropdownMenu.Trigger>
@@ -173,29 +177,9 @@
             </DropdownMenu.RadioGroup>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
-        <Select.Root
-          type="single"
-          value={vm.conversation?.provider ?? "synthetic"}
-          disabled={vm.busy || Boolean(vm.state?.activeOperation)}
-          onValueChange={(value) => {
-            if (value === "synthetic" || value === "codex")
-              void vm.create(vm.conversation?.workbenchId, value, 'provider');
-          }}
-        >
-          <Select.Trigger variant="ghost" aria-label="Agent provider"
-            >{vm.conversation?.provider === "codex"
-              ? "Codex"
-              : "Synthetic"}</Select.Trigger
-          >
-          <Select.Content
-            ><Select.Group
-              ><Select.Item value="synthetic" label="Synthetic" /><Select.Item
-                value="codex"
-                label="Codex"
-              /></Select.Group
-            ></Select.Content
-          >
-        </Select.Root>
+        {#if vm.conversation?.provider==='codex'}
+          <CodexModelSelector selection={vm.conversation.modelSelection} disabled={vm.busy||Boolean(vm.state?.activeOperation)} onSelect={selection=>{if(vm.conversation)void vm.command({kind:'set_model',conversationId:vm.conversation.id,...(selection?{selection}:{})});}} />
+        {/if}
         {#if vm.state?.activeOperation}<StatefulButton
             variant="ghost"
             size="icon"

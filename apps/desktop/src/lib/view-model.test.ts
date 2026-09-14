@@ -12,6 +12,19 @@ Bun.plugin({ name: 'desktop-view-model-tests', setup(build) {
 } });
 const { createDesktopViewModel } = await import('./view-model.svelte.js');
 const originalFetch = globalThis.fetch;
+test('sharing a conversation selects context without navigation or execution', async () => {
+  const initial=snapshot();
+  initial.conversations.push({...initial.conversations[0]!,id:'conversation-b',title:'Reference'});
+  const h=await harness(initial);
+  h.vm.draft='Use this reference';
+  h.vm.selectConversationContext('conversation-b');
+  expect(h.vm.state?.selectedId).toBe('conversation-a');
+  expect(h.vm.conversationContextIds).toEqual(['conversation-b']);
+  expect(h.commands).toEqual([]);
+  await h.vm.send();
+  expect(h.commands.find(c=>c.kind==='send')).toMatchObject({conversationContextIds:['conversation-b']});
+  expect(h.vm.conversationContextIds).toEqual([]);
+});
 test('settings returns to the prior destination without losing a draft', async () => {
   const h = await harness(); h.vm.primaryView = 'activity'; h.vm.draft = 'Keep this draft';
   h.vm.primaryView = 'settings'; h.vm.settingsSection = 'media'; h.vm.closeSettings();

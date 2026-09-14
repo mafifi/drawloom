@@ -32,6 +32,9 @@ import {
   createCodexToolBridge,
 } from "@drawloom/codex-agent";
 import { createSyntheticDriver } from "@drawloom/synthetic-agent";
+import { desktopModels } from './models.js';
+import { conversationContext } from './conversation-context.js';
+import { permitsModel } from '@drawloom/codex-agent';
 import { createLocalToolGateway } from "@drawloom/local-tools";
 import { createPluginRegistry } from "@drawloom/startup-plugins";
 import type { AgentSession } from "@drawloom/agent";
@@ -1131,6 +1134,14 @@ export async function createDesktopApplication(
         viewMount = undefined;
         await persist();
         await this.restore();
+      } else if(command.kind==='set_model') {
+        const conversation=project.conversations.find(c=>c.id===command.conversationId);
+        if(!conversation || conversation.provider!=='codex' || archiveBlocked(conversation.id))throw Error('Model selection unavailable');
+        if(command.selection && !permitsModel(await desktopModels(),command.selection))throw Error('Selected model unavailable');
+        if(archiveBlocked(conversation.id))throw Error('Model selection unavailable');
+        const previous=conversation.modelSelection;
+        if(command.selection)conversation.modelSelection=command.selection;else delete conversation.modelSelection;
+        try{await persist();}catch(error){if(previous)conversation.modelSelection=previous;else delete conversation.modelSelection;throw error;}
       } else if(command.kind==='rename_conversation') {
         const conversation=project.conversations.find(c=>c.id===command.conversationId);if(!conversation)throw Error('Conversation unavailable');
         const previous={title:conversation.title,manualTitle:conversation.manualTitle,metadataRevision:project.metadataRevision};conversation.title=command.title;conversation.manualTitle=command.title;project.metadataRevision++;
@@ -1235,6 +1246,7 @@ export async function createDesktopApplication(
             return a.content.text;
           });
           const selectedResources: NonNullable<HistoryEntry['resources']> = [];
+          context.push(...await conversationContext(history,project.conversations,conversation.id,command.conversationContextIds));
           for (const selection of command.resourceSelections) {
             const entry = await history.get(conversation.id, selection.entryId);
             const resource = entry?.resources?.find(r => r.id === selection.resourceId);
@@ -1259,6 +1271,7 @@ export async function createDesktopApplication(
           const input = {
             operationId: op,
             reviewer: conversation.reviewer,
+            ...(!state.active && conversation.modelSelection ? {modelSelection:conversation.modelSelection}:{}),
             text: [
               command.text,
               ...context.map(

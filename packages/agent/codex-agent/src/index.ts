@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { readCodexModels, permitsModel } from './models.js';
+export { readCodexModels, permitsModel } from './models.js';
 import { createCodexDiscovery } from './discovery.js';
 import { createCodexHistoryReader, nativeMessageId, type CaptureToolContent } from "./history.js";
 import {
@@ -652,12 +654,14 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               if (operation.attachments?.length && !options.imageInput) return reject("provider_rejected");
               starting = true;
               try {
+                if(operation.modelSelection && !permitsModel(await readCodexModels(rpc),operation.modelSelection)) return reject('provider_rejected','Selected model or reasoning is unavailable.');
                 const images = await Promise.all((operation.attachments ?? []).map(async asset => ({ type: "localImage", path: await options.imageInput!(asset) })));
                 const selected = catalog.resolve(operation.selections ?? []);
                 if (closed || !selected) return reject('invalid_state', 'Discovery changed or the selection is unavailable. Refresh and select again.');
                 used.add(operation.operationId);
                 const result = await rpc.request("turn/start", {
                   threadId,
+                  ...(operation.modelSelection ? { model:operation.modelSelection.model, ...(operation.modelSelection.effort?{effort:operation.modelSelection.effort}:{}) } : {}),
                   ...(nativeReview ? { approvalsReviewer: operation.reviewer === 'delegated' ? 'auto_review' : 'user' } : {}),
                   input: [
                     { type: "text", text: operation.text, text_elements: [] },
@@ -715,6 +719,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             },
             async steer(rawSteering) {
               const p = AgentOperationInputSchema.safeParse(rawSteering);
+              if (p.success && p.data.modelSelection) return reject('invalid_state', 'Model selection applies to a new turn only.');
               if (
                 !p.success ||
                 closed ||

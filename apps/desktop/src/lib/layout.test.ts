@@ -3,6 +3,18 @@ import { expect, test } from "bun:test";
 const source = async (name: string) =>
   Bun.file(new URL(name, import.meta.url)).text();
 
+test('composer keeps one toolbar and moves secondary entry points into Add', async () => {
+  const composer = await source('./Composer.svelte');
+  expect(composer).toContain('composer-toolbar gap-1 flex-nowrap');
+  expect(composer).toContain('aria-label="Add to message"');
+  expect(composer).toContain('onclick={()=>void openAdd()}');
+  expect(composer).toContain('<DiscoveryPicker');
+  expect(composer).not.toContain('aria-label="Agent provider"');
+  expect(composer).not.toContain('>$ Skills</Button>');
+  expect(composer).not.toContain('>@ Context</Button>');
+  expect(composer).toContain('oninput={typedReference}');
+});
+
 test('conversation actions share commands across context menu and inline controls', async () => {
   const row = await source('./ConversationNavItem.svelte');
   expect(row).toContain('<ContextMenu.Root>');

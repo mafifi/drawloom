@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import {AgentModelSelectionSchema} from '@drawloom/agent';
 import { AgentSessionSignalSchema, AgentApprovalResolutionSchema, AgentInputResolutionSchema, AgentReviewerSchema, DiscoveryEntrySchema, DiscoverySnapshotSchema, DiscoverySelectionSchema } from '@drawloom/agent';
 import { AssetSchema, JsonValueSchema } from '@drawloom/host';
 import { WorkbenchSchema, OperatorSnapshotSchema, OperatorCommandSchema } from '@drawloom/workbench';
@@ -20,7 +21,7 @@ export const DiscoveryAuthenticationSchema = DiscoverySelectionSchema.extend({ c
 export const ToolStartSchema = z.strictObject({ kind: z.literal('started'), invocationId: z.string().min(1), operationId: z.string().min(1).optional(), tool: z.string().min(1) });
 export const DirectoryProjectSchema = z.strictObject({ id, name: z.string().min(1).max(120), directory: z.string().min(1), device: z.string(), inode: z.string() });
 export type DirectoryProject = z.infer<typeof DirectoryProjectSchema>;
-export const ConversationSchema = z.strictObject({ id, title: z.string().max(120), manualTitle: z.string().min(1).max(120).optional(), archived: z.boolean().default(false), pinned: z.boolean().optional(), workbenchId: id, projectId: id.optional(), provider: z.enum(['synthetic', 'codex']), reviewer: AgentReviewerSchema.default('human') });
+export const ConversationSchema = z.strictObject({ id, title: z.string().max(120), manualTitle: z.string().min(1).max(120).optional(), archived: z.boolean().default(false), pinned: z.boolean().optional(), workbenchId: id, projectId: id.optional(), provider: z.enum(['synthetic', 'codex']), reviewer: AgentReviewerSchema.default('human'), modelSelection:AgentModelSelectionSchema.optional() });
 export const DesktopSnapshotSchema = z.strictObject({
   mediaPolicy: MediaPolicySnapshotSchema.default({revision:'initial',sources:[]}),
   workspace: z.string(), conversations: z.array(ConversationSchema), workbenches: z.array(WorkbenchSchema),
@@ -51,6 +52,7 @@ export const DesktopStateUpdateSchema = z.strictObject({
   sections: z.record(z.string(), z.unknown()), removed: z.array(z.string()),
 });
 export const DesktopCommandSchema = z.discriminatedUnion('kind', [
+  z.strictObject({kind:z.literal('set_model'),conversationId:id,selection:AgentModelSelectionSchema.optional()}),
   z.strictObject({ kind: z.literal('add_project'), directory: z.string().min(1).max(4096), name: z.string().min(1).max(120).optional() }),
   z.strictObject({ kind: z.literal('select_project'), projectId: id }),
   z.strictObject({ kind: z.literal('assign_project'), projectId: id, conversationId: id }),
@@ -61,7 +63,7 @@ export const DesktopCommandSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('set_conversation_pinned'), conversationId: id, pinned: z.boolean() }),
   z.strictObject({ kind: z.literal('restore_conversation'), conversationId: id }),
   z.strictObject({ kind: z.literal('set_reviewer'), conversationId: id, reviewer: AgentReviewerSchema }),
-  z.strictObject({ kind: z.literal('send'), conversationId: id, text: z.string().min(1).max(100000), attachmentKeys: z.array(id).max(16), contextArtifactIds: z.array(id).max(16), selections: z.array(DiscoverySelectionSchema).max(32).default([]), resourceSelections: z.array(z.strictObject({ entryId: id, resourceId: id })).max(16).default([]) }),
+  z.strictObject({ kind: z.literal('send'), conversationId: id, text: z.string().min(1).max(100000), attachmentKeys: z.array(id).max(16), contextArtifactIds: z.array(id).max(16), conversationContextIds: z.array(id).max(4).default([]), selections: z.array(DiscoverySelectionSchema).max(32).default([]), resourceSelections: z.array(z.strictObject({ entryId: id, resourceId: id })).max(16).default([]) }),
   z.strictObject({ kind: z.literal('stop'), conversationId: id }),
   z.strictObject({ kind: z.literal('operator'), conversationId: id, workbenchId: id, command: OperatorCommandSchema }),
   z.strictObject({ kind: z.literal('approval'), conversationId: id, resolution: AgentApprovalResolutionSchema }),

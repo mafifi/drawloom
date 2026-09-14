@@ -55,3 +55,5 @@ export { default as ShieldIcon } from "@lucide/svelte/icons/shield-check";
 export { default as HandIcon } from "@lucide/svelte/icons/hand";
 export { default as ChevronRightIcon } from "@lucide/svelte/icons/chevron-right";
 export * as InputGroup from './components/input-group/index.js';
+export {default as ModelSelector, type ModelOption} from './components/model-selector/model-selector.svelte';
+export {default as DownloadProgress} from './components/download-progress/download-progress.svelte';

@@ -588,3 +588,13 @@ and relationships for work Drawloom cannot control.
 
 This would duplicate already-safe signal payloads and make agent execution own
 observability projection decisions.
+# Explicit next-turn model selection
+
+`AgentOperationInput.modelSelection` optionally supplies a model identifier and
+reasoning effort. Omission preserves the provider default. Codex validates against
+its bounded native model catalogue before `turn/start`; unsupported choices fail
+without starting a turn. This does not change the native thread or reviewer.
+Steering cannot switch models during an active turn. Synthetic rejects explicit
+model selection. The shared discovery conformance tests unsupported selection
+against both providers; Codex-specific tests check the same native thread and
+zero turn starts for an invalid effort.

@@ -44,6 +44,7 @@ export async function agentDiscoveryConformance(driver: AgentDriver): Promise<vo
   check(opened.status==='ok','discovery session opens');
   const session=opened.value;session.signals();
   try {
+    check((await session.execute({operationId:'unknown-model',text:'',modelSelection:{model:'drawloom-nonexistent-model'}})).status==='rejected','unknown or unsupported model is rejected before execution');
     check((await session.execute({operationId:'unknown-selection',text:'',selections:[{id:'unknown',revision:'unknown'}]})).status==='rejected','unsupported or unknown selection rejected');
     check((await session.execute({operationId:'forged-selection',text:'',selections:[{id:'unknown',revision:'unknown',path:'/untrusted/SKILL.md'}]} as unknown as Parameters<AgentSession['execute']>[0])).status==='rejected','selection cannot supply native path');
     if(session.discovery) {

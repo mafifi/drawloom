@@ -14,12 +14,13 @@ import { initializeUiTelemetry, telemetryFetch as fetch } from './telemetry.js';
 type Discovery = DesktopCatalogue['entries'][number];
 type Attachment = { id: string; name: string; size: number; mediaType: string; status: 'pending' | 'ready' | 'failed'; error: string; asset?: Asset };
 type SelectedResource = { entryId: string; resourceId: string; title: string; source: string };
-type SavedDraft = { text: string; attachments: Attachment[]; contextIds: string[]; selections: Discovery[]; resources: SelectedResource[] };
+type SavedDraft = { text: string; attachments: Attachment[]; contextIds: string[]; conversationContextIds: string[]; selections: Discovery[]; resources: SelectedResource[] };
 // Local draft metadata is untrusted and contains references only, never File data.
 const DraftReferencesSchema = z.strictObject({
   version: z.literal(1),
   attachments: z.array(z.strictObject({ id: z.string(), name: z.string(), size: z.number().nonnegative(), mediaType: z.string(), asset: AssetSchema.optional() })).max(64),
   contextIds: z.array(z.string()).max(64),
+  conversationContextIds: z.array(z.string()).max(4).default([]),
   selections: z.array(DesktopCatalogueSchema.shape.entries.element.pick({ id: true, revision: true, name: true, origin: true, kind: true, scope: true })).max(64),
   resources: z.array(z.strictObject({ entryId: z.string(), resourceId: z.string(), title: z.string(), source: z.string() })).max(64),
 });
@@ -47,6 +48,7 @@ export function createDesktopViewModel() {
   let settingsSection = $state<'general' | 'workbench' | 'permissions' | 'media' | 'integrations'>('general');
   let selectedWorkbenchId = $state('');
   let attachmentKeys = $state<string[]>([]), contextIds = $state<string[]>([]);
+  let conversationContextIds=$state<string[]>([]);
   let attachmentNames = $state<Record<string, string>>({});
   let attachments = $state<Attachment[]>([]), selections = $state<Discovery[]>([]);
   const drafts = new Map<string, SavedDraft>(), files = new Map<string, File>();
@@ -63,7 +65,7 @@ export function createDesktopViewModel() {
   let catalogueLimit = $state(discoveryPageSize), pickerLimit = $state(discoveryPageSize), nativeResourceLimit = $state(discoveryPageSize);
   let contributionLimits = $state<Record<string, number>>({});
   const catalogueMatches = $derived(catalogue?.entries.filter(entry => [entry.name, entry.description, entry.origin, entry.kind, entry.scope, entry.ownerId].join(' ').toLowerCase().includes(catalogueQuery.toLowerCase())) ?? []);
-  const pickerMatches = $derived(catalogue?.entries.filter(entry => (pickerKind === 'skill' ? entry.kind === 'skill' : entry.kind === 'app' || entry.kind === 'plugin') && [entry.name, entry.description, entry.origin].join(' ').toLowerCase().includes(pickerQuery.toLowerCase())) ?? []);
+  const pickerMatches = $derived(catalogue?.entries.filter(entry => (pickerKind === 'skill' ? entry.kind === 'skill' : ['app','plugin','skill'].includes(entry.kind)) && [entry.name, entry.description, entry.origin].join(' ').toLowerCase().includes(pickerQuery.toLowerCase())) ?? []);
   const pickerDocuments = $derived(pickerKind === 'context' ? state?.operator.artifacts.filter(item => item.content.kind === 'text' && contextLabel(item.id).toLowerCase().includes(pickerQuery.toLowerCase())) ?? [] : []);
   const pickerOptions = $derived([
     ...pickerMatches.slice(0, pickerLimit).map(entry => ({ id: 'discovery:' + entry.id, kind: 'discovery' as const, targetId: entry.id, selectable: entry.selectable && entry.availability === 'available' && entry.scope !== 'required' })),
@@ -107,10 +109,11 @@ export function createDesktopViewModel() {
   function persistReferences(id: string, saved: SavedDraft) {
     try {
       const key = 'drawloom-composer-references:' + id;
-      if (!saved.attachments.length && !saved.contextIds.length && !saved.selections.length && !saved.resources.length) { localStorage.removeItem(key); return; }
+      if (!saved.attachments.length && !saved.contextIds.length && !saved.conversationContextIds.length && !saved.selections.length && !saved.resources.length) { localStorage.removeItem(key); return; }
       localStorage.setItem(key, JSON.stringify({ version: 1,
         attachments: saved.attachments.map(({ id, name, size, mediaType, asset }) => ({ id, name, size, mediaType, ...(asset ? { asset } : {}) })),
         contextIds: saved.contextIds,
+        conversationContextIds: saved.conversationContextIds,
         selections: saved.selections.map(({ id, revision, name, origin, kind, scope }) => ({ id, revision, name, origin, kind, scope })), resources: saved.resources,
       }));
     } catch { error = 'Draft references could not be saved on this device.'; }
@@ -119,13 +122,13 @@ export function createDesktopViewModel() {
     try {
       const raw = localStorage.getItem('drawloom-composer-references:' + id); if (!raw) return;
       const saved = DraftReferencesSchema.parse(JSON.parse(raw));
-      return { text: localStorage.getItem('drawloom-composer:' + id) ?? '', contextIds: saved.contextIds, resources: saved.resources,
+      return { text: localStorage.getItem('drawloom-composer:' + id) ?? '', contextIds: saved.contextIds, conversationContextIds:saved.conversationContextIds, resources: saved.resources,
         selections: saved.selections.map(entry => ({ ...entry, description: '', availability: 'unverified', selectable: false })),
         attachments: saved.attachments.map(item => ({ ...item, status: item.asset ? 'ready' : 'failed', error: item.asset ? '' : 'The original file is no longer attached. Remove this item and choose the file again.' })),
       };
     } catch { error = 'Saved draft references could not be restored. The message text is retained.'; return; }
   }
-  function saveDraft(id: string) { const saved = { text: draft, attachments, contextIds, selections, resources: selectedResources }; drafts.set(id, saved); persistReferences(id, saved); }
+  function saveDraft(id: string) { const saved = { text: draft, attachments, contextIds, conversationContextIds, selections, resources: selectedResources }; drafts.set(id, saved); persistReferences(id, saved); }
   function saveCurrentReferences() { if (state?.selectedId) saveDraft(state.selectedId); }
   function setDraft(text: string) { draftVersion++; draft = text; if (state?.selectedId) localStorage.setItem('drawloom-composer:' + state.selectedId, text); }
   async function refreshCatalogue(force = false, cursor?: string, poll = false) {
@@ -176,6 +179,7 @@ export function createDesktopViewModel() {
       draft = saved?.text ?? localStorage.getItem('drawloom-composer:' + next.selectedId) ?? '';
       attachments = saved?.attachments ?? []; attachmentKeys = attachments.flatMap(item => item.asset ? [item.asset.key] : []);
       contextIds = saved?.contextIds ?? []; selections = saved?.selections ?? []; selectedResources = saved?.resources ?? [];
+      conversationContextIds=saved?.conversationContextIds??[];
       draftVersion++; attachmentVersion++; contextVersion++; selectionVersion++;
       resourceEpoch++; resourceVersion++; resourceOverrides = {}; resourcePending = {}; resourceErrors = {}; resourceListings = {}; openedResources = [];
       workspaceResource = undefined;
@@ -362,7 +366,7 @@ export function createDesktopViewModel() {
     get selectedDiscoveries() { return selectedDiscoveries; },
     get pickerOpen() { return pickerOpen; }, set pickerOpen(v: boolean) { pickerOpen = v; if (!v) pickerToken = undefined; },
     get pickerKind() { return pickerKind; }, get pickerQuery() { return pickerQuery; }, set pickerQuery(v: string) { pickerQuery = v; pickerActiveId = ''; pickerLimit = discoveryPageSize; nativeResourceLimit = discoveryPageSize; }, openPicker,
-    get pickerActiveId() { return pickerActiveId; }, set pickerActiveId(v: string) { if (!v || ['action:attach','action:browse','action:more','action:apps'].includes(v) || pickerOptions.some(option => option.id === v && option.selectable)) pickerActiveId = v; },
+    get pickerActiveId() { return pickerActiveId; }, set pickerActiveId(v: string) { if (!v || ['action:attach','action:browse','action:more','action:apps'].includes(v) || (v.startsWith('conversation:')&&state?.conversations.some(c=>c.id===v.slice(13)&&c.id!==state?.selectedId)) || pickerOptions.some(option => option.id === v && option.selectable)) pickerActiveId = v; },
     movePicker(delta: number) {
       const available = pickerOptions.filter(option => option.selectable);
       if (!available.length) return;
@@ -405,6 +409,13 @@ export function createDesktopViewModel() {
     openWorkbench(id: string) { if (!state?.workbenches.some(item => item.id === id)) return; selectedWorkbenchId = id; primaryView = 'workbench'; detailsOpen = false; },
     get contextOpen() { return contextOpen; }, set contextOpen(v: boolean) { contextOpen = v; },
     get attachmentKeys() { return attachmentKeys; }, get contextIds() { return contextIds; },
+    get conversationContextIds(){return conversationContextIds;},
+    selectConversationContext(id:string){
+      if(!state?.conversations.some(c=>c.id===id&&id!==state?.selectedId))return;
+      if(!conversationContextIds.includes(id)){if(conversationContextIds.length>=4){error='Choose at most four conversations.';return;}conversationContextIds=[...conversationContextIds,id];contextVersion++;}
+      consumePickerToken();saveCurrentReferences();
+    },
+    removeConversationContext(id:string){conversationContextIds=conversationContextIds.filter(value=>value!==id);contextVersion++;saveCurrentReferences();},
     attachmentName(key: string) {
       return attachmentNames[key]
         ?? state?.operator.artifacts.find(item => item.content.kind === 'asset' && item.content.asset.key === key)?.title
@@ -460,10 +471,10 @@ export function createDesktopViewModel() {
       if (!state || !canExecute || !draft.trim() || (conversation?.provider === 'synthetic' && conversation.workbenchId !== 'text')) return;
       if (attachments.some(item => item.status !== 'ready') || pickerOpen) return;
       const submitted = { draftVersion, attachmentVersion, contextVersion, selectionVersion, resourceVersion, conversationId: state.selectedId };
-      if (await command({ kind: 'send', conversationId: submitted.conversationId, text: draft, attachmentKeys: [...attachmentKeys], contextArtifactIds: [...contextIds], selections: selections.map(({ id, revision }) => ({ id, revision })), resourceSelections: selectedResources.map(({ entryId, resourceId }) => ({ entryId, resourceId })) })) {
+      if (await command({ kind: 'send', conversationId: submitted.conversationId, text: draft, attachmentKeys: [...attachmentKeys], contextArtifactIds: [...contextIds], conversationContextIds:[...conversationContextIds], selections: selections.map(({ id, revision }) => ({ id, revision })), resourceSelections: selectedResources.map(({ entryId, resourceId }) => ({ entryId, resourceId })) })) {
         if (draftVersion === submitted.draftVersion) { draft = ''; localStorage.removeItem('drawloom-composer:' + submitted.conversationId); }
         if (attachmentVersion === submitted.attachmentVersion) { attachmentKeys = []; for (const item of attachments) files.delete(item.id); attachments = []; }
-        if (contextVersion === submitted.contextVersion) contextIds = [];
+        if (contextVersion === submitted.contextVersion) {contextIds = [];conversationContextIds=[];}
         if (selectionVersion === submitted.selectionVersion) selections = [];
         if (resourceVersion === submitted.resourceVersion) selectedResources = [];
         saveCurrentReferences();

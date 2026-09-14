@@ -1,4 +1,5 @@
 import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
+import {desktopModels} from './models.js';
 import { extname, resolve, sep } from 'node:path';
 import { lstat, realpath } from 'node:fs/promises';
 import { ImportSchema, ResourceReadSchema, ResourceOpenSchema, DiscoveryResourceReadSchema, DiscoveryAuthenticationSchema } from '../src/lib/protocol.js';
@@ -131,6 +132,7 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
           const update = await next;
           return update ? json(update) : new Response(null, { status: 204, headers: secure });
         }
+        if(url.pathname==='/api/models' && request.method==='GET')return json({models:await desktopModels()});
         if ((url.pathname === '/api/history' || url.pathname === '/api/history/changes') && request.method === 'GET') {
           const id = url.searchParams.get('conversationId') ?? '';
           const limit = url.searchParams.has('limit') ? { limit: Number(url.searchParams.get('limit')) } : {};

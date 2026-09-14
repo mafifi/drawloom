@@ -80,7 +80,7 @@
     >
   </header>
   <Separator />
-  <div class="conversation-scroll" bind:this={scroll} aria-live="polite">
+  <div class="conversation-scroll scroll-fade scroll-fade-4" bind:this={scroll} aria-live="polite">
     {#if vm.conversation && !vm.conversation.projectId}
       <div class="flex flex-col items-start gap-3 py-4">
         <p>This saved conversation has no project. Select a project to continue; its history remains available.</p>

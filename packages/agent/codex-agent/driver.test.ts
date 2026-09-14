@@ -6,6 +6,15 @@ import { defineTool } from "@drawloom/tools";
 import { createLocalToolGateway } from "../../tools/local-tools/src/index.js";
 import { z } from "zod";
 import { codexAgentFixture } from "../../../scripts/agent-conformance-fixtures.mjs";
+test('explicit model selection applies to the same native thread and rejects unsupported effort',async()=>{
+  const f=recorded();const opened=await f.driver.openSession({sessionId:'models',context:{text:''},tools:{id:'none',tools:[]}});if(opened.status!=='ok')throw Error();
+  const s=opened.value;s.signals();
+  expect((await s.execute({operationId:'bad',text:'No call',modelSelection:{model:'small-model',effort:'high'}})).status).toBe('rejected');
+  expect(f.requests.filter(r=>r.method==='turn/start')).toHaveLength(0);
+  expect((await s.execute({operationId:'good',text:'One call',modelSelection:{model:'small-model',effort:'low'}})).status).toBe('ok');
+  expect(f.requests.find(r=>r.method==='turn/start')?.params).toMatchObject({threadId:'private-thread',model:'small-model',effort:'low'});
+  expect(f.requests.filter(r=>r.method==='thread/start')).toHaveLength(1);await s.close();
+});
 test('Codex bridge preserves standard returned media beside canonical typed output',async()=>{
   const content=[{type:'resource_link' as const,uri:'reference://sample',name:'Sample'},{type:'image' as const,data:'AA==',mimeType:'image/png'}];
   const gateway=createLocalToolGateway({tools:[defineTool({name:'rich',description:'Rich output',input:z.string(),output:z.string(),execute:value=>value,renderContent:()=>content})],policy:()=>true,evidence:{record:async()=>{}},nextInvocationId:()=> 'one'});
@@ -315,6 +324,7 @@ export function recorded(options: { archiveOnClose?: boolean } = {}) {
     async request(method, params) {
       requests.push({ method, params });
       if (method === "initialize") return { userAgent: "codex/0.153.4" };
+      if (method === 'model/list') return {data:[{model:'small-model',displayName:'Small model',supportedReasoningEfforts:[{reasoningEffort:'low'}]}],nextCursor:null};
       if (method === "thread/start" || method === "thread/resume")
         return { thread: { id: "private-thread" }, approvalsReviewer: 'user' };
       if (method === "turn/start") return { turn: { id: "private-turn" } };

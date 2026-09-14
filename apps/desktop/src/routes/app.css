@@ -13,6 +13,27 @@
   a:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
 }
 @layer components {
+  .composer { container-type: inline-size; }
+  .composer-toolbar > button { flex-shrink: 0; }
+  .composer-toolbar > [data-model-selector-trigger] { flex-shrink: 1; min-width: 0; }
+  @container (max-width: 480px) {
+    .composer-review-label, .composer-toolbar [data-model-effort-label] { display: none; }
+  }
+  @container (max-width: 340px) {
+    .composer-toolbar > [data-model-selector-trigger] { padding-inline: 4px; gap: 4px; }
+  }
+  [data-slot="sidebar-inner"] {
+    background: color-mix(in srgb, var(--sidebar) 85%, transparent);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    [data-slot="sidebar-inner"] { background: var(--sidebar); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  }
+  @supports not (animation-timeline: scroll()) {
+    /* Keep edges readable when the engine cannot track scroll position. */
+    .scroll-fade { --scroll-fade-mask: none; }
+  }
   .app-shell { display: grid; grid-template-columns: minmax(0, 1fr); height: 100dvh; flex: 1; min-width: 0; overflow: hidden; }
   .app-shell.with-details { grid-template-columns: minmax(0, 1fr) var(--workspace-width, 360px); }
   .app-shell.workspace-expanded { grid-template-columns: minmax(0, 1fr); }

@@ -1,5 +1,20 @@
 # Desktop host boundary
 
+## Explicit conversation context
+
+The authenticated `send` command accepts optional `conversationContextIds`
+(default empty, maximum four). The host resolves these against its registered
+conversations, rejects the destination itself or missing sources, and reads only
+the latest twelve locally cached history entries per source. Only completed
+user/assistant text is included, bounded to 8,000 text characters per source,
+with conversation and entry identities. Empty usable excerpts fail explicitly.
+The excerpt is untrusted user reference material, not instructions. Sharing
+does not navigate, resume another native session, import older history, attach
+source assets, or grant source tools/files. The current local-owner host permits
+explicit selection across projects; this is not an enterprise sharing policy.
+
+## Transport
+
 The public app composes providers. Its authenticated same-origin loopback HTTP
 channel is the only UI command ingress; cookies are host-only, HttpOnly and
 SameSite=Strict. Mutations require the exact Origin and JSON content type, except
@@ -184,3 +199,16 @@ a media inspector with output alternatives challenge the same contract. Their
 approval rules, group membership, accounting and recovery transitions stay with
 their controllers. Public conformance validates references and comparison/review
 presentation for both shapes; the UI never interprets product operation IDs.
+# Model selection and download presentation
+
+Authenticated `GET /api/models` returns bounded Codex model metadata, not sessions
+or credentials. Discovery starts no conversation and invokes no model. The
+`set_model` command persists an optional model/effort choice on the existing
+conversation, rejects unavailable choices and changes during execution, and
+leaves its project, reviewer and native session unchanged.
+
+The composer and Settings use the same shared selector: effort first, then a
+searchable model list. Fixed-effort assessment and local embeddings use the model
+list directly. Integrations remain separate. The MLX progress bar represents the
+current file's received/expected bytes, not an invented installation percentage;
+runtime installation and verification remain explicit stages with cancellation.

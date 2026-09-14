@@ -4,6 +4,7 @@
   import DiscoveryInventory from './DiscoveryInventory.svelte';
   import Projects from './Projects.svelte';
   import Knowledge from './Knowledge.svelte';
+  import CodexModelSelector from './CodexModelSelector.svelte';
   import WorkflowRuns from './WorkflowRuns.svelte';
   import NavigationLanding from './NavigationLanding.svelte';
   import ProjectActivitySummary from './ProjectActivitySummary.svelte';
@@ -50,7 +51,7 @@
     {#if vm.primaryView !== 'settings'}<Button variant="ghost" aria-label="← Back to conversation" onclick={() => { vm.primaryView = 'conversation'; }}><ChevronRightIcon class="size-4 rotate-180" /><span class="hidden sm:inline">Back to conversation</span></Button>{/if}
   </header>
   <Separator />
-  <div class="primary-view-scroll">
+  <div class="primary-view-scroll scroll-fade scroll-fade-4">
   {#if vm.primaryView === 'plugins'}
     <div class="primary-view-content"><DiscoveryInventory {vm} /></div>
   {:else if vm.primaryView === 'projects'}
@@ -69,6 +70,10 @@
       {#if vm.settingsSection === 'general'}
       <section class="settings-section">
       <h2>Local profile</h2><p class="text-muted-foreground">Drawloom runs locally. Agent sign-in is managed separately by its provider.</p>
+      {#if vm.conversation?.provider==='codex'}
+        <h2>Conversation model</h2><p class="text-sm text-muted-foreground">Applies to the next turn in {vm.conversation.title}.</p>
+        <div class="w-fit"><CodexModelSelector selection={vm.conversation.modelSelection} disabled={vm.busy||Boolean(vm.state?.activeOperation)} onSelect={selection=>{if(vm.conversation)void vm.command({kind:'set_model',conversationId:vm.conversation.id,...(selection?{selection}:{})});}} /></div>
+      {/if}
       <h2>Project</h2>
       <p class="break-all text-muted-foreground">{vm.conversationProject?.directory ?? 'Select a project to use working files.'}</p>
       </section>
@@ -128,6 +133,10 @@
       </section>
       {/if}
       {#if vm.settingsSection === 'integrations'}
+      <section class="settings-section">
+        <h2>Codex</h2><p class="text-muted-foreground">Connect through the Codex app on this Mac. Sign-in and account access are managed there.</p>
+        <p class="text-sm text-muted-foreground">Choose a model and effort in your conversation. Switching to another agent is not available yet.</p>
+      </section>
       <section class="settings-section">
       <h2>Plugins</h2><p class="text-muted-foreground">Inspect installed plugins and configure their connections.</p><Button variant="outline" class="w-fit" onclick={() => vm.primaryView = 'plugins'}>Open Plugins</Button>
       </section>

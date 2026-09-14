@@ -25,14 +25,24 @@ let Marker;
 let Message;
 let Spinner;
 let Button;
+let DownloadProgress;
 
 beforeAll(async () => {
-  ({ Attachment, Bubble, Marker, Message, Spinner, Button } = await import("@drawloom/ui"));
+  ({ Attachment, Bubble, Marker, Message, Spinner, Button, DownloadProgress } = await import("@drawloom/ui"));
 });
 
 const children = (text) => createRawSnippet(() => ({ render: () => text }));
 
 describe("conversation primitive public boundary", () => {
+  test('download progress exposes measured current-file bytes and bounded accessible progress',()=>{
+    const html=render(DownloadProgress,{props:{received:524288,total:1048576,label:'Weights file'}}).body;
+    expect(html).toContain('role="progressbar"');
+    expect(html).toContain('aria-valuenow="50"');
+    expect(html).toContain('aria-label="Weights file"');
+    expect(html).toContain('0.5 / 1.0 MiB');
+    expect(render(DownloadProgress,{props:{received:200,total:100}}).body).toContain('aria-valuenow="100"');
+    expect(render(DownloadProgress,{props:{received:0,total:0}}).body).not.toContain('aria-valuenow=');
+  });
   test('semantic body sizes coexist with foreground colours and permit consumer size overrides',()=>{
     const coloured=render(Message.Root,{props:{class:'text-primary',children:children('Text')}}).body;
     expect(coloured).toContain('text-body');
