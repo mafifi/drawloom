@@ -18,3 +18,12 @@ packages/examples/knowledge-evaluation/app.html
 spikes/adr-0009-publishing/public/media/
 publishing/.generated/
 publishing/.placeholder-artifact/
+
+# Reproducible local architecture reading atlas.
+docs/reference/generated/repository-atlas/
+
+# Archify renderings and browser reports are rebuilt from retained JSON specs.
+docs/reference/generated/
+docs/reference/authorization-survey/*.html
+docs/reference/harness-workbench-survey/*.html
+docs/reference/knowledge-memory-survey/*.html
