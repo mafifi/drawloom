@@ -6,6 +6,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const directory = dirname(fileURLToPath(import.meta.url));
+const evidence = resolve(directory, '../evidence/surveys/knowledge-memory-survey');
 const manifest = JSON.parse(readFileSync(resolve(directory, "sources.json"), "utf8"));
 const visualReview = JSON.parse(readFileSync(resolve(directory, "visual-review.json"), "utf8"));
 const repositories = new Map(
@@ -58,12 +59,12 @@ for (const file of readdirSync(directory).filter((name) => name.endsWith(".md"))
   }
 }
 
-for (const file of readdirSync(directory).filter((name) => name.endsWith(".delivery.json"))) {
+for (const file of readdirSync(evidence).filter((name) => name.endsWith(".delivery.json"))) {
   const stem = file.slice(0, -".delivery.json".length);
-  const receipt = JSON.parse(readFileSync(resolve(directory, file), "utf8"));
-  const browser = JSON.parse(readFileSync(resolve(directory, `${stem}.visual-check.json`), "utf8"));
+  const receipt = JSON.parse(readFileSync(resolve(evidence, file), "utf8"));
+  const browser = JSON.parse(readFileSync(resolve(evidence, `${stem}.visual-check.json`), "utf8"));
   for (const [kind, suffix] of [["specification", ".architecture.json"], ["artifact", ".html"]]) {
-    const bytes = readFileSync(resolve(directory, stem + suffix));
+    const bytes = readFileSync(resolve(kind === 'specification' ? directory : evidence, stem + suffix));
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     if (receipt[kind]?.sha256 !== sha256 || receipt[kind]?.bytes !== bytes.length) failures.push(`${file}: stale ${kind} receipt`);
   }

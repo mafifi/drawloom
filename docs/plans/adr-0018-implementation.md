@@ -1,5 +1,8 @@
 # ADR 0018 implementation
 
+> Naming normalized on 2026-09-14 to `org.drawloom`; original delivery dates and
+> outcomes remain unchanged.
+
 Status: completed through the [completion plan](adr-0018-completion.md).
 ADR 0018 was accepted on 2026-09-10. This document preserves the original delivery
 plan; current contracts and limitations live in the ADR and its evidence record.
@@ -8,7 +11,7 @@ plan; current contracts and limitations live in the ADR and its evidence record.
 
 Implement Agent Plugins 1.0.0 loading in public Drawloom and migrate the existing
 private video workbench. Standard skills/MCP packages need no Drawloom extension.
-Enhanced packages may declare a trusted backend under `io.github.mafifi.drawloom`.
+Enhanced packages may declare a trusted backend under `org.drawloom`.
 UI communication stays MCP Apps. No proprietary code, prompts or fixtures enter
 the public repository. No marketplace, hot replacement, paid media generation,
 model downloads, production changes or new browser capability bridge.

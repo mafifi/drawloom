@@ -7,7 +7,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = dirname(fileURLToPath(import.meta.url));
-const generated = resolve(root, '../generated/evaluation-survey');
+const generated = resolve(root, '../evidence/surveys/evaluation-survey');
 const development = process.env.DRAWLOOM_SURVEY_CHECKOUTS || '/Users/afifim/Development';
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const git = (directory, ...args) => execFileSync('git', ['-C', directory, ...args], { encoding: 'utf8' }).trim();
@@ -21,7 +21,7 @@ for (const filename of readdirSync(root).filter(name => name.endsWith('.architec
   const name = filename.replace('.architecture.json', '');
   const source = readFileSync(resolve(root, filename));
   const specification = JSON.parse(source);
-  const delivery = JSON.parse(readFileSync(resolve(root, `${name}.delivery.json`)));
+  const delivery = JSON.parse(readFileSync(resolve(generated, `${name}.delivery.json`)));
   const artifact = readFileSync(resolve(generated, `${name}.html`));
   const browser = JSON.parse(readFileSync(resolve(generated, `${name}.visual-check.json`)));
   assert.equal(delivery.ok, true, name);

@@ -6,7 +6,7 @@ accepted in [ADR 0023](../../adr/0023-knowledge-memory-authorization-boundaries.
 the experimental profile is not adopted core policy.
 [Results and measurements](../../../knowledge/evidence/adr-0023-authorization.md).
 
-[Open the Archify boundary map](boundary.html). It illustrates the experiment's
+[Open the Archify boundary map](../evidence/surveys/authorization-survey/boundary.html). It illustrates the experiment's
 responsibilities, not deployed services or a source-level map of the whole repos.
 
 ## What the standards supply

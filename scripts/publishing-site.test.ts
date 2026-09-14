@@ -4,6 +4,16 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
 import {articleMetadata} from '../publishing/site/src/article-metadata';
+import {DrawloomPackageExtensionJsonSchema} from '../packages/plugins/plugins/src/package';
+
+test('publishing and OAuth share the canonical root domain', () => {
+  const config = readFileSync('publishing/site/astro.config.mjs', 'utf8');
+  expect(config).toContain("site: 'https://drawloom.org'");
+  expect(config).toContain("base: '/'");
+  const metadata = JSON.parse(readFileSync('publishing/site/public/oauth/client.json', 'utf8'));
+  expect(metadata.client_id).toBe('https://drawloom.org/oauth/client.json');
+  expect(metadata.client_uri).toBe('https://drawloom.org/');
+});
 
 test('article metadata defaults to private and validates publication and media boundaries', () => {
   const article = {title: 'Title', description: 'Description'};
@@ -104,24 +114,42 @@ test('production excludes draft routes and media; explicit preview renders acces
       const [stdout, stderr, status] = await Promise.all([new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited]);
       expect(status, stdout + stderr).toBe(0);
       const files = readdirSync(output, {recursive: true}).map(String);
+      for (const page of files.filter(file => file.endsWith('.html'))) {
+        const html = readFileSync(join(output, page), 'utf8');
+        for (const match of html.matchAll(/(?:href|src|poster)="([^"]+)"/g)) {
+          const target = new URL(match[1]!, `https://drawloom.org/${page}`);
+          if (target.origin !== 'https://drawloom.org') continue;
+          const path = decodeURIComponent(target.pathname);
+          const local = join(output, path.endsWith('/') ? `${path}index.html` : path);
+          expect(existsSync(local), `${page} references missing ${target.pathname}`).toBe(true);
+        }
+      }
+      for (const stylesheet of files.filter(file => file.endsWith('.css'))) {
+        for (const match of readFileSync(join(output, stylesheet), 'utf8').matchAll(/url\(["']?(\/[^"')]+)["']?\)/g)) {
+          expect(existsSync(join(output, match[1]!)), `${stylesheet} references missing ${match[1]}`).toBe(true);
+        }
+      }
       const home = readFileSync(join(output, 'index.html'), 'utf8');
+      const schema = JSON.parse(readFileSync(join(output, 'schemas/1.0.0/plugin-extension.schema.json'), 'utf8'));
+      expect(schema).toEqual(DrawloomPackageExtensionJsonSchema);
       if (!preview) {
+        expect(home).toContain('href="https://drawloom.org/"');
         expect(home).toContain('Build AI systems<br');
         expect(home).toContain('people can understand<br');
         expect(home).toContain('id="decision-map"');
-        expect(home).toContain('/drawloom/artwork/synaptic-shuttle/hero.png');
-        expect(home).toContain('/drawloom/artwork/synaptic-shuttle/logo.svg');
-        expect(home).not.toContain('/drawloom/artwork/synaptic-shuttle/logo.png');
+        expect(home).toContain('/artwork/synaptic-shuttle/hero.png');
+        expect(home).toContain('/artwork/synaptic-shuttle/logo.svg');
+        expect(home).not.toContain('/artwork/synaptic-shuttle/logo.png');
         expect(home).toContain('<svg class="decision-map"');
         expect(home).toContain('viewBox="0 0 1672 941"');
         expect(home).toContain('role="group"');
         expect(home).not.toContain('role="img" aria-labelledby="decision-map-title decision-map-description"');
-        expect(home).toContain('/drawloom/artwork/synaptic-shuttle/decision-map-transparent.png');
+        expect(home).toContain('/artwork/synaptic-shuttle/decision-map-transparent.png');
         expect(home.match(/class="decision-map-link"/g)).toHaveLength(6);
         expect(home).toContain('aria-label="Explore Principles"');
         expect(home).toContain('>Principles</text>');
         expect(home).toContain('>What we care about</text>');
-        expect(home).toContain('/drawloom/articles/a-place-to-do-the-work/');
+        expect(home).toContain('/articles/a-place-to-do-the-work/');
         expect(home).not.toContain('<astro-island');
         expect(home).not.toContain('workbench-example');
         expect(files.some((file) => file.includes('workbench-example'))).toBe(false);
@@ -139,7 +167,7 @@ test('production excludes draft routes and media; explicit preview renders acces
         const article = readFileSync(join(output, 'articles/workbench-example/index.html'), 'utf8');
         expect(article).toContain('Read transcript');
         expect(article).toContain('noindex');
-        expect(article).toContain('/drawloom/media/workbench-example/workbench.mp4');
+        expect(article).toContain('/media/workbench-example/workbench.mp4');
         expect(article).not.toMatch(/\bautoplay\b|<script[^>]+react/i);
         expect(files).toContain('media/workbench-example/workbench.mp4');
         const draft = readFileSync(join(output, 'articles/a-place-to-do-the-work/index.html'), 'utf8');
@@ -150,7 +178,7 @@ test('production excludes draft routes and media; explicit preview renders acces
         expect(draft.match(/class="architecture-figure"/g)).toHaveLength(3);
         for (const name of ['drawloom', 'stack-2024', 'stack-2025', 'stack-2026']) {
           expect(files).toContain(`artwork/why-drawloom/${name}.svg`);
-          expect(draft).toContain(`/drawloom/artwork/why-drawloom/${name}.svg`);
+          expect(draft).toContain(`/artwork/why-drawloom/${name}.svg`);
         }
         expect(draft).toContain('Read the diagram');
         expect(draft).toContain('id="drawloom-map-caption"');

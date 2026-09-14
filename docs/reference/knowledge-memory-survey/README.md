@@ -13,7 +13,7 @@ stable when a local OSS implementation is replaced by a shared implementation.
 - [Authorization follow-up](../authorization-survey/README.md): source-pinned
   AuthZEN, Cedar and Casbin comparison plus a local synthetic access-control test.
 
-- [Lifecycle comparison map](comparison.html): an interactive Archify overview.
+- [Lifecycle comparison map](../evidence/surveys/knowledge-memory-survey/comparison.html): an interactive Archify overview.
 - [Lifecycle and interface comparison](#the-lifecycles-side-by-side): the main synthesis.
 - [What this suggests for Drawloom](#what-this-suggests-for-drawloom): findings to discuss, not APIs already agreed.
 - [Research and evaluation](research-and-evaluation.md): LongMemEval, sleep-time compute and memory poisoning.
@@ -31,14 +31,14 @@ semantics that would overcrowd a diagram.
 
 | System | What was actually inspected | Report | Architecture |
 | --- | --- | --- | --- |
-| Hindsight | Retention, durable work, observations, mental models, recall and reflection | [Detailed lifecycle](hindsight.md) | [Map](hindsight.html) |
-| Graphiti | Episode/entity/fact graph, temporal invalidation, summaries, search and deletion | [Detailed lifecycle](graphiti.md) | [Map](graphiti.html) |
-| Letta / Letta Code | Current local Code memory/reflection/compiler; archived Python server kept separate | [Detailed lifecycle](letta.md) | [Current Code map](letta.html) |
-| Mem0 | Current OSS Python extraction, storage, mutation and application-owned recall | [Detailed lifecycle](mem0.md) | [Map](mem0.html) |
-| A-Mem | Research note evolution, linking, retrieval and actual persistence limitations | [Detailed lifecycle](a-mem.md) | [Map](a-mem.html) |
-| HippoRAG 2 | Source-aware graph/vector index, incremental indexing, deletion and reading | [Detailed lifecycle](hipporag.md) | [Map](hipporag.html) |
-| DeepSeek Harness | Current context admission, session references, compaction and optional MCP memory | [Detailed lifecycle](deepseek.md) | [Map](deepseek.html) |
-| Open Design | Workbench memory files/index, extraction gates, next-turn composition and verification | [Detailed lifecycle](open-design.md) | [Map](open-design.html) |
+| Hindsight | Retention, durable work, observations, mental models, recall and reflection | [Detailed lifecycle](hindsight.md) | [Map](../evidence/surveys/knowledge-memory-survey/hindsight.html) |
+| Graphiti | Episode/entity/fact graph, temporal invalidation, summaries, search and deletion | [Detailed lifecycle](graphiti.md) | [Map](../evidence/surveys/knowledge-memory-survey/graphiti.html) |
+| Letta / Letta Code | Current local Code memory/reflection/compiler; archived Python server kept separate | [Detailed lifecycle](letta.md) | [Current Code map](../evidence/surveys/knowledge-memory-survey/letta.html) |
+| Mem0 | Current OSS Python extraction, storage, mutation and application-owned recall | [Detailed lifecycle](mem0.md) | [Map](../evidence/surveys/knowledge-memory-survey/mem0.html) |
+| A-Mem | Research note evolution, linking, retrieval and actual persistence limitations | [Detailed lifecycle](a-mem.md) | [Map](../evidence/surveys/knowledge-memory-survey/a-mem.html) |
+| HippoRAG 2 | Source-aware graph/vector index, incremental indexing, deletion and reading | [Detailed lifecycle](hipporag.md) | [Map](../evidence/surveys/knowledge-memory-survey/hipporag.html) |
+| DeepSeek Harness | Current context admission, session references, compaction and optional MCP memory | [Detailed lifecycle](deepseek.md) | [Map](../evidence/surveys/knowledge-memory-survey/deepseek.html) |
+| Open Design | Workbench memory files/index, extraction gates, next-turn composition and verification | [Detailed lifecycle](open-design.md) | [Map](../evidence/surveys/knowledge-memory-survey/open-design.html) |
 
 The research and vocabulary reports cover additional sources; they are not
 presented as competing production memory services. Public repositories were

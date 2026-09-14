@@ -14,7 +14,7 @@ test("builds a self-contained installed Svelte MCP App package", async () => {
   const html = await readFile(join(out, "app.html"), "utf8");
   const server = await readFile(join(out, "server.mjs"), "utf8");
 
-  expect(manifest.extensions["io.github.mafifi.drawloom"].workbenches[0]).toMatchObject({ id: "evaluation-inspection", openingTool: { server: "inspection", tool: "inspection.open" } });
+  expect(manifest.extensions["org.drawloom"].workbenches[0]).toMatchObject({ id: "evaluation-inspection", openingTool: { server: "inspection", tool: "inspection.open" } });
   expect(mcp.mcpServers.inspection).toEqual({ type: "stdio", command: "node", args: ["${PLUGIN_ROOT}/server.mjs"] });
   expect(html).toContain("<script type=\"module\">");
   expect(html).toContain("@media (prefers-reduced-motion: reduce)");

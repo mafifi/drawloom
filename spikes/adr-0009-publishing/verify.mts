@@ -17,8 +17,8 @@ assert.doesNotMatch(html, /<script[ >]/, 'Article must not require client JavaSc
 const media = [...html.matchAll(/(?:src|poster)="([^"]+)"/g)].map((match) => match[1]!);
 assert.ok(media.length >= 2, 'Both video and poster must be embedded');
 for (const url of media) {
-  assert.ok(url.startsWith('/drawloom/'), `Asset must respect Pages base path: ${url}`);
-  assert.ok(statSync(`${output}${url.slice('/drawloom/'.length)}`).size > 0);
+  assert.ok(url.startsWith('/media/'), `Asset must use the root media path: ${url}`);
+  assert.ok(statSync(`${output}${url.slice(1)}`).size > 0);
 }
 const video = readFileSync(`${output}media/workbench.mp4`);
 assert.equal(video.toString('ascii', 4, 8), 'ftyp', 'Must be a real MP4');

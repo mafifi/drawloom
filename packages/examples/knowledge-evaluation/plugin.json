@@ -5,10 +5,10 @@
   "description": "Frozen public knowledge evaluation through Drawloom's supported evaluation capability.",
   "license": "Apache-2.0",
   "extensions": {
-    "io.github.mafifi.drawloom": {
+    "org.drawloom": {
       "version": 1,
-      "backend": { "entrypoint": "./dist/backend.js" },
-      "workflows": { "entrypoint": "./dist/workflows.js" },
+      "backend": { "entrypoint": "./org.drawloom/backend.js" },
+      "workflows": { "entrypoint": "./org.drawloom/workflows.js" },
       "requires": [{ "kind": "capability", "id": "evaluation" }],
       "optional": [{ "kind": "capability", "id": "orchestration" }],
       "workbenches": [{

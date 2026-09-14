@@ -4,11 +4,11 @@
   "type": "module",
   "license": "Apache-2.0",
   "engines": { "node": ">=22" },
-  "files": ["dist", "src", "app.html", "plugin.json", "mcp.json", "README.md"],
+  "files": ["dist", "org.drawloom", "src/app", "src/fixtures", "src/assets.ts", "src/client.ts", "src/identities.ts", "src/index.ts", "app.html", "plugin.json", "mcp.json", "README.md"],
   "exports": {
     ".": { "bun": "./src/index.ts", "types": "./dist/index.d.ts", "import": "./dist/index.js" },
-    "./backend": { "bun": "./src/backend.ts", "types": "./dist/backend.d.ts", "import": "./dist/backend.js" },
-    "./workflows": { "bun": "./src/workflows.ts", "types": "./dist/workflows.d.ts", "import": "./dist/workflows.js" }
+    "./backend": { "bun": "./org.drawloom/backend.js", "types": "./org.drawloom/backend.d.ts", "import": "./org.drawloom/backend.js" },
+    "./workflows": { "bun": "./org.drawloom/workflows.js", "types": "./org.drawloom/workflows.d.ts", "import": "./org.drawloom/workflows.js" }
   },
   "scripts": { "build": "bun run build.ts" },
   "drawloom": { "role": "composition", "runtime": "node" },

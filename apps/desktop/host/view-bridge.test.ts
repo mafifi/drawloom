@@ -10,11 +10,11 @@ import { serveDesktop } from './server.js';
 async function openExample(root: string) {
   const installations = await createInstallationStore(createNodeJsonStore(join(root, 'state')));
   if (!installations.startup.length) {
-    const pkg = join(root, 'example'); await mkdir(pkg, { recursive: true });
-    const build = await Bun.build({ entrypoints: [resolve(import.meta.dir, 'example-backend.fixture.ts')], target: 'bun', outdir: pkg, naming: 'backend.mjs' });
+    const pkg = join(root, 'example'); await mkdir(join(pkg, 'org.drawloom'), { recursive: true });
+    const build = await Bun.build({ entrypoints: [resolve(import.meta.dir, 'example-backend.fixture.ts')], target: 'bun', outdir: join(pkg, 'org.drawloom'), naming: 'backend.mjs' });
     if (!build.success) throw Error('Example package build failed');
     await writeFile(join(pkg, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'example',
-      extensions: { 'io.github.mafifi.drawloom': { version: 1, backend: { entrypoint: './backend.mjs' }, requires: [{ kind: 'capability', id: 'host' }],
+      extensions: { 'org.drawloom': { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, requires: [{ kind: 'capability', id: 'host' }],
         workbenches: [{ id: 'example', title: 'Example', openingTool: { server: 'editor', tool: 'example.open' } }] } } }));
     const id = await installations.add(pkg);
     await installations.configure(id, { enabled: true, trustedBackend: true, servers: [], configuration: {} });

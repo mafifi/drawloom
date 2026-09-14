@@ -32,13 +32,13 @@ test('resolved symlink escapes cannot supply components or supporting files', as
 test('known extension failure and malformed fixed locations preserve siblings', async () => {
   const local = await fixture();
   try {
-    await local.write('plugin.json', JSON.stringify({ $schema: PLUGIN_SCHEMA, name: 'local', extensions: { 'io.github.mafifi.drawloom': { version: 1, backend: { entrypoint: '../escape.js' } } } }));
+    await local.write('plugin.json', JSON.stringify({ $schema: PLUGIN_SCHEMA, name: 'local', extensions: { 'org.drawloom': { version: 1, backend: { entrypoint: '../escape.js' } } } }));
     await local.write('skills', 'not a directory');
     await local.write('mcp.json', JSON.stringify({ $schema: MCP_PACKAGE_SCHEMA, mcpServers: { good: { type: 'streamable-http', url: 'https://example.com/mcp' }, bad: { type: 'streamable-http', url: 'http://example.com/mcp' } } }));
     const inventory = await inspector.inspectPackage(local.root);
     expect(inventory.drawloom).toBeUndefined();
     expect(inventory.servers.map(s => s.name)).toEqual(['good']);
-    expect(inventory.diagnostics.map(d => d.component)).toEqual(expect.arrayContaining(['extension:io.github.mafifi.drawloom', 'skills', 'server:bad']));
+    expect(inventory.diagnostics.map(d => d.component)).toEqual(expect.arrayContaining(['extension:org.drawloom', 'skills', 'server:bad']));
   } finally { await local.dispose(); }
 });
 test('inspection recognizes extension metadata without importing backend or fetching schemas', async () => {
@@ -46,17 +46,39 @@ test('inspection recognizes extension metadata without importing backend or fetc
   let fetched = 0;
   const schemaHost = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch() { fetched++; return Response.json({}); } });
   try {
-    await local.write('backend.mjs', 'throw new Error("Must not execute on inspection");');
-    await local.write('workflows.mjs', 'throw new Error("Workflow module must not execute on inspection");');
-    await local.write('plugin.json', JSON.stringify({ $schema: PLUGIN_SCHEMA, name: 'local', extensions: { 'io.github.mafifi.drawloom': { version: 1, backend: { entrypoint: 'backend.mjs' }, workflows: { entrypoint: 'workflows.mjs' } } } }));
+    await local.write('org.drawloom/backend.mjs', 'throw new Error("Must not execute on inspection");');
+    await local.write('org.drawloom/workflows.mjs', 'throw new Error("Workflow module must not execute on inspection");');
+    await local.write('plugin.json', JSON.stringify({ $schema: PLUGIN_SCHEMA, name: 'local', extensions: { 'org.drawloom': { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, workflows: { entrypoint: './org.drawloom/workflows.mjs' } } } }));
     await local.write('mcp.json', JSON.stringify({ $schema: schemaHost.url.href, mcpServers: {} }));
     const inventory = await inspector.inspectPackage(local.root);
-    expect(inventory.drawloom?.backend?.entrypoint).toBe('backend.mjs');
-    expect(inventory.drawloom?.workflows?.entrypoint).toBe('workflows.mjs');
+    expect(inventory.drawloom?.backend?.entrypoint).toBe('./org.drawloom/backend.mjs');
+    expect(inventory.drawloom?.workflows?.entrypoint).toBe('./org.drawloom/workflows.mjs');
     expect(inventory.diagnostics).toContainEqual({ component: 'mcp', code: 'invalid' });
     expect(fetched).toBe(0);
     await local.write('plugin.json', JSON.stringify({ $schema: schemaHost.url.href, name: 'local' }));
     await expect(inspector.inspectPackage(local.root)).rejects.toThrow();
     expect(fetched).toBe(0);
   } finally { schemaHost.stop(true); await local.dispose(); }
+});
+
+test('namespace directories and executable files cannot be symlinks even when they resolve inside the package', async () => {
+  for (const linked of ['namespace', 'backend', 'workflows'] as const) {
+    const local = await fixture();
+    try {
+      await local.write('real/backend.mjs', 'export default () => ({ dispose() {} })');
+      await local.write('real/workflows.mjs', 'export default {}');
+      if (linked === 'namespace') await symlink(join(local.root, 'real'), join(local.root, 'org.drawloom'));
+      else {
+        await local.write('org.drawloom/placeholder', '');
+        await symlink(join(local.root, 'real', `${linked}.mjs`), join(local.root, 'org.drawloom', `${linked}.mjs`));
+        await local.write(`org.drawloom/${linked === 'backend' ? 'workflows' : 'backend'}.mjs`, 'export default {}');
+      }
+      await local.write('plugin.json', JSON.stringify({ $schema: PLUGIN_SCHEMA, name: 'local', extensions: { 'org.drawloom': {
+        version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, workflows: { entrypoint: './org.drawloom/workflows.mjs' },
+      } } }));
+      const inventory = await inspector.inspectPackage(local.root);
+      expect(inventory.drawloom).toBeUndefined();
+      expect(inventory.diagnostics).toContainEqual({ component: 'extension:org.drawloom', code: 'invalid' });
+    } finally { await local.dispose(); }
+  }
 });

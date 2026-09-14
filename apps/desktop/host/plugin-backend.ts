@@ -1,9 +1,9 @@
-import { realpath, mkdir, stat } from 'node:fs/promises';
-import { resolve, relative, isAbsolute, sep } from 'node:path';
+import { mkdir } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { DrawloomPackageExtensionSchema, type PackageInventory, type PluginRequirement } from '@drawloom/plugins';
 import { OrchestrationReadinessSchema, type PluginBackend, type PluginBackendCapabilities, type PluginBackendContext, type PluginBackendDependency, type PluginBackendFactory } from '@drawloom/desktop-host';
+import { executableExtensionPath } from './extension-path.js';
 
 export type BackendActivation =
   | { status: 'ready'; backend: PluginBackend }
@@ -36,11 +36,7 @@ export function createBackendLoader() {
     if (missing.length) return { status: 'unavailable', missing };
     let root: string, entry: string;
     try {
-      root = await realpath(inventory.root);
-      entry = await realpath(resolve(root, definition.backend.entrypoint));
-      const path = relative(root, entry);
-      if (path === '..' || path.startsWith('..' + sep) || isAbsolute(path) || !(await stat(entry)).isFile())
-        throw Error('Outside package');
+      ({ root, entry } = await executableExtensionPath(inventory.root, definition.backend.entrypoint));
     } catch { return { status: 'failed', code: 'backend_path_unavailable' }; }
     if (closing) return { status: 'failed', code: 'backend_host_closed' };
     const declared = [...(definition.requires ?? []), ...(definition.optional ?? [])];

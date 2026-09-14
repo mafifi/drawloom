@@ -1,15 +1,15 @@
 // Rebuild the review inventory and Archify maps from tracked source and manifests.
 // Outputs are local build artifacts, never inputs to the product.
 import {execFileSync} from 'node:child_process';
-import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';
 import {resolve,dirname,relative} from 'node:path';
 const root=execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim();
 const revision=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
-const output=resolve(root,'docs/reference/generated/repository-atlas');
+const output=resolve(root,'docs/reference/evidence/generated/repository-atlas');
 const archify=process.argv[2];
 if(!archify)throw Error('Pass the path to archify.mjs. No tool is downloaded automatically.');
 mkdirSync(output,{recursive:true});
-const files=execFileSync('git',['ls-files','-z'],{cwd:root,encoding:'utf8'}).split('\0').filter(Boolean);
+const files=[...new Set(execFileSync('git',['ls-files','--cached','--others','--exclude-standard','-z'],{cwd:root,encoding:'utf8'}).split('\0').filter(p=>p&&existsSync(resolve(root,p))))];
 const packages=files.filter(p=>/^(packages\/[^/]+\/[^/]+|apps\/[^/]+)\/package.json$/.test(p)).map(path=>({path,dir:dirname(path),...JSON.parse(readFileSync(resolve(root,path),'utf8'))}));
 const families=[...new Set(packages.map(p=>p.path.startsWith('apps/')?'application':p.path.split('/')[1]))];
 const family=p=>p.path.startsWith('apps/')?'application':p.path.split('/')[1];
@@ -58,7 +58,7 @@ const inventory=files.map(path=>{
 });
 writeFileSync(resolve(output,'inventory.json'),JSON.stringify({revision,files:inventory},null,2)+'\n');
 const link=path=>relative(output,resolve(root,path)).split('/').map(encodeURIComponent).join('/');
-const md=['# Drawloom repository reading ledger','',`Source revision: \`${revision}\`. Generated from git-tracked files; line counts include blanks/comments and are not cloc code counts. Binary files retain byte sizes. Existing tracked generated files are included, visibly by path. Nothing is marked reviewed automatically.`, '', '## Maps','',...maps.map(m=>`- [${m.title}](${m.name}.html)`),'','## Reading inventory',''];
+const md=['# Drawloom repository reading ledger','',`Base revision: \`${revision}\`. Working-tree inventory includes tracked and nonignored new files, excluding deleted paths. Line counts include blanks/comments and are not cloc code counts. Binary files retain byte sizes. Retained evidence is included, visibly by path. Nothing is marked reviewed automatically.`, '', '## Maps','',...maps.map(m=>`- [${m.title}](${m.name}.html)`),'','## Reading inventory',''];
 for(const bucket of [...new Set(inventory.map(f=>f.bucket))]){
  const entries=inventory.filter(f=>f.bucket===bucket);
  md.push(`### ${bucket}`, '', `${entries.length} files · ${entries.reduce((n,f)=>n+(f.lines??0),0).toLocaleString()} text lines`,'');

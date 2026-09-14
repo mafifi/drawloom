@@ -1,5 +1,8 @@
 # Local journal design and browser QA
 
+> Root deployment paths normalized on 2026-09-14. Original review dates, outcomes
+> and screenshots are unchanged; these records do not claim a new visual check.
+
 ## Synaptic Shuttle landing and interactive decision map — 2026-09-12
 
 Local author-review implementation only. This does not publish the site.
@@ -53,7 +56,7 @@ The 512px render, 48px render, live-page browser capture and combined
 raster/vector comparison are under
 `/Users/afifim/.codex/visualizations/2026/09/12/01a09359-6fc8-7112-91e4-fe7321796974/drawloom-logo-qa/`.
 The combined comparison and live capture were opened and inspected. The browser
-loaded `/drawloom/artwork/synaptic-shuttle/logo.svg` at its expected intrinsic
+loaded `/artwork/synaptic-shuttle/logo.svg` at its expected intrinsic
 size and reported no console errors or warnings. No actionable P0/P1/P2 visual
 issue remains. P3 difference: the vector simplifies some of the raster's fine
 neural filaments and lobe irregularity in exchange for a cleaner small-size
@@ -167,7 +170,7 @@ It is the same two-page visual described in publishing/DESIGN.md. Compare the
 separate home/article panels, not a two-column website. Panel labels and the
 mock's different essay copy are excluded from positional comparisons.
 
-Implementation: `/drawloom/` and `/drawloom/articles/a-place-to-do-the-work/`
+Implementation: `/` and `/articles/a-place-to-do-the-work/`
 on the local preview at `http://127.0.0.1:4321`.
 
 Evidence in the existing `journal-qa/` directory documented below:
@@ -256,8 +259,8 @@ Source visual truth:
 About, notebook rows and sample prose are not required website content; the
 approved publishing DESIGN.md explicitly excludes invented destinations/rows.
 
-Implementation: `http://127.0.0.1:4321/drawloom/` and
-`http://127.0.0.1:4321/drawloom/articles/workbench-example/`.
+Implementation: `http://127.0.0.1:4321/` and
+`http://127.0.0.1:4321/articles/workbench-example/`.
 
 Evidence directory:
 `/Users/afifim/.codex/visualizations/2026/09/02/01a06218-f36c-7660-9fde-633b4b5b7215/journal-qa/`

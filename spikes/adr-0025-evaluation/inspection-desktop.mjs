@@ -11,10 +11,10 @@ const [runtimeArgument, packageArgument] = process.argv.slice(2);
 if (!runtimeArgument || !packageArgument) throw Error('Supply a disposable runtime folder and the built inspection package folder.');
 const runtime = await realpath(runtimeArgument);
 const packageRoot = await realpath(packageArgument);
-const manifest = z.object({ extensions: z.object({ 'io.github.mafifi.drawloom': z.object({
+const manifest = z.object({ extensions: z.object({ 'org.drawloom': z.object({
   workbenches: z.array(z.object({ id: z.string().min(1), title: z.string().min(1) })).min(1),
 }) }) }).parse(JSON.parse(await readFile(join(packageRoot, 'plugin.json'), 'utf8')));
-const placement = manifest.extensions['io.github.mafifi.drawloom'].workbenches[0];
+const placement = manifest.extensions['org.drawloom'].workbenches[0];
 const data = join(runtime, 'data');
 const project = join(runtime, 'project');
 await mkdir(project, { recursive: true, mode: 0o700 });

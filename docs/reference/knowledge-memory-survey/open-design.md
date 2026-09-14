@@ -58,4 +58,4 @@ Borrow the readable records, explicit active selection, visible editing and ordi
 
 For the proposed autonomous Nightloom, Open Design supplies a valuable negative case: careless interpretation can create junk facts. Preserve observations separately from conclusions and make retrieval expose the difference, without inserting the human approval gate explicitly excluded from Drawloom's memory design.
 
-[Open the source-linked map](open-design.html).
+[Open the source-linked map](../evidence/surveys/knowledge-memory-survey/open-design.html).

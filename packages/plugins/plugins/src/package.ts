@@ -3,7 +3,8 @@ import { PluginRequirementSchema } from './requirements.js';
 
 export const PLUGIN_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json';
 export const MCP_PACKAGE_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json';
-export const DRAWLOOM_EXTENSION = 'io.github.mafifi.drawloom';
+export const DRAWLOOM_EXTENSION = 'org.drawloom';
+export const DRAWLOOM_PACKAGE_EXTENSION_SCHEMA_ID = 'https://drawloom.org/schemas/1.0.0/plugin-extension.schema.json';
 const packageName = z.string().min(1).max(64)
   .regex(/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/)
   .refine(value => !value.includes('--') && !value.includes('..'));
@@ -56,8 +57,9 @@ export type PackageRemoteConfig = z.infer<typeof PackageRemoteConfigSchema>;
 export const PackageMcpConfigSchema = z.strictObject({
   $schema: z.literal(MCP_PACKAGE_SCHEMA), mcpServers: z.record(z.string(), z.unknown()),
 });
-const entrypoint = z.string().min(1).refine(value =>
-  !value.startsWith('/') && !/[\\:\u0000]/u.test(value) && !value.split('/').includes('..') && /\.(?:mjs|js)$/.test(value));
+const entrypoint = z.string().min(1).regex(
+  /^\.\/org\.drawloom\/(?!\.\.(?:\/|$))(?!.*\/\.\.(?:\/|$))[^\\:\u0000]+\.(?:mjs|js)$/,
+);
 export const PackageOptionalRequirementSchema = z.union([
   z.strictObject({ kind: z.enum(['tool', 'skill']), id: z.string().min(1) }),
   z.strictObject({ kind: z.literal('capability'), id: z.enum(['orchestration', 'evaluation']) }),
@@ -72,6 +74,11 @@ export const DrawloomPackageExtensionSchema = z.strictObject({
     id: z.string().min(1), title: z.string().min(1), placement: z.literal('workbench').optional(),
     openingTool: z.strictObject({ server: z.string().min(1), tool: z.string().min(1) }),
   })).optional(),
+});
+/** Versioned JSON Schema emitted by public site builds from this contract-owned Zod definition. */
+export const DrawloomPackageExtensionJsonSchema = Object.freeze({
+  ...z.toJSONSchema(DrawloomPackageExtensionSchema, { target: 'draft-7' }),
+  $id: DRAWLOOM_PACKAGE_EXTENSION_SCHEMA_ID,
 });
 export type DrawloomPackageExtension = z.infer<typeof DrawloomPackageExtensionSchema>;
 export interface PackageDiagnostic { component: string; code: string }

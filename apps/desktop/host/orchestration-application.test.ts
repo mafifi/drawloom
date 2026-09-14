@@ -12,7 +12,7 @@ import { workflowEvidenceKey } from './workflow-tools.js';
 test('desktop attaches installed task handlers, restores both projects and enforces grants without conversations', async () => {
   const base = await mkdtemp(join(tmpdir(), 'drawloom-installed-workflows-'));
   const root = join(base, 'data'), pkg = join(base, 'package');
-  await mkdir(root); await mkdir(pkg);
+  await mkdir(root); await mkdir(join(pkg, 'org.drawloom'), { recursive: true });
   let calls = 0;
   const remote = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) {
     if (request.method !== 'POST') return new Response(null, { status: 405 });
@@ -30,17 +30,17 @@ test('desktop attaches installed task handlers, restores both projects and enfor
       orchestrator: { start: async () => 'run', get: async () => { throw Error('unused'); }, getSteps: async () => ({ steps: [] }), list: async () => ({ runs: [] }), respond: async () => {}, cancel: async () => {}, result: async () => ({}) },
       attach: async values => { handlers.set(owner.projectId, values); }, close: async () => { events.push('registration-close'); } }; },
     prepareHost: async () => { throw Error('not used'); }, listHostOwners: async () => [],
-    listOwners: async () => [...savedProjects].map(projectId => ({ projectId, installationId, packageDirectory: pkg, entrypoint: 'workflows.mjs', bundleFingerprint: 'hash', owner: projectId })), hasUnfinishedInstallation: async () => handlers.size > 0,
+    listOwners: async () => [...savedProjects].map(projectId => ({ projectId, installationId, packageDirectory: pkg, entrypoint: './org.drawloom/workflows.mjs', bundleFingerprint: 'hash', owner: projectId })), hasUnfinishedInstallation: async () => handlers.size > 0,
     close: async () => { events.push('manager-close'); },
   };
-  await writeFile(join(pkg, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'documents', extensions: { 'io.github.mafifi.drawloom': {
-    version: 1, backend: { entrypoint: './backend.mjs' }, workflows: { entrypoint: './workflows.mjs' },
+  await writeFile(join(pkg, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'documents', extensions: { 'org.drawloom': {
+    version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, workflows: { entrypoint: './org.drawloom/workflows.mjs' },
     requires: [{ kind: 'capability', id: 'host' }, { kind: 'capability', id: 'tools' }], optional: [{ kind: 'capability', id: 'orchestration' }],
     workbenches: [{ id: 'documents', title: 'Documents', openingTool: { server: 'remote', tool: 'inspect' } }],
   } } }));
   await writeFile(join(pkg, 'mcp.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json', mcpServers: { remote: { type: 'streamable-http', url: remote.url.href } } }));
-  await writeFile(join(pkg, 'workflows.mjs'), 'export default {workflows:[],tasks:[]}');
-  await writeFile(join(pkg, 'backend.mjs'), `export default async ({capabilities}) => {
+  await writeFile(join(pkg, 'org.drawloom', 'workflows.mjs'), 'export default {workflows:[],tasks:[]}');
+  await writeFile(join(pkg, 'org.drawloom', 'backend.mjs'), `export default async ({capabilities}) => {
     const snapshot = {artifacts:[],candidates:[],reviews:[],readiness:'ready',summary:'Documents',configuration:[],grants:[]};
     return {contributions:{workbenches:[{id:'documents',title:'Documents',description:'',tools:[],skills:[]}]},
       controllers:new Map([['documents',{snapshot:async()=>{await new Promise(r=>setTimeout(r,5));return snapshot;},dispatch:async()=>({status:'ok',snapshot})}]]),

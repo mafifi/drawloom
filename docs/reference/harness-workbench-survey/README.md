@@ -6,8 +6,8 @@ The useful distinction is not feature count. **DeepSeek owns a harness runtime a
 
 ## Read the maps
 
-- [DeepSeek Harness — interactive architecture map](deepseek.html) · [capability inventory and source evidence](deepseek.md).
-- [Open Design — interactive architecture map](open-design.html) · [capability inventory and source evidence](open-design.md).
+- [DeepSeek Harness — interactive architecture map](../evidence/surveys/harness-workbench-survey/deepseek.html) · [capability inventory and source evidence](deepseek.md).
+- [Open Design — interactive architecture map](../evidence/surveys/harness-workbench-survey/open-design.html) · [capability inventory and source evidence](open-design.md).
 
 The maps show the main ownership and data paths. They are not generated dependency hairballs, deployment diagrams or exhaustive interface listings. The linked inventories cover the wider capabilities, availability and limitations.
 

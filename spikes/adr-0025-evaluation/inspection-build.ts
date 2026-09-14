@@ -46,7 +46,7 @@ export async function buildInspectionPackage(packageRoot: string): Promise<{ pac
     await rm(viteOut, { recursive: true, force: true });
 
     await bundle(resolve(moduleDirectory, "inspection-server.ts"), staging, "server.mjs");
-    await bundle(join(sourceRoot, "backend.ts"), staging, "backend.mjs");
+    await bundle(join(sourceRoot, "backend.ts"), join(staging, "org.drawloom"), "backend.mjs");
     const document = await buildKnowledgeInspection();
     await writeFile(join(staging, "inspection.json"), `${JSON.stringify(document, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
     await writeFile(join(staging, "mcp.json"), `${JSON.stringify({
@@ -57,9 +57,9 @@ export async function buildInspectionPackage(packageRoot: string): Promise<{ pac
       $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
       name: "drawloom-knowledge-inspection",
       description: "Retained ADR 0025 knowledge evaluation inspection proof.",
-      extensions: { "io.github.mafifi.drawloom": {
+      extensions: { "org.drawloom": {
         version: 1,
-        backend: { entrypoint: "./backend.mjs" },
+        backend: { entrypoint: "./org.drawloom/backend.mjs" },
         workbenches: [{ id: inspectionWorkbenchId, title: "Evaluation findings", openingTool: { server: inspectionServerName, tool: inspectionOpeningTool } }],
       } },
     }, null, 2)}\n`, "utf8");

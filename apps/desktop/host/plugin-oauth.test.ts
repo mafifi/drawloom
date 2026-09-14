@@ -6,6 +6,18 @@ import type { FetchLike } from '@modelcontextprotocol/sdk/shared/transport.js';
 
 const resource = 'https://resource.example/mcp', issuer = 'https://issuer.example';
 const callback = 'http://127.0.0.1:38271/oauth/callback';
+test('OAuth advertises the canonical client identity without a registration bridge', async () => {
+  const fixture = await service();
+  try {
+    const connection = createPluginOAuthManager({ credentials: createSessionCredentialStore(), redirectUrl: callback, fetch: fixture.fetch })
+      .connection({ installationId: 'canonical', serverName: 'remote', serverUrl: resource });
+    const login = await connection.login();
+    expect(login.state).toBe('awaiting-approval');
+    expect(new URL(login.authorizationUrl!).searchParams.get('client_id')).toBe('https://drawloom.org/oauth/client.json');
+    expect(connection.provider.clientMetadata.client_uri).toBe('https://drawloom.org/');
+    expect(fixture.effects.registration).toBe(0);
+  } finally { fixture.close(); }
+});
 test('preconfigured client persists only in credential storage and is bound to its connection', async () => {
   const fixture = await service();
   const credentials = createSessionCredentialStore();

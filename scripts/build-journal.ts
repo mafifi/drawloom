@@ -1,5 +1,6 @@
-import {copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync} from 'node:fs';
+import {copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {dirname, resolve} from 'node:path';
+import {DrawloomPackageExtensionJsonSchema} from '../packages/plugins/plugins/src/package';
 
 const root = resolve(import.meta.dir, '..');
 const output = resolve(Bun.env.JOURNAL_OUT_DIR || `${root}/publishing/site/dist`);
@@ -12,12 +13,16 @@ const child = Bun.spawn(['bun', 'x', '--no-install', 'astro', 'build'], {
 });
 const status = await child.exited;
 if (status !== 0) process.exit(status);
+// Publish the contract-owned schema; package loading never consults the website.
+const schemaPath = resolve(output, 'schemas/1.0.0/plugin-extension.schema.json');
+mkdirSync(dirname(schemaPath), {recursive: true});
+writeFileSync(schemaPath, JSON.stringify(DrawloomPackageExtensionJsonSchema, null, 2) + '\n');
 // Stage only media actually referenced by emitted HTML, after Astro has cleaned
 // its output. Draft render output never lives in Astro's public directory.
 const generated = resolve(Bun.env.JOURNAL_MEDIA_DIR || `${root}/publishing/.generated/media`);
 for (const file of readdirSync(output, {recursive: true}).map(String).filter((file) => file.endsWith('.html'))) {
   const html = readFileSync(resolve(output, file), 'utf8');
-  for (const match of html.matchAll(/(?:src|poster)="\/drawloom\/media\/([a-z0-9-]+\/[^"/]+)"/g)) {
+  for (const match of html.matchAll(/(?:src|poster)="\/media\/([a-z0-9-]+\/[^"/]+)"/g)) {
     const relative = match[1]!;
     if (!/^[a-z0-9-]+\/[a-zA-Z0-9][a-zA-Z0-9._-]*\.(mp4|png|webp|jpg)$/.test(relative)) throw new Error(`Invalid media reference: ${relative}`);
     const destination = resolve(output, 'media', relative);

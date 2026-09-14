@@ -13,7 +13,7 @@ test("controllerless installed evaluation tasks run while protected tools remain
   const root = join(base, "data");
   const packageRoot = join(base, "package");
   await mkdir(root);
-  await mkdir(packageRoot);
+  await mkdir(join(packageRoot, "org.drawloom"), { recursive: true });
   let remoteCalls = 0;
   const remote = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
     if (request.method !== "POST") return new Response(null, { status: 405 });
@@ -49,10 +49,10 @@ test("controllerless installed evaluation tasks run while protected tools remain
     await writeFile(join(packageRoot, "plugin.json"), JSON.stringify({
       $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
       name: "controllerless-evaluation",
-      extensions: { "io.github.mafifi.drawloom": {
+      extensions: { "org.drawloom": {
         version: 1,
-        backend: { entrypoint: "./backend.mjs" },
-        workflows: { entrypoint: "./workflows.mjs" },
+        backend: { entrypoint: "./org.drawloom/backend.mjs" },
+        workflows: { entrypoint: "./org.drawloom/workflows.mjs" },
         requires: [
           { kind: "capability", id: "host" },
           { kind: "capability", id: "tools" },
@@ -66,8 +66,8 @@ test("controllerless installed evaluation tasks run while protected tools remain
       $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
       mcpServers: { remote: { type: "streamable-http", url: remote.url.href } },
     }));
-    await writeFile(join(packageRoot, "workflows.mjs"), "export default {workflows:[],tasks:[]}");
-    await writeFile(join(packageRoot, "backend.mjs"), `
+    await writeFile(join(packageRoot, "org.drawloom", "workflows.mjs"), "export default {workflows:[],tasks:[]}");
+    await writeFile(join(packageRoot, "org.drawloom", "backend.mjs"), `
       export default async ({capabilities}) => ({
         contributions: {workbenches: [{id: 'evaluation', title: 'Evaluation', description: '', tools: [], skills: []}]},
         taskHandlers: [

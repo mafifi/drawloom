@@ -8,6 +8,7 @@ import type { Installation } from './plugin-installations.js';
 import type { InstalledWorkflowRegistration } from './plugin-packages.js';
 import { WorkflowOwnersSchema, WorkflowScopeSchema } from '../src/lib/orchestration-protocol.js';
 import { createOrchestrationPresentation, WorkflowControlError } from './orchestration-presentation.js';
+import { executableExtensionPath } from './extension-path.js';
 
 type Manager = ReturnType<typeof createLocalTemporalManager>;
 type Entry = { title: string; registration?: LocalTemporalRegistration; readiness: OrchestrationReadiness };
@@ -65,11 +66,11 @@ export function createOrchestrationHost(options: {
       const entry: Entry = { title: inventory.name, readiness: { status: 'unavailable', code: 'starting', message: 'Preparing local workflows.' } };
       entries.set(key(projectId, installation.id), entry);
       try {
-        const entrypoint = inventory.drawloom.workflows.entrypoint;
         entry.registration = await serialize(installation.id, async () => {
           requireCurrent(installation.id);
+          const checked = await executableExtensionPath(inventory.root, inventory.drawloom!.workflows!.entrypoint);
           const registration = await (await manager()).prepare({ projectId, installationId: installation.id,
-            packageDirectory: inventory.root, entrypoint });
+            packageDirectory: checked.root, entrypoint: inventory.drawloom!.workflows!.entrypoint });
           return { ...registration, orchestrator: { ...registration.orchestrator,
             start: (identity, workflow, input) => serialize(installation.id, async () => {
               requireCurrent(installation.id);

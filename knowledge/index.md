@@ -64,6 +64,7 @@ updated: 2026-09-13
 - [Tool execution and Codex MCP authority-binding evidence](evidence/adr-0008-tool-execution.md)
 - [Repository-backed visual publishing proof](evidence/adr-0009-publishing.md)
 - [Journal publication and automatic deployment](evidence/journal-publication.md)
+- [Canonical domain and plugin extension cutover](evidence/canonical-domain-and-extensions.md)
 - [Initial integrated plugin and host proof](evidence/adr-0013-plugin-host-integration.md)
 
 ## Related decisions

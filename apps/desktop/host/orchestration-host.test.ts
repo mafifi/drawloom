@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { mkdtemp, rm, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { createLocalTemporalManager } from '@drawloom/temporal-orchestration';
@@ -8,6 +8,8 @@ import type { Installation } from './plugin-installations.js';
 import { createOrchestrationHost } from './orchestration-host.js';
 import type { Orchestrator } from '@drawloom/orchestration';
 import { z } from 'zod';
+
+const writeWorkflow = (root: string, name = 'workflows.mjs') => Bun.write(join(root, 'org.drawloom', name), 'export default {}');
 
 test('configuration is serialized with starts and blocks old configuration until restart', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-workflow-guard-'));
@@ -23,8 +25,9 @@ test('configuration is serialized with starts and blocks old configuration until
     listOwners: async () => [], hasUnfinishedInstallation: async () => unfinished, close: async () => {} };
   const host = createOrchestrationHost({ dataDirectory: root, manager: async () => manager, ensureProject: async () => {} });
   const installation: Installation = { id: crypto.randomUUID(), name: 'documents', root, enabled: true, trustedBackend: true, servers: [], configuration: {}, approvedResourceOrigins: [], elicitationDisabledServers: [] };
-  const inventory: PackageInventory = { root, name: 'documents', extensions: {}, skills: [], servers: [], diagnostics: [], drawloom: { version: 1, backend: { entrypoint: 'backend.mjs' }, workflows: { entrypoint: 'workflow.mjs' } } };
+  const inventory: PackageInventory = { root, name: 'documents', extensions: {}, skills: [], servers: [], diagnostics: [], drawloom: { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, workflows: { entrypoint: './org.drawloom/workflow.mjs' } } };
   try {
+    await writeWorkflow(root, 'workflow.mjs');
     const registration = await host.prepare('a', installation, inventory, handlers => handlers);
     const workflow = { id: 'documents', version: '1', input: z.object({}), output: z.object({}), run: async () => ({}) };
     const start = registration.capabilities.orchestration!.start('one', workflow, {});
@@ -50,11 +53,12 @@ test('ordinary startup is lazy; saved owners restore unopened projects and prote
   const manager: ReturnType<typeof createLocalTemporalManager> = {
     prepare: async () => { throw Error('not used'); },
     prepareHost: async () => { throw Error('not used'); }, listHostOwners: async () => [],
-    listOwners: async () => ['a', 'b'].map(projectId => ({ projectId, installationId: 'i', packageDirectory: root, entrypoint: 'workflow.mjs', bundleFingerprint: 'hash', owner: projectId })),
+    listOwners: async () => ['a', 'b'].map(projectId => ({ projectId, installationId: 'i', packageDirectory: root, entrypoint: './org.drawloom/workflow.mjs', bundleFingerprint: 'hash', owner: projectId })),
     hasUnfinishedInstallation: async id => id === 'i', close: async () => { closed++; },
   };
   const host = createOrchestrationHost({ dataDirectory: root, manager: async () => { created++; return manager; }, ensureProject: async id => { restored.push(id); } });
   try {
+    await writeWorkflow(root);
     await host.restore(); expect(created).toBe(0);
     await mkdir(join(root, 'orchestration'));
     await host.restore(); expect(restored).toEqual(['a', 'b']);
@@ -73,7 +77,7 @@ test('missing prerequisites expose actionable readiness without disabling ordina
   const host = createOrchestrationHost({ dataDirectory: root, manager: async () => manager, ensureProject: async () => {} });
   try {
     const installed: Installation = { id: crypto.randomUUID(), name: 'documents', root, enabled: true, trustedBackend: true, servers: [], configuration: {}, approvedResourceOrigins: [], elicitationDisabledServers: [] };
-    const inventory: PackageInventory = { root, name: 'documents', extensions: {}, skills: [], servers: [], diagnostics: [], drawloom: { version: 1, backend: { entrypoint: 'backend.mjs' }, workflows: { entrypoint: 'workflows.mjs' } } };
+    const inventory: PackageInventory = { root, name: 'documents', extensions: {}, skills: [], servers: [], diagnostics: [], drawloom: { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, workflows: { entrypoint: './org.drawloom/workflows.mjs' } } };
     const registration = await host.prepare('a', installed, inventory, handlers => handlers);
     expect(registration.capabilities.orchestration).toBeUndefined();
     expect(await registration.capabilities.orchestrationReadiness!()).toMatchObject({ status: 'configuration_required', code: 'local_runtime_required' });
@@ -90,7 +94,7 @@ test('saved owners remain visible when their project is unavailable; changed bun
   const manager: ReturnType<typeof createLocalTemporalManager> = {
     prepare: async () => { throw Error('Workflow bundle changed with unfinished runs'); },
     prepareHost: async () => { throw Error('not used'); }, listHostOwners: async () => [],
-    listOwners: async () => [{ projectId: 'offline', installationId: 'i', packageDirectory: root, entrypoint: 'workflow.mjs', bundleFingerprint: 'hash', owner: 'offline-i' }],
+    listOwners: async () => [{ projectId: 'offline', installationId: 'i', packageDirectory: root, entrypoint: './org.drawloom/workflow.mjs', bundleFingerprint: 'hash', owner: 'offline-i' }],
     hasUnfinishedInstallation: async () => true, close: async () => {},
   };
   const host = createOrchestrationHost({ dataDirectory: root, manager: async () => manager, ensureProject: async () => { throw Error('Project directory missing'); } });
@@ -99,8 +103,9 @@ test('saved owners remain visible when their project is unavailable; changed bun
     expect((await host.owners('offline'))[0]?.readiness).toMatchObject({ status: 'unavailable', code: 'project_unavailable' });
     await expect(host.list({ projectId: 'offline', installationId: 'i' })).rejects.toThrow();
     await expect(host.changeInstallation('i', async () => {})).rejects.toThrow('unfinished workflows');
+    await writeWorkflow(root, 'workflow.mjs');
     const registration = await host.prepare('online', { id: 'i', root, name: 'documents', enabled: true, trustedBackend: true, servers: [], configuration: {}, approvedResourceOrigins: [], elicitationDisabledServers: [] },
-      { root, name: 'documents', extensions: {}, skills: [], servers: [], diagnostics: [], drawloom: { version: 1, workflows: { entrypoint: 'workflow.mjs' } } }, handlers => handlers);
+      { root, name: 'documents', extensions: {}, skills: [], servers: [], diagnostics: [], drawloom: { version: 1, workflows: { entrypoint: './org.drawloom/workflow.mjs' } } }, handlers => handlers);
     expect(await registration.capabilities.orchestrationReadiness!()).toMatchObject({ code: 'workflow_code_changed' });
     expect(registration.capabilities.orchestration).toBeUndefined();
   } finally { await host.close(); await rm(root, { recursive: true, force: true }); }
@@ -113,4 +118,26 @@ test('failed manager restoration reports readiness instead of disabling ordinary
   try {
     expect(await host.restore()).toMatchObject({ status: 'unavailable', code: 'local_runtime_unavailable' });
   } finally { await host.close().catch(() => {}); await rm(root, { recursive: true, force: true }); }
+});
+
+test('workflow namespace containment is repeated before manager preparation', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-workflow-recheck-'));
+  let prepared = 0;
+  const manager: ReturnType<typeof createLocalTemporalManager> = {
+    prepare: async () => { prepared++; throw Error('must not prepare'); }, prepareHost: async () => { throw Error('not used'); },
+    listOwners: async () => [], listHostOwners: async () => [], hasUnfinishedInstallation: async () => false, close: async () => {},
+  };
+  const host = createOrchestrationHost({ dataDirectory: root, manager: async () => manager, ensureProject: async () => {} });
+  try {
+    await mkdir(join(root, 'org.drawloom'));
+    await writeFile(join(root, 'outside.mjs'), 'export default {}');
+    await symlink(join(root, 'outside.mjs'), join(root, 'org.drawloom', 'workflows.mjs'));
+    const installation: Installation = { id: 'sample', name: 'sample', root, enabled: true, trustedBackend: true, servers: [], configuration: {}, approvedResourceOrigins: [], elicitationDisabledServers: [] };
+    const inventory: PackageInventory = { root, name: 'sample', extensions: {}, skills: [], servers: [], diagnostics: [], drawloom: {
+      version: 1, workflows: { entrypoint: './org.drawloom/workflows.mjs' },
+    } };
+    const registration = await host.prepare('project', installation, inventory, handlers => handlers);
+    expect(prepared).toBe(0);
+    expect(await registration.capabilities.orchestrationReadiness!()).toMatchObject({ status: 'unavailable' });
+  } finally { await host.close(); await rm(root, { recursive: true, force: true }); }
 });

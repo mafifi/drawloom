@@ -31,7 +31,7 @@ patient management and invoicing. They were separate applications, but they
 did useful work.
 
 <figure>
-<a href="/drawloom/media/a-place-to-do-the-work/09-legacy-public-reconstruction.png"><img src="/drawloom/media/a-place-to-do-the-work/09-legacy-public-reconstruction.png" width="1892" height="680" loading="lazy" alt="The original homepage: Souphi's portrait behind a large headline, with separate routes to the clinic and academy." style="display:block;width:100%;height:auto" /></a>
+<a href="/media/a-place-to-do-the-work/09-legacy-public-reconstruction.png"><img src="/media/a-place-to-do-the-work/09-legacy-public-reconstruction.png" width="1892" height="680" loading="lazy" alt="The original homepage: Souphi's portrait behind a large headline, with separate routes to the clinic and academy." style="display:block;width:100%;height:auto" /></a>
 <figcaption>The first website's header and hero, reconstructed from the original September 2024 components. Captured now, not an archived screenshot.</figcaption>
 </figure>
 
@@ -49,14 +49,14 @@ I left her with something good enough to use. It was a long way from the
 business support I had imagined.
 
 <figure>
-<a href="/drawloom/media/a-place-to-do-the-work/10-legacy-admin-reconstruction.png"><img src="/drawloom/media/a-place-to-do-the-work/10-legacy-admin-reconstruction.png" width="1892" height="800" loading="lazy" alt="The original admin dashboard laid out appointments, inventory, patients, marketing and finances in six cards. All displayed names and figures are demonstration data." style="display:block;width:100%;height:auto" /></a>
+<a href="/media/a-place-to-do-the-work/10-legacy-admin-reconstruction.png"><img src="/media/a-place-to-do-the-work/10-legacy-admin-reconstruction.png" width="1892" height="800" loading="lazy" alt="The original admin dashboard laid out appointments, inventory, patients, marketing and finances in six cards. All displayed names and figures are demonstration data." style="display:block;width:100%;height:auto" /></a>
 <figcaption>The dashboard I aspired to, reconstructed from the original view. Its hardcoded sample figures show the ambition, not the clinic's performance.</figcaption>
 </figure>
 
 <figure class="architecture-figure" id="stack-2024">
 <p class="diagram-kicker">2024 · Separate foundations</p>
-<a href="/drawloom/artwork/why-drawloom/stack-2024.svg" aria-label="Enlarge the 2024 architecture diagram"><img src="/drawloom/artwork/why-drawloom/stack-2024.svg" width="1440" height="784" loading="lazy" alt="Public SvelteKit website deployed on Cloudflare Pages; a separate SvelteKit administration app uses Firebase." /></a>
-<figcaption>A public presence, patient records and invoicing. Marketing remained unfinished. <a href="/drawloom/artwork/why-drawloom/stack-2024.svg">Enlarge diagram ↗</a></figcaption>
+<a href="/artwork/why-drawloom/stack-2024.svg" aria-label="Enlarge the 2024 architecture diagram"><img src="/artwork/why-drawloom/stack-2024.svg" width="1440" height="784" loading="lazy" alt="Public SvelteKit website deployed on Cloudflare Pages; a separate SvelteKit administration app uses Firebase." /></a>
+<figcaption>A public presence, patient records and invoicing. Marketing remained unfinished. <a href="/artwork/why-drawloom/stack-2024.svg">Enlarge diagram ↗</a></figcaption>
 </figure>
 
 ## Spring 2025: surely the stack was the problem
@@ -79,8 +79,8 @@ components. I started again, with bigger ambitions and much faster progress.
 
 <figure class="architecture-figure" id="stack-2025">
 <p class="diagram-kicker">2025 · A shared data layer</p>
-<a href="/drawloom/artwork/why-drawloom/stack-2025.svg" aria-label="Enlarge the 2025 architecture diagram"><img src="/drawloom/artwork/why-drawloom/stack-2025.svg" width="1480" height="944" loading="lazy" alt="Separate public and souphi-admin applications on Cloudflare Pages both use Drizzle to access the same D1 database." /></a>
-<figcaption>Separate applications could work with the same data. My development process still needed to catch up. <a href="/drawloom/artwork/why-drawloom/stack-2025.svg">Enlarge diagram ↗</a></figcaption>
+<a href="/artwork/why-drawloom/stack-2025.svg" aria-label="Enlarge the 2025 architecture diagram"><img src="/artwork/why-drawloom/stack-2025.svg" width="1480" height="944" loading="lazy" alt="Separate public and souphi-admin applications on Cloudflare Pages both use Drizzle to access the same D1 database." /></a>
+<figcaption>Separate applications could work with the same data. My development process still needed to catch up. <a href="/artwork/why-drawloom/stack-2025.svg">Enlarge diagram ↗</a></figcaption>
 </figure>
 
 ## Early 2026: faster code was not enough
@@ -115,8 +115,8 @@ finally got that part right.
 
 <figure class="architecture-figure" id="stack-2026">
 <p class="diagram-kicker">2026 · Shared code, enforced rules</p>
-<a href="/drawloom/artwork/why-drawloom/stack-2026.svg" aria-label="Enlarge the 2026 architecture diagram"><img src="/drawloom/artwork/why-drawloom/stack-2026.svg" width="1480" height="944" loading="lazy" alt="Public and administration applications on Cloudflare Workers use Convex for backend and data." /></a>
-<figcaption>One monorepo and automated checks supported the work. The improvement was the stack and the harness around development—not the stack alone. <a href="/drawloom/artwork/why-drawloom/stack-2026.svg">Enlarge diagram ↗</a></figcaption>
+<a href="/artwork/why-drawloom/stack-2026.svg" aria-label="Enlarge the 2026 architecture diagram"><img src="/artwork/why-drawloom/stack-2026.svg" width="1480" height="944" loading="lazy" alt="Public and administration applications on Cloudflare Workers use Convex for backend and data." /></a>
+<figcaption>One monorepo and automated checks supported the work. The improvement was the stack and the harness around development—not the stack alone. <a href="/artwork/why-drawloom/stack-2026.svg">Enlarge diagram ↗</a></figcaption>
 </figure>
 
 The models now had APIs that made the marketing work feel achievable too.
@@ -135,7 +135,7 @@ Then I spent a month building a system to automate the creation of twenty
 episodes.
 
 <figure>
-<a href="/drawloom/media/a-place-to-do-the-work/02-public-episode-opening.png"><img src="/drawloom/media/a-place-to-do-the-work/02-public-episode-opening.png" width="1892" height="800" loading="lazy" alt="The public opening of Treatment Episode 02, with an editorial introduction alongside a patient illustration." /></a>
+<a href="/media/a-place-to-do-the-work/02-public-episode-opening.png"><img src="/media/a-place-to-do-the-work/02-public-episode-opening.png" width="1892" height="800" loading="lazy" alt="The public opening of Treatment Episode 02, with an editorial introduction alongside a patient illustration." /></a>
 <figcaption>One of the treatment explainers on Souphi's journal. Behind this public presentation was a much larger production system.</figcaption>
 </figure>
 
@@ -158,7 +158,7 @@ recover from failures. I built different agent roles, provider connections,
 retry handling and a graph of the work.
 
 <figure>
-<a href="/drawloom/media/a-place-to-do-the-work/03-programme-raw.png"><img src="/drawloom/media/a-place-to-do-the-work/03-programme-raw.png" width="1892" height="800" loading="lazy" alt="The Treatment Episode production interface, showing eight stage groups and 23 accepted programme milestones." /></a>
+<a href="/media/a-place-to-do-the-work/03-programme-raw.png"><img src="/media/a-place-to-do-the-work/03-programme-raw.png" width="1892" height="800" loading="lazy" alt="The Treatment Episode production interface, showing eight stage groups and 23 accepted programme milestones." /></a>
 <figcaption>The production view: eight stage groups, 23 milestones, and decisions recorded along the way. This already had a user interface and review points; the problem was how much of the creative path I had fixed in advance.</figcaption>
 </figure>
 
@@ -231,7 +231,7 @@ inspect it and direct the next change. Its **harness** gives the agent the
 instructions, context, tools and controls to help.
 
 <figure>
-<a href="/drawloom/media/a-place-to-do-the-work/12-operator-annual-plan.jpg"><img src="/drawloom/media/a-place-to-do-the-work/12-operator-annual-plan.jpg" width="1229" height="768" loading="lazy" alt="The Laifu and Nini Operator workbench shows an accepted annual plan, story cards with separate script, image and narration stages, and the Codex conversation below." /></a>
+<a href="/media/a-place-to-do-the-work/12-operator-annual-plan.jpg"><img src="/media/a-place-to-do-the-work/12-operator-annual-plan.jpg" width="1229" height="768" loading="lazy" alt="The Laifu and Nini Operator workbench shows an accepted annual plan, story cards with separate script, image and narration stages, and the Codex conversation below." /></a>
 <figcaption>My story-production workbench in a local staging build: the plan, individual stories and conversation share one working surface. This is not a finished Drawloom product or a tested replacement for the treatment-video system.</figcaption>
 </figure>
 
@@ -261,7 +261,7 @@ That is the workbench I now wish I had built. It is not an alternative I have
 already tested.
 
 <figure>
-<a href="/drawloom/media/a-place-to-do-the-work/13-operator-story-workspace.jpg"><img src="/drawloom/media/a-place-to-do-the-work/13-operator-story-workspace.jpg" width="1229" height="768" loading="lazy" alt="The Coco Comes to Visit working draft in Operator: a three-part story arc, a storyboard with a separate cover and twelve pages, and the Codex conversation below." /></a>
+<a href="/media/a-place-to-do-the-work/13-operator-story-workspace.jpg"><img src="/media/a-place-to-do-the-work/13-operator-story-workspace.jpg" width="1229" height="768" loading="lazy" alt="The Coco Comes to Visit working draft in Operator: a three-part story arc, a storyboard with a separate cover and twelve pages, and the Codex conversation below." /></a>
 <figcaption>Inside an individual story: the arc and storyboard stay alongside the conversation. This local staging view contains a working draft and test conversation, not finished illustrations or a published book.</figcaption>
 </figure>
 
@@ -297,8 +297,8 @@ it runs. Drawloom keeps those responsibilities separate and replaceable.
 
 <figure class="architecture-figure architecture-wide" id="drawloom-capabilities" aria-describedby="drawloom-map-caption">
 <p class="diagram-kicker">Drawloom · Shared foundations, distinct responsibilities</p>
-<a href="/drawloom/artwork/why-drawloom/drawloom.svg" aria-label="Enlarge the Drawloom capability diagram"><img src="/drawloom/artwork/why-drawloom/drawloom.svg" width="2136" height="1128" loading="lazy" alt="Your workbench sits outside Drawloom. Orchestration coordinates work; memory and knowledge inform compiled context for agent execution. A tool request passes through policy and approval, tools, and sandbox constraints. Observability informs evaluation. Model inference is a separate capability." /></a>
-<figcaption id="drawloom-map-caption">Eleven logical capabilities, not eleven services or a finished runtime. Arrows show selected relationships, not every call. <a href="/drawloom/artwork/why-drawloom/drawloom.svg">Enlarge diagram ↗</a></figcaption>
+<a href="/artwork/why-drawloom/drawloom.svg" aria-label="Enlarge the Drawloom capability diagram"><img src="/artwork/why-drawloom/drawloom.svg" width="2136" height="1128" loading="lazy" alt="Your workbench sits outside Drawloom. Orchestration coordinates work; memory and knowledge inform compiled context for agent execution. A tool request passes through policy and approval, tools, and sandbox constraints. Observability informs evaluation. Model inference is a separate capability." /></a>
+<figcaption id="drawloom-map-caption">Eleven logical capabilities, not eleven services or a finished runtime. Arrows show selected relationships, not every call. <a href="/artwork/why-drawloom/drawloom.svg">Enlarge diagram ↗</a></figcaption>
 <details class="diagram-description">
 <summary>Read the diagram</summary>
 <p>The workbench owns the interface and business rules. The application chooses independently replaceable implementations of Drawloom's capabilities.</p>

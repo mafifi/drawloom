@@ -11,3 +11,7 @@ This guide applies under `docs/`.
   `docs/plans/README.md`.
 - Put generated material in `docs/reference/generated/` when that directory is
   introduced; never hand-edit generated output.
+- Architecture/survey evidence uses `docs/reference/evidence/`: immutable
+  publication artifacts in tracked `surveys/`, fresh output in ignored
+  `generated/`. See its README before moving or regenerating reports. Preserve
+  artifact bytes, hash bindings and screenshot sidecars together.

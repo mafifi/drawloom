@@ -51,4 +51,4 @@ The [real Loader composition test](https://github.com/deepseek-ai/deepseek-harne
 
 ## Architecture map sources
 
-[Open the source-linked map](deepseek.html). Nodes: workspace instructions; referenced sessions; context admission; native agent request; session surface; compaction; optional external memory. Connections distinguish pre-step preparation, durable history and the optional MCP path. These logical groups are not separate deployed services.
+[Open the source-linked map](../evidence/surveys/knowledge-memory-survey/deepseek.html). Nodes: workspace instructions; referenced sessions; context admission; native agent request; session surface; compaction; optional external memory. Connections distinguish pre-step preparation, durable history and the optional MCP path. These logical groups are not separate deployed services.

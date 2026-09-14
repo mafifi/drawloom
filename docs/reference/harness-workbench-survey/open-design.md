@@ -1,6 +1,6 @@
 # Open Design: rich workbench survey
 
-Read alongside the [survey scope and freshness record](README.md). [Open the architecture map](open-design.html).
+Read alongside the [survey scope and freshness record](README.md). [Open the architecture map](../evidence/surveys/harness-workbench-survey/open-design.html).
 
 Open Design is useful as a demanding consumer: it joins conversation, direct editing, files, previews, native agent sessions, plugins, media work and delivery. It is not a neutral specification for the host it would need.
 

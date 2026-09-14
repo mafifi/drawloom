@@ -2,7 +2,7 @@
 
 Read alongside the [survey scope and freshness record](README.md). These are source-inspected capabilities at the recorded revision, not live compatibility or security certifications.
 
-[Open the architecture map](deepseek.html). Its boxes are logical groups, not processes. The map is deliberately smaller than the inventory below.
+[Open the architecture map](../evidence/surveys/harness-workbench-survey/deepseek.html). Its boxes are logical groups, not processes. The map is deliberately smaller than the inventory below.
 
 ## Composition matters
 

@@ -11,10 +11,10 @@ test('a producer declaration and later media result are shared with another work
   const root=await mkdtemp(join(tmpdir(),'drawloom-shared-media-'));
   const installs=await createInstallationStore(createNodeJsonStore(join(root,'state')));
   for(const id of ['producer','consumer']) {
-    const pkg=join(root,id);await mkdir(pkg);
-    const build=await Bun.build({entrypoints:[resolve(import.meta.dir,'shared-media.fixture.ts')],target:'bun',outdir:pkg,naming:'backend.mjs'});
+    const pkg=join(root,id);await mkdir(join(pkg,'org.drawloom'),{recursive:true});
+    const build=await Bun.build({entrypoints:[resolve(import.meta.dir,'shared-media.fixture.ts')],target:'bun',outdir:join(pkg,'org.drawloom'),naming:'backend.mjs'});
     if(!build.success)throw Error('Fixture build failed');
-    await writeFile(join(pkg,'plugin.json'),JSON.stringify({$schema:'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',name:id,extensions:{'io.github.mafifi.drawloom':{version:1,backend:{entrypoint:'./backend.mjs'},workbenches:[{id,title:id,openingTool:{server:'media',tool:'open'}}]}}}));
+    await writeFile(join(pkg,'plugin.json'),JSON.stringify({$schema:'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',name:id,extensions:{'org.drawloom':{version:1,backend:{entrypoint:'./org.drawloom/backend.mjs'},workbenches:[{id,title:id,openingTool:{server:'media',tool:'open'}}]}}}));
     const installation=await installs.add(pkg);
     await installs.configure(installation,{enabled:true,trustedBackend:true,servers:[],configuration:{id,...(id==='producer'?{origin:'https://initial.example'}:{}),url:'https://returned.example/video.mp4?signature=PRIVATE'}});
   }

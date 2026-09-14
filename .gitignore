@@ -10,6 +10,7 @@ coverage/
 
 # Compiled MCP App; included in packages after build, not in source control.
 packages/examples/knowledge-evaluation/app.html
+packages/examples/knowledge-evaluation/org.drawloom/
 
 *.log
 
@@ -24,6 +25,7 @@ docs/reference/generated/repository-atlas/
 
 # Archify renderings and browser reports are rebuilt from retained JSON specs.
 docs/reference/generated/
+docs/reference/evidence/generated/
 docs/reference/authorization-survey/*.html
 docs/reference/harness-workbench-survey/*.html
 docs/reference/knowledge-memory-survey/*.html

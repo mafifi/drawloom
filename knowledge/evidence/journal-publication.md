@@ -9,6 +9,9 @@ updated: 2026-09-05
 
 # Journal publication
 
+> Normalized 2026-09-14: Drawloom URLs use the canonical domain. Observation dates
+> and outcomes are retained; historical browser checks are not new-domain proof.
+
 The author explicitly authorised publication, integration and commit of the
 current journal, followed by automatic deployment when public-site sources
 change. [ADR 0010](../../docs/adr/0010-automatically-deploy-approved-journal-content.md)
@@ -26,9 +29,9 @@ deprecation annotation were non-blocking; they are not claimed resolved.
 
 ## Live checks on 2026-09-05
 
-- [Homepage](https://mafifi.github.io/drawloom/) visually inspected in the in-app
+- [Homepage](https://drawloom.org/) visually inspected in the in-app
   browser at 1280×720: neutral paper, custom heading font and woven artwork loaded.
-- “Read the essay” opened [Why Drawloom?](https://mafifi.github.io/drawloom/articles/a-place-to-do-the-work/),
+- “Read the essay” opened [Why Drawloom?](https://drawloom.org/articles/a-place-to-do-the-work/),
   with a publication date and no local-draft notice.
 - All five article screenshots reported loaded with nonzero natural width.
 - Native video playback advanced to 17.67 seconds; pause produced `paused: true`

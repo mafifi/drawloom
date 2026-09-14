@@ -14,6 +14,22 @@ export async function containedPath(root: string, path: string): Promise<string>
   if (delta === '..' || delta.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) || isAbsolute(delta)) throw Error('Path escapes package boundary');
   return target;
 }
+/** Executable extensions must be physical regular files beneath the physical namespace directory. */
+async function extensionEntrypoint(root: string, path: string): Promise<string> {
+  const namespace = resolve(root, DRAWLOOM_EXTENSION);
+  const namespaceInfo = await lstat(namespace);
+  if (namespaceInfo.isSymbolicLink() || !namespaceInfo.isDirectory()) throw Error('Invalid extension namespace');
+  const parts = path.slice(`./${DRAWLOOM_EXTENSION}/`.length).split('/');
+  let cursor = namespace;
+  for (const part of parts) {
+    cursor = join(cursor, part);
+    const info = await lstat(cursor);
+    if (info.isSymbolicLink()) throw Error('Extension path is symbolic');
+  }
+  const target = await containedPath(namespace, parts.join('/'));
+  if (!(await stat(target)).isFile()) throw Error('Expected extension file');
+  return target;
+}
 async function exists(path: string): Promise<boolean> {
   try { await lstat(path); return true; }
   catch (error) { if (error instanceof Error && 'code' in error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) return false; throw error; }
@@ -58,10 +74,8 @@ export async function inspectPackage(inputRoot: string): Promise<PackageInventor
     const parsed = DrawloomPackageExtensionSchema.safeParse(inventory.extensions[DRAWLOOM_EXTENSION]);
     if (parsed.success) {
       try {
-        if (parsed.data.backend) {
-          const target = await containedPath(root, parsed.data.backend.entrypoint);
-          if (!(await stat(target)).isFile()) throw Error('Expected backend file');
-        }
+        if (parsed.data.backend) await extensionEntrypoint(root, parsed.data.backend.entrypoint);
+        if (parsed.data.workflows) await extensionEntrypoint(root, parsed.data.workflows.entrypoint);
         inventory.drawloom = parsed.data;
       } catch { report(`extension:${DRAWLOOM_EXTENSION}`, 'invalid'); }
     } else report(`extension:${DRAWLOOM_EXTENSION}`, 'invalid');

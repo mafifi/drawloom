@@ -25,14 +25,14 @@ grading to get them. A score is not permission, business acceptance or publicati
 - [Promptfoo and Arcade: runners and tool-selection tests](runners.md).
 - [Langfuse and DeepEval: platform and metric capabilities](platform-and-metrics.md).
 - [Braintrust, Autoevals and LangSmith: SDK interfaces and service boundaries](sdk-libraries.md).
-- [Drawloom discussion map](../generated/evaluation-survey/proposal.html).
-- Product maps: [Promptfoo](../generated/evaluation-survey/promptfoo.html),
-  [Arcade MCP](../generated/evaluation-survey/arcade-mcp.html),
-  [DeepEval](../generated/evaluation-survey/deepeval.html),
-  [Langfuse](../generated/evaluation-survey/langfuse.html),
-  [Braintrust SDK](../generated/evaluation-survey/braintrust-sdk-javascript.html),
-  [Autoevals](../generated/evaluation-survey/autoevals.html),
-  [LangSmith SDK](../generated/evaluation-survey/langsmith-sdk.html).
+- [Drawloom discussion map](../evidence/surveys/evaluation-survey/proposal.html).
+- Product maps: [Promptfoo](../evidence/surveys/evaluation-survey/promptfoo.html),
+  [Arcade MCP](../evidence/surveys/evaluation-survey/arcade-mcp.html),
+  [DeepEval](../evidence/surveys/evaluation-survey/deepeval.html),
+  [Langfuse](../evidence/surveys/evaluation-survey/langfuse.html),
+  [Braintrust SDK](../evidence/surveys/evaluation-survey/braintrust-sdk-javascript.html),
+  [Autoevals](../evidence/surveys/evaluation-survey/autoevals.html),
+  [LangSmith SDK](../evidence/surveys/evaluation-survey/langsmith-sdk.html).
 
 Each product map is an authored abstraction of inspected code, not automatic
 call-graph extraction. Click source markers for revision-bound upstream files.
@@ -202,7 +202,9 @@ for its separate, older source-pinned scope.
 Sources were freshly shallow-cloned from upstream; the inventories retain full
 commit hashes. Archify uses the existing local checkout, unchanged. Diagram
 sources live here; generated HTML/browser evidence lives under
-`docs/reference/generated/evaluation-survey/`.
+`docs/reference/evidence/surveys/evaluation-survey/`. Fresh runs use the
+[evidence generation workflow](../evidence/README.md), never overwrite these
+retained artifacts.
 
 See [diagram receipts](diagrams.md) for exact validation, hashes, automated browser
 coverage and visual review. No Drawloom dependencies or runtime configuration were

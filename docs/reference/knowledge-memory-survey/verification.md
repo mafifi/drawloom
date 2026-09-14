@@ -99,15 +99,15 @@ Every final diagram has:
 
 | Diagram | Delivered viewer | Deterministic receipt | Browser receipt / screenshots |
 | --- | --- | --- | --- |
-| Comparison lens | [HTML](comparison.html) | [Receipt](comparison.delivery.json) | [Receipt](comparison.visual-check.json) · [Contact sheet](comparison.visual-check.html) |
-| Hindsight | [HTML](hindsight.html) | [Receipt](hindsight.delivery.json) | [Receipt](hindsight.visual-check.json) · [Contact sheet](hindsight.visual-check.html) |
-| Graphiti | [HTML](graphiti.html) | [Receipt](graphiti.delivery.json) | [Receipt](graphiti.visual-check.json) · [Contact sheet](graphiti.visual-check.html) |
-| Letta Code | [HTML](letta.html) | [Receipt](letta.delivery.json) | [Receipt](letta.visual-check.json) · [Contact sheet](letta.visual-check.html) |
-| Mem0 | [HTML](mem0.html) | [Receipt](mem0.delivery.json) | [Receipt](mem0.visual-check.json) · [Contact sheet](mem0.visual-check.html) |
-| A-Mem | [HTML](a-mem.html) | [Receipt](a-mem.delivery.json) | [Receipt](a-mem.visual-check.json) · [Contact sheet](a-mem.visual-check.html) |
-| HippoRAG | [HTML](hipporag.html) | [Receipt](hipporag.delivery.json) | [Receipt](hipporag.visual-check.json) · [Contact sheet](hipporag.visual-check.html) |
-| DeepSeek | [HTML](deepseek.html) | [Receipt](deepseek.delivery.json) | [Receipt](deepseek.visual-check.json) · [Contact sheet](deepseek.visual-check.html) |
-| Open Design | [HTML](open-design.html) | [Receipt](open-design.delivery.json) | [Receipt](open-design.visual-check.json) · [Contact sheet](open-design.visual-check.html) |
+| Comparison lens | [HTML](../evidence/surveys/knowledge-memory-survey/comparison.html) | [Receipt](../evidence/surveys/knowledge-memory-survey/comparison.delivery.json) | [Receipt](../evidence/surveys/knowledge-memory-survey/comparison.visual-check.json) · [Contact sheet](../evidence/surveys/knowledge-memory-survey/comparison.visual-check.html) |
+| Hindsight | [HTML](../evidence/surveys/knowledge-memory-survey/hindsight.html) | [Receipt](../evidence/surveys/knowledge-memory-survey/hindsight.delivery.json) | [Receipt](../evidence/surveys/knowledge-memory-survey/hindsight.visual-check.json) · [Contact sheet](../evidence/surveys/knowledge-memory-survey/hindsight.visual-check.html) |
+| Graphiti | [HTML](../evidence/surveys/knowledge-memory-survey/graphiti.html) | [Receipt](../evidence/surveys/knowledge-memory-survey/graphiti.delivery.json) | [Receipt](../evidence/surveys/knowledge-memory-survey/graphiti.visual-check.json) · [Contact sheet](../evidence/surveys/knowledge-memory-survey/graphiti.visual-check.html) |
+| Letta Code | [HTML](../evidence/surveys/knowledge-memory-survey/letta.html) | [Receipt](../evidence/surveys/knowledge-memory-survey/letta.delivery.json) | [Receipt](../evidence/surveys/knowledge-memory-survey/letta.visual-check.json) · [Contact sheet](../evidence/surveys/knowledge-memory-survey/letta.visual-check.html) |
+| Mem0 | [HTML](../evidence/surveys/knowledge-memory-survey/mem0.html) | [Receipt](../evidence/surveys/knowledge-memory-survey/mem0.delivery.json) | [Receipt](../evidence/surveys/knowledge-memory-survey/mem0.visual-check.json) · [Contact sheet](../evidence/surveys/knowledge-memory-survey/mem0.visual-check.html) |
+| A-Mem | [HTML](../evidence/surveys/knowledge-memory-survey/a-mem.html) | [Receipt](../evidence/surveys/knowledge-memory-survey/a-mem.delivery.json) | [Receipt](../evidence/surveys/knowledge-memory-survey/a-mem.visual-check.json) · [Contact sheet](../evidence/surveys/knowledge-memory-survey/a-mem.visual-check.html) |
+| HippoRAG | [HTML](../evidence/surveys/knowledge-memory-survey/hipporag.html) | [Receipt](../evidence/surveys/knowledge-memory-survey/hipporag.delivery.json) | [Receipt](../evidence/surveys/knowledge-memory-survey/hipporag.visual-check.json) · [Contact sheet](../evidence/surveys/knowledge-memory-survey/hipporag.visual-check.html) |
+| DeepSeek | [HTML](../evidence/surveys/knowledge-memory-survey/deepseek.html) | [Receipt](../evidence/surveys/knowledge-memory-survey/deepseek.delivery.json) | [Receipt](../evidence/surveys/knowledge-memory-survey/deepseek.visual-check.json) · [Contact sheet](../evidence/surveys/knowledge-memory-survey/deepseek.visual-check.html) |
+| Open Design | [HTML](../evidence/surveys/knowledge-memory-survey/open-design.html) | [Receipt](../evidence/surveys/knowledge-memory-survey/open-design.delivery.json) | [Receipt](../evidence/surveys/knowledge-memory-survey/open-design.visual-check.json) · [Contact sheet](../evidence/surveys/knowledge-memory-survey/open-design.visual-check.html) |
 
 The automated browser command measures light-theme containment at 1440×900,
 1600×1000, 1920×1080 and 2048×1320. It captures both light and dark themes at

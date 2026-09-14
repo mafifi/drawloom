@@ -1,5 +1,9 @@
 # ADR 0018: Standard plugin loading and runtime extensions
 
+> Naming amendment, 2026-09-14: Drawloom URLs and packaged extension names are
+> normalized to the approved canonical domain and `org.drawloom/` layout. Original
+> acceptance dates and observations below are unchanged; this is not fresh proof.
+
 - **Status:** Accepted
 - **Date:** 2026-09-10
 - **Decision owners:** Drawloom maintainers
@@ -143,7 +147,7 @@ For Drawloom-owned connections:
   A new connection/catalogue requiring registry replacement waits for restart.
 
 The non-secret client-metadata document is at
-[Drawloom OAuth client metadata](https://mafifi.github.io/drawloom/oauth/client.json).
+[Drawloom OAuth client metadata](https://drawloom.org/oauth/client.json).
 It declares a public client and loopback callback path `/oauth/callback`.
 The actual host callback uses its bound loopback port. Publication authorization
 covers this metadata only, not journal edits or private material.
@@ -151,7 +155,7 @@ covers this metadata only, not journal edits or private material.
 ## Minimal Drawloom extension
 
 Agent Plugins permits client-namespaced metadata. Drawloom interprets only
-version 1 of `io.github.mafifi.drawloom`. Other clients can ignore it and continue
+version 1 of `org.drawloom`. Other clients can ignore it and continue
 loading the package's standard components.
 
 Example shape (illustrative public document workbench):
@@ -159,9 +163,9 @@ Example shape (illustrative public document workbench):
 ```json
 {
   "extensions": {
-    "io.github.mafifi.drawloom": {
+    "org.drawloom": {
       "version": 1,
-      "backend": { "entrypoint": "./backend.mjs" },
+      "backend": { "entrypoint": "./org.drawloom/backend.mjs" },
       "requires": [{ "kind": "capability", "id": "host" }],
       "workbenches": [{
         "id": "document-reference",

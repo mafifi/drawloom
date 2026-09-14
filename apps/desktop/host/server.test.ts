@@ -44,14 +44,14 @@ test('cold native discovery may exceed the HTTP idle default without blocking st
   } finally { await server.close(); }
 }, 30_000);
 async function installedMedia(root: string, mov = false) {
-  const pkg = join(root, 'media'); await mkdir(pkg);
+  const pkg = join(root, 'media'); await mkdir(join(pkg, 'org.drawloom'), { recursive: true });
   // Build in a separate process, as package producers do. Repeated in-process
   // Bun 1.2 builds/imports of this graph corrupt the bundler's resolver cache.
-  const built = Bun.spawn([process.execPath, 'build', resolve(import.meta.dir, 'media-backend.fixture.ts'), '--target=bun', '--outfile=' + join(pkg, 'backend.mjs')], { stdout: 'ignore', stderr: 'pipe' });
+  const built = Bun.spawn([process.execPath, 'build', resolve(import.meta.dir, 'media-backend.fixture.ts'), '--target=bun', '--outfile=' + join(pkg, 'org.drawloom', 'backend.mjs')], { stdout: 'ignore', stderr: 'pipe' });
   const buildError = await new Response(built.stderr).text();
   if (await built.exited) throw Error('Fixture build failed: ' + buildError);
   await writeFile(join(pkg, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'media-example',
-    extensions: { 'io.github.mafifi.drawloom': { version: 1, backend: { entrypoint: './backend.mjs' }, requires: [{ kind: 'capability', id: 'host' }] } } }));
+    extensions: { 'org.drawloom': { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, requires: [{ kind: 'capability', id: 'host' }] } } }));
   const installed = await createInstallationStore(createNodeJsonStore(join(root, 'state')));
   const id = await installed.add(pkg);
   await installed.configure(id, { enabled: true, trustedBackend: true, servers: [], configuration: { mov } });

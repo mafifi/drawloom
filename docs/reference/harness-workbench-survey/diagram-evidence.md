@@ -4,8 +4,8 @@ Generated on 9 September 2026 with Archify 2.17 from the adjacent authored archi
 
 | Artifact | Deterministic validation | Browser evidence | Perceptual review |
 | --- | --- | --- | --- |
-| [DeepSeek](deepseek.html) | 9/9 checks; 0 errors, 0 warnings | Passed | Passed |
-| [Open Design](open-design.html) | 9/9 checks; 0 errors, 0 warnings | Passed | Passed |
+| [DeepSeek](../evidence/surveys/harness-workbench-survey/deepseek.html) | 9/9 checks; 0 errors, 0 warnings | Passed | Passed |
+| [Open Design](../evidence/surveys/harness-workbench-survey/open-design.html) | 9/9 checks; 0 errors, 0 warnings | Passed | Passed |
 
 - Profile: `showcase`; static READ view.
 - Source references: verified against the local, clean checkouts at the revisions recorded in the specifications.
@@ -19,8 +19,8 @@ Generated on 9 September 2026 with Archify 2.17 from the adjacent authored archi
 
 ## Byte-bound receipts
 
-- [DeepSeek delivery receipt](deepseek.delivery.json) · [browser receipt](deepseek.visual-check.json) · [capture contact sheet](deepseek.visual-check.html).
-- [Open Design delivery receipt](open-design.delivery.json) · [browser receipt](open-design.visual-check.json) · [capture contact sheet](open-design.visual-check.html).
+- [DeepSeek delivery receipt](../evidence/surveys/harness-workbench-survey/deepseek.delivery.json) · [browser receipt](../evidence/surveys/harness-workbench-survey/deepseek.visual-check.json) · [capture contact sheet](../evidence/surveys/harness-workbench-survey/deepseek.visual-check.html).
+- [Open Design delivery receipt](../evidence/surveys/harness-workbench-survey/open-design.delivery.json) · [browser receipt](../evidence/surveys/harness-workbench-survey/open-design.visual-check.json) · [capture contact sheet](../evidence/surveys/harness-workbench-survey/open-design.visual-check.html).
 
 The delivery receipts contain specification and artifact SHA-256 hashes, byte counts, composition status and source revision. Browser receipts bind their measurements to the same artifact hashes.
 
@@ -29,7 +29,7 @@ The delivery receipts contain specification and artifact SHA-256 hashes, byte co
 Use the Archify 2.17 package rather than editing the generated HTML. For each specification:
 
 1. Run `archify.mjs validate architecture <spec> --quality showcase --json --repo-root <reference-checkout>`.
-2. Run `archify.mjs deliver architecture <spec> <html> --quality showcase --json --repo-root <reference-checkout>`.
+2. Run `node scripts/render-survey-evidence.mjs harness-workbench-survey <diagram> <archify.mjs> <reference-checkout>` from the repository root. Use the new timestamped output directory; never overwrite the retained artifacts.
 3. Only after successful delivery, run `archify.mjs visual-check <html> --json`.
 4. Inspect the generated images and record the new perceptual result separately.
 5. Replace receipts together with changed artifacts. Do not retain old visual evidence for a new hash.

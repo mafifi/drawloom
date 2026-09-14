@@ -92,7 +92,8 @@ export async function parseKnowledgeEvaluationAssets(assets: KnowledgeEvaluation
 }
 
 export async function readPackagedKnowledgeEvaluationAssets(): Promise<KnowledgeEvaluationAssets> {
-  const base = import.meta.url.includes("/dist/") ? new URL("../src/fixtures/", import.meta.url) : new URL("./fixtures/", import.meta.url);
+  const sourceModule = new URL(import.meta.url).pathname.endsWith("/src/assets.ts");
+  const base = sourceModule ? new URL("./fixtures/", import.meta.url) : new URL("../src/fixtures/", import.meta.url);
   const [corpus, current, historical] = await Promise.all([
     readFile(new URL("corpus.ts", base)), readFile(new URL("local-knowledge-mlx-10k.json", base)), readFile(new URL("local-knowledge-answers-10k.json", base)),
   ]);

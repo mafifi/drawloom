@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import { mkdtemp, copyFile, rm } from 'node:fs/promises';
+import { mkdtemp, copyFile, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { inspectPackage } from '@drawloom/local-plugin-packages';
@@ -14,7 +14,8 @@ test('prebuilt enhanced package receives the accepted orchestration interface th
   const loader = createBackendLoader();
   try {
     const fixture = join(import.meta.dir, 'fixtures/enhanced');
-    const build = await Bun.build({ entrypoints: [join(fixture, 'backend.ts')], outdir: root, target: 'bun', naming: 'backend.js' });
+    const extension = join(root, 'org.drawloom'); await mkdir(extension);
+    const build = await Bun.build({ entrypoints: [join(fixture, 'backend.ts')], outdir: extension, target: 'bun', naming: 'backend.js' });
     expect(build.success).toBe(true);
     await copyFile(join(fixture, 'plugin.json'), join(root, 'plugin.json'));
     const inventory = await inspectPackage(root);

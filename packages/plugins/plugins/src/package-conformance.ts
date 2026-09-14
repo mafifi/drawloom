@@ -27,6 +27,14 @@ export async function packageInspectionConformance(inspector: PackageInspector, 
     check(result.diagnostics.some(d => d.component === 'server:old' && d.code === 'unsupported-transport'), 'legacy SSE warning');
     check((await inspector.readSkill(result, 'outline')).includes('PRIVATE-TO-SKILL-BODY'), 'explicit skill reading');
     check(await inspector.readSupportingFile(result, 'outline', 'references/style.md') === 'Use short sentences.', 'supporting file read');
+    await fixture.write('org.drawloom/backend.mjs', 'throw Error("inspection must not execute extensions")');
+    await fixture.write('org.drawloom/workflows.mjs', 'throw Error("inspection must not execute extensions")');
+    await fixture.write('plugin.json', JSON.stringify({ $schema: PLUGIN_SCHEMA, name: 'sample', extensions: { 'org.drawloom': {
+      version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, workflows: { entrypoint: './org.drawloom/workflows.mjs' },
+    } } }));
+    result = await inspector.inspectPackage(fixture.root);
+    check(result.drawloom?.backend?.entrypoint === './org.drawloom/backend.mjs', 'canonical backend extension inspected without execution');
+    check(result.drawloom?.workflows?.entrypoint === './org.drawloom/workflows.mjs', 'canonical workflow extension inspected without execution');
     await fixture.write('plugin.json', JSON.stringify({ $schema: PLUGIN_SCHEMA, name: 'sample', version: 'spring edition' }));
     result = await inspector.inspectPackage(fixture.root);
     check(result.version === 'spring edition', 'versions need not be SemVer');

@@ -20,7 +20,7 @@ bun run spike:adr-0009:verify
 bun run spike:adr-0009:preview
 ```
 
-Open `http://127.0.0.1:4321/drawloom/`. Astro 7 backgrounds preview when running
+Open `http://127.0.0.1:4321/`. Astro 7 backgrounds preview when running
 under an agent. Stop it with `bun run spike:adr-0009:preview stop`.
 The preview command changes to the spike directory because Astro 7.3.1's
 agent-background child otherwise resolves a relative `--root` twice.
@@ -64,6 +64,8 @@ gh workflow run publishing.yml --ref main
 gh run list --workflow publishing.yml --limit 1
 ```
 
-The placeholder target is `https://mafifi.github.io/drawloom/`. Deployment needs
+The canonical target is `https://drawloom.org/`. URLs and root paths were
+normalized on 2026-09-14; the original proof's dates and outcomes are unchanged.
+Deployment needs
 GitHub Actions/Pages access; readers need only a browser. No Substack/YouTube
 account, CMS, custom domain, tracking or cloud renderer is configured.

@@ -79,13 +79,24 @@ is reported rather than replaced by a Drawloom credential flow.
 
 ## Trusted enhancement
 
-The optional `extensions["io.github.mafifi.drawloom"]` object declares version 1,
+The optional `extensions["org.drawloom"]` object declares version 1,
 a package-relative prebuilt `.js`/`.mjs` backend, required public capabilities or
 tool/skill identities, optional tool/skill identities, and workbench placement
-with an MCP App opening tool.
+with an MCP App opening tool. Drawloom-only modules and their packaged dependencies
+belong under top-level `org.drawloom/`; backend and workflow entrypoints must begin
+`./org.drawloom/`. The versioned schema is
+`https://drawloom.org/schemas/1.0.0/plugin-extension.schema.json`, generated from
+the contract definition. Loading validates locally and never fetches this URL.
+
+The namespace is stable independently of the website. No alternate namespace or
+directory is recognized. Reinstall packages using the current packaging layout;
+unknown namespaces remain ignored, while invalid Drawloom metadata disables only
+the enhancement. Inspection and activation both check that entrypoints are regular
+files physically contained in the namespace directory, including symlink resolution.
+Portable skills, root MCP configuration and standard MCP Apps remain unchanged.
 
 [Accepted ADR 0021](../adr/0021-local-temporal-orchestration.md) adds optional
-`workflows: { entrypoint: "./dist/workflows.js" }` and an optional
+`workflows: { entrypoint: "./org.drawloom/workflows.js" }` and an optional
 `{ kind: "capability", id: "orchestration" }` dependency.
 [Accepted ADR 0025](../adr/0025-evaluation-boundaries-and-comparative-proof.md)
 also permits optional `evaluation`; other capabilities remain required-only.

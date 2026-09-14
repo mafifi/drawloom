@@ -1,5 +1,8 @@
 # Journal Design Adoption Implementation Plan
 
+> URLs and root deployment paths normalized on 2026-09-14. Original observation
+> dates and outcomes remain unchanged.
+
 > **For agentic workers:** Use `superpowers:executing-plans` to implement this
 > plan task-by-task after approval. Steps use checkboxes for tracking.
 
@@ -52,7 +55,7 @@ implementing this plan; do not maintain a second token list here.
 
 - No production module imports from `spikes/`.
 - External dependency versions remain in the root Bun catalog.
-- GitHub Pages base is `/drawloom`; publishing remains manual and main-only.
+- GitHub Pages base is `/`; publishing remains manual and main-only.
 - Keep `publishing/site/index.html` and its existing deployment unchanged during
   local adoption work. Build the future site to ignored `dist/`.
 - Sample content is local-only and labelled illustrative. Real publication
@@ -121,8 +124,8 @@ the spike's verification.
 - [x] Implement the two templates and one stylesheet, with actual HTML text and
   real links. Omit mock-only notebook entries and About until real destinations
   exist. Use Astro's Markdown/content facilities, not custom Markdown parsing.
-- [x] Configure static output with `site: 'https://mafifi.github.io'` and
-  `base: '/drawloom'`. Build base-safe article, artwork and media URLs.
+- [x] Configure static output with `site: 'https://drawloom.org'` and
+  `base: '/'`. Build base-safe article, artwork and media URLs.
 - [x] Add root `journal:build`, `journal:preview`, `journal:check` and
   `journal:render` commands. Preview changes directory before launching Astro,
   following the proven spike's relative-root lesson. Keep rendering output
@@ -166,7 +169,7 @@ Add a focused evidence record under `knowledge/evidence/` using its area guide.
   main-only guard and existing Pages deployment permissions.
 - [x] Run the complete repository and journal gates at final head. Commit and
   push only when requested, then trigger the manual deployment when authorised.
-- [x] Verify the live homepage and article, artwork and media under `/drawloom/`,
+- [x] Verify the live homepage and article, artwork and media under `/`,
   working navigation/video, and 404s for retired proof and draft URLs. Confirm
   that public output matches the tested build and record the workflow run.
 - [x] Update current-state documentation without rewriting Accepted ADR 0009.

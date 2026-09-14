@@ -5,8 +5,8 @@ only; private workbench code and data remain in their own repository.
 
 ## Start here
 
-1. Open the [Archify ownership map](../generated/repository-atlas/overview.html).
-2. Use the [complete reading ledger](../generated/repository-atlas/index.md) to
+1. Open the [Archify ownership map](../evidence/generated/repository-atlas/overview.html).
+2. Use the [complete reading ledger](../evidence/generated/repository-atlas/index.md) to
    open family maps and every tracked file. Keep personal checkmarks in a copy:
    regeneration replaces this generated ledger.
 3. Follow the route below, recording findings against exact file paths and the
@@ -70,6 +70,11 @@ pass. This makes the implementation's intended guarantees visible immediately.
   After cleanup, cloc reports 148,349 code lines across 1,220 recognised text
   files. The broader reading inventory includes all tracked files and counts
   blanks/comments too: these are deliberately different measurements.
+  Those HTML pages have since been recovered as tracked publication evidence
+  under [evidence/surveys](../evidence/README.md), together with reports and PNGs.
+  The 148,349 figure describes the pre-restoration baseline, not the new total.
+  Review retained evidence separately from product source; the ledger includes
+  both, including nonignored files awaiting commit.
 - The introductory “current state” prose in README/ARCHITECTURE describes early
   foundation progress alongside later implemented capabilities. Reconcile these
   statements with code and accepted ADRs during the documentation pass.

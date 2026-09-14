@@ -1,5 +1,19 @@
 import { test, expect } from 'bun:test';
-import { PackageManifestSchema, PackageServerConfigSchema, DrawloomPackageExtensionSchema, PLUGIN_SCHEMA } from './src/index.ts';
+import { z } from 'zod';
+import { PackageManifestSchema, PackageServerConfigSchema, DrawloomPackageExtensionSchema, PLUGIN_SCHEMA,
+  DRAWLOOM_EXTENSION, DRAWLOOM_PACKAGE_EXTENSION_SCHEMA_ID, DrawloomPackageExtensionJsonSchema } from './src/index.ts';
+test('the versioned public extension schema has the canonical namespace and identity', () => {
+  expect(DRAWLOOM_EXTENSION).toBe('org.drawloom');
+  expect(DRAWLOOM_PACKAGE_EXTENSION_SCHEMA_ID).toBe('https://drawloom.org/schemas/1.0.0/plugin-extension.schema.json');
+  expect(DrawloomPackageExtensionJsonSchema).toMatchObject({
+    $id: DRAWLOOM_PACKAGE_EXTENSION_SCHEMA_ID,
+    type: 'object',
+    properties: { version: { const: 1 } },
+  });
+  const published = z.fromJSONSchema(DrawloomPackageExtensionJsonSchema);
+  expect(published.safeParse({ version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' } }).success).toBe(true);
+  expect(published.safeParse({ version: 1, backend: { entrypoint: './backend.mjs' } }).success).toBe(false);
+});
 test('optional dependencies describe tools, skills and only the existing orchestration capability', () => {
   expect(DrawloomPackageExtensionSchema.safeParse({ version: 1, optional: [
     { kind: 'tool', id: 'package:media:media:inspect' }, { kind: 'skill', id: 'package:editor:skill:edit' },
@@ -30,9 +44,9 @@ test('stdio rejects shell commands, reserved environment and closed-variant mixi
     expect(PackageServerConfigSchema.safeParse({ type: 'stdio', ...config }).success).toBe(false);
   }
 });
-test('Drawloom metadata accepts existing requirements and opening-tool references only with a relative prebuilt backend', () => {
-  expect(DrawloomPackageExtensionSchema.safeParse({ version: 1, backend: { entrypoint: './dist/backend.mjs' }, requires: [{ kind: 'capability', id: 'orchestration' }], workbenches: [{ id: 'notes', title: 'Notes', openingTool: { server: 'backend', tool: 'open' } }] }).success).toBe(true);
-  for (const entrypoint of ['../backend.js', '/backend.js', 'backend.ts', 'https://example.com/backend.js']) {
+test('Drawloom metadata accepts existing requirements and opening-tool references only in the physical namespace', () => {
+  expect(DrawloomPackageExtensionSchema.safeParse({ version: 1, backend: { entrypoint: './org.drawloom/dist/backend.mjs' }, requires: [{ kind: 'capability', id: 'orchestration' }], workbenches: [{ id: 'notes', title: 'Notes', openingTool: { server: 'backend', tool: 'open' } }] }).success).toBe(true);
+  for (const entrypoint of ['./dist/backend.js', '../org.drawloom/backend.js', '/backend.js', 'backend.ts', 'https://example.com/backend.js']) {
     expect(DrawloomPackageExtensionSchema.safeParse({ version: 1, backend: { entrypoint } }).success).toBe(false);
   }
 });
@@ -40,9 +54,9 @@ test('Drawloom metadata accepts existing requirements and opening-tool reference
 test('Drawloom metadata accepts only package-relative prebuilt JavaScript workflow modules', () => {
   expect(DrawloomPackageExtensionSchema.safeParse({
     version: 1,
-    workflows: { entrypoint: './dist/workflows.js' },
+    workflows: { entrypoint: './org.drawloom/dist/workflows.js' },
   }).success).toBe(true);
-  for (const entrypoint of ['../workflows.js', '/workflows.js', 'workflows.ts', 'https://example.com/workflows.js']) {
+  for (const entrypoint of ['./dist/workflows.js', '../org.drawloom/workflows.js', '/workflows.js', 'workflows.ts', 'https://example.com/workflows.js']) {
     expect(DrawloomPackageExtensionSchema.safeParse({ version: 1, workflows: { entrypoint } }).success).toBe(false);
   }
 });

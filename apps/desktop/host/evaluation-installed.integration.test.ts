@@ -96,12 +96,12 @@ test("trusted installed evaluation executes through attached authority-wrapped h
     async assess(scorer, args, context) { observedOwners.push(authority.current()); return scorer.score(args, context); },
   };
   try {
-    await mkdir(packageRoot, { recursive: true });
+    await mkdir(join(packageRoot, "org.drawloom"), { recursive: true });
     const workflowUrl = pathToFileURL(join(process.cwd(), "packages/evaluation/evaluation-orchestration/dist/index.js")).href;
-    await writeFile(join(packageRoot, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "installed-evaluation", extensions: { "io.github.mafifi.drawloom": { version: 1, backend: { entrypoint: "./backend.mjs" }, workflows: { entrypoint: "./workflows.mjs" }, requires: [{ kind: "capability", id: "evaluation" }], optional: [{ kind: "capability", id: "orchestration" }], workbenches: [{ id: "evaluation", title: "Evaluation", openingTool: { server: "evaluation", tool: "open" } }] } } }));
+    await writeFile(join(packageRoot, "plugin.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name: "installed-evaluation", extensions: { "org.drawloom": { version: 1, backend: { entrypoint: "./org.drawloom/backend.mjs" }, workflows: { entrypoint: "./org.drawloom/workflows.mjs" }, requires: [{ kind: "capability", id: "evaluation" }], optional: [{ kind: "capability", id: "orchestration" }], workbenches: [{ id: "evaluation", title: "Evaluation", openingTool: { server: "evaluation", tool: "open" } }] } } }));
     await writeFile(join(packageRoot, "mcp.json"), JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", mcpServers: {} }));
-    await writeFile(join(packageRoot, "workflows.mjs"), `export { evaluationRegistry as default } from ${JSON.stringify(workflowUrl)};`);
-    await writeFile(join(packageRoot, "backend.mjs"), backendSource);
+    await writeFile(join(packageRoot, "org.drawloom", "workflows.mjs"), `export { evaluationRegistry as default } from ${JSON.stringify(workflowUrl)};`);
+    await writeFile(join(packageRoot, "org.drawloom", "backend.mjs"), backendSource);
     const installation: Installation = { id: "installed-consumer", root: packageRoot, name: "installed-evaluation", enabled: true, trustedBackend: true, servers: [], configuration: {}, approvedResourceOrigins: [], elicitationDisabledServers: [] };
     let local: ReturnType<typeof localOrchestrator> | undefined;
     const loaded = await loadInstalledPackages({ root, project: { id: "project-a", directory: root }, installations: [installation], host: { store: createNodeJsonStore(join(root, "state")), assets: unusedAssets() },

@@ -1,5 +1,8 @@
 # Archify article diagrams — 6 September 2026
 
+> Local preview URLs normalized on 2026-09-14. Original observation dates, render
+> hashes and outcomes are unchanged; no screenshot has been altered.
+
 These are actual Archify renders, not manually styled HTML substitutes. The
 author requested Archify after rejecting both the inline SVG inventories and
 the responsive text-based figures. The four JSON sources alongside this record
@@ -29,7 +32,7 @@ command remained available; rendered evidence was inspected with an image reader
 
 ## Article integration verification
 
-The local article at `http://127.0.0.1:4321/drawloom/articles/a-place-to-do-the-work/`
+The local article at `http://127.0.0.1:4321/articles/a-place-to-do-the-work/`
 was checked through Computer Use's browser surface at actual 1280×900 and
 390×844 viewports, plus the normal 771px app panel. All four SVGs loaded and were
 visually inspected. The 1000px desktop Drawloom figure stays inside the viewport;

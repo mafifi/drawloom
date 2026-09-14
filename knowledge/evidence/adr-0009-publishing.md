@@ -8,6 +8,9 @@ updated: 2026-09-05
 ---
 # Repository-backed visual publishing proof
 
+> Normalized 2026-09-14: Drawloom URLs use the canonical domain. Observation dates
+> and outcomes are retained; historical HTTP checks are not new-domain verification.
+
 Evidence for Accepted [ADR 0009](../../docs/adr/0009-repository-backed-visual-publishing.md).
 The [retained spike](../../spikes/adr-0009-publishing/README.md) owns reproduction
 commands and toolchain limitations. This is an illustrative example, not a
@@ -49,7 +52,7 @@ desktop word; the animation takeaway moved up to clear native playback controls.
   independently installed the frozen graph on Ubuntu, ran the gate, rendered
   video/still, built and verified the article, uploaded the Pages artifact and
   deployed successfully. Build took 70 seconds; deployment took 10 seconds.
-- [Public article](https://mafifi.github.io/drawloom/) returned HTTP 200.
+- [Public article](https://drawloom.org/) returned HTTP 200.
   MP4 and PNG returned 200 with `video/mp4` and `image/png` respectively. A GET
   with `Range: bytes=0-1023` returned 206 and exactly 1024 bytes.
 - The deployed MP4 is 943,707 bytes; the still is 60,294 bytes. The local macOS

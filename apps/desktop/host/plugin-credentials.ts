@@ -42,6 +42,6 @@ export async function createPluginCredentialStore(): Promise<PluginCredentialSto
   if (process.platform !== 'darwin') return createSessionCredentialStore();
   try {
     const { AsyncEntry } = await import('@napi-rs/keyring');
-    return createNativeCredentialStore(key => new AsyncEntry('io.github.mafifi.drawloom.mcp-oauth', key));
+    return createNativeCredentialStore(key => new AsyncEntry('org.drawloom.mcp-oauth', key));
   } catch { return createSessionCredentialStore(); }
 }

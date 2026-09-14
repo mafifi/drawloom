@@ -11,7 +11,7 @@ updated: 2026-09-12
 
 Related: [source comparison](../../docs/reference/authorization-survey/README.md),
 [candidate boundary and commands](../../spikes/adr-0023-authorization/README.md),
-[Archify map](../../docs/reference/authorization-survey/boundary.html).
+[Archify map](../../docs/reference/evidence/surveys/authorization-survey/boundary.html).
 
 The maintainer authorised source checkout, Archify and a short test before
 selecting ADR 0023 interfaces. This does not implement production knowledge,
@@ -112,7 +112,7 @@ Visual review passed; correction rounds: 0. Automated and visual claims are sepa
 
 - Specification SHA-256: `4062093999e0a921f3ea2e464cbc93b6dce0438b80c9808b71c2e96e2ac67e88` (2,374 bytes).
 - HTML SHA-256: `81e8908c040440b784dee03028fb67cf240e3291d67d9546974820575383cd71` (803,438 bytes).
-- [Browser receipt](../../docs/reference/authorization-survey/boundary.visual-check.json).
+- [Browser receipt](../../docs/reference/evidence/surveys/authorization-survey/boundary.visual-check.json).
 
 ## Repository verification
 

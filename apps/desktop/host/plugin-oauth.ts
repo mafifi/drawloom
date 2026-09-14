@@ -32,7 +32,7 @@ export interface PluginOAuthManager {
   connection(options: PluginOAuthConnectionOptions): PluginOAuthConnection;
   callback(url: URL): Promise<PluginOAuthStatus>;
 }
-export const DRAWLOOM_OAUTH_CLIENT_METADATA_URL = 'https://mafifi.github.io/drawloom/oauth/client.json';
+export const DRAWLOOM_OAUTH_CLIENT_METADATA_URL = 'https://drawloom.org/oauth/client.json';
 // Preserve registered client metadata, especially the selected token authentication
 // method. The minimal branch must not silently strip malformed/partial metadata.
 const ClientInformation = z.union([OAuthClientInformationFullSchema, OAuthClientInformationSchema.strict()]);
@@ -78,7 +78,7 @@ export function createPluginOAuthManager(options: PluginOAuthManagerOptions): Pl
       const assertCurrent = (version: number) => { if (version !== epoch) throw Error('OAuth operation cancelled'); };
       const cancelPending = () => { if (pending) callbacks.delete(pending.state); pending = undefined; epoch++; };
       const metadata = () => ({ redirect_uris: [pending?.redirect ?? redirectUri(typeof options.redirectUrl === 'function' ? options.redirectUrl() : options.redirectUrl)],
-        client_name: 'Drawloom', client_uri: 'https://mafifi.github.io/drawloom/', token_endpoint_auth_method: 'none',
+        client_name: 'Drawloom', client_uri: 'https://drawloom.org/', token_endpoint_auth_method: 'none',
         grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'] });
       const network: FetchLike = async (inputUrl, init) => {
         const url = new URL(inputUrl);

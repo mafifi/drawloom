@@ -16,11 +16,11 @@ redirectOrigin=initial.url.origin;
 const data=join(root,'data'),work=join(root,'project');await mkdir(work);
 const installs=await createInstallationStore(createNodeJsonStore(join(data,'state')));
 for(const id of ['producer','consumer']){
-  const pkg=join(root,id);await mkdir(pkg);
+  const pkg=join(root,id);await mkdir(join(pkg,'org.drawloom'),{recursive:true});
   for(const [entry,target,name] of [['shared-media-backend.fixture.ts','bun','backend.mjs'],['shared-media-app.fixture.ts','browser','app.js']] as const){
-    const build=await Bun.build({entrypoints:[resolve(import.meta.dir,entry)],target,outdir:pkg,naming:name});if(!build.success)throw Error(String(build.logs));
+    const build=await Bun.build({entrypoints:[resolve(import.meta.dir,entry)],target,outdir:name==='backend.mjs'?join(pkg,'org.drawloom'):pkg,naming:name});if(!build.success)throw Error(String(build.logs));
   }
-  await writeFile(join(pkg,'plugin.json'),JSON.stringify({$schema:'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',name:id,extensions:{'io.github.mafifi.drawloom':{version:1,backend:{entrypoint:'./backend.mjs'},workbenches:[{id,title:id,openingTool:{server:'media',tool:'open'}}]}}}));
+  await writeFile(join(pkg,'plugin.json'),JSON.stringify({$schema:'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',name:id,extensions:{'org.drawloom':{version:1,backend:{entrypoint:'./org.drawloom/backend.mjs'},workbenches:[{id,title:id,openingTool:{server:'media',tool:'open'}}]}}}));
   const installation=await installs.add(pkg);
   await installs.configure(installation,{enabled:true,trustedBackend:true,servers:[],configuration:{id,initial:initial.url.origin,returned:returned.url.origin,blocked:blocked.url.origin}});
 }

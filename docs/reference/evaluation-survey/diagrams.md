@@ -17,14 +17,14 @@ same HTML hash and size. Do not substitute a later rendering for this evidence.
 
 | Map | Exact delivery receipt | Automated browser receipt | Visual correction rounds |
 | --- | --- | --- | --- |
-| [Drawloom proposal](../generated/evaluation-survey/proposal.html) | [receipt](proposal.delivery.json) | [browser](../generated/evaluation-survey/proposal.visual-check.json) | 0 |
-| [Promptfoo](../generated/evaluation-survey/promptfoo.html) | [receipt](promptfoo.delivery.json) | [browser](../generated/evaluation-survey/promptfoo.visual-check.json) | 0 |
-| [Arcade](../generated/evaluation-survey/arcade-mcp.html) | [receipt](arcade-mcp.delivery.json) | [browser](../generated/evaluation-survey/arcade-mcp.visual-check.json) | 0 |
-| [DeepEval](../generated/evaluation-survey/deepeval.html) | [receipt](deepeval.delivery.json) | [browser](../generated/evaluation-survey/deepeval.visual-check.json) | 0 |
-| [Langfuse](../generated/evaluation-survey/langfuse.html) | [receipt](langfuse.delivery.json) | [browser](../generated/evaluation-survey/langfuse.visual-check.json) | 0 |
-| [Braintrust SDK](../generated/evaluation-survey/braintrust-sdk-javascript.html) | [receipt](braintrust-sdk-javascript.delivery.json) | [browser](../generated/evaluation-survey/braintrust-sdk-javascript.visual-check.json) | 1 |
-| [Autoevals](../generated/evaluation-survey/autoevals.html) | [receipt](autoevals.delivery.json) | [browser](../generated/evaluation-survey/autoevals.visual-check.json) | 1 |
-| [LangSmith SDK](../generated/evaluation-survey/langsmith-sdk.html) | [receipt](langsmith-sdk.delivery.json) | [browser](../generated/evaluation-survey/langsmith-sdk.visual-check.json) | 1 |
+| [Drawloom proposal](../evidence/surveys/evaluation-survey/proposal.html) | [receipt](../evidence/surveys/evaluation-survey/proposal.delivery.json) | [browser](../evidence/surveys/evaluation-survey/proposal.visual-check.json) | 0 |
+| [Promptfoo](../evidence/surveys/evaluation-survey/promptfoo.html) | [receipt](../evidence/surveys/evaluation-survey/promptfoo.delivery.json) | [browser](../evidence/surveys/evaluation-survey/promptfoo.visual-check.json) | 0 |
+| [Arcade](../evidence/surveys/evaluation-survey/arcade-mcp.html) | [receipt](../evidence/surveys/evaluation-survey/arcade-mcp.delivery.json) | [browser](../evidence/surveys/evaluation-survey/arcade-mcp.visual-check.json) | 0 |
+| [DeepEval](../evidence/surveys/evaluation-survey/deepeval.html) | [receipt](../evidence/surveys/evaluation-survey/deepeval.delivery.json) | [browser](../evidence/surveys/evaluation-survey/deepeval.visual-check.json) | 0 |
+| [Langfuse](../evidence/surveys/evaluation-survey/langfuse.html) | [receipt](../evidence/surveys/evaluation-survey/langfuse.delivery.json) | [browser](../evidence/surveys/evaluation-survey/langfuse.visual-check.json) | 0 |
+| [Braintrust SDK](../evidence/surveys/evaluation-survey/braintrust-sdk-javascript.html) | [receipt](../evidence/surveys/evaluation-survey/braintrust-sdk-javascript.delivery.json) | [browser](../evidence/surveys/evaluation-survey/braintrust-sdk-javascript.visual-check.json) | 1 |
+| [Autoevals](../evidence/surveys/evaluation-survey/autoevals.html) | [receipt](../evidence/surveys/evaluation-survey/autoevals.delivery.json) | [browser](../evidence/surveys/evaluation-survey/autoevals.visual-check.json) | 1 |
+| [LangSmith SDK](../evidence/surveys/evaluation-survey/langsmith-sdk.html) | [receipt](../evidence/surveys/evaluation-survey/langsmith-sdk.delivery.json) | [browser](../evidence/surveys/evaluation-survey/langsmith-sdk.visual-check.json) | 1 |
 
 ## Results and scope
 
@@ -51,10 +51,13 @@ checkout, for each product substitute its name for `promptfoo`:
 
 ```sh
 node /Users/afifim/Development/archify/archify/bin/archify.mjs validate architecture docs/reference/evaluation-survey/promptfoo.architecture.json --quality showcase --repo-root /Users/afifim/Development/promptfoo --json
-node /Users/afifim/Development/archify/archify/bin/archify.mjs deliver architecture docs/reference/evaluation-survey/promptfoo.architecture.json docs/reference/generated/evaluation-survey/promptfoo.html --quality showcase --repo-root /Users/afifim/Development/promptfoo --json
-node /Users/afifim/Development/archify/archify/bin/archify.mjs visual-check docs/reference/generated/evaluation-survey/promptfoo.html --json
+node scripts/render-survey-evidence.mjs evaluation-survey promptfoo /Users/afifim/Development/archify/archify/bin/archify.mjs /Users/afifim/Development/promptfoo
 node docs/reference/evaluation-survey/verify.mjs
 ```
+
+New runs go to the timestamped directory printed by the command. Browser checks
+use that new HTML and keep their sidecars beside it; do not overwrite the
+[retained publication evidence](../evidence/README.md).
 
 Use Drawloom's root for the proposal. Retain each new delivery receipt before
 running the research verifier: it checks exact byte identity, browser binding,

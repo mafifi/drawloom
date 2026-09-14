@@ -1,5 +1,11 @@
 # Drawloom publishing site
 
+Production uses `https://drawloom.org/`, with root-relative assets and navigation.
+The build emits `/schemas/1.0.0/plugin-extension.schema.json` directly from the
+plugin contract, alongside `/oauth/client.json`. Loading plugins uses local
+validation, not network schema retrieval. GitHub Actions owns deployment; no
+`CNAME` file is needed in the artifact.
+
 The site root is the Synaptic Shuttle product landing page. It is composed from
 Svelte components that Astro renders into static HTML; no component uses a
 `client:*` hydration directive, so the landing and its navigation need no client
@@ -32,7 +38,7 @@ bun run journal:render
 bun run journal:preview
 ```
 
-The local preview includes drafts at `http://127.0.0.1:4321/drawloom/`. Its example
+The local preview includes drafts at `http://127.0.0.1:4321/`. Its example
 is synthetic, visibly labelled and marked `noindex`. Reading requires no client
 JavaScript. The current animation is silent; its visible transcript provides the
 complete explanation. Spoken material must add captions before publication.
@@ -65,7 +71,7 @@ only referenced files, preferring those sources to generated media.
 
 `bun run publishing:placeholder` remains available to stage the original fallback
 page. Pushes to `main` touching `publishing/**`, the build script, root dependency
-files or the publishing workflow trigger deployment automatically. Manual dispatch
+files, the plugin contract sources or the publishing workflow trigger deployment automatically. Manual dispatch
 also remains available. Feature-branch pushes and local builds do not publish.
 Only articles explicitly marked `draft: false` with a quoted ISO publication date
 are emitted. New content stays private by default.

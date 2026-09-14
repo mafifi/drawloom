@@ -9,6 +9,9 @@ updated: 2026-09-10
 
 # ADR 0018: implementation and retained proof evidence
 
+> Normalized 2026-09-14: Drawloom URLs use the canonical domain. Observation dates
+> and outcomes are retained; historical deployment checks are not new-domain proof.
+
 ## Approved completion cutover — verified and accepted, 2026-09-10
 
 The completion slice removes the legacy composition environment route and nested
@@ -145,7 +148,7 @@ Only `publishing/site/public/oauth/client.json` was published in remote commit
 `e8394bff0c944e0318a51ffdce8695b1c71637ac`. The
 [publishing run](https://github.com/mafifi/drawloom/actions/runs/34488986726)
 completed build and deployment successfully. An HTTPS read of
-[the deployed metadata](https://mafifi.github.io/drawloom/oauth/client.json)
+[the deployed metadata](https://drawloom.org/oauth/client.json)
 returned the expected public-client identity, no secret, and portless loopback
 `http://127.0.0.1/oauth/callback` redirect registration. The actual callback uses
 the running host's bound port.

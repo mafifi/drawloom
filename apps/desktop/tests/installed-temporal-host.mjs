@@ -36,12 +36,12 @@ async function waitForInput(run) {
   throw Error('Installed workflow did not reach its input wait');
 }
 try {
-  await mkdir(pkg); await mkdir(directory);
+  await mkdir(join(pkg, 'org.drawloom'), { recursive: true }); await mkdir(directory);
   for (const [source, output] of [['installed-workflow.mjs', 'workflows.mjs'], ['installed-backend.mjs', 'backend.mjs']]) {
-    await command('bun', ['build', resolve('packages/orchestration/temporal-orchestration/fixtures', source), '--target', 'browser', '--outfile', join(pkg, output)]);
+    await command('bun', ['build', resolve('packages/orchestration/temporal-orchestration/fixtures', source), '--target', 'browser', '--outfile', join(pkg, 'org.drawloom', output)]);
   }
   await writeFile(join(pkg, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'specimen-catalog',
-    extensions: { 'io.github.mafifi.drawloom': { version: 1, backend: { entrypoint: './backend.mjs' }, workflows: { entrypoint: './workflows.mjs' },
+    extensions: { 'org.drawloom': { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, workflows: { entrypoint: './org.drawloom/workflows.mjs' },
       requires: [{ kind: 'capability', id: 'host' }], optional: [{ kind: 'capability', id: 'orchestration' }] } },
   }));
   const installed = await createInstallationStore(createNodeJsonStore(join(root, 'state')));

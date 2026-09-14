@@ -6,6 +6,7 @@ on:
     paths:
       - 'publishing/**'
       - 'scripts/build-journal.ts'
+      - 'packages/plugins/plugins/src/**'
       - 'package.json'
       - 'bun.lock'
       - '.github/workflows/publishing.yml'

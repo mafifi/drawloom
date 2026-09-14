@@ -61,14 +61,14 @@ test('installed connection policy survives reconnect without affecting consent-e
   } finally { remote.server.stop(true); await rm(root, { recursive: true, force: true }); }
 });
 async function installedFixture(root: string, name: string, url: string, extension?: DrawloomPackageExtension, ownsView = false) {
-  const pkg = join(root, name); await mkdir(pkg, { recursive: true });
+  const pkg = join(root, name); await mkdir(join(pkg, 'org.drawloom'), { recursive: true });
   await writeFile(join(pkg, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name,
-    ...(extension ? { extensions: { 'io.github.mafifi.drawloom': extension } } : {}) }));
+    ...(extension ? { extensions: { 'org.drawloom': extension } } : {}) }));
   await writeFile(join(pkg, 'mcp.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json', mcpServers: { remote: { type: 'streamable-http', url } } }));
   if (extension?.backend) {
     const contribution = ownsView ? { workbenches: [{ id: 'owner', title: 'Owner', description: '', tools: [], skills: [] }],
       views: [{ id: 'owner-view', workbenchId: 'owner', title: 'Owner view', entrypoint: 'ui://owner/view.html' }] } : {};
-    await writeFile(join(pkg, 'backend.mjs'), `export default () => ({ contributions: ${JSON.stringify(contribution)}, dispose() {} });`);
+    await writeFile(join(pkg, 'org.drawloom', 'backend.mjs'), `export default () => ({ contributions: ${JSON.stringify(contribution)}, dispose() {} });`);
   }
   const installation: Installation = { approvedResourceOrigins: [], elicitationDisabledServers: [], id: crypto.randomUUID(), root: pkg, name, enabled: true, trustedBackend: true, servers: ['remote'], configuration: {} };
   return installation;
@@ -84,11 +84,11 @@ test('installed evaluation prepares only for trusted declared consumers and surv
   const events: string[] = [];
   try {
     const installation = await installedFixture(root, 'evaluation-documents', remote.server.url.href, {
-      version:1,backend:{entrypoint:'./backend.mjs'},workflows:{entrypoint:'./workflows.mjs'},
+      version:1,backend:{entrypoint:'./org.drawloom/backend.mjs'},workflows:{entrypoint:'./org.drawloom/workflows.mjs'},
       requires:[{kind:'capability',id:'evaluation'}],optional:[{kind:'capability',id:'orchestration'}],
     });
-    await writeFile(join(installation.root,'workflows.mjs'),'export default {workflows:[],tasks:[]}');
-    await writeFile(join(installation.root,'backend.mjs'),`export default context => {
+    await writeFile(join(installation.root, 'org.drawloom', 'workflows.mjs'),'export default {workflows:[],tasks:[]}');
+    await writeFile(join(installation.root, 'org.drawloom', 'backend.mjs'),`export default context => {
       if (!context.capabilities.evaluation || context.capabilities.orchestration) throw Error('Incorrect capabilities');
       return {taskHandlers:[],dispose(){}};
     }`);
@@ -101,7 +101,7 @@ test('installed evaluation prepares only for trusted declared consumers and surv
     const untrusted = await loadInstalledPackages({...base,installations:[{...installation,trustedBackend:false}]});
     await untrusted.close();
     expect(events).toEqual([]);
-    const unrelated = await installedFixture(root,'unrelated-documents',remote.server.url.href,{version:1,backend:{entrypoint:'./backend.mjs'}});
+    const unrelated = await installedFixture(root,'unrelated-documents',remote.server.url.href,{version:1,backend:{entrypoint:'./org.drawloom/backend.mjs'}});
     const undeclared = await loadInstalledPackages({...base,installations:[unrelated]});
     await undeclared.close();
     expect(events).toEqual([]);
@@ -121,9 +121,9 @@ test('failed backend activation releases its prepared evaluation immediately and
   let closes = 0;
   try {
     const installation = await installedFixture(root, 'failed-evaluation', remote.server.url.href, {
-      version: 1, backend: { entrypoint: './backend.mjs' }, requires: [{ kind: 'capability', id: 'evaluation' }],
+      version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, requires: [{ kind: 'capability', id: 'evaluation' }],
     });
-    await writeFile(join(installation.root, 'backend.mjs'), `export default context => { context.capabilities.evaluation.compose({scorers:[]}); throw Error('activation failed'); };`);
+    await writeFile(join(installation.root, 'org.drawloom', 'backend.mjs'), `export default context => { context.capabilities.evaluation.compose({scorers:[]}); throw Error('activation failed'); };`);
     const loaded = await loadInstalledPackages({ root, project: { id: 'project-a', directory: root }, installations: [installation], host: packageHost(root),
       prepareEvaluation: async () => ({ evaluation: { compose() { return { service: {}, taskHandlers: [] }; } } as never, close: async () => { closes++; } }),
     });
@@ -140,11 +140,11 @@ test('installed workflow preparation is trusted, precedes backend activation, an
   const events: string[] = [];
   try {
     const installation = await installedFixture(root, 'workflow-documents', remote.server.url.href, {
-      version: 1, backend: { entrypoint: './backend.mjs' }, workflows: { entrypoint: './workflows.mjs' },
+      version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, workflows: { entrypoint: './org.drawloom/workflows.mjs' },
       optional: [{ kind: 'capability', id: 'orchestration' }],
     });
-    await writeFile(join(installation.root, 'workflows.mjs'), 'export default {workflows:[],tasks:[]}');
-    await writeFile(join(installation.root, 'backend.mjs'), `export default async context => {
+    await writeFile(join(installation.root, 'org.drawloom', 'workflows.mjs'), 'export default {workflows:[],tasks:[]}');
+    await writeFile(join(installation.root, 'org.drawloom', 'backend.mjs'), `export default async context => {
       if (!context.capabilities.orchestrationReadiness) throw Error('Missing readiness');
       return {taskHandlers:[],dispose(){}};
     }`);
@@ -194,9 +194,9 @@ test('desktop supplies scoped saved evaluation to installed backends across rest
   const remote=packageServer();
   try {
     const installation=await installedFixture(root,'evaluation-reader',remote.server.url.href,{
-      version:1,backend:{entrypoint:'./backend.mjs'},requires:[{kind:'capability',id:'evaluation'}],
+      version:1,backend:{entrypoint:'./org.drawloom/backend.mjs'},requires:[{kind:'capability',id:'evaluation'}],
     });
-    await writeFile(join(installation.root,'backend.mjs'),`export default async context=>{
+    await writeFile(join(installation.root, 'org.drawloom', 'backend.mjs'),`export default async context=>{
       const {service}=context.capabilities.evaluation.compose({scorers:[]});
       const page=await service.listDefinitions();
       return {contributions:{skills:[{id:'saved-checks',title:'Saved checks '+page.items.length,instructions:'Inspect saved checks only.'}]},dispose(){}};
@@ -228,8 +228,8 @@ test('backend collision with built-in workbench is isolated without losing stand
   const root = await mkdtemp(join(tmpdir(), 'drawloom-reserved-workbench-'));
   const remote = packageServer();
   try {
-    const installation = await installedFixture(root, 'collision', remote.server.url.href, { version: 1, backend: { entrypoint: './backend.mjs' } });
-    await writeFile(join(installation.root, 'backend.mjs'), `export default () => ({ contributions: {workbenches: [{id:'text', title:'Hijack',description:'',tools:[],skills:[]}]},dispose(){}})`);
+    const installation = await installedFixture(root, 'collision', remote.server.url.href, { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' } });
+    await writeFile(join(installation.root, 'org.drawloom', 'backend.mjs'), `export default () => ({ contributions: {workbenches: [{id:'text', title:'Hijack',description:'',tools:[],skills:[]}]},dispose(){}})`);
     await mkdir(join(installation.root, 'skills', 'editing'), { recursive: true });
     await writeFile(join(installation.root, 'skills', 'editing', 'SKILL.md'), '---\nname: editing\ndescription: Edit a document\n---\nCheck clarity.');
     await createNodeJsonStore(join(root, 'state')).set('plugin-installations', { version: 1, installations: [installation] });
@@ -367,9 +367,10 @@ test('standard skills activate without extension; a missing sibling stays isolat
 test('invalid backend contributions do not poison standard package activation', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-backend-package-'));
   try {
+    await mkdir(join(root, 'org.drawloom'));
     await writeFile(join(root, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'reference',
-      extensions: { 'io.github.mafifi.drawloom': { version: 1, backend: { entrypoint: './backend.mjs' }, requires: [{ kind: 'capability', id: 'host' }] } } }));
-    await writeFile(join(root, 'backend.mjs'), 'export default async () => ({ contributions: { workbenches: [null] }, dispose: async () => {} });');
+      extensions: { 'org.drawloom': { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, requires: [{ kind: 'capability', id: 'host' }] } } }));
+    await writeFile(join(root, 'org.drawloom', 'backend.mjs'), 'export default async () => ({ contributions: { workbenches: [null] }, dispose: async () => {} });');
     const store = createNodeJsonStore(join(root, 'state'));
     const installed = await createInstallationStore(store); const id = await installed.add(root);
     await installed.configure(id, { enabled: true, trustedBackend: true, servers: [], configuration: {} });
@@ -387,7 +388,7 @@ test('a placement cannot replace another installation owned view', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-placement-owner-'));
   const owner = packageServer('owner'), other = packageServer('other');
   try {
-    const first = await installedFixture(root, 'owner-package', owner.server.url.href, { version: 1, backend: { entrypoint: './backend.mjs' }, workbenches: [ownerPlacement] }, true);
+    const first = await installedFixture(root, 'owner-package', owner.server.url.href, { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, workbenches: [ownerPlacement] }, true);
     const second = await installedFixture(root, 'other-package', other.server.url.href, { version: 1, workbenches: [ownerPlacement] });
     const loaded = await loadInstalledPackages({ root, installations: [first, second], host: packageHost(root) });
     try {
@@ -402,7 +403,7 @@ test('opening resource must match the owning registered view', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-placement-resource-'));
   const remote = packageServer('wrong', [{ name: 'open', inputSchema: { type: 'object' }, _meta: { ui: { resourceUri: 'ui://wrong/view.html' } } }]);
   try {
-    const installation = await installedFixture(root, 'owner-package', remote.server.url.href, { version: 1, backend: { entrypoint: './backend.mjs' }, workbenches: [ownerPlacement] }, true);
+    const installation = await installedFixture(root, 'owner-package', remote.server.url.href, { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, workbenches: [ownerPlacement] }, true);
     const loaded = await loadInstalledPackages({ root, installations: [installation], host: packageHost(root) });
     try {
       expect(loaded.mcpApps.size).toBe(0);
@@ -416,7 +417,7 @@ test('duplicate placement declarations are rejected before a view connects', asy
   const root = await mkdtemp(join(tmpdir(), 'drawloom-placement-duplicate-'));
   const remote = packageServer();
   try {
-    const installation = await installedFixture(root, 'owner-package', remote.server.url.href, { version: 1, backend: { entrypoint: './backend.mjs' }, workbenches: [ownerPlacement, ownerPlacement] }, true);
+    const installation = await installedFixture(root, 'owner-package', remote.server.url.href, { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, workbenches: [ownerPlacement, ownerPlacement] }, true);
     const loaded = await loadInstalledPackages({ root, installations: [installation], host: packageHost(root) });
     try {
       expect(loaded.mcpApps.size).toBe(0);
@@ -431,7 +432,7 @@ test('unresolved extension requirements gate placements even without a backend, 
   try {
     for (const backend of [false, true]) {
       const installation = await installedFixture(root, backend ? 'with-backend' : 'without-backend', remote.server.url.href,
-        { version: 1, ...(backend ? { backend: { entrypoint: './backend.mjs' } } : {}),
+        { version: 1, ...(backend ? { backend: { entrypoint: './org.drawloom/backend.mjs' } } : {}),
           requires: [{ kind: 'tool', id: 'missing-tool' }], workbenches: [ownerPlacement] }, backend);
       const loaded = await loadInstalledPackages({ root, installations: [installation], host: packageHost(root) });
       try {
@@ -454,8 +455,8 @@ test('app-only and unsupported-schema tools cannot satisfy backend dependencies'
   try {
     for (const dependency of ['hidden', 'invalid']) {
       const installation = await installedFixture(root, dependency, remote.server.url.href, { version: 1,
-        backend: { entrypoint: './backend.mjs' }, requires: [{ kind: 'tool', id: `package:${dependency}:remote:${dependency}` }] });
-      await writeFile(join(installation.root, 'backend.mjs'), `import {writeFile} from 'node:fs/promises';
+        backend: { entrypoint: './org.drawloom/backend.mjs' }, requires: [{ kind: 'tool', id: `package:${dependency}:remote:${dependency}` }] });
+      await writeFile(join(installation.root, 'org.drawloom', 'backend.mjs'), `import {writeFile} from 'node:fs/promises';
         export default async context => { await writeFile(context.packageRoot + '/executed', 'yes'); return { dispose() {} }; };`);
       const loaded = await loadInstalledPackages({ root, installations: [installation], host: packageHost(root) });
       try {
@@ -471,10 +472,10 @@ test('required origin-qualified tool names invoke their real aliases with unchan
   const root = await mkdtemp(join(tmpdir(), 'drawloom-tool-alias-'));
   const remote = packageServer('reference', [{ name: 'echo', inputSchema: { type: 'object' } }]);
   try {
-    const installation = await installedFixture(root, 'reference', remote.server.url.href, { version: 1, backend: { entrypoint: './backend.mjs' }, requires: [
+    const installation = await installedFixture(root, 'reference', remote.server.url.href, { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, requires: [
       { kind: 'capability', id: 'host' }, { kind: 'capability', id: 'tools' }, { kind: 'tool', id: 'package:reference:remote:echo' },
     ] });
-    await writeFile(join(installation.root, 'backend.mjs'), `export default async context => {
+    await writeFile(join(installation.root, 'org.drawloom', 'backend.mjs'), `export default async context => {
       const gateway = context.capabilities.tools, binding = gateway.bind('test-operation'), signal = new AbortController().signal;
       await context.capabilities.host.store.set('exposure', gateway.exposure.tools.map(t => t.name));
       await context.capabilities.host.store.set('result', await gateway.invoke(binding, 'package:reference:remote:echo', {}, signal));
@@ -501,7 +502,7 @@ test('reconnecting a server used by an active view requires restart without repl
   const root = await mkdtemp(join(tmpdir(), 'drawloom-view-reconnect-'));
   const remote = packageServer();
   try {
-    const installation = await installedFixture(root, 'owner-package', remote.server.url.href, { version: 1, backend: { entrypoint: './backend.mjs' }, workbenches: [ownerPlacement] }, true);
+    const installation = await installedFixture(root, 'owner-package', remote.server.url.href, { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, workbenches: [ownerPlacement] }, true);
     const loaded = await loadInstalledPackages({ root, installations: [installation], host: packageHost(root) });
     try {
       expect(await loaded.reconnect(installation.id, 'remote')).toEqual({ restartRequired: true });
@@ -533,9 +534,9 @@ test('a dependency absent from the provided gateway cannot activate its backend'
   const root = await mkdtemp(join(tmpdir(), 'drawloom-filtered-gateway-'));
   const remote = packageServer('reference', [{ name: 'echo', inputSchema: { type: 'object' } }]);
   try {
-    const installation = await installedFixture(root, 'reference', remote.server.url.href, { version: 1, backend: { entrypoint: './backend.mjs' },
+    const installation = await installedFixture(root, 'reference', remote.server.url.href, { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' },
       requires: [{ kind: 'capability', id: 'host' }, { kind: 'capability', id: 'tools' }, { kind: 'tool', id: 'package:reference:remote:echo' }] });
-    await writeFile(join(installation.root, 'backend.mjs'), `export default async context => {
+    await writeFile(join(installation.root, 'org.drawloom', 'backend.mjs'), `export default async context => {
       await context.capabilities.host.store.set('executed', true); return { dispose() {} };
     };`);
     const host = packageHost(root);
@@ -552,13 +553,13 @@ test('dependency identities use inspected package names and reject ambiguous ins
   const root = await mkdtemp(join(tmpdir(), 'drawloom-ambiguous-dependency-'));
   const remote = packageServer('reference', [{ name: 'echo', inputSchema: { type: 'object' } }]);
   try {
-    const extension: DrawloomPackageExtension = { version: 1, backend: { entrypoint: './backend.mjs' },
+    const extension: DrawloomPackageExtension = { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' },
       requires: [{ kind: 'capability', id: 'host' }, { kind: 'tool', id: 'package:reference:remote:echo' }] };
     const first = await installedFixture(root, 'previous-name', remote.server.url.href, extension);
     const second = await installedFixture(root, 'reference', remote.server.url.href);
     await writeFile(join(first.root, 'plugin.json'), JSON.stringify({ $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'reference',
-      extensions: { 'io.github.mafifi.drawloom': extension } }));
-    await writeFile(join(first.root, 'backend.mjs'), `export default async context => {
+      extensions: { 'org.drawloom': extension } }));
+    await writeFile(join(first.root, 'org.drawloom', 'backend.mjs'), `export default async context => {
       await context.capabilities.host.store.set('executed', true); return { dispose() {} };
     };`);
     const host = packageHost(root);
@@ -611,10 +612,10 @@ test('enhanced workbench and plugin requirements resolve canonical standard tool
   const remote = packageServer('reference', [{ name: 'echo', inputSchema: { type: 'object' } }]);
   try {
     const requires = [{ kind: 'tool' as const, id: 'package:reference:remote:echo' }, { kind: 'skill' as const, id: 'package:reference:skill:editing' }];
-    const installation = await installedFixture(root, 'reference', remote.server.url.href, { version: 1, backend: { entrypoint: './backend.mjs' }, requires });
+    const installation = await installedFixture(root, 'reference', remote.server.url.href, { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' }, requires });
     await mkdir(join(installation.root, 'skills/editing'), { recursive: true });
     await writeFile(join(installation.root, 'skills/editing/SKILL.md'), '---\nname: editing\ndescription: Edit a synthetic document\n---\nCheck clarity.');
-    await writeFile(join(installation.root, 'backend.mjs'), `export default () => ({ contributions: { workbenches: [{
+    await writeFile(join(installation.root, 'org.drawloom', 'backend.mjs'), `export default () => ({ contributions: { workbenches: [{
         id: 'enhanced', title: 'Enhanced', description: '', tools: ['package:reference:remote:echo'], skills: ['package:reference:skill:editing']
       }] }, dispose() {} });`);
     const loaded = await loadInstalledPackages({ root, installations: [installation], host: packageHost(root) });
