@@ -1,5 +1,9 @@
 # Architecture decision records
 
+- [ADR 0026: Permissive dependencies and local GGUF embeddings](0026-permissive-dependencies-and-local-gguf-embeddings.md)
+  is Accepted; it partially supersedes ADR 0024's runtime/installation
+  choice, not its wider knowledge architecture.
+
 ADRs record decisions that constrain future implementation.
 
 Files use four-digit sequence numbers and kebab-case titles:

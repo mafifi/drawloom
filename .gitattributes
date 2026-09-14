@@ -1,0 +1,4 @@
+# Retained third-party legal texts are byte-for-byte, SHA-256-addressed evidence.
+LICENSES/texts/*.txt -text -whitespace
+# Unified diff context lines intentionally contain a single leading space.
+scripts/patches/*.patch -whitespace

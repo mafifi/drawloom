@@ -3,7 +3,7 @@ import { SearchRequestSchema, EvidenceRequestSchema, KnowledgeExportRequestSchem
 
 /** Authenticated application API, not a plugin or MCP Apps protocol. Subject is host-owned. */
 export const KnowledgeConfigurationSchema = z.strictObject({
-  embeddingModel: z.literal('qwen3-embedding-0.6b-mlx'),
+  embeddingModel: z.literal('qwen3-embedding-0.6b-gguf'),
   assessmentModel: z.string().trim().min(1).max(128),
   assessmentTimeoutMs: z.number().int().min(1000).max(300000),
   maxAutomaticStartsPerDay: z.number().int().min(1).max(100),
@@ -14,12 +14,14 @@ export const KnowledgeStatusSchema = z.strictObject({
   availability: z.enum(['ready', 'unavailable', 'failed']),
   message: z.string().max(1024),
   configuration: KnowledgeConfigurationSchema,
+  obsoleteRuntimePresent: z.boolean().optional(),
   source: z.strictObject({ projectId: z.string().min(1).max(256), enabled: z.boolean() }).optional(),
   models: z.array(z.strictObject({
-    id: z.literal('qwen3-embedding-0.6b-mlx'),
+    id: z.literal('qwen3-embedding-0.6b-gguf'),
     title: z.string().max(128), licence: z.string().max(512), source: z.string().max(512),
     modelDirectory: z.string().max(4096), runtimeDirectory: z.string().max(4096), prerequisites: z.string().max(512),
     runtime: z.strictObject({ package: z.string(), version: z.string(), licence: z.string() }), weightsBytes: z.number().int().nonnegative(),
+    runtimeBytes: z.number().int().positive(), runtimeDownloadAvailable: z.boolean(),
     state: z.enum(['missing', 'installing_runtime', 'downloading', 'verifying', 'cancelled', 'ready', 'failed']),
     receivedBytes: z.number().int().nonnegative().optional(),
     expectedBytes: z.number().int().nonnegative().optional(),
@@ -44,7 +46,8 @@ export const KnowledgeCommandSchema = z.discriminatedUnion('action', [
   z.strictObject({ action: z.literal('source'), enabled: z.boolean() }),
   z.strictObject({ action: z.literal('run'), overrideBudget: z.boolean() }),
   z.strictObject({ action: z.literal('pause'), paused: z.boolean() }),
-  z.strictObject({ action: z.literal('download'), model: z.literal('qwen3-embedding-0.6b-mlx'), consent: z.literal(true) }),
-  z.strictObject({ action: z.literal('cancel_download'), model: z.literal('qwen3-embedding-0.6b-mlx') }),
+  z.strictObject({ action: z.literal('download'), model: z.literal('qwen3-embedding-0.6b-gguf'), consent: z.literal(true) }),
+  z.strictObject({ action: z.literal('cancel_download'), model: z.literal('qwen3-embedding-0.6b-gguf') }),
+  z.strictObject({ action: z.literal('cleanup_obsolete'), consent: z.literal(true) }),
 ]);
 export type KnowledgeCommand = z.infer<typeof KnowledgeCommandSchema>;

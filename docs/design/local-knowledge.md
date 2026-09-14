@@ -26,7 +26,7 @@ The authoritative TypeScript schemas are in
 | Retrieval | Search, inspect, follow evidence and export authorized records | SQLite plus local semantic composition |
 | Maintenance | Lease bounded work and publish changes with the exact checkpoint | SQLite |
 | Assessment | Judge supplied evidence; report running, completed or uncertain work | Signed-in Codex App Server |
-| Embeddings | Encode a bounded batch using one explicit configuration | MLX Qwen on Apple Silicon; text search remains available without it |
+| Embeddings | Encode a bounded batch using one explicit configuration | Qwen GGUF with llama.cpp on Apple Silicon; text search remains available without it |
 | Index work and vector index | Maintain rebuildable, revision-bound derived indexes | SQLite and sqlite-vec |
 
 Provider choice lives in
@@ -56,16 +56,19 @@ bounded stdio requests; it exposes no network listener or plugin browser protoco
 Native prerequisites and unavailable models must be visible rather than replaced
 with hosted embeddings.
 
-The selected MLX provider keeps an isolated Python worker alive behind the Node
-embedding interface. Knowledge settings downloads the pinned runtime and verified
-weights only after explicit consent. Both live beneath `knowledge/models` in the
-selected data directory; neither ships inside the desktop application. Setup needs
-an available `uv` executable and Apple Silicon. It must report missing prerequisites
-instead of changing global tooling or silently choosing another backend.
-The worker uses Metal, local-only model loading and bounded requests; closing
-the host closes the worker. Its configuration identity differs from ONNX even
-when both encode Qwen vectors of the same length. Existing indexes remain intact
-while the selected configuration rebuilds.
+The replacement accepted in [ADR 0026](../adr/0026-permissive-dependencies-and-local-gguf-embeddings.md)
+uses an isolated llama.cpp server behind the same Node embedding interface.
+Knowledge settings requires consent before downloading the pinned runtime and
+verified GGUF weights. Neither ships inside the desktop application. The initial
+target is Apple Silicon with Metal, without Python or `uv`. A public runtime
+artifact has not been published: setup must report that limitation, not invent a
+download URL. Trusted local fixture delivery exercises installation separately.
+The server binds authenticated loopback and loads only the explicit local model;
+closing the host closes its child process. Its configuration identity differs
+from MLX and ONNX even for vectors of the same length. Existing knowledge remains
+intact while the new index rebuilds; incompatible vectors are never combined.
+Old MLX files are not executed. Removing Drawloom-owned obsolete files requires
+an explicit cleanup action and does not remove knowledge or global tools.
 
 Search first obtains bounded candidates, then resolves authorized records. Evidence
 pages preserve endpoint identities independently of which page contains a record.

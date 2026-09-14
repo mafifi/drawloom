@@ -1,32 +1,42 @@
 import { createHash, randomUUID } from "node:crypto";
-import { copyFile, lstat, mkdir, open, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
-import { constants, type BigIntStats } from "node:fs";
-import { access } from "node:fs/promises";
 import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { constants, type BigIntStats } from "node:fs";
+import { access, chmod, copyFile, lstat, mkdir, open, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { LocalEmbeddingsError } from "./errors.js";
-import { ModelManifestSchema, type ModelManifest } from "./manifest.js";
+import {
+  KnownLlamaRuntime, ModelManifestSchema, RuntimeArtifactSchema,
+  type ModelManifest, type RuntimeArtifact, type TrustedRuntimeArtifact,
+} from "./manifest.js";
 
 export type ModelSetupStatus =
   | { kind: "pending_consent" }
-  | { kind: "installing_runtime"; step: "python" | "packages" | "verifying" }
   | { kind: "downloading"; path: string; received: number; expected: number }
   | { kind: "verifying"; path: string }
+  | { kind: "installing_runtime"; step: "extracting" | "verifying" }
   | { kind: "cancelled" }
-  | { kind: "failed"; code: "download_failed" | "hash_mismatch" | "size_mismatch" | "invalid_manifest" | "setup_busy" | "uv_unavailable" | "unsupported_hardware" | "runtime_install_failed" }
-  | { kind: "ready"; directory: string; runtimeDirectory?: string };
+  | { kind: "failed"; code: "download_failed" | "hash_mismatch" | "size_mismatch" | "invalid_manifest" | "setup_busy" | "unsupported_hardware" | "runtime_unavailable" | "runtime_install_failed" }
+  | { kind: "ready"; directory: string; runtimeDirectory: string };
 
-export interface ReadyModel { readonly manifest: ModelManifest; readonly directory: string; readonly runtimeDirectory?: string; }
-export interface MlxRuntimeSetupOptions { readonly uvExecutable?: string; readonly platform?: NodeJS.Platform; readonly arch?: string; readonly run?: (file: string, args: readonly string[], env: NodeJS.ProcessEnv) => Promise<void>; readonly probe?: (python: string) => Promise<unknown>; }
+export interface ReadyModel { readonly manifest: ModelManifest; readonly directory: string; readonly runtimeDirectory: string; }
 export type ArtifactFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
-export interface ModelSetupOptions { readonly root: string; readonly manifest: ModelManifest; readonly fetch?: ArtifactFetch; readonly mlxRuntime?: MlxRuntimeSetupOptions; }
+export interface LlamaRuntimeSetupOptions { readonly platform?: NodeJS.Platform; readonly arch?: string; }
+export interface ModelSetupOptions {
+  readonly root: string;
+  readonly manifest: ModelManifest;
+  readonly fetch?: ArtifactFetch;
+  /** Only trusted host composition may replace the unpublished runtime artifact. */
+  readonly runtimeArtifact?: TrustedRuntimeArtifact;
+  readonly llamaRuntime?: LlamaRuntimeSetupOptions;
+}
 export interface InstallOptions { readonly consent?: boolean; readonly signal?: AbortSignal; readonly onProgress?: (status: ModelSetupStatus) => void; }
+export type ObsoleteRuntimeCleanup = { kind: "nothing_to_remove" } | { kind: "removed"; paths: readonly string[] } | { kind: "refused"; code: "unsafe_root" | "unsafe_target" };
 
 const readyFile = ".drawloom-ready.json";
 const runtimeReadyFile = ".drawloom-runtime-ready.json";
-const runtimeVersions = { python: "3.12.13", "mlx-embeddings": "0.1.0", mlx: "0.32.2", transformers: "5.17.0", tokenizers: "0.23.2" } as const;
+const runtimeArchivePath = "llama.cpp-darwin-arm64.tar.gz";
+const runtimeArchiveRoot = "drawloom-llama-runtime";
 const execFileAsync = promisify(execFile);
 
 function isSubpath(root: string, candidate: string): boolean {
@@ -40,76 +50,142 @@ function artifactFile(root: string, path: string): string {
   return file;
 }
 
+function fileIdentity(details: BigIntStats): string { return [details.dev, details.ino, details.size, details.mtimeNs, details.ctimeNs].join(":"); }
+
 async function fingerprint(file: string): Promise<string | undefined> {
-  try {
-    const details = await lstat(file, { bigint: true });
-    if (!details.isFile() || details.isSymbolicLink()) return undefined;
-    return fileIdentity(details);
-  } catch { return undefined; }
-}
-async function pathIdentity(path: string): Promise<string | undefined> { try { return fileIdentity(await lstat(path, { bigint: true })); } catch { return undefined; } }
-function immutable<T>(value: T): T { if (value && typeof value === "object" && !Object.isFrozen(value)) { for (const child of Object.values(value as Record<string, unknown>)) immutable(child); Object.freeze(value); } return value; }
-
-function fileIdentity(details: BigIntStats): string {
-  return [details.dev, details.ino, details.size, details.mtimeNs, details.ctimeNs].join(":");
+  try { const details = await lstat(file, { bigint: true }); return details.isFile() && !details.isSymbolicLink() ? fileIdentity(details) : undefined; }
+  catch { return undefined; }
 }
 
-async function matches(file: string, bytes: number, sha256: string): Promise<string | undefined> {
+async function matchesSha256(file: string, sha256: string, bytes?: number): Promise<string | undefined> {
   const digest = createHash("sha256");
   const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => undefined);
   if (!handle) return undefined;
   try {
     const before = await handle.stat({ bigint: true });
-    if (!before.isFile() || before.size !== BigInt(bytes)) return undefined;
-    const identity = fileIdentity(before);
-    const chunk = Buffer.allocUnsafe(1024 * 1024);
-    let read = 0;
+    if (!before.isFile() || (bytes !== undefined && before.size !== BigInt(bytes))) return undefined;
+    const identity = fileIdentity(before); const chunk = Buffer.allocUnsafe(1024 * 1024); let read = 0;
     for (;;) {
-      const { bytesRead } = await handle.read(chunk, 0, chunk.byteLength, null);
-      if (bytesRead === 0) break;
-      read += bytesRead;
-      if (read > bytes) return undefined;
-      digest.update(chunk.subarray(0, bytesRead));
+      const part = await handle.read(chunk, 0, chunk.byteLength, null);
+      if (!part.bytesRead) break;
+      read += part.bytesRead; if (bytes !== undefined && read > bytes) return undefined;
+      digest.update(chunk.subarray(0, part.bytesRead));
     }
-    if (read !== bytes || fileIdentity(await handle.stat({ bigint: true })) !== identity || await fingerprint(file) !== identity) return undefined;
+    if ((bytes !== undefined && read !== bytes) || fileIdentity(await handle.stat({ bigint: true })) !== identity || await fingerprint(file) !== identity) return undefined;
     return digest.digest("hex") === sha256 ? identity : undefined;
   } finally { await handle.close(); }
+}
+
+async function matches(file: string, bytes: number, sha256: string): Promise<string | undefined> {
+  return matchesSha256(file, sha256, bytes);
+}
+
+type OwnedTargetState = "absent" | "present" | "unsafe";
+
+async function ownedTargetState(root: string, physicalRoot: string, target: string): Promise<OwnedTargetState> {
+  const between = relative(resolve(root), resolve(target));
+  if (!between || between.startsWith("..") || between.includes("../")) return "unsafe";
+  let current = root;
+  for (const part of between.split("/")) {
+    current = join(current, part);
+    try {
+      const details = await lstat(current);
+      if (details.isSymbolicLink() || !details.isDirectory()) return "unsafe";
+    } catch (cause) {
+      return cause && typeof cause === "object" && "code" in cause && cause.code === "ENOENT" ? "absent" : "unsafe";
+    }
+  }
+  try {
+    return isSubpath(physicalRoot, await realpath(target)) ? "present" : "unsafe";
+  } catch { return "unsafe"; }
+}
+
+function immutable<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const child of Object.values(value as Record<string, unknown>)) immutable(child);
+    Object.freeze(value);
+  }
+  return value;
 }
 
 export class ModelSetup {
   readonly #root: string;
   readonly #manifest: ModelManifest;
+  readonly #runtime: RuntimeArtifact;
   readonly #fetch: ArtifactFetch;
-  readonly #mlxRuntime: MlxRuntimeSetupOptions;
+  readonly #llamaRuntime: LlamaRuntimeSetupOptions;
   #status: ModelSetupStatus = { kind: "pending_consent" };
   #controller: AbortController | undefined;
-  #verified: { readonly directory: string; readonly fingerprints: ReadonlyMap<string, string>; } | undefined;
-  #runtimeVerified: { directory: string; python: string; packages: string } | undefined;
+  #verified: { directory: string; fingerprints: ReadonlyMap<string, string> } | undefined;
+  #runtimeVerified: { directory: string; binary: string } | undefined;
 
   constructor(options: ModelSetupOptions) {
     this.#root = resolve(options.root);
     this.#manifest = immutable(ModelManifestSchema.parse(options.manifest));
     for (const artifact of this.#manifest.artifacts) artifactFile(this.#root, artifact.path);
+    if (options.runtimeArtifact?.trusted !== true) {
+      if (options.runtimeArtifact !== undefined) throw new LocalEmbeddingsError("invalid_manifest", "runtime override must be explicitly trusted");
+      this.#runtime = KnownLlamaRuntime;
+    } else {
+      const { trusted: _trusted, ...artifact } = options.runtimeArtifact;
+      this.#runtime = immutable(RuntimeArtifactSchema.parse(artifact));
+    }
     this.#fetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
-    this.#mlxRuntime = options.mlxRuntime ?? {};
+    this.#llamaRuntime = options.llamaRuntime ?? {};
   }
 
   status(): ModelSetupStatus { return this.#status; }
   cancel(): void { this.#controller?.abort(); }
 
+  async obsoleteRuntimePresent(): Promise<boolean> {
+    for (const target of this.#obsoleteTargets()) {
+      try { await lstat(target); return true; } catch { /* absent */ }
+    }
+    return false;
+  }
+
+  async cleanupObsoleteMlxRuntime(): Promise<ObsoleteRuntimeCleanup> {
+    let physicalRoot: string;
+    let rootIdentity: string;
+    try {
+      const rootDetails = await lstat(this.#root, { bigint: true });
+      if (!rootDetails.isDirectory() || rootDetails.isSymbolicLink()) return { kind: "refused", code: "unsafe_root" };
+      rootIdentity = fileIdentity(rootDetails);
+      physicalRoot = await realpath(this.#root);
+    } catch (cause) {
+      return cause && typeof cause === "object" && "code" in cause && cause.code === "ENOENT"
+        ? { kind: "nothing_to_remove" }
+        : { kind: "refused", code: "unsafe_root" };
+    }
+    const present: string[] = [];
+    for (const target of this.#obsoleteTargets()) {
+      if (!isSubpath(this.#root, target) || target === this.#root) return { kind: "refused", code: "unsafe_target" };
+      const state = await ownedTargetState(this.#root, physicalRoot, target);
+      if (state === "unsafe") return { kind: "refused", code: "unsafe_target" };
+      if (state === "present") present.push(target);
+    }
+    if (!present.length) return { kind: "nothing_to_remove" };
+    for (const target of present) {
+      try {
+        const rootDetails = await lstat(this.#root, { bigint: true });
+        if (!rootDetails.isDirectory() || rootDetails.isSymbolicLink() || fileIdentity(rootDetails) !== rootIdentity || await realpath(this.#root) !== physicalRoot) return { kind: "refused", code: "unsafe_root" };
+      } catch { return { kind: "refused", code: "unsafe_root" }; }
+      if (await ownedTargetState(this.#root, physicalRoot, target) !== "present") return { kind: "refused", code: "unsafe_target" };
+      await rm(target, { recursive: true, force: false });
+    }
+    return { kind: "removed", paths: present };
+  }
+
   async ready(): Promise<ReadyModel | undefined> {
     const directory = join(this.#root, "active", this.#manifest.id);
-    if (this.#verified?.directory === directory && await this.#verifiedGenerationStillCurrent()) {
-      const runtimeDirectory = await this.#readyRuntime();
-      if (!runtimeDirectory) return undefined;
-      return { manifest: this.#manifest, directory, ...(runtimeDirectory ? { runtimeDirectory } : {}) };
-    }
+    const runtimeDirectory = await this.#readyRuntime();
+    if (!runtimeDirectory) return undefined;
+    if (this.#verified?.directory === directory && await this.#verifiedGenerationStillCurrent()) return { manifest: this.#manifest, directory, runtimeDirectory };
     this.#verified = undefined;
     try {
       const recorded = JSON.parse(await readFile(join(directory, readyFile), "utf8")) as { revision?: unknown; artifacts?: unknown };
       if (recorded.revision !== this.#manifest.revision || !Array.isArray(recorded.artifacts)) return undefined;
-      const paths = new Set(recorded.artifacts);
-      if (paths.size !== this.#manifest.artifacts.length) return undefined;
+      const paths = new Set(recorded.artifacts); if (paths.size !== this.#manifest.artifacts.length) return undefined;
       const fingerprints = new Map<string, string>();
       for (const artifact of this.#manifest.artifacts) {
         if (!paths.has(artifact.path)) return undefined;
@@ -118,9 +194,7 @@ export class ModelSetup {
         fingerprints.set(artifact.path, identity);
       }
       this.#verified = { directory, fingerprints };
-      const runtimeDirectory = await this.#readyRuntime();
-      if (!runtimeDirectory) return undefined;
-      return { manifest: this.#manifest, directory, ...(runtimeDirectory ? { runtimeDirectory } : {}) };
+      return { manifest: this.#manifest, directory, runtimeDirectory };
     } catch { return undefined; }
   }
 
@@ -128,24 +202,24 @@ export class ModelSetup {
     if (!options.consent) return this.#emit({ kind: "pending_consent" }, options);
     if (options.signal?.aborted) return this.#emit({ kind: "cancelled" }, options);
     if (this.#controller) return { kind: "failed", code: "setup_busy" };
-    const controller = new AbortController();
-    this.#controller = controller;
-    const abort = () => controller.abort();
-    options.signal?.addEventListener("abort", abort, { once: true });
+    if ((this.#llamaRuntime.platform ?? process.platform) !== "darwin" || (this.#llamaRuntime.arch ?? process.arch) !== "arm64") return this.#emit({ kind: "failed", code: "unsupported_hardware" }, options);
+    if (!this.#runtime.url) return this.#emit({ kind: "failed", code: "runtime_unavailable" }, options);
+    const controller = new AbortController(); this.#controller = controller;
+    const abort = () => controller.abort(); options.signal?.addEventListener("abort", abort, { once: true });
     try {
-      const prerequisite = await this.#mlxPrerequisiteFailure();
-      if (prerequisite) return this.#emit({ kind: "failed", code: prerequisite }, options);
-      const existing = await this.ready();
-      controller.signal.throwIfAborted();
-      if (existing) return this.#emit({ kind: "ready", directory: existing.directory, ...(existing.runtimeDirectory ? { runtimeDirectory: existing.runtimeDirectory } : {}) }, options);
-      if (!await this.#readyRuntime()) await this.#installRuntime(controller.signal, options);
+      const existing = await this.ready(); controller.signal.throwIfAborted();
+      if (existing) return this.#emit({ kind: "ready", directory: existing.directory, runtimeDirectory: existing.runtimeDirectory }, options);
       await mkdir(join(this.#root, "objects"), { recursive: true, mode: 0o700 });
+      if (!await this.#readyRuntime()) {
+        const runtimeObject = await this.#ensureObject({ path: runtimeArchivePath, bytes: this.#runtime.bytes, sha256: this.#runtime.sha256, url: this.#runtime.url }, controller.signal, options);
+        await this.#installRuntime(runtimeObject, controller.signal, options);
+      }
       for (const artifact of this.#manifest.artifacts) await this.#ensureObject(artifact, controller.signal, options);
-      if (controller.signal.aborted) return this.#emit({ kind: "cancelled" }, options);
+      controller.signal.throwIfAborted();
       return await this.#activate(options, controller.signal);
     } catch (cause) {
       if (controller.signal.aborted || (cause instanceof DOMException && cause.name === "AbortError")) return this.#emit({ kind: "cancelled" }, options);
-      if (cause instanceof LocalEmbeddingsError) return this.#emit({ kind: "failed", code: cause.code as "download_failed" | "hash_mismatch" | "size_mismatch" | "invalid_manifest" | "runtime_install_failed" | "unsupported_hardware" }, options);
+      if (cause instanceof LocalEmbeddingsError) return this.#emit({ kind: "failed", code: cause.code as Extract<ModelSetupStatus, { kind: "failed" }>["code"] }, options);
       return this.#emit({ kind: "failed", code: "download_failed" }, options);
     } finally {
       options.signal?.removeEventListener("abort", abort);
@@ -153,100 +227,83 @@ export class ModelSetup {
     }
   }
 
-  #emit(status: ModelSetupStatus, options: InstallOptions): ModelSetupStatus { this.#status = status; options.onProgress?.(status); return status; }
-
-  async #mlxPrerequisiteFailure(): Promise<"uv_unavailable" | "unsupported_hardware" | undefined> {
-    if ((this.#mlxRuntime.platform ?? process.platform) !== "darwin" || (this.#mlxRuntime.arch ?? process.arch) !== "arm64") return "unsupported_hardware";
-    const uv = this.#mlxRuntime.uvExecutable ?? "uv";
-    try {
-      if (uv.includes("/")) await access(uv, constants.X_OK);
-      else await execFileAsync(uv, ["--version"]);
-    } catch { return "uv_unavailable"; }
-    return undefined;
+  #obsoleteTargets(): readonly string[] {
+    return [join(this.#root, "runtime", "mlx"), join(this.#root, "runtime", ".uv-python"), join(this.#root, "runtime", ".uv-cache"), join(this.#root, "active", "qwen3-embedding-0.6b-mlx")];
   }
 
+  #emit(status: ModelSetupStatus, options: InstallOptions): ModelSetupStatus { this.#status = status; options.onProgress?.(status); return status; }
+
+  #runtimeDirectory(): string { return join(this.#root, "runtime", `llama.cpp-${this.#runtime.revision}`); }
+
   async #readyRuntime(): Promise<string | undefined> {
-    const directory = join(this.#root, "runtime", "mlx");
+    const directory = this.#runtimeDirectory();
     try {
-      const value = JSON.parse(await readFile(join(directory, runtimeReadyFile), "utf8"));
-      if (JSON.stringify(value.versions) !== JSON.stringify(runtimeVersions)) return undefined;
-      const pythonLink = join(directory, "bin", "python");
-      await access(pythonLink, constants.X_OK);
-      const python = await realpath(pythonLink);
-      if (!isSubpath(this.#root, python)) return undefined;
-      const identity = await fingerprint(python);
-      const packages = await pathIdentity(join(directory, "lib", "python3.12", "site-packages"));
-      if (!identity || !packages || (this.#runtimeVerified && (this.#runtimeVerified.python !== identity || this.#runtimeVerified.packages !== packages))) { this.#runtimeVerified = undefined; return undefined; }
-      if (!this.#runtimeVerified && !await this.#probeRuntime(pythonLink).catch(() => false)) return undefined;
-      this.#runtimeVerified = { directory, python: identity, packages };
+      const recorded = JSON.parse(await readFile(join(directory, runtimeReadyFile), "utf8")) as Record<string, unknown>;
+      if (recorded.revision !== this.#runtime.revision || recorded.sha256 !== this.#runtime.sha256) return undefined;
+      const binary = join(directory, "bin", "llama-server");
+      await access(binary, constants.X_OK);
+      const identity = await fingerprint(binary);
+      if (!identity) { this.#runtimeVerified = undefined; return undefined; }
+      if (this.#runtimeVerified?.directory === directory && this.#runtimeVerified.binary === identity) return directory;
+      const verified = await matchesSha256(binary, this.#runtime.binarySha256);
+      if (!verified) { this.#runtimeVerified = undefined; return undefined; }
+      this.#runtimeVerified = { directory, binary: verified };
       return directory;
     } catch { return undefined; }
   }
 
-  async #installRuntime(signal: AbortSignal, options: InstallOptions): Promise<void> {
-    const directory = join(this.#root, "runtime", "mlx");
-    const uv = this.#mlxRuntime.uvExecutable ?? "uv";
-    const run = this.#mlxRuntime.run ?? (async (file, args, env) => { await execFileAsync(file, [...args], { signal, env }); });
-    const environment = { ...process.env, UV_PYTHON_INSTALL_DIR: join(this.#root, "runtime", ".uv-python"), UV_CACHE_DIR: join(this.#root, "runtime", ".uv-cache") };
-    let checkingGpu = false;
+  async #installRuntime(archive: string, signal: AbortSignal, options: InstallOptions): Promise<void> {
+    const active = this.#runtimeDirectory();
+    const stagingParent = join(this.#root, ".staging", `runtime-${randomUUID()}`);
     try {
-      await rm(directory, { recursive: true, force: true });
-      await mkdir(dirname(directory), { recursive: true, mode: 0o700 });
-      this.#emit({ kind: "installing_runtime", step: "python" }, options);
-      await run(uv, ["venv", "--python", runtimeVersions.python, "--managed-python", "--no-project", directory], environment);
-      signal.throwIfAborted();
-      this.#emit({ kind: "installing_runtime", step: "packages" }, options);
-      const lock = fileURLToPath(new URL("../python/mlx-requirements.lock", import.meta.url));
-      await run(uv, ["pip", "sync", "--python", join(directory, "bin", "python"), "--require-hashes", "--only-binary", ":all:", "--no-config", "--default-index", "https://pypi.org/simple", lock], environment);
-      signal.throwIfAborted();
-      this.#emit({ kind: "installing_runtime", step: "verifying" }, options);
-      checkingGpu = true;
-      if (!await this.#probeRuntime(join(directory, "bin", "python"), signal, environment)) throw new Error("runtime mismatch");
-      checkingGpu = false;
-      await writeFile(join(directory, runtimeReadyFile), JSON.stringify({ versions: runtimeVersions }), { mode: 0o600 });
-      const python = await realpath(join(directory, "bin", "python"));
-      const pythonIdentity = await fingerprint(python); const packages = await pathIdentity(join(directory, "lib", "python3.12", "site-packages"));
-      this.#runtimeVerified = pythonIdentity && packages ? { directory, python: pythonIdentity, packages } : undefined;
+      this.#emit({ kind: "installing_runtime", step: "extracting" }, options);
+      await mkdir(stagingParent, { recursive: true, mode: 0o700 });
+      const listing = (await execFileAsync("/usr/bin/tar", ["-tzf", archive], { signal })).stdout.split("\n").filter(Boolean);
+      const allowed = new Set([
+        `${runtimeArchiveRoot}/`, `${runtimeArchiveRoot}/bin/`, `${runtimeArchiveRoot}/bin/llama-server`,
+        `${runtimeArchiveRoot}/LICENSE`, `${runtimeArchiveRoot}/THIRD_PARTY_NOTICES.txt`,
+      ]);
+      if (!listing.length || listing.some((entry) => !allowed.has(entry))) throw new LocalEmbeddingsError("runtime_install_failed", "runtime archive contains unexpected paths");
+      await execFileAsync("/usr/bin/tar", ["-xzf", archive, "-C", stagingParent], { signal });
+      signal.throwIfAborted(); this.#emit({ kind: "installing_runtime", step: "verifying" }, options);
+      const staged = join(stagingParent, runtimeArchiveRoot);
+      for (const path of [join(staged, "bin", "llama-server"), join(staged, "LICENSE"), join(staged, "THIRD_PARTY_NOTICES.txt")]) {
+        const details = await lstat(path); if (!details.isFile() || details.isSymbolicLink()) throw new LocalEmbeddingsError("runtime_install_failed", "runtime payload is invalid");
+      }
+      await chmod(join(staged, "bin", "llama-server"), 0o700);
+      if (!await matchesSha256(join(staged, "bin", "llama-server"), this.#runtime.binarySha256)) throw new LocalEmbeddingsError("runtime_install_failed", "runtime executable hash differs from trusted artifact");
+      await writeFile(join(staged, runtimeReadyFile), JSON.stringify({ revision: this.#runtime.revision, sha256: this.#runtime.sha256 }), { mode: 0o600 });
+      await mkdir(dirname(active), { recursive: true, mode: 0o700 });
+      await this.#publish(staged, active, signal);
+      this.#runtimeVerified = undefined;
+      if (!await this.#readyRuntime()) throw new LocalEmbeddingsError("runtime_install_failed", "installed runtime could not be verified");
     } catch (cause) {
-      await rm(directory, { recursive: true, force: true });
       if (signal.aborted) throw cause;
-      throw new LocalEmbeddingsError(checkingGpu ? "unsupported_hardware" : "runtime_install_failed", checkingGpu ? "Metal GPU is unavailable" : "Isolated MLX runtime installation failed");
-    }
-  }
-
-  async #probeRuntime(python: string, signal?: AbortSignal, env: NodeJS.ProcessEnv = process.env): Promise<boolean> {
-    const probe = this.#mlxRuntime.probe ?? (async (executable) => JSON.parse((await execFileAsync(executable, ["-I", "-c", `import json, sys, importlib.metadata; import mlx_embeddings, transformers, tokenizers, mlx, mlx.core as mx; print(json.dumps({\"python\": \".\".join(map(str, sys.version_info[:3])), \"mlx-embeddings\": importlib.metadata.version(\"mlx-embeddings\"), \"mlx\": importlib.metadata.version(\"mlx\"), \"transformers\": importlib.metadata.version(\"transformers\"), \"tokenizers\": importlib.metadata.version(\"tokenizers\"), \"metal\": mx.metal.is_available()}))`], { signal, env })).stdout));
-    const observed = await probe(python) as Record<string, unknown>;
-    return observed.metal === true && Object.entries(runtimeVersions).every(([name, version]) => observed[name] === version);
+      if (cause instanceof LocalEmbeddingsError) throw cause;
+      throw new LocalEmbeddingsError("runtime_install_failed", "verified runtime archive installation failed");
+    } finally { await rm(stagingParent, { recursive: true, force: true }); }
   }
 
   async #verifiedGenerationStillCurrent(): Promise<boolean> {
-    const verified = this.#verified;
-    if (!verified) return false;
-    for (const artifact of this.#manifest.artifacts) {
-      if (await fingerprint(artifactFile(verified.directory, artifact.path)) !== verified.fingerprints.get(artifact.path)) return false;
-    }
+    if (!this.#verified) return false;
+    for (const artifact of this.#manifest.artifacts) if (await fingerprint(artifactFile(this.#verified.directory, artifact.path)) !== this.#verified.fingerprints.get(artifact.path)) return false;
     return true;
   }
 
-  async #ensureObject(artifact: ModelManifest["artifacts"][number], signal: AbortSignal, options: InstallOptions): Promise<void> {
+  async #ensureObject(artifact: { path: string; bytes: number; sha256: string; url: string }, signal: AbortSignal, options: InstallOptions): Promise<string> {
     const object = join(this.#root, "objects", artifact.sha256);
-    if (await matches(object, artifact.bytes, artifact.sha256)) return;
+    if (await matches(object, artifact.bytes, artifact.sha256)) return object;
     await rm(object, { force: true });
     const temporary = `${object}.${randomUUID()}.part`;
     try {
       const response = await this.#fetch(artifact.url, { signal });
       if (!response.ok || !response.body) throw new LocalEmbeddingsError("download_failed", "artifact download failed");
-      const handle = await open(temporary, "wx", 0o600);
-      const digest = createHash("sha256");
-      let received = 0;
+      const handle = await open(temporary, "wx", 0o600); const digest = createHash("sha256"); let received = 0;
       try {
-        const reader = response.body.getReader();
-        let complete = false;
+        const reader = response.body.getReader(); let complete = false;
         try {
-          while (true) {
-            const part = await reader.read();
-            if (part.done) break;
+          for (;;) {
+            const part = await reader.read(); if (part.done) break;
             if (signal.aborted) { await reader.cancel(); throw new DOMException("cancelled", "AbortError"); }
             received += part.value.byteLength;
             if (received > artifact.bytes) throw new LocalEmbeddingsError("size_mismatch", "artifact size differs from manifest");
@@ -254,53 +311,40 @@ export class ModelSetup {
             this.#emit({ kind: "downloading", path: artifact.path, received, expected: artifact.bytes }, options);
           }
           complete = true;
-        } finally {
-          if (!complete) await reader.cancel().catch(() => undefined);
-          reader.releaseLock();
-        }
+        } finally { if (!complete) await reader.cancel().catch(() => undefined); reader.releaseLock(); }
       } finally { await handle.close(); }
       if (received !== artifact.bytes) throw new LocalEmbeddingsError("size_mismatch", "artifact size differs from manifest");
       this.#emit({ kind: "verifying", path: artifact.path }, options);
       if (digest.digest("hex") !== artifact.sha256) throw new LocalEmbeddingsError("hash_mismatch", "artifact hash differs from manifest");
-      await rename(temporary, object);
+      await rename(temporary, object); return object;
     } finally { await rm(temporary, { force: true }); }
   }
 
   async #writeAll(handle: Awaited<ReturnType<typeof open>>, bytes: Uint8Array): Promise<void> {
     let offset = 0;
     while (offset < bytes.byteLength) {
-      const { bytesWritten } = await handle.write(bytes, offset, bytes.byteLength - offset, null);
-      if (bytesWritten <= 0) throw new LocalEmbeddingsError("download_failed", "artifact write failed");
-      offset += bytesWritten;
+      const result = await handle.write(bytes, offset, bytes.byteLength - offset, null);
+      if (result.bytesWritten <= 0) throw new LocalEmbeddingsError("download_failed", "artifact write failed");
+      offset += result.bytesWritten;
     }
   }
 
   async #activate(options: InstallOptions, signal: AbortSignal): Promise<ModelSetupStatus> {
     const active = join(this.#root, "active", this.#manifest.id);
-    const existing = await this.ready();
-    signal.throwIfAborted();
-    if (existing) return this.#emit({ kind: "ready", directory: existing.directory, ...(existing.runtimeDirectory ? { runtimeDirectory: existing.runtimeDirectory } : {}) }, options);
+    const existing = await this.ready(); signal.throwIfAborted();
+    if (existing) return this.#emit({ kind: "ready", directory: existing.directory, runtimeDirectory: existing.runtimeDirectory }, options);
     const staging = join(this.#root, ".staging", `${this.#manifest.id}-${randomUUID()}`);
     try {
       await mkdir(staging, { recursive: true, mode: 0o700 });
       for (const artifact of this.#manifest.artifacts) {
-        const target = artifactFile(staging, artifact.path);
-        await mkdir(dirname(target), { recursive: true });
-        await copyFile(join(this.#root, "objects", artifact.sha256), target);
-        signal.throwIfAborted();
+        const target = artifactFile(staging, artifact.path); await mkdir(dirname(target), { recursive: true });
+        await copyFile(join(this.#root, "objects", artifact.sha256), target); signal.throwIfAborted();
       }
-      await writeFile(join(staging, readyFile), JSON.stringify({ revision: this.#manifest.revision, artifacts: this.#manifest.artifacts.map((artifact) => artifact.path) }));
-      await mkdir(dirname(active), { recursive: true });
-      signal.throwIfAborted();
-      await this.#publish(staging, active, signal);
-      this.#verified = undefined;
-      const runtimeDirectory = this.#runtimeVerified?.directory ?? await this.#readyRuntime();
-      return this.#emit({ kind: "ready", directory: active, ...(runtimeDirectory ? { runtimeDirectory } : {}) }, options);
-    } catch (cause) {
-      signal.throwIfAborted();
-      const recovered = await this.ready();
-      if (recovered) return this.#emit({ kind: "ready", directory: active, ...(recovered.runtimeDirectory ? { runtimeDirectory: recovered.runtimeDirectory } : {}) }, options);
-      throw cause;
+      await writeFile(join(staging, readyFile), JSON.stringify({ revision: this.#manifest.revision, artifacts: this.#manifest.artifacts.map((artifact) => artifact.path) }), { mode: 0o600 });
+      await mkdir(dirname(active), { recursive: true }); signal.throwIfAborted();
+      await this.#publish(staging, active, signal); this.#verified = undefined;
+      const ready = await this.ready(); if (!ready) throw new LocalEmbeddingsError("runtime_install_failed", "installed model could not be verified");
+      return this.#emit({ kind: "ready", directory: ready.directory, runtimeDirectory: ready.runtimeDirectory }, options);
     } finally { await rm(staging, { recursive: true, force: true }); }
   }
 
@@ -311,18 +355,12 @@ export class ModelSetup {
       const code = cause && typeof cause === "object" && "code" in cause ? cause.code : undefined;
       if (code !== "EEXIST" && code !== "ENOTEMPTY") throw cause;
     }
-    const recovered = await this.ready();
-    signal.throwIfAborted();
-    if (recovered) return;
-    const quarantine = join(this.#root, ".quarantine", `${this.#manifest.id}-${randomUUID()}`);
-    await mkdir(dirname(quarantine), { recursive: true });
+    const quarantine = join(this.#root, ".quarantine", `${randomUUID()}`); await mkdir(dirname(quarantine), { recursive: true });
     signal.throwIfAborted();
     try { await rename(active, quarantine); }
-    catch (cause) {
-      const code = cause && typeof cause === "object" && "code" in cause ? cause.code : undefined;
-      if (code !== "ENOENT") throw cause;
-    }
+    catch (cause) { if (!(cause && typeof cause === "object" && "code" in cause && cause.code === "ENOENT")) throw cause; }
     try { await rename(staging, active); }
+    catch (cause) { await rename(quarantine, active).catch(() => undefined); throw cause; }
     finally { await rm(quarantine, { recursive: true, force: true }); }
   }
 }

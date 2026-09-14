@@ -35,7 +35,7 @@ test("Nightloom registers once as a host capability and attaches only its bounde
     async cancelAssessment(value) { return { kind: "failure" as const, requestId: value.requestId, payloadFingerprint: value.payloadFingerprint, code: "unavailable" as const }; },
   } satisfies NightloomKnowledgeService;
   const nightloom = createKnowledgeNightloom({ service, store: memoryStore(), packageDirectory: "/installed/nightloom",
-    settings: async () => ({ embeddingModel: "qwen3-embedding-0.6b-mlx", assessmentModel: "gpt-5.6-terra", assessmentTimeoutMs: 300_000, maxAutomaticStartsPerDay: 6, maxAutomaticMillisecondsPerDay: 1_800_000 }),
+    settings: async () => ({ embeddingModel: "qwen3-embedding-0.6b-gguf", assessmentModel: "gpt-5.6-terra", assessmentTimeoutMs: 300_000, maxAutomaticStartsPerDay: 6, maxAutomaticMillisecondsPerDay: 1_800_000 }),
     prepareHost: async owner => { owners.push(owner); return registration; } });
   expect(await nightloom.initialize()).toEqual({ status: "ready" });
   expect(await nightloom.initialize()).toEqual({ status: "ready" });

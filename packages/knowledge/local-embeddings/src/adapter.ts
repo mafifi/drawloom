@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { AuthorizationResultSchema, EmbeddingBatchSchema, embeddingResultSchemaFor, type EmbeddingConfiguration, type KnowledgeAuthorizer, type KnowledgeEmbeddings } from "@drawloom/knowledge";
-import { knownManifest, type KnownModelId } from "./manifest.js";
+import { KnownLlamaRuntime, knownManifest, type KnownModelId } from "./manifest.js";
 import type { EmbeddingWorker } from "./worker-types.js";
 
 /** Rebuildable index identity includes weights and the local runtime/format policy. */
@@ -9,7 +9,7 @@ export function embeddingConfiguration(model: KnownModelId): EmbeddingConfigurat
   return {
     id: `local:${model}`,
     dimensions: manifest.dimensions,
-    fingerprint: createHash("sha256").update(JSON.stringify({ manifest, runtime: "mlx-embeddings@0.1.0/mlx@0.32.2/transformers@5.17.0/tokenizers@0.23.2", policy: "untruncated-v1", segmentation: "unicode-512-v1", batchTokens: manifest.maxBatchTokens })).digest("hex"),
+    fingerprint: createHash("sha256").update(JSON.stringify({ manifest, runtime: { revision: KnownLlamaRuntime.revision, binarySha256: KnownLlamaRuntime.binarySha256 }, policy: "tokenize-before-inference-v2", segmentation: "unicode-512-v1", batchTokens: manifest.maxBatchTokens })).digest("hex"),
   };
 }
 

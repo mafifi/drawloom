@@ -17,6 +17,7 @@ export interface KnowledgeService {
   ingest(input: IntakeInput): Promise<IntakeResult>;
   download(model: LocalKnowledgeConfiguration["embeddingModel"]): Promise<LocalKnowledgeStatus>;
   cancelDownload(model: LocalKnowledgeConfiguration["embeddingModel"]): Promise<LocalKnowledgeStatus>;
+  cleanupObsoleteRuntime?(): Promise<LocalKnowledgeStatus>;
   close(): Promise<void>;
 }
 export interface InstalledGitKnowledgeFeed {
@@ -168,6 +169,10 @@ export function createKnowledgeHost(options: {
         }
         if (command.action === "download") return mappedStatus(await options.service.download(command.model));
         if (command.action === "cancel_download") return mappedStatus(await options.service.cancelDownload(command.model));
+        if (command.action === "cleanup_obsolete") {
+          if (!options.service.cleanupObsoleteRuntime) throw Error("Previous runtime cleanup is unavailable.");
+          return mappedStatus(await options.service.cleanupObsoleteRuntime());
+        }
         if (command.action === "pause") {
           if (options.nightloom) await (command.paused ? options.nightloom.pause() : options.nightloom.resume());
           return mappedStatus();

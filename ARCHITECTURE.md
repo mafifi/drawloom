@@ -208,6 +208,17 @@ effort. Account for the cost of missing protections and user controls too.
    or implementation convenience. Make authority and limitations understandable;
    access to a tool is not approval to use it for every action.
 
+10. **Permissive dependencies preserve adoption and distribution freedom.**
+   Product dependencies, user-installed runtimes, model weights and bundled or
+   transitive components require reviewed permissive terms or reviewed MPL-2.0,
+   with its file-level source and notice obligations preserved. Other copyleft,
+   including GPL-with-exception, is excluded from that path. Select dual-licence alternatives
+   explicitly; unknown/custom terms require review. Development-only tools are
+   reviewed separately and must not enter product artifacts. Independent downloads
+   do not waive obligations. Preserve historical research evidence without treating
+   it as adoption. [ADR 0026](docs/adr/0026-permissive-dependencies-and-local-gguf-embeddings.md)
+   records this accepted principle and embedding replacement, with explicit release limits.
+
 Before adding material complexity, ask what present need or observed difference
 requires it, why the simpler option fails a principle, whether the choice can
 remain private or reversible, what it costs, and how evidence will verify it.

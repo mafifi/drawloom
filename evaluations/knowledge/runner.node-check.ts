@@ -35,7 +35,7 @@ test("default evaluation is a deterministic lexical smoke run without semantic c
 test("requested but unavailable model weights block hybrid evaluation without downloading", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-knowledge-evaluation-"));
   try {
-    const report = await runKnowledgeEvaluation({ root, model: "qwen3-embedding-0.6b-mlx" });
+    const report = await runKnowledgeEvaluation({ root, model: "qwen3-embedding-0.6b-gguf" });
     assert.equal(report.kind, "deterministic_smoke");
     assert.deepEqual(report.hybrid, { kind: "blocked", reason: "model_not_ready" });
   } finally { await rm(root, { recursive: true, force: true }); }

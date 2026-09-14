@@ -2,14 +2,14 @@ import { join } from "node:path";
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { createSqliteKnowledge } from "@drawloom/sqlite-knowledge";
 import { createCodexAssessment } from "@drawloom/codex-assessment";
-import { createKnowledgeEmbeddings, createModelSetup, embeddingConfiguration, KnownModelManifests, MlxEmbeddingWorker, type EmbeddingWorker, type KnownModelId, type ModelSetup } from "@drawloom/local-embeddings";
+import { createKnowledgeEmbeddings, createModelSetup, embeddingConfiguration, KnownLlamaRuntime, KnownModelManifests, LlamaEmbeddingWorker, type EmbeddingWorker, type KnownModelId, type ModelSetup, type ReadyModel, type TrustedRuntimeArtifact } from "@drawloom/local-embeddings";
 import {
   type AssessmentReconcileRequest, type AssessmentRequest, type AuthZenRequest,
   type EvidenceRequest, type ExpandRequest, type IntakeInput, type KnowledgeExportRequest, type PublicationInput,
   type RecordRef, type SearchRequest, type TrustedKnowledgeSubject, type WorkBatchReleaseInput,
 } from "@drawloom/knowledge";
 import type { RpcTransport } from "@drawloom/host";
-import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, LocalKnowledgeConfigurationSchema, LocalKnowledgeStatusSchema, type LocalKnowledgeConfiguration, type LocalKnowledgeStatus } from "./protocol.js";
+import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, LocalKnowledgeConfigurationSchema, LocalKnowledgeStatusSchema, parseStoredLocalKnowledgeConfiguration, type LocalKnowledgeConfiguration, type LocalKnowledgeStatus } from "./protocol.js";
 import { createSemanticRetrieval } from "./semantic.js";
 
 const subject = Object.freeze({ type: "user", id: "local-owner", properties: { locality: "device", scope: "global-knowledge" } }) as unknown as TrustedKnowledgeSubject;
@@ -34,20 +34,24 @@ export interface LocalKnowledgeRuntimeOptions {
   workingDirectory: string;
   connectCodex(): Promise<RpcTransport>;
   /** Provider-local deterministic seam for tests; production uses ModelSetup. */
-  createEmbeddingSetup?: (root: string, model: KnownModelId) => Pick<ModelSetup, "ready" | "status" | "install" | "cancel">;
-  /** Provider-local deterministic seam for tests; production uses the MLX worker. */
-  createEmbeddingWorker?: (root: string, model: KnownModelId) => EmbeddingWorker & { close(): Promise<void> };
+  createEmbeddingSetup?: (root: string, model: KnownModelId) => Pick<ModelSetup, "ready" | "status" | "install" | "cancel" | "obsoleteRuntimePresent" | "cleanupObsoleteMlxRuntime">;
+  /** Explicitly trusted host composition override; never accepted from browser configuration. */
+  runtimeArtifact?: TrustedRuntimeArtifact;
+  /** Provider-local deterministic seam for tests; production uses llama-server. */
+  createEmbeddingWorker?: (root: string, model: KnownModelId, ready: () => Promise<ReadyModel | undefined>) => EmbeddingWorker & { close(): Promise<void> };
 }
 
 export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntimeOptions) {
   const state = createNodeJsonStore(join(options.root, "state"));
-  const configured = LocalKnowledgeConfigurationSchema.parse((await state.get("configuration")) ?? DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION);
+  const storedConfiguration = await state.get("configuration");
+  const configured = parseStoredLocalKnowledgeConfiguration(storedConfiguration ?? DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION);
+  if (storedConfiguration && typeof storedConfiguration === "object" && (storedConfiguration as { embeddingModel?: unknown }).embeddingModel === "qwen3-embedding-0.6b-mlx") await state.set("configuration", configured);
   let configuration: LocalKnowledgeConfiguration = configured;
   const sqlite = createSqliteKnowledge({ databasePath: join(options.root, "knowledge.sqlite"), authorizer,
     resolveResource: ({ action, ref }) => resource({ action, ...(ref ? { ref } : {}) }) });
   const modelRoot = join(options.root, "models");
-  const setups = new Map<KnownModelId, Pick<ModelSetup, "ready" | "status" | "install" | "cancel">>(
-    (Object.keys(KnownModelManifests) as KnownModelId[]).map((id) => [id, options.createEmbeddingSetup?.(modelRoot, id) ?? createModelSetup({ root: modelRoot, manifest: KnownModelManifests[id] })]),
+  const setups = new Map<KnownModelId, Pick<ModelSetup, "ready" | "status" | "install" | "cancel" | "obsoleteRuntimePresent" | "cleanupObsoleteMlxRuntime">>(
+    (Object.keys(KnownModelManifests) as KnownModelId[]).map((id) => [id, options.createEmbeddingSetup?.(modelRoot, id) ?? createModelSetup({ root: modelRoot, manifest: KnownModelManifests[id], ...(options.runtimeArtifact ? { runtimeArtifact: options.runtimeArtifact } : {}) })]),
   );
   let assessment = assessmentFor(configuration);
   let closed = false;
@@ -66,8 +70,10 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
   }
   const ensureOpen = () => { if (closed) throw Error("Knowledge runtime is closed"); };
   async function semanticFor(model: KnownModelId): Promise<Semantic | undefined> {
-    if (!await setups.get(model)!.ready()) return undefined;
-    const worker = options.createEmbeddingWorker?.(modelRoot, model) ?? new MlxEmbeddingWorker({ root: modelRoot, model });
+    const setup = setups.get(model)!;
+    if (!await setup.ready()) return undefined;
+    const ready = () => setup.ready();
+    const worker = options.createEmbeddingWorker?.(modelRoot, model, ready) ?? new LlamaEmbeddingWorker({ root: modelRoot, model, ready });
     return { model, worker, retrieval: createSemanticRetrieval({ subject, retrieval: sqlite.retrieval, work: sqlite.indexWork,
       index: sqlite.embeddingIndex, embeddings: createKnowledgeEmbeddings({ model, authorizer, worker }), configuration: embeddingConfiguration(model),
       authorizeSearch,
@@ -107,11 +113,12 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
     const setup = setups.get(id)!;
     if (await setup.ready()) return { state: "ready" as const };
     const status = setup.status();
-    if (status.kind === "installing_runtime") return { state: "installing_runtime" as const, message: status.step === "python" ? "Installing isolated Python runtime" : status.step === "packages" ? "Installing hash-locked MLX packages" : "Verifying MLX and Metal support" };
+    if (status.kind === "installing_runtime") return { state: "installing_runtime" as const, message: status.step === "extracting" ? "Installing verified llama.cpp runtime" : "Verifying llama.cpp runtime" };
     if (status.kind === "downloading") return { state: "downloading" as const, receivedBytes: status.received, expectedBytes: status.expected, message: `Downloading ${status.path}` };
     if (status.kind === "verifying") return { state: "verifying" as const, message: `Verifying ${status.path}` };
     if (status.kind === "failed") return { state: "failed" as const, message: status.code };
     if (status.kind === "cancelled") return { state: "cancelled" as const, message: "Installation cancelled. Existing knowledge and indexes were not changed." };
+    if (!KnownLlamaRuntime.url && !options.runtimeArtifact?.url) return { state: "failed" as const, message: "runtime_unavailable" };
     return { state: "missing" as const };
   }
   async function status(): Promise<LocalKnowledgeStatus> {
@@ -122,12 +129,13 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
     const models = await Promise.all((Object.keys(KnownModelManifests) as KnownModelId[]).map(async (id) => {
       const manifest = KnownModelManifests[id];
       const runtime = manifest.runtimeProvenance!;
-      return { id, title: "Qwen3 Embedding 0.6B · MLX 8-bit", licence: `${manifest.provenance?.baseLicense ?? "Unknown"} model and conversion`,
+      return { id, title: "Qwen3 Embedding 0.6B · GGUF Q8_0", licence: `${manifest.provenance?.baseLicense ?? "Unknown"} model and conversion`,
         source: `https://huggingface.co/${manifest.provenance?.repository}/tree/${manifest.revision}`,
-        modelDirectory: join(modelRoot, "active", id), runtimeDirectory: join(modelRoot, "runtime", "mlx"),
-        prerequisites: "Requires macOS on Apple Silicon and uv. Text search remains available without these prerequisites.",
+        modelDirectory: join(modelRoot, "active", id), runtimeDirectory: join(modelRoot, "runtime", `llama.cpp-${KnownLlamaRuntime.revision}`),
+        prerequisites: "Requires macOS on Apple Silicon with Metal. Text search remains available without these prerequisites.",
         runtime: { package: runtime.package, version: runtime.version, licence: runtime.license },
-        weightsBytes: manifest.artifacts.reduce((sum, artifact) => sum + artifact.bytes, 0), ...await modelState(id) };
+        weightsBytes: manifest.artifacts.reduce((sum, artifact) => sum + artifact.bytes, 0), runtimeBytes: options.runtimeArtifact?.bytes ?? KnownLlamaRuntime.bytes,
+        runtimeDownloadAvailable: Boolean(options.runtimeArtifact?.url ?? KnownLlamaRuntime.url), ...await modelState(id) };
     }));
     const pendingUpdates = backlog.pendingUnits;
     const semanticState = candidateSemantic?.retrieval.state ?? (activeSemantic?.model === configuration.embeddingModel ? activeSemantic.retrieval.state : undefined);
@@ -137,7 +145,7 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
       ? "Local text search is ready. Semantic indexing requires a verified downloaded model."
       : priorActive ? "Local text search and the previous verified semantic index are ready while the selected model rebuilds."
       : indexState === "ready" ? "Local text and semantic search are ready." : "Local text search is ready while semantic indexing continues.",
-      configuration, models, indexing: indexState,
+      configuration, models, obsoleteRuntimePresent: await setups.values().next().value!.obsoleteRuntimePresent(), indexing: indexState,
       maintenance: { state: "idle", pendingUpdates,
         message: `${pendingUpdates} maintenance updates pending.`,
         automaticStartsToday: 0, automaticMillisecondsToday: 0 },
@@ -169,6 +177,12 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
       return status();
     },
     async cancelDownload(model: KnownModelId): Promise<LocalKnowledgeStatus> { ensureOpen(); setups.get(model)!.cancel(); return status(); },
+    async cleanupObsoleteRuntime(): Promise<LocalKnowledgeStatus> {
+      ensureOpen();
+      const result = await setups.values().next().value!.cleanupObsoleteMlxRuntime();
+      if (result.kind === "refused") throw Error(`Obsolete runtime cleanup refused: ${result.code}`);
+      return status();
+    },
     async close() { if (closed) return; closed = true; for (const setup of setups.values()) setup.cancel();
       activeSemantic?.retrieval.close(); candidateSemantic?.retrieval.close();
       const workers = await Promise.allSettled([activeSemantic?.worker.close(), candidateSemantic?.worker.close()]);

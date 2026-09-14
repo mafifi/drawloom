@@ -1,6 +1,20 @@
 import { expect, test } from "bun:test";
 import type { RpcTransport } from "@drawloom/host";
 import { createLocalKnowledgeClient } from "./src/client.js";
+import { parseStoredLocalKnowledgeConfiguration } from "./src/protocol.js";
+
+test("close waits for runtime shutdown before terminating its transport, once", async () => {
+  const calls: string[] = [];
+  let finish!: () => void;
+  const rpc: RpcTransport = { async request(method) { calls.push(method); await new Promise<void>(resolve => { finish = resolve; }); return {}; },
+    notify() {}, respond() {}, subscribe() { return () => {}; }, async close() { calls.push("transport.close"); } };
+  const client = createLocalKnowledgeClient(rpc);
+  const closing = client.close();
+  await Promise.resolve();
+  expect(calls).toEqual(["knowledge.close"]);
+  finish(); await closing; await client.close();
+  expect(calls).toEqual(["knowledge.close", "transport.close"]);
+});
 
 test("the bounded client never accepts a caller-supplied knowledge subject", async () => {
   const calls: Array<{ method: string; params: unknown }> = [];
@@ -19,4 +33,18 @@ test("the bounded client never accepts a caller-supplied knowledge subject", asy
   const ref = { type: "source" as const, origin: "public", id: "guide", revision: "r1" };
   expect(await client.get(ref)).toEqual({ kind: "ok" });
   expect(calls[1]).toEqual({ method: "knowledge.get", params: ref });
+});
+
+test("obsolete runtime cleanup sends the explicit consent command", async () => {
+  const calls: Array<{ method: string; params: unknown }> = [];
+  const status = { availability: "ready", message: "Text search ready", configuration: { embeddingModel: "qwen3-embedding-0.6b-gguf", assessmentModel: "gpt-5.6-terra", assessmentTimeoutMs: 300000, maxAutomaticStartsPerDay: 6, maxAutomaticMillisecondsPerDay: 1800000 }, models: [{ id: "qwen3-embedding-0.6b-gguf", title: "Qwen", licence: "Apache-2.0", source: "https://example.invalid", modelDirectory: "/model", runtimeDirectory: "/runtime", prerequisites: "Metal", runtime: { package: "llama.cpp", version: "rev", licence: "MIT" }, weightsBytes: 1, runtimeBytes: 1, runtimeDownloadAvailable: false, state: "failed", message: "runtime_unavailable" }], obsoleteRuntimePresent: false, indexing: "unavailable", maintenance: { state: "idle", pendingUpdates: 0, message: "idle", automaticStartsToday: 0, automaticMillisecondsToday: 0 } };
+  const rpc: RpcTransport = { async request(method, params) { calls.push({ method, params }); return status; }, notify() {}, respond() {}, subscribe() { return () => {}; }, async close() {} };
+  await createLocalKnowledgeClient(rpc).cleanupObsoleteRuntime();
+  expect(calls).toEqual([{ method: "knowledge.cleanup-obsolete-runtime", params: { action: "cleanup_obsolete", consent: true } }]);
+});
+
+test("saved MLX selection migrates narrowly while unknown model ids remain invalid", () => {
+  const prior = { embeddingModel: "qwen3-embedding-0.6b-mlx", assessmentModel: "gpt-5.6-terra", assessmentTimeoutMs: 300000, maxAutomaticStartsPerDay: 6, maxAutomaticMillisecondsPerDay: 1800000 };
+  expect(parseStoredLocalKnowledgeConfiguration(prior)).toEqual({ ...prior, embeddingModel: "qwen3-embedding-0.6b-gguf" });
+  expect(() => parseStoredLocalKnowledgeConfiguration({ ...prior, embeddingModel: "unknown" })).toThrow();
 });

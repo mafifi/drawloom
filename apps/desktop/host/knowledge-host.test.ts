@@ -6,7 +6,7 @@ import { createKnowledgeHost, type InstalledGitKnowledgeFeed, type KnowledgeServ
 
 const status = () => ({ availability: "ready" as const, message: "Text search ready.", configuration: DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION,
   models: [
-    { id: "qwen3-embedding-0.6b-mlx" as const, title: "Qwen MLX", licence: "Apache-2.0 model and conversion", source: "https://example.invalid/model", modelDirectory: "/data/models/active/qwen", runtimeDirectory: "/data/models/runtime/mlx", prerequisites: "Apple Silicon and uv", runtime: { package: "mlx-embeddings", version: "0.1.0", licence: "GPL-3.0-only" }, weightsBytes: 10, state: "missing" as const },
+    { id: "qwen3-embedding-0.6b-gguf" as const, title: "Qwen GGUF", licence: "Apache-2.0 model and conversion", source: "https://example.invalid/model", modelDirectory: "/data/models/active/qwen", runtimeDirectory: "/data/models/runtime/mlx", prerequisites: "Apple Silicon with Metal", runtime: { package: "llama.cpp", version: "0.1.0", licence: "MIT" }, runtimeBytes: 1000, runtimeDownloadAvailable: true, weightsBytes: 10, state: "missing" as const },
   ], indexing: "unavailable" as const,
   maintenance: { state: "idle" as const, pendingUpdates: 0, message: "Idle", automaticStartsToday: 0, automaticMillisecondsToday: 0 } });
 function memoryStore(log: string[] = []): JsonStore {
@@ -23,6 +23,19 @@ function service(log: string[], intake: (input: IntakeInput) => "accepted" | "fa
     async download() { return status(); }, async cancelDownload() { return status(); }, async close() {},
   };
 }
+
+test("obsolete runtime cleanup is explicit and never changes source collection", async () => {
+  let cleanups = 0, sources = 0;
+  const backend = service([]);
+  backend.cleanupObsoleteRuntime = async () => { cleanups++; return status(); };
+  const host = createKnowledgeHost({ service: backend, store: memoryStore(), selectedProjectId: () => "project-one",
+    sourceForProject: async () => { sources++; throw Error("not requested"); } });
+  await host.command({ action: "status" });
+  expect(cleanups).toBe(0);
+  await host.command({ action: "cleanup_obsolete", consent: true });
+  expect(cleanups).toBe(1);
+  expect(sources).toBe(0);
+});
 
 test("configured Git knowledge stays fixed to its captured project when UI selection changes", async () => {
   const log: string[] = [];

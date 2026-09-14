@@ -12,7 +12,7 @@ const baseStatus = {
   message: "Local text search is ready.",
   configuration: DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION,
   models: [
-    { id: "qwen3-embedding-0.6b-mlx" as const, title: "Qwen MLX", licence: "Apache-2.0 model and conversion", source: "https://example.invalid/model", modelDirectory: "/data/models/active/qwen", runtimeDirectory: "/data/models/runtime/mlx", prerequisites: "Apple Silicon and uv", runtime: { package: "mlx-embeddings", version: "0.1.0", licence: "GPL-3.0-only" }, weightsBytes: 10, state: "missing" as const },
+    { id: "qwen3-embedding-0.6b-gguf" as const, title: "Qwen GGUF", licence: "Apache-2.0 model and conversion", source: "https://example.invalid/model", modelDirectory: "/data/models/active/qwen", runtimeDirectory: "/data/models/runtime/mlx", prerequisites: "Apple Silicon with Metal", runtime: { package: "llama.cpp", version: "0.1.0", licence: "MIT" }, runtimeBytes: 1000, runtimeDownloadAvailable: true, weightsBytes: 10, state: "missing" as const },
   ],
   indexing: "unavailable" as const,
   maintenance: { state: "idle" as const, pendingUpdates: 0, message: "Idle", automaticStartsToday: 0, automaticMillisecondsToday: 0 },

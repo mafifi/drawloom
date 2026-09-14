@@ -342,20 +342,20 @@ test("existing lexical and MLX inputs must identify the same frozen corpus", asy
   try {
     const databaseRoot = join(root, "database");
     const base = await runKnowledgeEvaluation({ root: databaseRoot });
-    const report = (model: "qwen3-embedding-0.6b-mlx", records = base.corpus.records) => ({
+    const report = (model: "qwen3-embedding-0.6b-gguf", records = base.corpus.records) => ({
       ...base, corpus: { ...base.corpus, records },
       hybrid: { kind: "real_vectors", model, questions: base.lexical.questions },
     });
     const lexicalPath = join(root, "lexical.json"); const mlxPath = join(root, "mlx.json");
     await Promise.all([
-      writeFile(lexicalPath, JSON.stringify(report("qwen3-embedding-0.6b-mlx"))),
-      writeFile(mlxPath, JSON.stringify(report("qwen3-embedding-0.6b-mlx", 25))),
+      writeFile(lexicalPath, JSON.stringify(report("qwen3-embedding-0.6b-gguf"))),
+      writeFile(mlxPath, JSON.stringify(report("qwen3-embedding-0.6b-gguf", 25))),
     ]);
     await assert.rejects(runAnswerQualityEvaluation({
       root: join(root, "answers"), maxCases: 1, timeoutMsPerCase: 1_000, maxEvidenceBytes: 256 * 1024,
       reports: {
         lexical: { reportPath: lexicalPath, databaseRoot },
-        "qwen3-embedding-0.6b-mlx": { reportPath: mlxPath, databaseRoot },
+        "qwen3-embedding-0.6b-gguf": { reportPath: mlxPath, databaseRoot },
       },
       connect: async () => { throw Error("mismatched reports must fail before model connection"); },
     }), /same corpus/);

@@ -48,7 +48,7 @@ console.log(
 );
 for (const file of [
   'packages/knowledge/sqlite-knowledge/sqlite-knowledge.node-check.ts',
-  'packages/knowledge/local-embeddings/mlx-worker.node-check.mjs',
+  'packages/knowledge/local-embeddings/llama-worker.node-check.mjs',
   'packages/knowledge/local-knowledge-runtime/runtime.node-check.ts',
   'packages/knowledge/local-knowledge-runtime/semantic.node-check.ts',
 ]) {

@@ -20,7 +20,7 @@ export function createKnowledgeViewModel(options: { send?: typeof send; download
   let query = $state(''), results = $state<Extract<SearchResult, { kind: 'ok' }>['items']>([]);
   let evidence = $state<{ records: KnowledgeRecord[]; links: KnowledgeLink[] }>();
   let selected = $state<RecordRef>(), status = $state<KnowledgeStatus>();
-  let error = $state(''), searchStatus = $state(''), searched = $state(false);
+  let error = $state(''), notice = $state(''), searchStatus = $state(''), searched = $state(false);
   let searchPending = $state(false), evidencePending = $state(false), statusPending = $state(false), pendingAction = $state<string>();
   let resultCursor: string | undefined, evidenceCursor: string | undefined;
   let hasMoreResults = $state(false), hasMoreEvidence = $state(false);
@@ -36,9 +36,14 @@ export function createKnowledgeViewModel(options: { send?: typeof send; download
   async function command(value: KnowledgeCommand, key: string = value.action) {
     // Cancel remains available during an ongoing download request.
     if (pendingAction && value.action !== 'cancel_download') return;
-    const version = epoch, actionKey = key; statusVersion++; pendingAction = actionKey; error = '';
-    try { const next = KnowledgeStatusSchema.parse(await request(value)); if (version === epoch && pendingAction === actionKey) { statusVersion++; status = next; } }
-    catch (cause) { if (version === epoch && pendingAction === actionKey) fail(cause); }
+    const version = epoch, actionKey = key; statusVersion++; pendingAction = actionKey; error = ''; notice = '';
+    try { const next = KnowledgeStatusSchema.parse(await request(value)); if (version === epoch && pendingAction === actionKey) { statusVersion++; status = next;
+      if (value.action === 'cleanup_obsolete' && next.obsoleteRuntimePresent === false) notice = 'Previous runtime files are no longer present. Your knowledge and evidence are unchanged.';
+    } }
+    catch (cause) { if (version === epoch && pendingAction === actionKey) {
+      if (value.action === 'cleanup_obsolete') error = 'Could not complete cleanup safely. Your knowledge is unchanged.';
+      else fail(cause);
+    } }
     finally { if (version === epoch && pendingAction === actionKey) pendingAction = undefined; }
   }
   const actions: KnowledgeActions = {
@@ -77,6 +82,7 @@ export function createKnowledgeViewModel(options: { send?: typeof send; download
     pause: paused => command({ action: 'pause', paused }),
     download: model => command({ action: 'download', model, consent: true }, 'download:' + model),
     cancelDownload: model => command({ action: 'cancel_download', model }, 'cancel_download:' + model),
+    cleanupObsolete: () => command({ action: 'cleanup_obsolete', consent: true }),
     async export() {
       if (!evidence?.records.length || pendingAction) return;
       const life = epoch; pendingAction = 'export'; error = '';
@@ -98,7 +104,7 @@ export function createKnowledgeViewModel(options: { send?: typeof send; download
     get searched() { return searched; }, get searchPending() { return searchPending; }, get evidencePending() { return evidencePending; },
     get statusPending() { return statusPending; }, get pendingAction() { return pendingAction; }, get status() { return status; },
     get hasMoreResults() { return hasMoreResults; }, get hasMoreEvidence() { return hasMoreEvidence; },
-    get error() { return error; }, get searchStatus() { return searchStatus; }, get configuration() { return status?.configuration; },
+    get error() { return error; }, get notice() { return notice; }, get searchStatus() { return searchStatus; }, get configuration() { return status?.configuration; },
   };
   return { presentation, actions, open: refresh, close() { epoch++; searchVersion++; evidenceVersion++; searchRead.abort(); evidenceRead.abort(); results = []; evidence = undefined; selected = undefined; statusPending = false; searchPending = false; evidencePending = false; pendingAction = undefined; } };
 }

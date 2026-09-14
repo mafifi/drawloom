@@ -3,7 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createSqliteKnowledge } from "@drawloom/sqlite-knowledge";
-import { KnownModelManifests, MlxEmbeddingWorker, createKnowledgeEmbeddings, createModelSetup, embeddingConfiguration, type KnownModelId } from "@drawloom/local-embeddings";
+import { KnownModelManifests, LlamaEmbeddingWorker, createKnowledgeEmbeddings, createModelSetup, embeddingConfiguration, type KnownModelId } from "@drawloom/local-embeddings";
 import { createSemanticRetrieval } from "../../packages/knowledge/local-knowledge-runtime/src/semantic.ts";
 import type { EmbeddingConfiguration, KnowledgeEmbeddings, KnowledgeAuthorizer, RecordRef, TrustedKnowledgeSubject } from "@drawloom/knowledge";
 import { corpusAtSize, corpusVersion, documents, heldOutQuestions, type EvaluationDocument } from "./corpus.ts";
@@ -132,7 +132,7 @@ async function measureLexical(provider: ReturnType<typeof createSqliteKnowledge>
 async function measureHybrid(provider: ReturnType<typeof createSqliteKnowledge>, recordCount: number, model: KnownModelId, modelRoot: string, databasePath: string): Promise<HybridRun> {
   const setup = createModelSetup({ root: modelRoot, manifest: KnownModelManifests[model] });
   if (!await setup.ready()) return { kind: "blocked", reason: "model_not_ready" };
-  const worker = new MlxEmbeddingWorker({ root: modelRoot, model });
+  const worker = new LlamaEmbeddingWorker({ root: modelRoot, model });
   try {
     return await measureEmbedding(provider, recordCount, {
       label: model, configuration: embeddingConfiguration(model),

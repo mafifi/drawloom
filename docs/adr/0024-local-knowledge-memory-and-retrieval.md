@@ -1,8 +1,9 @@
 # ADR 0024: Local knowledge, memory and evidence-based retrieval
 
-- Status: Accepted
+- Status: Accepted; partially superseded by ADR 0026
 - Date: 2026-09-12
 - Accepted: 2026-09-12
+- Partial replacement: Accepted [ADR 0026](0026-permissive-dependencies-and-local-gguf-embeddings.md) replaces the embedding runtime and installation choice; this record otherwise remains in force.
 
 ## Context
 

@@ -10,9 +10,14 @@ import { LocalKnowledgeConfigurationSchema } from "./protocol.js";
 
 const launch = z.strictObject({ root: z.string().min(1), workingDirectory: z.string().min(1) }).parse(JSON.parse(process.argv[2] ?? "null"));
 const runtime = await createLocalKnowledgeRuntime({ ...launch, connectCodex: async () => createStdioTransport({ ...codexCommand(), cwd: launch.workingDirectory, maxMessageBytes: 1024 * 1024, requestTimeoutMs: 300_000 }) });
+let closing: Promise<void> | undefined;
+const closeRuntime = () => closing ??= runtime.close();
 const Empty = z.strictObject({});
-const Model = z.strictObject({ model: z.literal("qwen3-embedding-0.6b-mlx") });
+const Model = z.strictObject({ model: z.literal("qwen3-embedding-0.6b-gguf") });
+const CleanupObsolete = z.strictObject({ action: z.literal("cleanup_obsolete"), consent: z.literal(true) });
 async function dispatch(method: string, params: unknown): Promise<unknown> {
+  if (method === "knowledge.close") { Empty.parse(params); await closeRuntime(); return {}; }
+  if (closing) throw Error("Knowledge runtime is closing");
   if (method === "knowledge.status") { Empty.parse(params); return runtime.status(); }
   if (method === "knowledge.configure") return runtime.configure(LocalKnowledgeConfigurationSchema.parse(params));
   if (method === "knowledge.search") return runtime.search(SearchRequestSchema.parse(params));
@@ -30,10 +35,17 @@ async function dispatch(method: string, params: unknown): Promise<unknown> {
   if (method === "knowledge.cancel-assessment") return runtime.cancelAssessment(AssessmentReconcileRequestSchema.parse(params));
   if (method === "knowledge.download") return runtime.download(Model.parse(params).model);
   if (method === "knowledge.cancel-download") return runtime.cancelDownload(Model.parse(params).model);
+  if (method === "knowledge.cleanup-obsolete-runtime") { CleanupObsolete.parse(params); return runtime.cleanupObsoleteRuntime(); }
   throw Error("Unknown method");
 }
 
 const lines = createInterface({ input: process.stdin, crlfDelay: Infinity });
+const stop = () => {
+  lines.close();
+  void closeRuntime().then(() => process.exit(0), () => process.exit(1));
+};
+process.on("SIGTERM", stop);
+process.on("SIGINT", stop);
 let writes: Promise<void> = Promise.resolve();
 const write = (value: unknown) => { writes = writes.then(() => new Promise<void>((resolve, reject) => process.stdout.write(`${JSON.stringify(value)}\n`, (error) => error ? reject(error) : resolve()))); return writes; };
 for await (const line of lines) {
@@ -45,4 +57,4 @@ for await (const line of lines) {
     void dispatch(message.method, message.params).then((result) => write({ id: message.id, result }), () => write({ id: message.id, error: { code: -32000 } }));
   } catch { if (id !== undefined) await write({ id, error: { code: -32600 } }); }
 }
-await runtime.close();
+await closeRuntime();

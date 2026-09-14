@@ -13,6 +13,13 @@ area you change.
 
 ## Non-negotiable rules
 
+- Apply the permissive product-dependency principle in `ARCHITECTURE.md` and
+  licensing requirements in `CONTRIBUTING.md`. Audit exact versions, transitive
+  and bundled code, runtimes and weights separately. Downloads are not exemptions.
+  Run `bun run check:licenses`; unknown terms and artifact gaps remain blockers.
+  Preserve research evidence. Accepted ADR 0026 partially supersedes ADR 0024's runtime
+  choice. Reviewed MPL-2.0 dependencies are permitted with source and notice obligations.
+
 - Define or amend a contract before adding its implementation.
 - Keep contract packages independent of provider packages.
 - Make provider selection only in a composition root.

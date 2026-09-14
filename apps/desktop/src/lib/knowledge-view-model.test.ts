@@ -6,6 +6,22 @@ Bun.plugin({ name: 'knowledge-view-model-tests', setup(build) {
   }));
 } });
 const { createKnowledgeViewModel } = await import('./knowledge-view-model.svelte.js');
+
+test('cleanup refusal stays visible without a success acknowledgement', async () => {
+  const vm = createKnowledgeViewModel({ send: async () => { throw Error('provider refused'); } });
+  await vm.actions.cleanupObsolete();
+  expect(vm.presentation.error).toContain('safely');
+  expect(vm.presentation.notice).toBe('');
+});
+
+test('confirmed obsolete cleanup submits consent without accepting arbitrary file targets', async () => {
+  const commands: unknown[] = [];
+  const vm = createKnowledgeViewModel({ send: async command => { commands.push(command); return { ...status(), obsoleteRuntimePresent: false }; } });
+  await vm.actions.cleanupObsolete();
+  expect(commands).toEqual([{ action: 'cleanup_obsolete', consent: true }]);
+  expect(vm.presentation.pendingAction).toBeUndefined();
+  expect(vm.presentation.notice).toContain('no longer present');
+});
 const record = (id: string) => ({ ref: { type: 'source' as const, origin: 'public', id, revision: '1' }, body: id, status: 'active' as const, confidence: {}, provenance: { producer: { type: 'test', id: 'fixture' }, inputs: [] } });
 const page = (id: string) => ({ kind: 'ok', mode: 'lexical', semantic: { status: 'unavailable' }, items: [{ record: record(id), relevance: 1 }], bytes: 100 });
 
@@ -42,7 +58,7 @@ test('opening knowledge does not download models or start assessments', async ()
   expect(vm.presentation.error).toContain('Not configured');
 });
 
-const status = (paused = false) => ({ availability: 'ready', message: 'Ready', configuration: { embeddingModel: 'qwen3-embedding-0.6b-mlx', assessmentModel: 'gpt-5.6-terra', assessmentTimeoutMs: 300000, maxAutomaticStartsPerDay: 6, maxAutomaticMillisecondsPerDay: 1800000 }, models: [{ id: 'qwen3-embedding-0.6b-mlx', title: 'Qwen MLX', licence: 'Apache-2.0 model and conversion', source: 'https://example.invalid/model', modelDirectory: '/data/models/active/qwen', runtimeDirectory: '/data/models/runtime/mlx', prerequisites: 'Apple Silicon and uv', runtime: { package: 'mlx-embeddings', version: '0.1.0', licence: 'GPL-3.0-only' }, weightsBytes: 10, state: 'missing' }], indexing: 'unavailable', maintenance: { state: paused ? 'paused' : 'idle', pendingUpdates: 0, message: 'Ready', automaticStartsToday: 0, automaticMillisecondsToday: 0 } });
+const status = (paused = false) => ({ availability: 'ready', message: 'Ready', configuration: { embeddingModel: 'qwen3-embedding-0.6b-gguf', assessmentModel: 'gpt-5.6-terra', assessmentTimeoutMs: 300000, maxAutomaticStartsPerDay: 6, maxAutomaticMillisecondsPerDay: 1800000 }, models: [{ id: 'qwen3-embedding-0.6b-gguf', title: 'Qwen GGUF', licence: 'Apache-2.0 model and conversion', source: 'https://example.invalid/model', modelDirectory: '/data/models/active/qwen', runtimeDirectory: '/data/models/runtime/mlx', prerequisites: 'Apple Silicon with Metal', runtime: { package: 'llama.cpp', version: '0.1.0', licence: 'MIT' }, runtimeBytes: 1000, runtimeDownloadAvailable: true, weightsBytes: 10, state: 'missing' }], indexing: 'unavailable', maintenance: { state: paused ? 'paused' : 'idle', pendingUpdates: 0, message: 'Ready', automaticStartsToday: 0, automaticMillisecondsToday: 0 } });
 
 test('source collection requires its own explicit action and does not submit filesystem authority', async () => {
   const commands: unknown[] = [];
@@ -63,7 +79,7 @@ test('status remains readable while a download request is pending', async () => 
     if (command.action === 'download') return new Promise(resolve => { release = resolve; });
     reads++; return status();
   } });
-  const downloading = vm.actions.download('qwen3-embedding-0.6b-mlx');
+  const downloading = vm.actions.download('qwen3-embedding-0.6b-gguf');
   await vm.actions.refresh(); expect(reads).toBe(1);
   release(status()); await downloading;
 });
@@ -79,14 +95,14 @@ test('download suppresses duplicates while cancel remains available and a settle
     if (command.action === 'cancel_download') return withModelState('cancelled');
     return withModelState('ready');
   } });
-  const first = vm.actions.download('qwen3-embedding-0.6b-mlx');
-  await vm.actions.download('qwen3-embedding-0.6b-mlx');
+  const first = vm.actions.download('qwen3-embedding-0.6b-gguf');
+  await vm.actions.download('qwen3-embedding-0.6b-gguf');
   expect(commands.filter(command => (command as { action: string }).action === 'download')).toHaveLength(1);
-  const cancelling = vm.actions.cancelDownload('qwen3-embedding-0.6b-mlx');
+  const cancelling = vm.actions.cancelDownload('qwen3-embedding-0.6b-gguf');
   finishDownload(withModelState('cancelled'));
   await Promise.all([first, cancelling]);
   expect(vm.presentation.status?.models[0]?.state).toBe('cancelled');
-  await vm.actions.download('qwen3-embedding-0.6b-mlx');
+  await vm.actions.download('qwen3-embedding-0.6b-gguf');
   expect(vm.presentation.status?.models[0]?.state).toBe('ready');
   expect(commands.map(command => (command as { action: string }).action)).toEqual(['download', 'cancel_download', 'download']);
 });
@@ -95,5 +111,5 @@ test('current-file download bytes pass through presentation without being replac
   const progress = { ...status(), models: status().models.map(model => ({ ...model, state: 'downloading' as const, message: 'Downloading tokenizer.json', receivedBytes: 2_097_152, expectedBytes: 8_388_608 })) };
   const vm = createKnowledgeViewModel({ send: async () => progress });
   await vm.open();
-  expect(vm.presentation.status?.models[0]).toMatchObject({ receivedBytes: 2_097_152, expectedBytes: 8_388_608, weightsBytes: 10, message: 'Downloading tokenizer.json' });
+  expect(vm.presentation.status?.models[0]).toMatchObject({ receivedBytes: 2_097_152, expectedBytes: 8_388_608, runtimeBytes: 1000, runtimeDownloadAvailable: true, weightsBytes: 10, message: 'Downloading tokenizer.json' });
 });

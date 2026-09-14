@@ -20,11 +20,20 @@ Lexical scale measurements are recorded in the
 [ADR evidence](../../knowledge/evidence/adr-0024-local-knowledge.md). The retained
 two-model CPU comparison is historical: both were downloaded with explicit
 consent, hash-verified and exercised in 24-record smoke and sequential
-10,000-record hybrid runs. MLX Qwen is the only currently supported worker.
+10,000-record hybrid runs. The GGUF replacement and its verification are tracked in
+[ADR 0026 evidence](../../knowledge/evidence/adr-0026-gguf.md). Do not rerun the
+historical GPL-dependent MLX worker as a baseline.
 Downstream answers and 100k semantic stress are recorded separately as they
 complete; a small smoke alone is not a model-selection result.
 
 ## Runner
+
+ADR 0026 adds opt-in `gguf-local.ts` (already audited build; fixed scale cases),
+`gguf-install.ts` (local fixture delivery, real managed host and process shutdown),
+and `gguf-endpoint-check.ts` (negative server-capability control). They require
+`DRAWLOOM_GGUF_EVALUATION=1` and explicit local paths; they do not download models.
+The endpoint control attempts **one local generated token** to test rejection:
+it is not an answering-model evaluation. Read the ADR 0026 evidence before use.
 
 Additional integration runners are explicitly opt-in:
 
@@ -68,7 +77,7 @@ and `--models-root` pointing to already installed, verified local model weights:
 ```sh
 node --experimental-strip-types evaluations/knowledge/runner.ts \
   --root /path/to/disposable-evaluation \
-  --model qwen3-embedding-0.6b-mlx \
+  --model qwen3-embedding-0.6b-gguf \
   --models-root /path/to/existing-models
 ```
 

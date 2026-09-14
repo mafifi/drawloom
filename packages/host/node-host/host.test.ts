@@ -3,6 +3,14 @@ import { access, mkdir, mkdtemp, open, rename, rm, symlink, writeFile, stat } fr
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RpcRequestError } from "@drawloom/host";
+test("a managed provider may finish child cleanup before transport escalation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-shutdown-grace-"));
+  const marker = join(root, "closed");
+  const rpc = createStdioTransport({ command: "node", shutdownTimeoutMs: 2500,
+    args: ["-e", `const fs=require('node:fs');process.on('SIGTERM',()=>setTimeout(()=>{fs.writeFileSync(process.argv[1],'closed');process.exit(0)},1200));process.stdin.once('data',d=>{const {id}=JSON.parse(d);process.stdout.write(JSON.stringify({id,result:true})+'\\n')});setInterval(()=>{},1000)`, marker] });
+  try { await rpc.request("ready", {}); await rpc.close(); expect((await stat(marker)).isFile()).toBe(true); }
+  finally { await rpc.close(); await rm(root, { recursive: true, force: true }); }
+});
 test('JSON readers tolerate atomic state replacement without accepting partial content', async () => {
   const root = await mkdtemp(join(tmpdir(), 'drawloom-json-replacement-'));
   const writer = createNodeJsonStore(root), reader = createNodeJsonStore(root);

@@ -290,6 +290,8 @@ export function createStdioTransport(options: {
   cwd?: string;
   requestTimeoutMs?: number;
   maxMessageBytes?: number;
+  /** Host-owned grace period for providers that must reap their own children. */
+  shutdownTimeoutMs?: number;
 }): RpcTransport {
   const process = spawn(options.command, [...options.args], {
     ...(options.cwd ? { cwd: options.cwd } : {}),
@@ -425,7 +427,7 @@ export function createStdioTransport(options: {
         await new Promise<void>((resolve) => {
           const timer = setTimeout(() => {
             process.kill("SIGKILL");
-          }, 1000);
+          }, options.shutdownTimeoutMs ?? 1000);
           process.once("close", () => {
             clearTimeout(timer);
             resolve();

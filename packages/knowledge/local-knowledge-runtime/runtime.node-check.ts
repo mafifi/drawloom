@@ -14,9 +14,11 @@ test("the Node runtime owns one global lexical store and reports missing model p
     const initial = await runtime.status();
     assert.equal(initial.availability, "ready");
     assert.equal(initial.indexing, "unavailable");
-    assert.deepEqual(initial.models.map((model) => [model.id, model.state]), [["qwen3-embedding-0.6b-mlx", "missing"]]);
+    assert.deepEqual(initial.models.map((model) => [model.id, model.state]), [["qwen3-embedding-0.6b-gguf", "failed"]]);
     assert.match(initial.models[0]?.prerequisites ?? "", /Apple Silicon/);
-    assert.equal(initial.models[0]?.runtime.licence, "GPL-3.0-only");
+    assert.equal(initial.models[0]?.runtime.licence, "MIT");
+    assert.equal(initial.models[0]?.message, "runtime_unavailable");
+    assert.equal(initial.obsoleteRuntimePresent, false);
     const accepted = await runtime.ingest({ operation: "upsert", expectedRevision: null, record: {
       ref: { type: "source", origin: "public-test", id: "guide", revision: "r1" }, body: "Local knowledge text path", status: "active",
       confidence: { value: "observed" }, provenance: { producer: { type: "test", id: "fixture" }, inputs: [] },
@@ -55,13 +57,13 @@ test("the managed RPC process keeps SQLite and trusted identity outside the Bun 
   } finally { await client.close(); await rm(root, { recursive: true, force: true }); }
 });
 
-test("concurrent status checks share cold MLX readiness and close cannot publish a late worker", async () => {
+test("concurrent status checks share cold GGUF readiness and close cannot publish a late worker", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-knowledge-readiness-"));
   let releaseReady!: () => void;
   const ready = new Promise<void>(resolve => { releaseReady = resolve; });
   let readyCalls = 0, workers = 0, closedWorkers = 0;
   const runtime = await createLocalKnowledgeRuntime({ root, workingDirectory: root, connectCodex: async () => { throw Error("not used"); },
-    createEmbeddingSetup: () => ({ async ready() { readyCalls++; await ready; return { manifest: KnownModelManifests["qwen3-embedding-0.6b-mlx"], directory: "/model", runtimeDirectory: "/runtime" }; }, status() { return { kind: "pending_consent" as const }; }, async install() { return { kind: "pending_consent" as const }; }, cancel() {} }),
+    createEmbeddingSetup: () => ({ async ready() { readyCalls++; await ready; return { manifest: KnownModelManifests["qwen3-embedding-0.6b-gguf"], directory: "/model", runtimeDirectory: "/runtime" }; }, status() { return { kind: "pending_consent" as const }; }, async install() { return { kind: "pending_consent" as const }; }, cancel() {}, async obsoleteRuntimePresent() { return false; }, async cleanupObsoleteMlxRuntime() { return { kind: "nothing_to_remove" as const }; } }),
     createEmbeddingWorker: () => { workers++; return { async embed() { return []; }, async close() { closedWorkers++; } }; },
   });
   try {
@@ -76,16 +78,53 @@ test("concurrent status checks share cold MLX readiness and close cannot publish
   } finally { await runtime.close(); await rm(root, { recursive: true, force: true }); }
 });
 
+test("the production worker receives readiness from the selected setup", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-knowledge-selected-setup-"));
+  const selectedReady = { manifest: KnownModelManifests["qwen3-embedding-0.6b-gguf"], directory: "/trusted/model", runtimeDirectory: "/trusted/runtime" };
+  let workerReady: (() => Promise<typeof selectedReady | undefined>) | undefined;
+  const runtime = await createLocalKnowledgeRuntime({ root, workingDirectory: root, connectCodex: async () => { throw Error("not used"); },
+    createEmbeddingSetup: () => ({ async ready() { return selectedReady; }, status() { return { kind: "ready" as const, directory: selectedReady.directory, runtimeDirectory: selectedReady.runtimeDirectory }; }, async install() { return { kind: "pending_consent" as const }; }, cancel() {}, async obsoleteRuntimePresent() { return false; }, async cleanupObsoleteMlxRuntime() { return { kind: "nothing_to_remove" as const }; } }),
+    createEmbeddingWorker: (_modelRoot, _model, ready) => { workerReady = ready; return { async embed() { return []; }, async close() {} }; },
+  });
+  try {
+    await runtime.status();
+    assert.equal(typeof workerReady, "function");
+    assert.strictEqual(await workerReady?.(), selectedReady);
+  } finally { await runtime.close(); await rm(root, { recursive: true, force: true }); }
+});
+
 test("download status reports progress against the current artifact rather than total model weights", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-knowledge-progress-"));
   const runtime = await createLocalKnowledgeRuntime({ root, workingDirectory: root, connectCodex: async () => { throw Error("not used"); },
-    createEmbeddingSetup: () => ({ async ready() { return undefined; }, status() { return { kind: "downloading" as const, path: "tokenizer.json", received: 2_097_152, expected: 8_388_608 }; }, async install() { return { kind: "pending_consent" as const }; }, cancel() {} }),
+    createEmbeddingSetup: () => ({ async ready() { return undefined; }, status() { return { kind: "downloading" as const, path: "runtime.tar.gz", received: 2_097_152, expected: 8_388_608 }; }, async install() { return { kind: "pending_consent" as const }; }, cancel() {}, async obsoleteRuntimePresent() { return false; }, async cleanupObsoleteMlxRuntime() { return { kind: "nothing_to_remove" as const }; } }),
   });
   try {
     const model = (await runtime.status()).models[0];
-    assert.equal(model?.message, "Downloading tokenizer.json");
+    assert.equal(model?.message, "Downloading runtime.tar.gz");
     assert.equal(model?.receivedBytes, 2_097_152);
     assert.equal(model?.expectedBytes, 8_388_608);
     assert.ok((model?.weightsBytes ?? 0) > (model?.expectedBytes ?? 0));
+  } finally { await runtime.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test("obsolete runtime cleanup requires the explicit runtime method and returns refreshed status", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-knowledge-cleanup-")); let cleaned = 0;
+  const runtime = await createLocalKnowledgeRuntime({ root, workingDirectory: root, connectCodex: async () => { throw Error("not used"); },
+    createEmbeddingSetup: () => ({ async ready() { return undefined; }, status() { return { kind: "pending_consent" as const }; }, async install() { return { kind: "pending_consent" as const }; }, cancel() {}, async obsoleteRuntimePresent() { return cleaned === 0; }, async cleanupObsoleteMlxRuntime() { cleaned++; return { kind: "removed" as const, paths: ["owned"] }; } }),
+  });
+  try {
+    assert.equal((await runtime.status()).obsoleteRuntimePresent, true);
+    assert.equal((await runtime.cleanupObsoleteRuntime()).obsoleteRuntimePresent, false);
+    assert.equal(cleaned, 1);
+  } finally { await runtime.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test("obsolete runtime cleanup propagates a safety refusal", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-knowledge-cleanup-refused-"));
+  const runtime = await createLocalKnowledgeRuntime({ root, workingDirectory: root, connectCodex: async () => { throw Error("not used"); },
+    createEmbeddingSetup: () => ({ async ready() { return undefined; }, status() { return { kind: "pending_consent" as const }; }, async install() { return { kind: "pending_consent" as const }; }, cancel() {}, async obsoleteRuntimePresent() { return true; }, async cleanupObsoleteMlxRuntime() { return { kind: "refused" as const, code: "unsafe_target" as const }; } }),
+  });
+  try {
+    await assert.rejects(runtime.cleanupObsoleteRuntime(), /unsafe_target/);
   } finally { await runtime.close(); await rm(root, { recursive: true, force: true }); }
 });

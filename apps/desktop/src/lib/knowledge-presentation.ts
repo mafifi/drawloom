@@ -9,6 +9,7 @@ export const knowledgeCopy = {
   partial: 'More evidence is available. This page is not the complete chain.',
   setup: 'Search by meaning', setupHelp: 'Add a local model to find related ideas, even when the words differ. Text search is already available.',
   download: 'Download and install', retry: 'Retry installation', cancel: 'Cancel installation', refresh: 'Refresh status',
+  cleanup: 'Remove previous runtime', cleanupTitle: 'Remove the previous search runtime?', cleanupHelp: 'Remove only Drawloom’s obsolete MLX runtime and model files. Your knowledge, evidence and conversations are preserved. This cannot be undone.', cleanupCancel: 'Keep files',
   selectedModel: 'Only supported semantic model', modelWeights: 'Model weights', runtimeExtra: 'Runtime installed separately', location: 'Location', sourceLabel: 'Source', prerequisites: 'Prerequisites', confidence: 'Confidence',
   source: 'Learn from a repository', sourceHelp: 'Use your project’s installed Git source to keep knowledge up to date with committed files.',
   sourceStart: 'Connect project source', sourceStop: 'Stop collection', sourceProject: 'Project',
@@ -33,6 +34,7 @@ export interface KnowledgePresentation {
   readonly statusPending: boolean;
   readonly pendingAction?: string;
   readonly error: string;
+  readonly notice: string;
   readonly searchStatus: string;
   readonly status?: KnowledgeStatus;
   readonly configuration?: KnowledgeConfiguration;
@@ -48,5 +50,6 @@ export interface KnowledgeActions {
   pause(paused: boolean): Promise<void>;
   download(model: KnowledgeConfiguration['embeddingModel']): Promise<void>;
   cancelDownload(model: KnowledgeConfiguration['embeddingModel']): Promise<void>;
+  cleanupObsolete(): Promise<void>;
   export(): Promise<void>;
 }

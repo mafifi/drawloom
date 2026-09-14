@@ -26,7 +26,7 @@ const EvidenceChainSchema = z.strictObject({
   complete: z.boolean(),
 });
 const AnswerEvaluationCaseSchema = z.strictObject({
-  mode: z.enum(["lexical", "qwen3-embedding-0.6b-mlx"]),
+  mode: z.enum(["lexical", "qwen3-embedding-0.6b-gguf"]),
   questionId: Id,
   query: z.string().min(1).max(10_000),
   records: z.array(KnowledgeRecordSchema).max(100),
@@ -42,7 +42,7 @@ const ExistingReportSchema = z.looseObject({
   hybrid: z.union([
     // Old CPU-labelled reports remain readable as historical evidence; they are
     // never selectable by the current evaluator composition.
-    z.looseObject({ kind: z.literal("real_vectors"), model: z.enum(["qwen3-embedding-0.6b-mlx", "qwen3-embedding-0.6b", "nomic-embed-text-v1.5"]), questions: RetrievalQuestionsSchema }),
+    z.looseObject({ kind: z.literal("real_vectors"), model: z.enum(["qwen3-embedding-0.6b-gguf", "qwen3-embedding-0.6b", "nomic-embed-text-v1.5"]), questions: RetrievalQuestionsSchema }),
     z.strictObject({ kind: z.enum(["not_run", "blocked"]), reason: z.string() }),
   ]),
 });
@@ -440,7 +440,7 @@ export function parseAnswerEvaluationCli(arguments_: readonly string[]): AnswerE
   if (!Number.isInteger(maxEvidenceBytes) || maxEvidenceBytes < 1024 || maxEvidenceBytes > 1024 * 1024) throw Error("--evidence-bytes must be between 1024 and 1048576");
   const reports = externalCount === 4 ? {
     lexical: { reportPath: resolve(external[0]!.reportPath!), databaseRoot: resolve(external[0]!.databaseRoot!) },
-    "qwen3-embedding-0.6b-mlx": { reportPath: resolve(external[1]!.reportPath!), databaseRoot: resolve(external[1]!.databaseRoot!) },
+    "qwen3-embedding-0.6b-gguf": { reportPath: resolve(external[1]!.reportPath!), databaseRoot: resolve(external[1]!.databaseRoot!) },
   } as const : undefined;
   return { root: resolve(root), ...(modelsRoot ? { modelsRoot: resolve(modelsRoot) } : {}), ...(reports ? { reports } : {}), maxCases, timeoutMsPerCase, maxEvidenceBytes };
 }
@@ -455,7 +455,7 @@ export async function runAnswerQualityEvaluation(options: AnswerQualityEvaluatio
   const store = createNodeJsonStore(join(root, "receipts"));
   const modes = [
     { mode: "lexical" as const, root: join(root, "retrieval-lexical") },
-    { mode: "qwen3-embedding-0.6b-mlx" as const, root: join(root, "retrieval-mlx") },
+    { mode: "qwen3-embedding-0.6b-gguf" as const, root: join(root, "retrieval-mlx") },
   ];
   const retrieval: Record<string, JsonValue> = {};
   const cases: { mode: AnswerEvaluationCase["mode"]; value: AnswerEvaluationCase }[] = [];

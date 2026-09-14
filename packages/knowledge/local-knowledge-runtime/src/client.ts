@@ -15,6 +15,7 @@ import { LocalKnowledgeConfigurationSchema, LocalKnowledgeStatusSchema, type Loc
 
 export function createLocalKnowledgeClient(rpc: RpcTransport) {
   const request = async <T>(method: string, value: unknown, schema: z.ZodType<T>): Promise<T> => schema.parse(await rpc.request(method, value));
+  let closing: Promise<void> | undefined;
   return {
     status: () => request("knowledge.status", {}, LocalKnowledgeStatusSchema),
     configure: (value: LocalKnowledgeConfiguration) => request("knowledge.configure", LocalKnowledgeConfigurationSchema.parse(value), LocalKnowledgeStatusSchema),
@@ -31,9 +32,13 @@ export function createLocalKnowledgeClient(rpc: RpcTransport) {
     assess: (value: AssessmentRequest) => request("knowledge.assess", AssessmentRequestSchema.parse(value), AssessmentResultSchema),
     reconcile: (value: AssessmentReconcileRequest) => request("knowledge.reconcile", AssessmentReconcileRequestSchema.parse(value), AssessmentResultSchema),
     cancelAssessment: (value: AssessmentReconcileRequest) => request("knowledge.cancel-assessment", AssessmentReconcileRequestSchema.parse(value), AssessmentCancellationResultSchema),
-    download: (model: "qwen3-embedding-0.6b-mlx") => request("knowledge.download", { model }, LocalKnowledgeStatusSchema),
-    cancelDownload: (model: "qwen3-embedding-0.6b-mlx") => request("knowledge.cancel-download", { model }, LocalKnowledgeStatusSchema),
-    close: () => rpc.close(),
+    download: (model: "qwen3-embedding-0.6b-gguf") => request("knowledge.download", { model }, LocalKnowledgeStatusSchema),
+    cancelDownload: (model: "qwen3-embedding-0.6b-gguf") => request("knowledge.cancel-download", { model }, LocalKnowledgeStatusSchema),
+    cleanupObsoleteRuntime: () => request("knowledge.cleanup-obsolete-runtime", { action: "cleanup_obsolete", consent: true }, LocalKnowledgeStatusSchema),
+    close: () => closing ??= (async () => {
+      try { await request("knowledge.close", {}, z.strictObject({})); }
+      finally { await rpc.close(); }
+    })(),
   };
 }
 export type LocalKnowledgeClient = ReturnType<typeof createLocalKnowledgeClient>;
@@ -52,6 +57,7 @@ export function createManagedLocalKnowledgeClient(options: {
     args: ["--experimental-strip-types", entrypoint, JSON.stringify({ root: options.root, workingDirectory: options.workingDirectory })],
     requestTimeoutMs: 310_000,
     maxMessageBytes: 1024 * 1024,
+    shutdownTimeoutMs: 10_000,
   });
   return createLocalKnowledgeClient(rpc);
 }

@@ -21,6 +21,8 @@ updated: 2026-09-13
 
 ## Evidence and computations
 
+- [Permissive runtime replacement evidence](evidence/adr-0026-gguf.md)
+
 - [Supported evaluation implementation](evidence/adr-0025-supported-evaluation.md)
 
 - [Local knowledge implementation and retrieval evaluation](evidence/adr-0024-local-knowledge.md)
