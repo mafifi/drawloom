@@ -5,6 +5,8 @@
   export interface WorkflowRunProps {
     run: RunSnapshot;
     title: string;
+    statusLabel?: string;
+    stepLabel?: (id: string) => string;
     oncancel?: () => void;
     cancelPending?: boolean;
     error?: string;
@@ -19,11 +21,11 @@
   import * as Collapsible from '../collapsible/index.js';
   import { Button } from '../button/index.js';
 
-  let { run, title, oncancel, cancelPending = false, error = '', input }: WorkflowRunProps = $props();
-  const stepLabel = (id: string) => id.startsWith(run.runId + '/') ? id.slice(run.runId.length + 1) : id;
-  const label = $derived(run.status === 'running'
+  let { run, title, statusLabel, stepLabel: suppliedStepLabel, oncancel, cancelPending = false, error = '', input }: WorkflowRunProps = $props();
+  const stepLabel = (id: string) => suppliedStepLabel ? suppliedStepLabel(id) : id.startsWith(run.runId + '/') ? id.slice(run.runId.length + 1) : id;
+  const label = $derived(statusLabel ?? (run.status === 'running'
     ? run.cancellationRequested ? 'Cancellation requested' : run.pendingInputs.length ? 'Waiting for input' : 'Running'
-    : run.status === 'completed' ? 'Completed' : run.status === 'cancelled' ? 'Cancelled' : 'Failed');
+    : run.status === 'completed' ? 'Completed' : run.status === 'cancelled' ? 'Cancelled' : 'Failed'));
 </script>
 
 <section class="flex flex-col gap-3 py-3 text-chrome" aria-label={title}>
@@ -36,7 +38,7 @@
       <Marker.Content>
         <p>Outcome needs checking</p>
         <p class="text-muted-foreground">These actions may have taken effect. They will not be repeated automatically.</p>
-        <ul>{#each run.unresolvedEffects as step}<li class="break-all" title={step}>{stepLabel(step)}</li>{/each}</ul>
+        <ul>{#each run.unresolvedEffects as step}<li class="break-all" title={suppliedStepLabel ? stepLabel(step) : step}>{stepLabel(step)}</li>{/each}</ul>
       </Marker.Content>
     </Marker.Root>
   {/if}
@@ -47,7 +49,7 @@
         <ol class="flex flex-col gap-2 py-2">
           {#each run.steps as step (step.stepId)}
             <li class="flex flex-wrap justify-between gap-2">
-              <span class="break-all" title={step.stepId}>{stepLabel(step.stepId)}</span>
+              <span class="break-all" title={suppliedStepLabel ? stepLabel(step.stepId) : step.stepId}>{stepLabel(step.stepId)}</span>
               <span class="text-muted-foreground">{step.status} · {step.attempts} {step.attempts === 1 ? 'attempt' : 'attempts'}</span>
             </li>
           {/each}

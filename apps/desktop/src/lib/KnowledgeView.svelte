@@ -1,18 +1,21 @@
 <script lang="ts">
-  import { Button, Field, Input, Separator, StatefulButton, Tabs, Collapsible, Empty, SearchIcon, ChevronRightIcon, Badge, DownloadProgress, ModelSelector, Dialog } from '@drawloom/ui';
+  import { Button, Checkbox, Field, Input, Separator, StatefulButton, Tabs, Collapsible, Empty, SearchIcon, ChevronRightIcon, Badge, DownloadProgress, ModelSelector, Dialog } from '@drawloom/ui';
   import CodexModelSelector from './CodexModelSelector.svelte';
   import type { KnowledgePresentation, KnowledgeActions } from './knowledge-presentation.js';
   let { presentation: p, actions: a }: { presentation: KnowledgePresentation; actions: KnowledgeActions } = $props();
   let assessmentModel=$state('');
   let cleanupOpen=$state(false);
+  let selectedTab=$state('search');
   const configuredAssessmentModel=$derived(p.configuration?.assessmentModel??'');
   $effect(()=>{assessmentModel=configuredAssessmentModel;});
 </script>
 
 <div class="primary-view-content knowledge-content">
-  <Tabs.Root value="search" class="space-y-8">
+  <Tabs.Root bind:value={selectedTab} class="space-y-8">
   <Tabs.List aria-label="Knowledge sections"><Tabs.Trigger value="search">Search</Tabs.Trigger><Tabs.Trigger value="sources">Sources</Tabs.Trigger><Tabs.Trigger value="settings">Settings</Tabs.Trigger></Tabs.List>
   {#if p.error}<p role="alert" class="text-destructive">{p.error}</p>{/if}
+  {#if p.status?.capture.state === 'pending'}<p role="alert" class="text-sm text-destructive">{p.status.capture.message}</p>{/if}
+  {#each p.recoveryNotices as message}<p role="alert" class="text-sm text-destructive">{message}</p>{/each}
   {#if p.notice}<p role="status" class="text-sm text-muted-foreground">{p.notice}</p>{/if}
   <Tabs.Content value="search" class="space-y-8">
   <form class="screen-toolbar" onsubmit={event => { event.preventDefault(); void a.search(); }}>
@@ -71,7 +74,7 @@
   <Tabs.Content value="sources" class="space-y-8">
   <section class="flex flex-col gap-3" aria-label={p.copy.source}>
     <h2>{p.copy.source}</h2><p class="text-muted-foreground">{p.copy.sourceHelp}</p>
-    {#if p.status?.source}<p>{p.sourceName ?? p.copy.sourceProject} · {p.status.source.enabled ? 'Collecting updates' : 'Collection stopped'}</p>{/if}
+    {#if p.status?.source}<p>{p.sourceName ?? p.copy.sourceProject} · {p.status.source.state === 'unavailable' ? 'Collection unavailable' : p.status.source.state === 'ready' ? 'Collecting updates' : 'Collection stopped'}</p>{/if}
     <div class="flex flex-wrap gap-2">
       <StatefulButton variant="outline" pending={p.pendingAction === 'source:start'} disabled={Boolean(p.pendingAction)} onclick={() => a.source(true)}>{p.copy.sourceStart}</StatefulButton>
       {#if p.status?.source?.enabled}<StatefulButton variant="ghost" pending={p.pendingAction === 'source:stop'} disabled={Boolean(p.pendingAction)} onclick={() => a.source(false)}>{p.copy.sourceStop}</StatefulButton>{/if}
@@ -79,6 +82,35 @@
   </section>
   </Tabs.Content>
   <Tabs.Content value="settings" class="space-y-10">
+  {#if p.configuration}
+    <section class="space-y-6" aria-label={p.copy.learning}>
+      <h2>{p.copy.learning}</h2>
+      <div class="space-y-2">
+        <Field.Field orientation="horizontal">
+          <Checkbox id="knowledge-capture" checked={p.learning.captureOutcomes} onCheckedChange={value => a.setLearning('captureOutcomes', value)} disabled={Boolean(p.pendingAction)} aria-describedby="knowledge-capture-help" />
+          <Field.Label for="knowledge-capture">{p.copy.capture}</Field.Label>
+        </Field.Field>
+        <p id="knowledge-capture-help" class="text-sm text-muted-foreground">{p.copy.captureHelp}</p>
+      </div>
+      <div class="space-y-2">
+        <Field.Field orientation="horizontal">
+          <Checkbox id="knowledge-automatic-context" checked={p.learning.automaticContext} onCheckedChange={value => a.setLearning('automaticContext', value)} disabled={Boolean(p.pendingAction)} aria-describedby="knowledge-context-help knowledge-context-disable" />
+          <Field.Label for="knowledge-automatic-context">{p.copy.automaticContext}</Field.Label>
+        </Field.Field>
+        <p id="knowledge-context-help" class="text-sm text-muted-foreground">{p.copy.automaticContextHelp}</p>
+        <p id="knowledge-context-disable" class="text-sm text-muted-foreground">{p.copy.disableHelp}</p>
+      </div>
+      <div class="space-y-2">
+        <Field.Field orientation="horizontal">
+          <Checkbox id="knowledge-automatic-curation" checked={p.learning.automaticCuration} onCheckedChange={value => a.setLearning('automaticCuration', value)} disabled={Boolean(p.pendingAction)} aria-describedby="knowledge-curation-help knowledge-curation-disable" />
+          <Field.Label for="knowledge-automatic-curation">{p.copy.automaticCuration}</Field.Label>
+        </Field.Field>
+        <p id="knowledge-curation-help" class="text-sm text-muted-foreground">{p.copy.automaticCurationHelp}</p>
+        <p id="knowledge-curation-disable" class="text-sm text-muted-foreground">{p.copy.curationDisableHelp}</p>
+      </div>
+      <StatefulButton variant="outline" pending={p.pendingAction === 'configure:learning'} disabled={Boolean(p.pendingAction) || !p.learning.dirty} onclick={() => a.saveLearning()}>{p.copy.save}</StatefulButton>
+    </section>
+  {/if}
   <section class="flex flex-col gap-3" aria-label={p.copy.setup}>
     <div class="flex flex-wrap items-start justify-between gap-3"><div class="min-w-0 flex-1 space-y-2"><h2>{p.copy.setup}</h2><p class="text-muted-foreground">{p.copy.setupHelp}</p></div>
     <StatefulButton variant="ghost" class="w-fit" pending={p.statusPending} onclick={() => a.refresh()}>{p.copy.refresh}</StatefulButton></div>
@@ -120,10 +152,10 @@
   <section class="flex flex-col gap-3" aria-label={p.copy.maintenance}>
     <h2>{p.copy.maintenance}</h2><p class="text-muted-foreground">{p.copy.maintenanceHelp}</p>
     {#if p.status}
-      <p role="status">{p.status.maintenance.message}</p>
+      {#if !p.recoveryNotices.includes(p.status.maintenance.message)}<p role="status">{p.status.maintenance.message}</p>{/if}
       <div class="flex flex-wrap gap-2">
-        <StatefulButton pending={p.pendingAction === 'run'} disabled={Boolean(p.pendingAction) || ['running', 'uncertain', 'unavailable', 'paused'].includes(p.status.maintenance.state)} onclick={() => a.run(p.status?.maintenance.state === 'budget_exhausted')}>{p.status.maintenance.state === 'budget_exhausted' ? p.copy.override : p.copy.run}</StatefulButton>
-        <StatefulButton variant="outline" pending={p.pendingAction === 'pause'} disabled={Boolean(p.pendingAction)} onclick={() => a.pause(p.status?.maintenance.state !== 'paused')}>{p.status.maintenance.state === 'paused' ? p.copy.resume : p.copy.pause}</StatefulButton>
+        <StatefulButton pending={p.pendingAction === 'run'} disabled={Boolean(p.pendingAction) || p.status.maintenance.paused || ['running', 'uncertain', 'unavailable', 'paused'].includes(p.status.maintenance.state)} onclick={() => a.run(p.status?.maintenance.state === 'budget_exhausted')}>{p.status.maintenance.state === 'budget_exhausted' ? p.copy.override : p.copy.run}</StatefulButton>
+        <StatefulButton variant="outline" pending={p.pendingAction === 'pause'} disabled={Boolean(p.pendingAction)} onclick={() => a.pause(!p.status?.maintenance.paused)}>{p.status.maintenance.paused ? p.copy.resume : p.copy.pause}</StatefulButton>
       </div>
     {/if}
     {#if p.configuration}

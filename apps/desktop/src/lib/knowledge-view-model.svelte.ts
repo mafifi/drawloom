@@ -20,7 +20,9 @@ export function createKnowledgeViewModel(options: { send?: typeof send; download
   let query = $state(''), results = $state<Extract<SearchResult, { kind: 'ok' }>['items']>([]);
   let evidence = $state<{ records: KnowledgeRecord[]; links: KnowledgeLink[] }>();
   let selected = $state<RecordRef>(), status = $state<KnowledgeStatus>();
+  let learningDraft = $state<{ captureOutcomes: boolean; automaticContext: boolean; automaticCuration: boolean }>();
   let error = $state(''), notice = $state(''), searchStatus = $state(''), searched = $state(false);
+  let statusError = $state('');
   let searchPending = $state(false), evidencePending = $state(false), statusPending = $state(false), pendingAction = $state<string>();
   let resultCursor: string | undefined, evidenceCursor: string | undefined;
   let hasMoreResults = $state(false), hasMoreEvidence = $state(false);
@@ -29,24 +31,35 @@ export function createKnowledgeViewModel(options: { send?: typeof send; download
   async function refresh() {
     if (statusPending) return;
     const version = epoch, readVersion = statusVersion; statusPending = true;
-    try { const next = KnowledgeStatusSchema.parse(await request({ action: 'status' })); if (version === epoch && readVersion === statusVersion) status = next; }
-    catch (cause) { if (version === epoch && readVersion === statusVersion) fail(cause); }
+    try { const next = KnowledgeStatusSchema.parse(await request({ action: 'status' })); if (version === epoch && readVersion === statusVersion) { status = next; statusError = ''; } }
+    catch (cause) { if (version === epoch && readVersion === statusVersion) statusError = cause instanceof Error ? cause.message : 'Knowledge status is unavailable.'; }
     finally { if (version === epoch) statusPending = false; }
   }
   async function command(value: KnowledgeCommand, key: string = value.action) {
     // Cancel remains available during an ongoing download request.
     if (pendingAction && value.action !== 'cancel_download') return;
-    const version = epoch, actionKey = key; statusVersion++; pendingAction = actionKey; error = ''; notice = '';
-    try { const next = KnowledgeStatusSchema.parse(await request(value)); if (version === epoch && pendingAction === actionKey) { statusVersion++; status = next;
+    const version = epoch, actionKey = key; statusVersion++; pendingAction = actionKey; notice = '';
+    try { const next = KnowledgeStatusSchema.parse(await request(value)); if (version === epoch && pendingAction === actionKey) { statusVersion++; status = next; error = '';
       if (value.action === 'cleanup_obsolete' && next.obsoleteRuntimePresent === false) notice = 'Previous runtime files are no longer present. Your knowledge and evidence are unchanged.';
     } }
     catch (cause) { if (version === epoch && pendingAction === actionKey) {
       if (value.action === 'cleanup_obsolete') error = 'Could not complete cleanup safely. Your knowledge is unchanged.';
+      else if (value.action === 'source' && value.enabled) error = 'Collection could not start. Choose a project with an installed Git source, then connect it.';
       else fail(cause);
     } }
     finally { if (version === epoch && pendingAction === actionKey) pendingAction = undefined; }
   }
   const actions: KnowledgeActions = {
+    setLearning(key, enabled) {
+      if (pendingAction || !status) return;
+      learningDraft = { captureOutcomes: status.configuration.captureOutcomes, automaticContext: status.configuration.automaticContext, automaticCuration: status.configuration.automaticCuration, ...learningDraft, [key]: enabled };
+    },
+    async saveLearning() {
+      if (pendingAction || !status || !learningDraft) return;
+      const life = epoch;
+      await command({ action: 'configure', configuration: { ...status.configuration, ...learningDraft } }, 'configure:learning');
+      if (life === epoch && !error) learningDraft = undefined;
+    },
     setQuery(value) { query = value; },
     async search(more = false) {
       if (!query.trim() || (more && !resultCursor)) return;
@@ -99,12 +112,21 @@ export function createKnowledgeViewModel(options: { send?: typeof send; download
     },
   };
   const presentation: KnowledgePresentation = {
+    get learning() {
+      const saved = { captureOutcomes: status?.configuration.captureOutcomes ?? false, automaticContext: status?.configuration.automaticContext ?? false, automaticCuration: status?.configuration.automaticCuration ?? false };
+      const draft = learningDraft ?? saved;
+      return { ...draft, dirty: draft.captureOutcomes !== saved.captureOutcomes || draft.automaticContext !== saved.automaticContext || draft.automaticCuration !== saved.automaticCuration };
+    },
     copy: knowledgeCopy,
+    get recoveryNotices() {
+      return [status?.sourceWarning || (status?.source?.state === 'unavailable' ? status.source.message : ''),
+        status && ['uncertain', 'failed', 'unavailable'].includes(status.maintenance.state) ? status.maintenance.message : ''].filter(Boolean);
+    },
     get query() { return query; }, get results() { return results; }, get evidence() { return evidence; }, get selected() { return selected; },
     get searched() { return searched; }, get searchPending() { return searchPending; }, get evidencePending() { return evidencePending; },
     get statusPending() { return statusPending; }, get pendingAction() { return pendingAction; }, get status() { return status; },
     get hasMoreResults() { return hasMoreResults; }, get hasMoreEvidence() { return hasMoreEvidence; },
-    get error() { return error; }, get notice() { return notice; }, get searchStatus() { return searchStatus; }, get configuration() { return status?.configuration; },
+    get error() { return error || statusError; }, get notice() { return notice; }, get searchStatus() { return searchStatus; }, get configuration() { return status?.configuration; },
   };
-  return { presentation, actions, open: refresh, close() { epoch++; searchVersion++; evidenceVersion++; searchRead.abort(); evidenceRead.abort(); results = []; evidence = undefined; selected = undefined; statusPending = false; searchPending = false; evidencePending = false; pendingAction = undefined; } };
+  return { presentation, actions, open: refresh, close() { epoch++; searchVersion++; evidenceVersion++; searchRead.abort(); evidenceRead.abort(); results = []; evidence = undefined; selected = undefined; learningDraft = undefined; error = ''; statusError = ''; notice = ''; statusPending = false; searchPending = false; evidencePending = false; pendingAction = undefined; } };
 }

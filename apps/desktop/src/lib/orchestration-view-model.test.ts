@@ -11,6 +11,84 @@ afterEach(() => { globalThis.fetch = original; });
 const owner = { installationId: 'installation', title: 'Public example', readiness: { status: 'ready' as const } };
 const run = { runId: 'run', identity: 'request', workflow: 'example', version: '1', status: 'running', cancellationRequested: false, childRunIds: [], pendingInputs: ['review'], unresolvedEffects: [], steps: [], stepsTruncated: false };
 
+for (const first of ['knowledge', 'plugin']) test(`Activity retains both owners when ${first} is selected before discovery completes`, async () => {
+  let releasePlugin!: (response: Response) => void, releaseKnowledge!: (response: Response) => void;
+  const signals: AbortSignal[] = [];
+  globalThis.fetch = (async (url, init) => {
+    if (String(url).includes('/owners?')) { if(init?.signal) signals.push(init.signal); return new Promise<Response>(resolve => { releasePlugin = resolve; }); }
+    if (String(url).includes('/knowledge-activity/owner?')) { if(init?.signal) signals.push(init.signal); return new Promise<Response>(resolve => { releaseKnowledge = resolve; }); }
+    return Response.json({ runs: [] });
+  }) as typeof fetch;
+  const vm = createOrchestrationViewModel(), opening = vm.openActivity('project');
+  const hostOwner = { title: 'Knowledge maintenance', context: 'Across all projects', readiness: { status: 'ready' } };
+  if (first === 'knowledge') {
+    releaseKnowledge(Response.json(hostOwner));
+    for (let i = 0; i < 20 && !vm.knowledgeOwner; i++) await Promise.resolve();
+    await vm.selectKnowledge(); releasePlugin(Response.json([owner]));
+  } else {
+    releasePlugin(Response.json([owner]));
+    for (let i = 0; i < 20 && !vm.owners.length; i++) await Promise.resolve();
+    await vm.selectOwner(owner.installationId); releaseKnowledge(Response.json(hostOwner));
+  }
+  await opening; await vm.refresh();
+  expect(vm.knowledgeOwner?.title).toBe('Knowledge maintenance'); expect(vm.owners).toEqual([owner]);
+  expect(signals.every(signal => !signal.aborted)).toBe(true);
+  expect(first === 'knowledge' ? vm.knowledgeSelected : vm.installationId === owner.installationId).toBe(true);
+});
+
+test('project navigation and close discard unfinished Activity discovery', async () => {
+  const replies: Array<(response: Response) => void> = [];
+  globalThis.fetch = Object.assign(async () => new Promise<Response>(resolve => { replies.push(resolve); }), { preconnect: original.preconnect });
+  const vm = createOrchestrationViewModel(), opening = vm.openActivity('old-project');
+  vm.close();
+  replies[0]!(Response.json([owner])); replies[1]!(Response.json({ title: 'Knowledge maintenance', context: 'Across all projects', readiness: { status: 'ready' } }));
+  await opening; expect(vm.knowledgeOwner).toBeUndefined(); expect(vm.owners).toEqual([]);
+});
+test('late owner discovery cannot replace a newer project owner set', async () => {
+  const replies: Array<(response: Response) => void> = [];
+  globalThis.fetch = Object.assign(async () => new Promise<Response>(resolve => { replies.push(resolve); }), { preconnect: original.preconnect });
+  const vm = createOrchestrationViewModel(), old = vm.openActivity('old-project'), current = vm.openActivity('new-project');
+  const host = { title: 'Knowledge maintenance', context: 'Across all projects', readiness: { status: 'ready' } };
+  replies[2]!(Response.json([{ ...owner, installationId: 'new-plugin' }])); replies[3]!(Response.json(host)); await current;
+  replies[0]!(Response.json([owner])); replies[1]!(Response.json(host)); await old;
+  expect(vm.projectId).toBe('new-project'); expect(vm.owners.map(item => item.installationId)).toEqual(['new-plugin']);
+});
+
+test('Activity discovers global maintenance without a project and cannot send host commands', async () => {
+  const urls: string[] = [], methods: string[] = [];
+  globalThis.fetch = (async (url, init) => {
+    urls.push(String(url)); methods.push(init?.method ?? 'GET');
+    if (String(url).includes('/owner?')) return Response.json({ title: 'Knowledge maintenance', context: 'Across all projects', readiness: { status: 'ready' } });
+    if (String(url).includes('/steps?')) return Response.json({ steps: [], cursor: 'steps-next' });
+    return Response.json({ runs: [{ ...run, displayStatus: 'Needs attention', message: 'The assessment is held.' }], cursor: 'next' });
+  }) as typeof fetch;
+  const vm = createOrchestrationViewModel(); await vm.openActivity('');
+  expect(vm.knowledgeOwner?.title).toBe('Knowledge maintenance');
+  await vm.selectKnowledge(); expect(vm.runs).toHaveLength(1);
+  await vm.cancel('run'); await vm.respond('run', 'review', 'true');
+  await vm.more(); await vm.refresh(); await vm.browseSteps('run');
+  expect(methods.every(method => method === 'GET')).toBe(true);
+  expect(urls.every(url => !url.includes('projectId=') && !url.includes('installationId='))).toBe(true);
+  expect(urls.filter(url => url.includes('cursor=next'))).toHaveLength(2);
+  expect(vm.stepPage?.cursor).toBe('steps-next');
+});
+test('switching from maintenance to a plugin discards late host pages and restores only plugin commands', async () => {
+  let release!: (response: Response) => void;
+  const commands: unknown[] = [];
+  globalThis.fetch = (async (url, init) => {
+    if (init?.method === 'POST') { commands.push(JSON.parse(String(init.body))); return Response.json({ ...run, cancellationRequested: true }); }
+    if (String(url).includes('/knowledge-activity/owner')) return Response.json({ title: 'Knowledge maintenance', context: 'Across all projects', readiness: { status: 'ready' } });
+    if (String(url).includes('/knowledge-activity/runs')) return new Promise<Response>(resolve => { release = resolve; });
+    if (String(url).includes('/owners')) return Response.json([owner]);
+    return Response.json({ runs: [run] });
+  }) as typeof fetch;
+  const vm = createOrchestrationViewModel(); await vm.openActivity('project');
+  const reading = vm.selectKnowledge(); await vm.selectOwner(owner.installationId);
+  release(Response.json({ runs: [{ ...run, runId: 'host', displayStatus: 'Needs attention', message: '' }] })); await reading;
+  expect(vm.knowledgeSelected).toBe(false); expect(vm.runs.map(item => item.runId)).toEqual(['run']);
+  await vm.cancel('run'); expect(commands).toEqual([{ action: 'cancel', projectId: 'project', installationId: 'installation', runId: 'run' }]);
+});
+
 test('lists by explicit project and retains failed-read feedback', async () => {
   const urls: string[] = [];
   globalThis.fetch = (async (url) => { urls.push(String(url)); return Response.json([owner]); }) as typeof fetch;

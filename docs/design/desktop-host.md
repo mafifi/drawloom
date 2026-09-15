@@ -187,6 +187,28 @@ Public controller tests exercise contrasting document and media shapes through
 the shared conformance suite. Plugins must add tests for their own business rules;
 the shared presentation does not define those rules.
 
+## Knowledge in a conversation
+
+Automatic knowledge sharing is an explicit choice in Knowledge settings, separate
+from retaining tool outcomes and running curation. The host prepares references
+for the message being dispatched, with that conversation's fixed binding. It
+does not use whichever project is currently selected in the sidebar.
+
+The provider receives permitted reference material alongside user content.
+Drawloom saves the original display text separately so reopening native history
+does not turn references into words the user typed. A compact disclosure links
+to evidence inspection; it is not permission to read a record again.
+
+Settings changes and revoked grants invalidate pending disclosure before sending.
+Failure or a deadline stops preparation, not the user's message. See
+[local knowledge](local-knowledge.md#use-knowledge-in-conversations) for the
+limits, controls and current acceptance status.
+
+The application also owns the serial background curation timer and stops it
+before closing its services. New automatic assessments require the separate,
+saved curation choice; default model settings and opening a conversation are
+not consent. Read-only status requests do not start maintenance.
+
 ## Model selection and download presentation
 
 Authenticated `GET /api/models` returns bounded Codex model metadata without

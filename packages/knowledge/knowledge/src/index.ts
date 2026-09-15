@@ -105,6 +105,18 @@ export const IntakeInputSchema = boundedJson(z.union([
   z.strictObject({ operation: z.literal("delete"), ref: RecordRefSchema, expectedRevision: Id }),
 ]), MAX_PAGE_BYTES, "Intake request is too large");
 export type IntakeInput = z.infer<typeof IntakeInputSchema>;
+/** Trusted composition selects participating tools. Projectors receive only a
+ * validated successful result, never authority to choose record provenance.
+ * One bounded observation is optional; returning nothing declines content capture.
+ * The host persists eligibility before execution and selected intake before write,
+ * and retries intake only under current consent and write authorization. */
+export const ToolOutcomeObservationSchema = boundedJson(z.strictObject({ body: z.string().min(1).max(8192) }), 8192, "Projected observation is too large");
+export type ToolOutcomeObservation = z.infer<typeof ToolOutcomeObservationSchema>;
+export interface ToolOutcomeProjector {
+  /** Stable, versioned identity assigned by trusted tool composition. */
+  readonly id: string;
+  project(validatedResult: unknown): ToolOutcomeObservation | undefined;
+}
 const BoundaryFailureCodeSchema = z.enum(["invalid", "too_large", "unavailable"]);
 const BoundaryFailureSchema = z.strictObject({ kind: z.literal("failure"), code: BoundaryFailureCodeSchema });
 const DeniedSchema = z.strictObject({ kind: z.literal("denied") });
@@ -163,6 +175,21 @@ export const EvidenceResultSchema = boundedJson(z.union([
   DeniedSchema, BoundaryFailureSchema, CursorFailureSchema,
 ]), MAX_PAGE_BYTES, "Evidence result is too large");
 export type EvidenceResult = z.infer<typeof EvidenceResultSchema>;
+/** Tool-only response: prior body is usable solely in this actual execution.
+ * The full authorized result must be re-read and compared before omission.
+ * Bounds, direction, cursor and exact revisions participate in receipt identity. */
+export const EvidenceToolResultSchema = z.union([EvidenceResultSchema, z.strictObject({
+  kind: z.literal("already_delivered"), records: z.array(RecordRefSchema).max(100),
+  cursor: OpaqueCursorSchema.optional(),
+})]);
+export type EvidenceToolResult = z.infer<typeof EvidenceToolResultSchema>;
+export interface EvidenceReadReceipts {
+  select(executionId: string, invocationId: string, request: EvidenceRequest, authorizedResult: EvidenceResult): EvidenceToolResult;
+  /** Trusted provider delivery correlation only, never a model-supplied receipt. */
+  confirmDelivered(executionId: string, invocationId: string, result: unknown): boolean;
+  /** Required after execution end, restart or any context-retention uncertainty. */
+  invalidate(executionId: string): void;
+}
 export const EvidencePackageRootSchema = z.strictObject({ unitId: Id, root: RecordRefSchema });
 export const EvidencePackageSchema = boundedJson(z.strictObject({
   roots: z.array(EvidencePackageRootSchema).min(1).max(50).superRefine((roots, context) => {
@@ -184,6 +211,9 @@ export const KnowledgeExportResultSchema = boundedJson(z.union([
 export type KnowledgeExportResult = z.infer<typeof KnowledgeExportResultSchema>;
 /** Cursors bind the request, pinned graph revisions and authority. Invalidated cursors fail explicitly and never restart silently. */
 export interface KnowledgeRetrieval {
+  /** Providers admit query-relevant candidates before ranking; an authorized
+   * search may return no items. Hit relevance is provider-specific ordering,
+   * not confidence, a universal similarity scale, or permission to disclose. */
   search(subject: TrustedKnowledgeSubject, request: SearchRequest): Promise<SearchResult>;
   get(subject: TrustedKnowledgeSubject, ref: RecordRef): Promise<RecordReadResult>;
   expand(subject: TrustedKnowledgeSubject, request: ExpandRequest): Promise<ExpandResult>;

@@ -14,6 +14,9 @@ import { acquireLock, command, stopChild, unusedPort } from "./processes.js";
 import { createReceiptDispatcher } from "./receipts.js";
 import { stepFailureCode } from './failures.js';
 import { observe } from './telemetry.js';
+import { LOCAL_TEMPORAL_NODE_VERSION } from './runtime-version.js';
+export { LOCAL_TEMPORAL_NODE_VERSION } from './runtime-version.js';
+export { isLocalExecutionPaused } from './signals.js';
 
 const OwnerInput = z.strictObject({ projectId: z.string().min(1).max(256), installationId: z.string().min(1).max(256), packageDirectory: z.string().min(1), entrypoint: z.string().min(1) });
 const OwnerRecordSchema = OwnerInput.extend({ bundleFingerprint: z.string(), owner: z.string() });
@@ -104,7 +107,7 @@ export function createLocalTemporalManager(options: LocalTemporalOptions) {
       const version = await command(cli, ["--version"], 5000);
       if (!version.includes("temporal version 1.3.0 (Server 1.27.1,")) throw new Error("Local orchestration requires Temporal CLI 1.3.0 / server 1.27.1");
       const nodeVersion = await command(node, ["-p", "process.versions.node + ':' + Boolean(process.versions.bun)"], 5000);
-      if (!/^24\.20\.0:false\s*$/.test(nodeVersion)) throw new Error("Local orchestration requires actual Node 24.20.0");
+      if (nodeVersion.trim() !== `${LOCAL_TEMPORAL_NODE_VERSION}:false`) throw new Error(`Local orchestration requires actual Node ${LOCAL_TEMPORAL_NODE_VERSION}`);
       const port = await unusedPort();
       address = `127.0.0.1:${port}`;
       const config = join(root, "service.json");

@@ -1,6 +1,14 @@
 import { z } from 'zod';
 import { definePlugin, type PluginInstaller } from '@drawloom/plugins';
 import { defineTool, ToolExposureSchema, type ToolExposure } from '@drawloom/tools';
+import type { ToolOutcomeProjector } from '@drawloom/knowledge';
+/** Public text inspection deliberately retains only its measured count. */
+export const toolOutcomeProjectors: ReadonlyMap<string, ToolOutcomeProjector> = new Map([
+  ['text.word_count', { id: 'synthetic.text:word-count@1', project(value: unknown) {
+    const result = z.strictObject({ count: z.number().int().nonnegative() }).parse(value);
+    return { body: `The text inspection counted ${result.count} words.` };
+  } }],
+]);
 /** Host policy: unknown is not read-only, and native review never grants tools. */
 export function mcpReviewConfiguration(exposure: ToolExposure) {
   return { default_tools_approval_mode: 'prompt', tools: Object.fromEntries(

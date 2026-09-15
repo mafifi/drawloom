@@ -12,14 +12,16 @@ implementations when setting up your application; consumers use their interfaces
 ## Find the right interface
 
 The ten [capabilities](../../ARCHITECTURE.md#core-capabilities) are not ten
-independent services. Memory uses knowledge interfaces; context defines a shared
-data shape, not a compiler service. Sandboxing comes from the execution environment.
+independent services. Memory uses knowledge interfaces; context provides shared
+instruction types and a bounded reference-preparation interface, not a general
+prompt compiler. Sandboxing comes from the execution environment.
 Permission checks live alongside agents, tools and knowledge access. There is no
 general model-inference API.
 
 | What you want to do | Start here | Implementation or detailed guide |
 | --- | --- | --- |
 | Supply prepared instructions | `@drawloom/context`: `CompiledContext` | Your application prepares trusted text and source references |
+| Select knowledge for a request | `@drawloom/context`: `ContextPreparer` | `@drawloom/knowledge-context`; [knowledge guide](../design/local-knowledge.md#use-knowledge-in-conversations) |
 | Connect an agent | `@drawloom/agent`: `AgentDriver`, `AgentSession` | `@drawloom/codex-agent`; `@drawloom/synthetic-agent` for tests |
 | Define and call tools | `@drawloom/tools`: `defineTool`, `ToolGateway` | `@drawloom/local-tools`; [tool guide](../design/tool-execution-contract.md) |
 | Register plugins and inspect packages | `@drawloom/plugins`: definitions, metadata and tests | `@drawloom/startup-plugins`, `@drawloom/local-plugin-packages`; [package guide](plugin-packages.md) |
@@ -36,6 +38,32 @@ general model-inference API.
 Package exports and TypeScript declarations are the exact API. This is a guide
 through them, not a second exhaustive export list. The
 [package overview](../../packages/README.md) explains the directory layout.
+
+## Prepare knowledge references
+
+`ContextPreparer` selects references for a request; it does not grant access or
+turn those references into instructions. The knowledge-backed implementation
+receives retrieval, authorization and trusted identity from application setup.
+The application supplies the verified conversation and execution binding.
+
+This fragment assumes those objects already exist:
+
+```ts
+const preparation = await preparer.prepare({
+  request: message,
+  binding: { conversationId, executionId },
+  signal,
+  budget: { maxRecords: 8, maxBytes: 12 * 1024 },
+});
+```
+
+A ready result contains reference text, exact record revisions and its byte
+count. Other results distinguish no matches, cancellation and unavailability.
+The host decides the deadline and checks whether disclosure is still allowed
+before handing references to the agent adapter. Do not append retrieved bodies
+to `CompiledContext.text`: that field contains trusted application instructions.
+See the [knowledge guide](../design/local-knowledge.md#use-knowledge-in-conversations)
+for the desktop integration, large-record handling and acceptance limits.
 
 ## Tools
 

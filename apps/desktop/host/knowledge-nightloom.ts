@@ -7,8 +7,9 @@ import type {
 } from "@drawloom/knowledge";
 import { canonical } from "@drawloom/orchestration";
 import type { LocalTemporalRegistration, PrepareHostOwner } from "@drawloom/temporal-orchestration";
+import { isLocalExecutionPaused } from "@drawloom/temporal-orchestration";
 import {
-  createNightloomCoordinator, createNightloomTaskHandlers, DEFAULT_NIGHTLOOM_SETTINGS,
+  createNightloomCoordinator, createNightloomTaskHandlers, DEFAULT_NIGHTLOOM_SETTINGS, NightloomWorkflowResultSchema,
   type NightloomAssessmentReceipt, type NightloomCoordinatorState,
 } from "@drawloom/nightloom";
 import type { z } from "zod";
@@ -42,6 +43,8 @@ export function createKnowledgeNightloom(options: {
   packageDirectory: string;
   settings(): Promise<LocalKnowledgeConfiguration>;
   prepareHost(owner: PrepareHostOwner): Promise<LocalTemporalRegistration>;
+  /** Trusted host lifetime seam, never browser/model configuration. */
+  scheduleTick?(tick: () => Promise<void>, milliseconds: number): () => void;
 }) {
   let registration: LocalTemporalRegistration | undefined;
   let coordinator: ReturnType<typeof createNightloomCoordinator> | undefined;
@@ -103,7 +106,7 @@ export function createKnowledgeNightloom(options: {
     preparing = (async () => {
       try {
         const prepared = await options.prepareHost({ capabilityId: "knowledge-maintenance", packageDirectory: options.packageDirectory, entrypoint: "dist/workflows.js" });
-        const handlers = createNightloomTaskHandlers({ maintenance, retrieval, assessment, receipts, subject,
+        const handlers = createNightloomTaskHandlers({ maintenance, retrieval, assessment, receipts, subject, isHostSuspension: isLocalExecutionPaused,
           fingerprint: value => createHash("sha256").update(canonical(value)).digest("hex") });
         await prepared.attach(handlers);
         registration = prepared;
@@ -128,9 +131,40 @@ export function createKnowledgeNightloom(options: {
     return preparing;
   }
   const ready = async () => (await initialize()).status === "ready" ? coordinator : undefined;
+  async function tick() {
+    // Old configuration, default model selection and unpaused state are not consent.
+    if (!(await options.settings()).automaticCuration) return { kind: "idle" as const };
+    const current = await ready(); return current ? current.tick() : { kind: "unavailable" as const };
+  }
+  let scheduling = false, stopped = false;
+  let cancelTick: (() => void) | undefined;
+  let ticking: Promise<void> | undefined;
+  const scheduleTick = options.scheduleTick ?? ((callback, milliseconds) => {
+    const timer = setTimeout(() => { void callback(); }, milliseconds);
+    timer.unref?.();
+    return () => clearTimeout(timer);
+  });
+  function schedule() {
+    if (stopped) return;
+    cancelTick = scheduleTick(async () => {
+      cancelTick = undefined;
+      if (stopped) return;
+      ticking = tick().then(() => undefined, () => undefined);
+      await ticking;
+      ticking = undefined;
+      schedule();
+    }, 1000);
+  }
+  async function stopScheduling() {
+    stopped = true;
+    cancelTick?.(); cancelTick = undefined;
+    await ticking;
+  }
   return {
     initialize,
-    async tick() { const current = await ready(); return current ? current.tick() : { kind: "unavailable" as const }; },
+    tick,
+    startScheduling() { if (scheduling || stopped) return; scheduling = true; schedule(); },
+    stopScheduling,
     async runNow(overrideBudget: boolean) { const current = await ready(); return current ? current.runNow(overrideBudget) : { kind: "unavailable" as const }; },
     async pause() { const current = await ready(); if (!current) throw Error(readiness.status === "unavailable" ? readiness.message : "Automatic maintenance is unavailable."); await current.pause(); },
     async resume() { const current = await ready(); if (!current) throw Error(readiness.status === "unavailable" ? readiness.message : "Automatic maintenance is unavailable."); await current.resume(); },
@@ -139,9 +173,31 @@ export function createKnowledgeNightloom(options: {
         maxAutomaticStartsPerDay: config.maxAutomaticStartsPerDay, maxAutomaticMillisecondsPerDay: config.maxAutomaticMillisecondsPerDay }); },
     async status() {
       const state = coordinator ? await coordinator.status() : undefined;
-      return { available: readiness.status === "ready", paused: state?.paused ?? false, ...(state?.active ? { active: state.active } : {}),
-        budget: state?.budget ?? { automaticStarts: 0, automaticReservedMilliseconds: 0 }, ...(readiness.status === "unavailable" ? { message: readiness.message } : {}) };
+      let phase: "idle" | "running" | "uncertain" | "failed" | "unavailable" = readiness.status === "ready" ? "idle" : "unavailable";
+      let message = readiness.status === "unavailable" ? readiness.message : "";
+      const active = state?.active;
+      if (active && registration) {
+        if (!active.runId) phase = "uncertain";
+        else try {
+          const run = await registration.orchestrator.get(active.runId);
+          if (run.unresolvedEffects.length || run.cancellationRequested) phase = "uncertain";
+          else if (run.status === "running") phase = "running";
+          else if (run.status === "completed") {
+            const result = NightloomWorkflowResultSchema.parse(await registration.orchestrator.result(run.runId));
+            phase = result.kind === "completed" ? "idle" : result.kind === "deferred" ? "uncertain" : result.kind === "unavailable" ? "unavailable" : "failed";
+          } else phase = "failed";
+        } catch { phase = "unavailable"; }
+        if (phase === "uncertain") message = "The assessment outcome is uncertain. Work is held for reconciliation; no replacement assessment has been submitted.";
+        else if (phase === "failed") message = "Knowledge curation could not finish. Existing knowledge remains available.";
+        else if (phase === "unavailable") message = "The curation status could not be confirmed. Refresh status when the local runtime is available.";
+        else if (phase === "running") message = "Knowledge curation is running.";
+        else message = "Knowledge curation finished.";
+      }
+      // The phase is presentation; active remains durable coordinator ownership.
+      // Configuration must respect that ownership even after a terminal result.
+      return { available: readiness.status === "ready", state: phase, paused: state?.paused ?? false, ...(active ? { active } : {}),
+        budget: state?.budget ?? { automaticStarts: 0, automaticReservedMilliseconds: 0 }, ...(message ? { message } : {}) };
     },
-    async close() { await preparing?.catch(() => undefined); await registration?.close(); },
+    async close() { await stopScheduling(); await preparing?.catch(() => undefined); await registration?.close(); },
   };
 }

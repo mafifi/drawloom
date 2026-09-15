@@ -19,6 +19,7 @@
   } from "@drawloom/ui";
   import { PanelIcon, DocumentIcon } from "@drawloom/ui";
   import Composer from "./Composer.svelte";
+  import KnowledgeDisclosure from './KnowledgeDisclosure.svelte';
   import ArtifactViewer from "./ArtifactViewer.svelte";
   import AttachmentCard from "./AttachmentCard.svelte";
   import ResourceCard from './ResourceCard.svelte';
@@ -122,6 +123,7 @@
           <h2 class="sr-only">{message.role === "user" ? "You" : "Drawloom"}</h2>
           {#if message.text}<Bubble.Root variant={message.role === 'user' ? 'default' : 'ghost'} align={message.role === 'user' ? 'end' : 'start'}><Bubble.Content><p class="conversation-text">{message.text}</p></Bubble.Content></Bubble.Root>{/if}
           {#if message.selections?.length}<Message.Footer class="flex-wrap gap-2">{#each message.selections as selection}<Badge variant="outline">{selection.title} · {selection.source}</Badge>{/each}</Message.Footer>{/if}
+          {#if message.preparation}<KnowledgeDisclosure summary={message.preparation} />{/if}
           {#each message.assets as asset}<AttachmentCard {asset} title={vm.attachmentName(asset.key)} />{/each}
           {#each message.resources ?? [] as reference}
             <ResourceCard

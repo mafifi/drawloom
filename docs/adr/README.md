@@ -1,5 +1,10 @@
 # Architecture decision records
 
+- [ADR 0027: Bring retained learning into everyday conversations](0027-complete-learning-journey.md)
+  is Accepted. It connects opt-in capture, curation and bounded recall in the
+  desktop, partially superseding ADR 0024's tools-only context choice. Its
+  evidence records tested behavior, retrieval costs and model-quality limits.
+
 - [ADR 0026: Permissive dependencies and local GGUF embeddings](0026-permissive-dependencies-and-local-gguf-embeddings.md)
   is Accepted; it partially supersedes ADR 0024's runtime/installation
   choice, not its wider knowledge architecture.

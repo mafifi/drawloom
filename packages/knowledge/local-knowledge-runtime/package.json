@@ -9,6 +9,8 @@
   "scripts": { "test:node": "node --test runtime.node-check.ts semantic.node-check.ts" },
   "drawloom": { "role": "composition", "runtime": "node" },
   "dependencies": {
+    "@drawloom/context": "workspace:*",
+    "@drawloom/knowledge-context": "workspace:*",
     "@drawloom/codex-assessment": "workspace:*",
     "@drawloom/host": "workspace:*",
     "@drawloom/knowledge": "workspace:*",

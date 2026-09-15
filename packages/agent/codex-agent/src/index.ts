@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createReferenceDisplay, currentReferenceInput } from "./reference-display.js";
 import { readCodexModels, permitsModel } from './models.js';
 export { readCodexModels, permitsModel } from './models.js';
 import { createCodexDiscovery } from './discovery.js';
@@ -25,6 +26,11 @@ export type CodexDriverOptions = {
   workingDirectory?: string;
   /** Trusted display capture, separate from tool authority and native execution. */
   onToolContent?: CaptureToolContent;
+  /** Observed native result only, not execution completion or history replay.
+   * Consumers must verify their own exact invocation and payload correlation. */
+  onToolResultDelivered?: (value: { operationId: string; server: string; tool: string; result: unknown }) => void;
+  /** Native compaction or uncertain processing invalidates execution-local reuse. */
+  onContextInvalidated?: (operationId: string) => void;
   /** Read-only experimental plugin/list; disabled by default. */
   experimentalPluginDiscovery?: boolean;
   /** Trusted host resolves only imported asset keys; provider paths never cross the contract. */
@@ -148,6 +154,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         await options.store.set("codex:" + input.sessionId, { threadId, materialized });
         const operationKey = "codex-operations:" + input.sessionId;
         const operations = z.record(z.string(), z.string()).parse(await options.store.get(operationKey) ?? {});
+        const display = createReferenceDisplay(options.store, threadId);
         const userAssets = new Map<string, import("@drawloom/host").Asset[][]>();
         const mediaPending = new Set<Promise<void>>();
         let closed = false,
@@ -206,6 +213,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           if (!active) return;
           const last = active;
           active = undefined;
+          options.onContextInvalidated?.(last.operationId);
           userAssets.delete(last.turnId);
           approvals.clear();
           inputs.clear();
@@ -269,6 +277,10 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           try {
             const params = record.parse(message.params);
             if (params.threadId !== threadId) return;
+            if (message.method === "thread/compacted") {
+              options.onContextInvalidated?.(active.operationId);
+              return;
+            }
             if (message.method === 'serverRequest/resolved') {
               for (const [approvalId, pending] of approvals) if (pending.rpcId === params.requestId) {
                 approvals.delete(approvalId);
@@ -287,6 +299,10 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               return;
             }
             const operationId = active.operationId;
+            if ((message.method === "item/started" || message.method === "item/completed") && record.safeParse(params.item).data?.type === "contextCompaction") {
+              options.onContextInvalidated?.(operationId);
+              return;
+            }
             if (message.id !== undefined) {
               if (interrupting) return;
               if (interactionRequests.has(message.id)) throw Error('Duplicate native request');
@@ -475,6 +491,9 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             }
             if (message.method === "item/completed") {
               const item = record.parse(params.item);
+              if (item.type === "mcpToolCall" && item.status === "completed" && typeof item.server === "string" && typeof item.tool === "string") {
+                options.onToolResultDelivered?.({ operationId, server: item.server, tool: item.tool, result: item.result });
+              }
               if (item.type === 'mcpToolCall' && item.status === 'completed' && captureToolContent) {
                 const native = identifier.parse(item.id);
                 if (completedMessages.has(native)) return;
@@ -525,7 +544,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                   operationId,
                   messageId: await messageId(native),
                   role: "user",
-                  text: content.filter(value => value.type === "text").map(value => z.string().parse(value.text)).join("\n"),
+                  ...await display.recover(content.filter(value => value.type === "text").map(value => z.string().parse(value.text)).join("\n")),
                   ...(assets.length ? { assets } : {}),
                 });
               } else if (
@@ -604,7 +623,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           receiveChain = receiveChain.then(() => processMessage(message));
         };
         const unsubscribe = rpc.subscribe(receive, fail);
-        const nativeHistory = createCodexHistoryReader((method, params) => rpc.request(method, params), threadId, operations, options.captureImage, captureToolContent);
+        const nativeHistory = createCodexHistoryReader((method, params) => rpc.request(method, params), threadId, operations, options.captureImage, captureToolContent, display.recover);
         return {
           status: "ok",
           value: {
@@ -658,13 +677,21 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 const images = await Promise.all((operation.attachments ?? []).map(async asset => ({ type: "localImage", path: await options.imageInput!(asset) })));
                 const selected = catalog.resolve(operation.selections ?? []);
                 if (closed || !selected) return reject('invalid_state', 'Discovery changed or the selection is unavailable. Refresh and select again.');
+                const initialDelivery = currentReferenceInput(operation);
+                let sentText = await display.input(initialDelivery);
+                // Once dispatch may occur, preserve the native identity even if
+                // its response is lost. Never replace an uncertain submission.
+                await options.store.set("codex:" + input.sessionId, { threadId, materialized: true });
+                materialized = true;
+                if (initialDelivery.references && operation.referenceSignal?.aborted) sentText = await display.input(currentReferenceInput(operation));
+                if (closed) return reject("provider_unavailable");
                 used.add(operation.operationId);
                 const result = await rpc.request("turn/start", {
                   threadId,
                   ...(operation.modelSelection ? { model:operation.modelSelection.model, ...(operation.modelSelection.effort?{effort:operation.modelSelection.effort}:{}) } : {}),
                   ...(nativeReview ? { approvalsReviewer: operation.reviewer === 'delegated' ? 'auto_review' : 'user' } : {}),
                   input: [
-                    { type: "text", text: operation.text, text_elements: [] },
+                    { type: "text", text: sentText, text_elements: [] },
                     ...selected,
                     ...images,
                   ],
@@ -735,6 +762,10 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 const images = await Promise.all((p.data.attachments ?? []).map(async asset => ({ type: "localImage", path: await options.imageInput!(asset) })));
                 const selected = catalog.resolve(p.data.selections ?? []);
                 if (closed || active !== target || !selected) return reject('invalid_state', 'Discovery changed or the selection is unavailable. Refresh and select again.');
+                const initialDelivery = currentReferenceInput(p.data);
+                let sentText = await display.input(initialDelivery);
+                if (initialDelivery.references && p.data.referenceSignal?.aborted) sentText = await display.input(currentReferenceInput(p.data));
+                if (closed || active !== target) return reject('invalid_state');
                 const queuedAssets = [...(p.data.attachments ?? [])];
                 userAssets.get(target.turnId)?.push(queuedAssets);
                 queued = true;
@@ -742,7 +773,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                   threadId,
                   expectedTurnId: target.turnId,
                   input: [
-                    { type: "text", text: p.data.text, text_elements: [] },
+                    { type: "text", text: sentText, text_elements: [] },
                     ...selected,
                     ...images,
                   ],

@@ -4,6 +4,9 @@ import { SearchRequestSchema, embeddingResultSchemaFor, type EmbeddingConfigurat
 const key = (ref: RecordRef) => JSON.stringify([ref.type, ref.origin, ref.id, ref.revision]);
 const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value));
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
+// Current SQLite/Qwen GGUF composition: actual best-passage cosine, not RRF.
+// Independently calibrated before held-out evaluation; see ../RETRIEVAL.md.
+const MINIMUM_SEMANTIC_COSINE = 0.52;
 
 /** Host composition, not an agent capability. Bounded candidates and passage batches. */
 export function createSemanticRetrieval(options: {
@@ -122,7 +125,7 @@ export function createSemanticRetrieval(options: {
       const semantic = await options.index.query({ configuration: options.configuration, vector: encoded.items[0]!.vector, limit: 100 });
       if (semantic.kind !== 'ok') return options.retrieval.search(options.subject, { ...request, mode: 'lexical' });
       const candidates = new Map<string, { ref: RecordRef; rank: number }>();
-      for (const list of [lexical.items.map(item => item.record.ref), semantic.items.map(item => item.ref)]) {
+      for (const list of [lexical.items.map(item => item.record.ref), semantic.items.filter(item => item.relevance >= MINIMUM_SEMANTIC_COSINE).map(item => item.ref)]) {
         let authorizedRank = 0;
         for (const ref of list) {
           const candidate = await authorizedRecord(ref);

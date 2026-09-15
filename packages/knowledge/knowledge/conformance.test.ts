@@ -281,14 +281,26 @@ function createMemoryAssessmentFixture(): KnowledgeAssessmentConformanceFixture 
   return { assessment, authorizedSubject, deniedSubject, evidence };
 }
 
-function createMemoryEmbeddingFixture(): KnowledgeEmbeddingConformanceFixture {
+function createMemoryEmbeddingFixture(options: {
+  emptyActiveWhileStaged?: boolean;
+  discardOtherConfigurationsOnActivate?: boolean;
+  invalidLaterStageResult?: boolean;
+  invalidLaterActivationResult?: boolean;
+} = {}): KnowledgeEmbeddingConformanceFixture {
   const configuration = { id: "synthetic-conformance", fingerprint: "synthetic:v1", dimensions: 3 };
   const knownConfigurations = new Map<string, EmbeddingConfiguration>();
   const stages = new Map<string, { configuration: EmbeddingConfiguration; generation: number; expected: number | null; entries: Map<string, IndexedEmbedding> }>();
-  let active: { configuration: EmbeddingConfiguration; generation: number; entries: Map<string, IndexedEmbedding> } | undefined;
+  const active = new Map<string, { configuration: EmbeddingConfiguration; generation: number; entries: Map<string, IndexedEmbedding> }>();
+  const current = new Map<string, KnowledgeRecord>();
   let nextStage = 1;
+  let stageCalls = 0;
+  let activateCalls = 0;
   const matchesConfiguration = (left: EmbeddingConfiguration, right: EmbeddingConfiguration) =>
     left.id === right.id && left.fingerprint === right.fingerprint && left.dimensions === right.dimensions;
+  const isCurrent = (reference: RecordRef) => {
+    const authoritative = current.get(logicalKey(reference));
+    return authoritative !== undefined && sameRef(authoritative.ref, reference);
+  };
 
   const embeddings: KnowledgeEmbeddings = {
     async embed(subject, batch) {
@@ -300,51 +312,77 @@ function createMemoryEmbeddingFixture(): KnowledgeEmbeddingConformanceFixture {
       };
     },
   };
+  const intake: KnowledgeIntake = {
+    async ingest(subject, raw) {
+      const input = IntakeInputSchema.parse(raw);
+      if (!allowed(subject)) return { kind: "denied" };
+      if (input.operation !== "upsert") return { kind: "failure", code: "invalid" };
+      const key = logicalKey(input.record.ref);
+      const prior = current.get(key);
+      if (input.expectedRevision === null ? prior !== undefined : prior?.ref.revision !== input.expectedRevision) return { kind: "conflict" };
+      current.set(key, input.record);
+      return { kind: "accepted", revision: input.record.ref.revision };
+    },
+  };
   const embeddingIndex: KnowledgeEmbeddingIndex = {
     async prepare(input) {
       const parsed = EmbeddingIndexPrepareSchema.parse(input);
       const known = knownConfigurations.get(parsed.configuration.id);
       if (known && !matchesConfiguration(known, parsed.configuration)) return { kind: "configuration_mismatch" };
-      if ((active?.generation ?? null) !== parsed.expectedActiveGeneration || parsed.generation <= (active?.generation ?? 0)) return { kind: "conflict" };
+      const activeConfiguration = active.get(parsed.configuration.id);
+      if ((activeConfiguration?.generation ?? null) !== parsed.expectedActiveGeneration || parsed.generation <= (activeConfiguration?.generation ?? 0)) return { kind: "conflict" };
       knownConfigurations.set(parsed.configuration.id, parsed.configuration);
       const stageId = `stage-${nextStage++}`;
-      const priorEntries = active && matchesConfiguration(active.configuration, parsed.configuration) ? active.entries : [];
+      const priorEntries = activeConfiguration?.entries ?? [];
       stages.set(stageId, { configuration: parsed.configuration, generation: parsed.generation, expected: parsed.expectedActiveGeneration, entries: new Map(priorEntries) });
-      return { kind: "ready", stageId, generation: parsed.generation, activeGeneration: active?.generation ?? null };
+      return { kind: "ready", stageId, generation: parsed.generation, activeGeneration: activeConfiguration?.generation ?? null };
     },
     async stage(input) {
+      stageCalls += 1;
       const parsed = EmbeddingIndexStageSchema.parse(input);
       const stage = stages.get(parsed.stageId);
       if (!stage) return { kind: "conflict" };
       if (parsed.entries.some((entry) => entry.vector.length !== stage.configuration.dimensions)) return { kind: "dimension_mismatch" };
+      if (parsed.entries.some((entry) => !isCurrent(entry.ref))) return { kind: "conflict" };
       for (const removal of parsed.removals) for (const [id, entry] of stage.entries) if (sameRef(removal, entry.ref)) stage.entries.delete(id);
       for (const entry of parsed.entries) stage.entries.set(entry.id, entry);
+      if (options.invalidLaterStageResult && stageCalls >= 3) return { kind: "unexpected" } as never;
       return { kind: "staged", stageId: parsed.stageId };
     },
     async activate(input) {
+      activateCalls += 1;
       const parsed = EmbeddingIndexActivateSchema.parse(input);
       const stage = stages.get(parsed.stageId);
-      if (!stage || stage.expected !== parsed.expectedActiveGeneration || (active?.generation ?? null) !== parsed.expectedActiveGeneration) return { kind: "conflict" };
-      active = { configuration: stage.configuration, generation: stage.generation, entries: new Map(stage.entries) };
+      const activeConfiguration = stage ? active.get(stage.configuration.id) : undefined;
+      if (!stage || stage.expected !== parsed.expectedActiveGeneration || (activeConfiguration?.generation ?? null) !== parsed.expectedActiveGeneration) return { kind: "conflict" };
+      if (options.discardOtherConfigurationsOnActivate) active.clear();
+      active.set(stage.configuration.id, { configuration: stage.configuration, generation: stage.generation, entries: new Map(stage.entries) });
       stages.delete(parsed.stageId);
-      return { kind: "activated", generation: active.generation };
+      if (options.invalidLaterActivationResult && activateCalls >= 2) return { kind: "unexpected" } as never;
+      return { kind: "activated", generation: stage.generation };
     },
     async query(input) {
       const parsed = EmbeddingIndexQuerySchema.parse(input);
-      if (!active) return { kind: "unavailable" };
-      if (!matchesConfiguration(active.configuration, parsed.configuration)) return { kind: "configuration_mismatch" };
-      if (parsed.vector.length !== active.configuration.dimensions) return { kind: "dimension_mismatch" };
+      const known = knownConfigurations.get(parsed.configuration.id);
+      if (known && !matchesConfiguration(known, parsed.configuration)) return { kind: "configuration_mismatch" };
+      const activeConfiguration = active.get(parsed.configuration.id);
+      if (!activeConfiguration) return { kind: "unavailable" };
+      if (parsed.vector.length !== activeConfiguration.configuration.dimensions) return { kind: "dimension_mismatch" };
+      if (options.emptyActiveWhileStaged && [...stages.values()].some((stage) => stage.configuration.id === parsed.configuration.id)) {
+        return { kind: "ok", activeGeneration: activeConfiguration.generation, items: [] };
+      }
       const seen = new Set<string>();
-      const items = [...active.entries.values()].flatMap((entry) => {
+      const items = [...activeConfiguration.entries.values()].flatMap((entry) => {
+        if (!isCurrent(entry.ref)) return [];
         const key = revisionKey(entry.ref);
         if (seen.has(key)) return [];
         seen.add(key);
         return [{ ref: entry.ref, relevance: entry.vector.reduce((sum, value, index) => sum + value * parsed.vector[index]!, 0) }];
       }).sort((left, right) => right.relevance - left.relevance).slice(0, parsed.limit);
-      return { kind: "ok", activeGeneration: active.generation, items };
+      return { kind: "ok", activeGeneration: activeConfiguration.generation, items };
     },
   };
-  return { embeddings, embeddingIndex, configuration, authorizedSubject, deniedSubject };
+  return { intake, embeddings, embeddingIndex, configuration, authorizedSubject, deniedSubject };
 }
 
 function createMemoryIndexWorkFixture(): KnowledgeIndexWorkConformanceFixture {
@@ -418,6 +456,18 @@ test("assessment conformance covers stable identity and durable reconciliation",
 });
 test("embedding conformance covers passage identity and staged generation activation", async () => {
   await knowledgeEmbeddingConformance(createMemoryEmbeddingFixture());
+});
+test("embedding conformance rejects an implementation that empties the active generation while staging", async () => {
+  await expect(knowledgeEmbeddingConformance(createMemoryEmbeddingFixture({ emptyActiveWhileStaged: true }))).rejects.toThrow();
+});
+test("embedding conformance rejects activation that discards another configuration", async () => {
+  await expect(knowledgeEmbeddingConformance(createMemoryEmbeddingFixture({ discardOtherConfigurationsOnActivate: true }))).rejects.toThrow();
+});
+test("embedding conformance rejects a malformed later stage outcome", async () => {
+  await expect(knowledgeEmbeddingConformance(createMemoryEmbeddingFixture({ invalidLaterStageResult: true }))).rejects.toThrow();
+});
+test("embedding conformance rejects a malformed later activation outcome", async () => {
+  await expect(knowledgeEmbeddingConformance(createMemoryEmbeddingFixture({ invalidLaterActivationResult: true }))).rejects.toThrow();
 });
 test("index work conformance covers replay-safe ACK and configuration-scoped current revisions", async () => {
   await knowledgeIndexWorkConformance(createMemoryIndexWorkFixture());

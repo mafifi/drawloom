@@ -1,5 +1,6 @@
 import { AssetSchema, ResourceReferenceSchema } from "@drawloom/host";
 import { z } from "zod";
+import { ContextPreparationSummarySchema } from "@drawloom/context";
 
 const nonEmptyId = z.string().min(1);
 const safeInteger = z.number().int().safe();
@@ -15,6 +16,7 @@ export const HistoryEntrySchema = z.strictObject({
   assets: z.array(AssetSchema),
   resources: z.array(ResourceReferenceSchema).optional(),
   selections: z.array(z.strictObject({ id: nonEmptyId, title: z.string(), source: nonEmptyId })).optional(),
+  preparation: ContextPreparationSummarySchema.optional(),
   operationId: nonEmptyId.optional(),
   state: z.enum(["partial", "complete", "interrupted"]),
 });

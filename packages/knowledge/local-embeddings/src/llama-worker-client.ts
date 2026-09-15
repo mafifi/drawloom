@@ -53,6 +53,27 @@ export class LlamaEmbeddingWorker implements EmbeddingWorker {
     }
   }
 
+  /** Initialize an already installed server; no text, tokenization or inference. */
+  async warmup(options: EmbedOptions = {}): Promise<void> {
+    if (this.#closed) throw new LocalEmbeddingsError("worker_closed", "Inference worker is closed");
+    if (this.#busy) throw new LocalEmbeddingsError("worker_busy", "One inference request is already running");
+    const timeout = options.timeoutMs ?? this.#options.requestTimeoutMs ?? 30_000;
+    if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 300_000) throw new LocalEmbeddingsError("invalid_request", "Invalid inference deadline");
+    options.signal?.throwIfAborted();
+    const operation = new AbortController(); this.#active = operation; this.#busy = true;
+    const cancel = () => operation.abort();
+    const timer = setTimeout(cancel, timeout);
+    options.signal?.addEventListener("abort", cancel, { once: true });
+    try {
+      const ready = await this.#abortable(this.#ready(), operation.signal);
+      if (!ready) throw new LocalEmbeddingsError("model_not_ready", "Installed model unavailable");
+      await this.#abortable(this.#retiring, operation.signal);
+      if (this.#closed) throw new LocalEmbeddingsError("worker_closed", "Inference worker is closed");
+      await this.#ensureStarted(ready, operation.signal);
+    } catch (error) { if (this.#child) await this.#retire(this.#child); throw error; }
+    finally { clearTimeout(timer); options.signal?.removeEventListener("abort", cancel); if (this.#active === operation) this.#active = undefined; this.#busy = false; }
+  }
+
   async embed(input: EmbedRequest, options: EmbedOptions = {}): Promise<readonly (readonly number[])[]> {
     if (this.#closed) throw new LocalEmbeddingsError("worker_closed", "Inference worker is closed");
     if (this.#busy) throw new LocalEmbeddingsError("worker_busy", "One inference request is already running");

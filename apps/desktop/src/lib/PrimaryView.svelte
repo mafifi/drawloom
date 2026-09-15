@@ -62,7 +62,7 @@
     <NavigationLanding presentation={landingPresentation} actions={landingActions} />
     {#if vm.primaryView === 'project'}<div class="primary-view-content preview"><ProjectActivitySummary presentation={activityPresentation} onopen={() => vm.primaryView = 'activity'} /></div>{/if}
   {:else if vm.primaryView === 'activity'}
-    <section class="primary-view-content preview"><p class="text-muted-foreground">Follow work in {vm.selectedProject?.name ?? 'your project'}.</p><WorkflowRuns projectId={vm.selectedProject?.id} /></section>
+    <section class="primary-view-content preview"><p class="text-muted-foreground">{vm.selectedProject ? `Follow project work in ${vm.selectedProject.name} and knowledge maintenance across all projects.` : 'Follow knowledge maintenance across all projects.'}</p><WorkflowRuns projectId={vm.selectedProject?.id} /></section>
   {:else if vm.primaryView === 'archived'}
     <ArchivedConversations presentation={archivePresentation} restore={async(id)=>{if(await vm.command({kind:'restore_conversation',conversationId:id}))toast.success('Conversation restored');}} />
   {:else}

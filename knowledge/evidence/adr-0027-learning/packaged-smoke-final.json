@@ -1,0 +1,12 @@
+{
+  "compiledHost": true,
+  "authenticatedPage": true,
+  "unauthenticatedDenied": true,
+  "knowledgeReady": true,
+  "captureDefaultOff": true,
+  "disclosureDefaultOff": true,
+  "independentPausedPresentation": true,
+  "installedModelReady": false,
+  "exitCode": 0,
+  "cleanup": "completed"
+}

@@ -4,4 +4,4 @@ export const EmbedRequestSchema = z.strictObject({ role: z.enum(["query", "docum
   .refine((value) => Buffer.byteLength(JSON.stringify(value)) <= 256 * 1024, "Embedding request exceeds its byte budget");
 export type EmbedRequest = z.output<typeof EmbedRequestSchema>;
 export interface EmbedOptions { readonly signal?: AbortSignal; readonly timeoutMs?: number; }
-export interface EmbeddingWorker { embed(input: EmbedRequest, options?: EmbedOptions): Promise<readonly (readonly number[])[]>; close(): Promise<void>; }
+export interface EmbeddingWorker { embed(input: EmbedRequest, options?: EmbedOptions): Promise<readonly (readonly number[])[]>; warmup?(options?: EmbedOptions): Promise<void>; close(): Promise<void>; }

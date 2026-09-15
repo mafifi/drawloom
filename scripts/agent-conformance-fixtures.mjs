@@ -11,15 +11,18 @@ import { defineTool } from "@drawloom/tools";
 /** @returns {import('@drawloom/agent/conformance').AgentConformanceFixture} */
 export function syntheticAgentFixture() {
   let context = "";
+  let reference = "";
   /** @type {(value:string)=>void} */ let finish = () => {};
   return {
     driver: createSyntheticDriver((_text, supplied) => {
+      reference = _text;
       context = supplied;
       return new Promise((resolve) => {
         finish = resolve;
       });
     }),
     contextText: () => context,
+    referenceText: () => reference,
     async complete() {
       finish("hello");
       await Promise.resolve();
@@ -35,6 +38,7 @@ export function codexAgentFixture() {
   let turns = 0;
   let context = "";
   let steering = "";
+  let reference = "";
   let interruptions = 0;
   let allowed = false;
   let effects = 0;
@@ -72,11 +76,12 @@ export function codexAgentFixture() {
         return { thread: { id: "private-thread" }, approvalsReviewer: 'user' };
       }
       if (method === "turn/start") {
+        reference = JSON.stringify(p.input);
         context += " " + JSON.stringify(p.additionalContext);
         turn = "private-turn-" + ++turns;
         return { turn: { id: turn } };
       }
-      if (method === "turn/steer") steering = JSON.stringify(p);
+      if (method === "turn/steer") { steering = JSON.stringify(p); reference = JSON.stringify(p.input); }
       if (method === "turn/interrupt") interruptions++;
       return {};
     },
@@ -128,6 +133,7 @@ export function codexAgentFixture() {
   return {
     driver,
     contextText: () => context,
+    referenceText: () => reference,
     async complete() {
       const params = { threadId: "private-thread", turnId: turn };
       receive({

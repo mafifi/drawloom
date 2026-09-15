@@ -15,6 +15,14 @@ const base = { runId: 'run-a', identity: 'request-a', workflow: 'sample', versio
 const markup = (run = {}, extra = {}) => render(WorkflowRun, { props: { run: { ...base, ...run }, title: 'Prepare documents', ...extra } }).body;
 
 describe('WorkflowRun controlled presentation', () => {
+  test('consumer status and step labels do not expose identities or change control eligibility', () => {
+    const run = { status: 'completed', steps: [{ stepId: 'record-secret', attempts: 1, status: 'completed' }], unresolvedEffects: ['effect-secret'] };
+    const html = markup(run, { statusLabel: 'Needs attention', stepLabel: () => 'Assess evidence', oncancel() {} });
+    expect(html).toContain('Needs attention'); expect(html).toContain('Assess evidence');
+    expect(html).not.toContain('record-secret'); expect(html).not.toContain('effect-secret');
+    expect(html).not.toContain('Cancel run'); expect(run.status).toBe('completed');
+    expect(markup()).toContain('Running');
+  });
   test('exports a real reusable component', () => { expect(WorkflowRun).toBeTypeOf('function'); });
   test('shows logical step names while retaining exact identity as a tooltip', () => {
     const html = markup({ steps: [{ stepId: 'run-a/prepare', attempts: 1, status: 'completed' }] });

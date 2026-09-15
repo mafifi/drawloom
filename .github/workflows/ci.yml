@@ -48,8 +48,43 @@ jobs:
             git diff --no-renames --name-only -z "$BEFORE" "$GITHUB_SHA" | bun scripts/publishing-scope.ts >> "$GITHUB_OUTPUT"
           fi
 
+  learning-integration:
+    name: Learning recovery (Temporal)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up pinned Bun version
+        uses: oven-sh/setup-bun@v2.2.0
+      - name: Set up knowledge runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.20.0'
+      - name: Install pinned dependencies
+        run: bun install --frozen-lockfile
+      - name: Install verified Temporal CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          install_dir="$RUNNER_TEMP/drawloom-temporal-cli"
+          mkdir -p "$install_dir"
+          cd "$install_dir"
+          curl --fail --location --retry 3 --output temporal.tar.gz https://github.com/temporalio/cli/releases/download/v1.3.0/temporal_cli_1.3.0_linux_amd64.tar.gz
+          echo 'ca03976fb948b7084f4075dab55afb65915713498577ea68b483a14e3dfcd74e  temporal.tar.gz' | sha256sum --check --strict
+          tar -xzf temporal.tar.gz temporal
+          ./temporal --version
+          echo "$install_dir" >> "$GITHUB_PATH"
+      - name: Build supported packages
+        run: bun run build:packages
+      - name: Verify real service recovery
+        # Each test owns an isolated service and closes it in finally.
+        run: bun run test:temporal
+      - name: Verify Nightloom service recovery
+        run: bun run test:temporal:learning
+
   publish:
-    needs: check
+    needs: [check, learning-integration]
     if: github.ref == 'refs/heads/main' && needs.check.outputs.publish == 'true'
     permissions:
       contents: read

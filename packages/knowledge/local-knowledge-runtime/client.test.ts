@@ -45,6 +45,20 @@ test("obsolete runtime cleanup sends the explicit consent command", async () => 
 
 test("saved MLX selection migrates narrowly while unknown model ids remain invalid", () => {
   const prior = { embeddingModel: "qwen3-embedding-0.6b-mlx", assessmentModel: "gpt-5.6-terra", assessmentTimeoutMs: 300000, maxAutomaticStartsPerDay: 6, maxAutomaticMillisecondsPerDay: 1800000 };
-  expect(parseStoredLocalKnowledgeConfiguration(prior)).toEqual({ ...prior, embeddingModel: "qwen3-embedding-0.6b-gguf" });
+  expect(parseStoredLocalKnowledgeConfiguration(prior)).toEqual({ ...prior, embeddingModel: "qwen3-embedding-0.6b-gguf", automaticContext: false, captureOutcomes: false, automaticCuration: false });
   expect(() => parseStoredLocalKnowledgeConfiguration({ ...prior, embeddingModel: "unknown" })).toThrow();
+});
+
+test("preparation validates bounds, excludes authority input and cancels late sidecar replies", async () => {
+  const calls: string[] = [];
+  let release!: () => void;
+  const rpc: RpcTransport = { async request(method) { calls.push(method); if (method === "knowledge.prepare") await new Promise<void>(r => { release = r; }); return { kind: "empty", references: [], bytes: 0 }; }, notify() {}, respond() {}, subscribe() { return () => {}; }, async close() {} };
+  const client = createLocalKnowledgeClient(rpc);
+  const controller = new AbortController();
+  const request = { request: "retained finding", binding: { executionId: "operation", conversationId: "fixed" }, budget: { maxRecords: 8, maxBytes: 12288 }, signal: controller.signal };
+  expect(() => client.prepare({ ...request, subject: { id: "forged" } } as never)).toThrow();
+  const pending = client.prepare(request); controller.abort();
+  expect(await pending).toEqual({ kind: "cancelled", references: [], bytes: 0 });
+  release();
+  expect(calls).toEqual(["knowledge.prepare", "knowledge.cancel-preparation"]);
 });

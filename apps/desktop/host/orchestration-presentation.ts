@@ -4,7 +4,7 @@ import { WorkflowCommandSchema, WorkflowPageSchema, WorkflowReadSchema, Workflow
 /** Only host-authored, content-free messages may pass the browser boundary. */
 export class WorkflowControlError extends Error {}
 
-function projectRun(run: RunSnapshot) {
+export function projectRun(run: RunSnapshot) {
   const { output: _output, failure: _failure, ...summary } = run;
   return WorkflowRunSchema.parse({ ...summary, steps: run.steps.map(({ result: _result, ...step }) => step) });
 }

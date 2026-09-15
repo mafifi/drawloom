@@ -5,18 +5,25 @@ import {mkdtempSync, mkdirSync, writeFileSync, renameSync, rmSync} from 'node:fs
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {LOCAL_TEMPORAL_NODE_VERSION} from '../packages/orchestration/temporal-orchestration/src/runtime-version.js';
 
 test('publication is callable only after the same-commit CI dependency succeeds', () => {
   const ci = parse(readFileSync('.github/workflows/ci.yml', 'utf8'));
   const publication = parse(readFileSync('.github/workflows/publishing.yml', 'utf8'));
   expect(Object.keys(publication.on)).toEqual(['workflow_call']);
-  expect(ci.jobs.publish.needs).toBe('check');
+  expect(ci.jobs.publish.needs).toEqual(['check', 'learning-integration']);
   expect(ci.jobs.publish.uses).toBe('./.github/workflows/publishing.yml');
   expect(ci.jobs.publish.if).toContain("github.ref == 'refs/heads/main'");
   expect(ci.jobs.publish.if).toContain("needs.check.outputs.publish == 'true'");
   expect(ci.jobs.check.outputs.publish).toBe('${{ steps.publication.outputs.publish }}');
   const ciRuns = ci.jobs.check.steps.map((step: {run?: string}) => step.run).filter(Boolean);
   expect(ciRuns.filter((run: string) => run === 'bun run check:ci')).toHaveLength(1);
+  const learningRuns = ci.jobs['learning-integration'].steps.map((step: {run?: string}) => step.run).filter(Boolean);
+  const learningNode = ci.jobs['learning-integration'].steps.find((step: {uses?: string}) => step.uses?.startsWith('actions/setup-node'));
+  expect(learningNode.with['node-version']).toBe(LOCAL_TEMPORAL_NODE_VERSION);
+  expect(learningRuns).toContain('bun run test:temporal');
+  expect(learningRuns).toContain('bun run test:temporal:learning');
+  expect(learningRuns.some((run: string) => /check:ci|journal:build|journal:render/.test(run))).toBe(false);
   const publishRuns = publication.jobs.build.steps.map((step: {run?: string}) => step.run).filter(Boolean);
   expect(publishRuns).not.toContain('bun run check:ci');
   expect(publishRuns).toContain('bun run journal:render:article');

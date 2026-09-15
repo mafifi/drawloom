@@ -22,6 +22,7 @@ updated: 2026-09-13
 ## Evidence and computations
 
 - [Permissive runtime replacement evidence](evidence/adr-0026-gguf.md)
+- [Learning journey implementation checks](evidence/adr-0027-learning-journey.md)
 
 - [Supported evaluation implementation](evidence/adr-0025-supported-evaluation.md)
 

@@ -24,6 +24,13 @@ test("the Node runtime owns one global lexical store and reports missing model p
       confidence: { value: "observed" }, provenance: { producer: { type: "test", id: "fixture" }, inputs: [] },
     }, links: [] });
     assert.equal(accepted.kind, "accepted");
+    assert.deepEqual(await runtime.warmup(), { kind: "unavailable" });
+    const preparation = { request: "knowledge", binding: { executionId: "execution", conversationId: "fixed-conversation" }, budget: { maxRecords: 8, maxBytes: 12288 }, signal: new AbortController().signal };
+    assert.equal((await runtime.prepare(preparation)).kind, "unavailable");
+    await runtime.configure({ ...initial.configuration, automaticContext: true });
+    const prepared = await runtime.prepare(preparation);
+    assert.equal(prepared.kind, "ready");
+    if (prepared.kind === "ready") { assert.equal(prepared.references[0]?.ref.id, "guide"); assert.match(prepared.text, /Local knowledge text path/); }
     const found = await runtime.search({ query: "knowledge", mode: "best_available", limit: 10, maxBytes: 65_536 });
     assert.equal(found.kind, "ok");
     if (found.kind === "ok") {
@@ -43,6 +50,11 @@ test("the managed RPC process keeps SQLite and trusted identity outside the Bun 
       confidence: { value: "observed" }, provenance: { producer: { type: "test", id: "fixture" }, inputs: [] },
     }, links: [] });
     assert.equal(accepted.kind, "accepted");
+    const initial = await client.status();
+    await client.configure({ ...initial.configuration, automaticContext: true });
+    const prepared = await client.prepare({ request: "boundary", binding: { executionId: "sidecar-operation", conversationId: "fixed" }, budget: { maxRecords: 8, maxBytes: 12288 }, signal: new AbortController().signal });
+    assert.equal(prepared.kind, "ready");
+    if (prepared.kind === "ready") assert.equal(prepared.references[0]?.ref.origin, "managed-test");
     const found = await client.search({ query: "boundary", mode: "best_available", limit: 5, maxBytes: 16_384 });
     assert.equal(found.kind, "ok");
     if (found.kind === "ok") assert.equal(found.items[0]?.record.ref.origin, "managed-test");

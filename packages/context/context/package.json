@@ -15,6 +15,11 @@
       "bun": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./conformance": {
+      "bun": "./src/conformance.ts",
+      "types": "./dist/conformance.d.ts",
+      "import": "./dist/conformance.js"
     }
   },
   "drawloom": {
@@ -22,6 +27,7 @@
     "runtime": "portable"
   },
   "dependencies": {
+    "@drawloom/knowledge": "workspace:*",
     "zod": "catalog:"
   }
 }

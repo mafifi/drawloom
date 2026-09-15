@@ -1,8 +1,16 @@
 import { z } from "zod";
-import { CompiledContextSchema } from "@drawloom/context";
+import { CompiledContextSchema, ContextReferenceMaterialSchema, ContextPreparationSummarySchema } from "@drawloom/context";
 import { ToolExposureSchema, type ToolContent } from "@drawloom/tools";
 import { AssetSchema } from "@drawloom/host";
 import type { ConversationHistoryReader } from '@drawloom/conversation-history';
+
+const AbortSignalSchema = z.custom<AbortSignal>((value) => {
+  if (!value || typeof value !== "object") return false;
+  const signal = value as Partial<AbortSignal>;
+  return typeof signal.aborted === "boolean" &&
+    typeof signal.addEventListener === "function" &&
+    typeof signal.removeEventListener === "function";
+}, "Expected an AbortSignal");
 const id = z.string().min(1);
 export const DiscoveryKindSchema = z.enum(['skill', 'app', 'plugin', 'tool', 'resource', 'integration']);
 export const DiscoverySelectionSchema = z.strictObject({ id, revision: id });
@@ -55,6 +63,16 @@ export const AgentOperationInputSchema = z.strictObject({
   selections: z.array(DiscoverySelectionSchema).max(32).optional(),
   attachments: z.array(AssetSchema).max(16).optional(),
   additionalContext: CompiledContextSchema.optional(),
+  /** User reference content, never application/developer instructions. Framing is not isolation. */
+  references: ContextReferenceMaterialSchema.optional(),
+  /** Host-owned revocation of automatic references only. Check after awaited
+   * preparation/persistence and immediately before delivery; still send original
+   * text/manual context and report cancelled preparation without a receipt. */
+  referenceSignal: AbortSignalSchema.optional(),
+  /** Exact submitted words for durable display correlation, not model instructions. */
+  originalDisplayText: z.string().optional(),
+  displayId: z.string().uuid().optional(),
+  preparation: ContextPreparationSummarySchema.optional(),
   /** Omission retains human review. Providers reject unsupported selections. */
   reviewer: AgentReviewerSchema.optional(),
   /** Explicit next-turn selection; unsupported providers reject before dispatch. */
@@ -137,6 +155,8 @@ export const AgentSessionSignalSchema = z.discriminatedUnion("kind", [
     messageId: id,
     role: z.enum(['user', 'assistant']).optional(),
     assets: z.array(AssetSchema).optional(),
+    preparation: ContextPreparationSummarySchema.optional(),
+    displayId: z.string().uuid().optional(),
     phase: z.enum(["commentary", "final"]).optional(),
     text: z.string(),
   }),

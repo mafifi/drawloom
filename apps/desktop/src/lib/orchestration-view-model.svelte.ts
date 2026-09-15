@@ -1,9 +1,13 @@
 import { WorkflowOwnersSchema, WorkflowPageSchema, WorkflowRunSchema, WorkflowCommandSchema, WorkflowStepsSchema, type WorkflowOwner, type WorkflowRun } from './orchestration-protocol.js';
 import { telemetryFetch as fetch } from './telemetry.js';
+import { KnowledgeActivityOwnerSchema, KnowledgeActivityPageSchema, type KnowledgeActivityOwner, type KnowledgeActivityRun } from './orchestration-protocol.js';
 
 export function createOrchestrationViewModel() {
   let projectId = $state(''), installationId = $state('');
-  let owners = $state<WorkflowOwner[]>([]), runs = $state<WorkflowRun[]>([]);
+  let owners = $state<WorkflowOwner[]>([]), runs = $state<Array<WorkflowRun | KnowledgeActivityRun>>([]);
+  let knowledgeOwner = $state<KnowledgeActivityOwner>(), knowledgeSelected = $state(false);
+  let knowledgeOwnerLoading = $state(false);
+  let ownersLoading = $state(false);
   let summaryRuns = $state<Array<{ installationId:string; ownerTitle:string; run:WorkflowRun }>>([]);
   let error = $state(''), loading = $state(false), cursor = $state<string>();
   let loadingAction = $state<'refresh' | 'more' | 'latest' | 'owner' | 'owners'>();
@@ -13,8 +17,11 @@ export function createOrchestrationViewModel() {
   let stepAction = $state<{ runId: string; kind: 'first' | 'more' | 'refresh' }>();
   let pendingAction = $state<{ action: 'cancel' | 'respond'; runId: string; requestId?: string }>();
   let epoch = 0, read = new AbortController();
-  const params = () => new URLSearchParams({ projectId, installationId, limit: '20' });
+  let discoveryEpoch = 0, discoveryRead = new AbortController();
+  const params = () => new URLSearchParams(knowledgeSelected ? { limit: '20' } : { projectId, installationId, limit: '20' });
+  const route = (path: string) => (knowledgeSelected ? '/api/knowledge-activity/' : '/api/orchestration/') + path;
   function invalidate() { epoch++; read.abort(); read = new AbortController(); loading = false; loadingAction = undefined; stepLoading = false; stepAction = undefined; stepPage = undefined; pendingAction = undefined; error = ''; }
+  function invalidateDiscovery() { discoveryEpoch++; discoveryRead.abort(); discoveryRead = new AbortController(); ownersLoading = false; knowledgeOwnerLoading = false; }
   async function body(response: Response) {
     if (!response.ok) {
       const value: unknown = await response.json().catch(() => undefined);
@@ -28,19 +35,20 @@ export function createOrchestrationViewModel() {
     if (requestedCursor) query.set('cursor', requestedCursor);
     stepLoading = true; stepAction = { runId, kind };
     try {
-      const page = WorkflowStepsSchema.parse(await body(await fetch('/api/orchestration/steps?' + query, { signal: read.signal })));
+      const page = WorkflowStepsSchema.parse(await body(await fetch(route('steps') + '?' + query, { signal: read.signal })));
       if (version === epoch) stepPage = { runId, ...page, pageCursor: requestedCursor };
     } catch (cause) { if (version === epoch) error = cause instanceof Error ? cause.message : 'Workflow steps unavailable'; }
     finally { if (version === epoch) { stepLoading = false; stepAction = undefined; } }
   }
   async function refresh(more = false, action: 'refresh' | 'latest' | 'owner' = 'refresh') {
-    if (!projectId || !installationId || loading || stepLoading || pendingAction) return;
+    if ((!knowledgeSelected && (!projectId || !installationId)) || loading || stepLoading || pendingAction) return;
     const version = epoch, query = params();
     const requestedCursor = more ? cursor : pageCursor;
     if (requestedCursor) query.set('cursor', requestedCursor);
     loading = true; loadingAction = more ? 'more' : action; error = '';
     try {
-      const page = WorkflowPageSchema.parse(await body(await fetch('/api/orchestration/runs?' + query, { signal: read.signal })));
+      const schema = knowledgeSelected ? KnowledgeActivityPageSchema : WorkflowPageSchema;
+      const page = schema.parse(await body(await fetch(route('runs') + '?' + query, { signal: read.signal })));
       if (version !== epoch) return;
       // One bounded page, not an ever-growing list of every historical run.
       runs = page.runs; cursor = page.cursor; pageCursor = requestedCursor;
@@ -50,7 +58,7 @@ export function createOrchestrationViewModel() {
     finally { if (version === epoch) { loading = false; loadingAction = undefined; } }
   }
   async function action(kind: 'cancel' | 'respond', runId: string, requestId?: string, raw?: string) {
-    if (pendingAction) return;
+    if (knowledgeSelected || pendingAction) return;
     const current = runs.find(item => item.runId === runId);
     if (!current || current.status !== 'running' || current.cancellationRequested) return;
     let version = epoch;
@@ -75,11 +83,13 @@ export function createOrchestrationViewModel() {
     } catch (cause) { if (version === epoch) error = cause instanceof SyntaxError ? 'Enter valid JSON for this input request.' : cause instanceof Error ? cause.message : 'Workflow action unavailable'; }
     finally { if (version === epoch) pendingAction = undefined; }
   }
-  return {
+  const vm = {
+    get knowledgeOwner() { return knowledgeOwner; }, get knowledgeSelected() { return knowledgeSelected; },
+    get knowledgeOwnerLoading() { return knowledgeOwnerLoading; },
     get projectId() { return projectId; }, get installationId() { return installationId; },
     get owners() { return owners; }, get runs() { return runs; }, get summaryRuns() { return summaryRuns; }, get error() { return error; },
-    get loading() { return loading; }, get cursor() { return cursor; }, get pendingAction() { return pendingAction; },
-    get loadingAction() { return loadingAction; },
+    get loading() { return loading || ownersLoading; }, get cursor() { return cursor; }, get pendingAction() { return pendingAction; },
+    get loadingAction() { return loadingAction ?? (ownersLoading ? 'owners' as const : undefined); },
     get isFirstPage() { return pageCursor === undefined; },
     get stepPage() { return stepPage; }, get stepLoading() { return stepLoading; }, get stepAction() { return stepAction; },
     async browseSteps(runId: string, more = false) {
@@ -88,17 +98,32 @@ export function createOrchestrationViewModel() {
       error = ''; await readSteps(runId, more ? stepPage?.cursor : undefined, more ? 'more' : 'first');
     },
     async open(id: string) {
-      invalidate(); projectId = id; installationId = ''; owners = []; runs = []; cursor = undefined; pageCursor = undefined;
+      invalidate(); invalidateDiscovery(); knowledgeOwner = undefined; knowledgeSelected = false; projectId = id; installationId = ''; owners = []; runs = []; cursor = undefined; pageCursor = undefined;
       if (!id) return;
-      const version = epoch; loading = true; loadingAction = 'owners';
+      const version = discoveryEpoch; ownersLoading = true;
       try {
-        const available = WorkflowOwnersSchema.parse(await body(await fetch('/api/orchestration/owners?' + new URLSearchParams({ projectId: id }), { signal: read.signal })));
-        if (version === epoch) owners = available;
-      } catch (cause) { if (version === epoch) error = cause instanceof Error ? cause.message : 'Orchestration unavailable'; }
-      finally { if (version === epoch) { loading = false; loadingAction = undefined; } }
+        const available = WorkflowOwnersSchema.parse(await body(await fetch('/api/orchestration/owners?' + new URLSearchParams({ projectId: id }), { signal: discoveryRead.signal })));
+        if (version === discoveryEpoch) owners = available;
+      } catch (cause) { if (version === discoveryEpoch) error = cause instanceof Error ? cause.message : 'Orchestration unavailable'; }
+      finally { if (version === discoveryEpoch) ownersLoading = false; }
+    },
+    async openActivity(id: string) {
+      const opening = vm.open(id), version = discoveryEpoch;
+      knowledgeOwnerLoading = true;
+      try {
+        const owner = KnowledgeActivityOwnerSchema.parse(await body(await fetch('/api/knowledge-activity/owner?', { signal: discoveryRead.signal })));
+        if (version === discoveryEpoch) knowledgeOwner = owner;
+      } catch { if (version === discoveryEpoch) error = 'Knowledge maintenance activity is unavailable. Refresh Activity to check its status.'; }
+      finally { if (version === discoveryEpoch) knowledgeOwnerLoading = false; }
+      await opening;
+    },
+    async selectKnowledge() {
+      if (!knowledgeOwner) return;
+      invalidate(); knowledgeSelected = true; installationId = ''; runs = []; cursor = undefined; pageCursor = undefined;
+      await refresh(false, 'owner');
     },
     async openSummary(id:string) {
-      invalidate(); projectId=id; installationId=''; owners=[]; runs=[]; summaryRuns=[];
+      invalidate(); invalidateDiscovery(); projectId=id; installationId=''; owners=[]; runs=[]; summaryRuns=[];
       if(!id)return;
       const version=epoch; loading=true; loadingAction='owners';
       try {
@@ -111,13 +136,14 @@ export function createOrchestrationViewModel() {
     },
     async selectOwner(id: string) {
       if (!owners.some(owner => owner.installationId === id)) return;
-      invalidate(); installationId = id; runs = []; cursor = undefined; pageCursor = undefined; await refresh(false, 'owner');
+      invalidate(); knowledgeSelected = false; installationId = id; runs = []; cursor = undefined; pageCursor = undefined; await refresh(false, 'owner');
     },
     refresh: () => refresh(), more: () => refresh(true),
     latest() { if (loading || pendingAction) return; pageCursor = undefined; return refresh(false, 'latest'); },
     cancel: (runId: string) => action('cancel', runId),
     respond: (runId: string, requestId: string, raw: string) => action('respond', runId, requestId, raw),
-    close() { invalidate(); projectId = ''; installationId = ''; owners = []; runs = []; summaryRuns=[]; cursor = undefined; pageCursor = undefined; },
+    close() { invalidate(); invalidateDiscovery(); knowledgeOwner = undefined; knowledgeSelected = false; projectId = ''; installationId = ''; owners = []; runs = []; summaryRuns=[]; cursor = undefined; pageCursor = undefined; },
   };
+  return vm;
 }
 export type OrchestrationViewModel = ReturnType<typeof createOrchestrationViewModel>;

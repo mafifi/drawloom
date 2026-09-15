@@ -1,0 +1,24 @@
+{
+  "status": "passed",
+  "answering": "not tested; assessor and native transport scripted",
+  "retrieval": "real managed SQLite lexical fallback",
+  "observations": {
+    "irrelevantReferencesDelivered": false,
+    "irrelevantPreparationKind": "empty"
+  },
+  "results": [
+    "participating tool -> real capture -> Temporal curation -> fresh native input",
+    "installed public Git source -> same curation/storage -> fresh native input",
+    "configured source failure persists across unrelated configuration and clears after confirmed source recovery",
+    "oversized contrary record remains reference-only on actual steering input; dispute graph available",
+    "hostile body stays reference content; actual denied MCP invocation cannot execute or echo its marker",
+    "denied tool grant suppresses all reference metadata/body; unrelated-query input observed without claiming answer quality",
+    "source revision marks claim stale in native input; withdrawn source body is absent",
+    "restart without display cache reconstructs original text; unknown native marker preserved; capture stored once",
+    "global local-owner recall preserves conversation project cwd after selection change",
+    "uncertain assessment is visible after explicit reconciliation without another assessment submission",
+    "disable during actual curation stops foreground additions without rewriting earlier native inputs"
+  ],
+  "cleanup": "completed",
+  "totalIncludingSetupAndCleanupMs": 8802
+}

@@ -128,7 +128,16 @@
       "name": "@drawloom/context",
       "version": "0.0.0",
       "dependencies": {
+        "@drawloom/knowledge": "workspace:*",
         "zod": "catalog:",
+      },
+    },
+    "packages/context/knowledge-context": {
+      "name": "@drawloom/knowledge-context",
+      "version": "0.0.0",
+      "dependencies": {
+        "@drawloom/context": "workspace:*",
+        "@drawloom/knowledge": "workspace:*",
       },
     },
     "packages/desktop/desktop-host": {
@@ -800,6 +809,8 @@
     "@drawloom/host": ["@drawloom/host@workspace:packages/host/host"],
 
     "@drawloom/knowledge": ["@drawloom/knowledge@workspace:packages/knowledge/knowledge"],
+
+    "@drawloom/knowledge-context": ["@drawloom/knowledge-context@workspace:packages/context/knowledge-context"],
 
     "@drawloom/knowledge-evaluation": ["@drawloom/knowledge-evaluation@workspace:packages/examples/knowledge-evaluation"],
 

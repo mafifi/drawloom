@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createManagedLocalKnowledgeClient } from "@drawloom/local-knowledge-runtime";
@@ -14,6 +14,164 @@ import {
 import { createNightloomTaskHandlers, type NightloomAssessmentReceipt } from "@drawloom/nightloom";
 import type { TaskContext } from "@drawloom/orchestration";
 import { createDesktopApplication } from "./application.js";
+import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION } from "@drawloom/local-knowledge-runtime";
+
+test("restore completes eligible failed intake without opening a synthetic execution", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-outcome-recovery-"));
+  const data = join(root, "data");
+  let denied = true;
+  const open = () => {
+    const client = createManagedLocalKnowledgeClient({ root: join(data, "knowledge"), workingDirectory: root });
+    return createDesktopApplication(data, { knowledge: { service: { ...client, ingest: input => denied ? Promise.resolve({ kind: "denied" as const }) : client.ingest(input) } } });
+  };
+  let app = await open();
+  try {
+    const directory = join(root, "project"); await mkdir(directory);
+    await app.command({ kind: "add_project", directory });
+    await app.command({ kind: "create_conversation", workbenchId: "text", provider: "synthetic" });
+    const id = (await app.snapshot()).selectedId!;
+    await app.knowledgeCommand({ action: "configure", configuration: { ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, captureOutcomes: true } });
+    await app.command({ kind: "operator", conversationId: id, workbenchId: "text", command: { kind: "set_tool_grant", toolName: "text.word_count", allowed: true } });
+    await app.command({ kind: "send", conversationId: id, text: "one two", attachmentKeys: [], contextArtifactIds: [] });
+    expect(await app.knowledgeCommand({ action: "status" })).toMatchObject({
+      capture: { state: "pending", pendingObservations: 1 },
+    });
+    await app.close(); denied = false; app = await open();
+    await app.restore();
+    const found = await app.knowledgeCommand({ action: "search", request: { query: "counted", mode: "lexical", limit: 10, maxBytes: 4096 } });
+    expect(JSON.stringify(found)).toContain("counted 2 words");
+    expect(found).toMatchObject({ kind: "ok", items: [{ record: { body: "The text inspection counted 2 words." } }] });
+    expect(await app.knowledgeCommand({ action: "status" })).toMatchObject({
+      capture: { state: "idle", pendingObservations: 0 },
+    });
+    const snapshot = await app.snapshot();
+    expect(snapshot.activity).toHaveLength(1);
+    expect(snapshot.activeOperation).toBeUndefined();
+  } finally { await app.close(); await rm(root, { recursive: true, force: true }); }
+}, 30_000);
+
+test("recovering one conversation keeps another conversation's learning warning pending", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-outcome-recovery-two-"));
+  const data = join(root, "data");
+  const recoverable = new Set<string>();
+  const open = () => {
+    const client = createManagedLocalKnowledgeClient({ root: join(data, "knowledge"), workingDirectory: root });
+    return createDesktopApplication(data, { knowledge: { service: { ...client, ingest: input => {
+      const confidence = "record" in input ? input.record.confidence : undefined;
+      const conversationId = confidence && typeof confidence === "object" && !Array.isArray(confidence) && typeof confidence.conversationId === "string"
+        ? confidence.conversationId
+        : undefined;
+      return conversationId && recoverable.has(conversationId)
+        ? client.ingest(input)
+        : Promise.resolve({ kind: "denied" as const });
+    } } } });
+  };
+  let app = await open();
+  try {
+    await app.knowledgeCommand({ action: "configure", configuration: { ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, captureOutcomes: true } });
+    const conversations: string[] = [];
+    for (const name of ["first", "second"]) {
+      const directory = join(root, name); await mkdir(directory);
+      await app.command({ kind: "add_project", directory, name });
+      await app.command({ kind: "create_conversation", workbenchId: "text", provider: "synthetic" });
+      const id = (await app.snapshot()).selectedId!; conversations.push(id);
+      await app.command({ kind: "operator", conversationId: id, workbenchId: "text", command: { kind: "set_tool_grant", toolName: "text.word_count", allowed: true } });
+      await app.command({ kind: "send", conversationId: id, text: `${name} words`, attachmentKeys: [], contextArtifactIds: [] });
+    }
+    expect(await app.knowledgeCommand({ action: "status" })).toMatchObject({
+      capture: { state: "pending", pendingObservations: 2 },
+    });
+
+    await app.close(); recoverable.add(conversations[0]!); app = await open(); await app.restore();
+    expect(await app.knowledgeCommand({ action: "status" })).toMatchObject({
+      capture: { state: "pending", pendingObservations: 1 },
+    });
+
+    recoverable.add(conversations[1]!); await app.restore();
+    expect(await app.knowledgeCommand({ action: "status" })).toMatchObject({
+      capture: { state: "idle", pendingObservations: 0 },
+    });
+    const found = await app.knowledgeCommand({ action: "search", request: { query: "counted", mode: "lexical", limit: 10, maxBytes: 4096 } });
+    expect(found).toMatchObject({ kind: "ok", items: [{}, {}] });
+    for (const conversationId of conversations) {
+      await app.command({ kind: "select_conversation", conversationId });
+      expect((await app.snapshot()).activity).toHaveLength(1);
+    }
+  } finally { await app.close(); await rm(root, { recursive: true, force: true }); }
+}, 30_000);
+
+test("an unreadable capture queue keeps the aggregate pending count unknown", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-outcome-recovery-unknown-"));
+  const data = join(root, "data");
+  let denied = true;
+  const open = () => {
+    const client = createManagedLocalKnowledgeClient({ root: join(data, "knowledge"), workingDirectory: root });
+    return createDesktopApplication(data, { knowledge: { service: { ...client, ingest: input => denied ? Promise.resolve({ kind: "denied" as const }) : client.ingest(input) } } });
+  };
+  const firstDirectory = join(root, "first");
+  const unavailableDirectory = join(root, "first-unavailable");
+  let app = await open();
+  try {
+    await app.knowledgeCommand({ action: "configure", configuration: { ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, captureOutcomes: true } });
+    const conversations: string[] = [];
+    for (const [name, sends] of [["first", 2], ["second", 1]] as const) {
+      const directory = join(root, name); await mkdir(directory);
+      await app.command({ kind: "add_project", directory, name });
+      await app.command({ kind: "create_conversation", workbenchId: "text", provider: "synthetic" });
+      const id = (await app.snapshot()).selectedId!; conversations.push(id);
+      await app.command({ kind: "operator", conversationId: id, workbenchId: "text", command: { kind: "set_tool_grant", toolName: "text.word_count", allowed: true } });
+      for (let index = 0; index < sends; index++) {
+        await app.command({ kind: "send", conversationId: id, text: `${name} words ${index}`, attachmentKeys: [], contextArtifactIds: [] });
+      }
+    }
+    expect(await app.knowledgeCommand({ action: "status" })).toMatchObject({
+      capture: { state: "pending", pendingObservations: 3 },
+    });
+
+    await app.close(); await rename(firstDirectory, unavailableDirectory); app = await open(); await app.restore();
+    const pending = await app.knowledgeCommand({ action: "status" });
+    expect(pending).toMatchObject({ capture: { state: "pending", pendingObservations: null } });
+    expect((pending as { capture: { message: string } }).capture.message).toContain("Tool observations are waiting");
+
+    await app.close(); await rename(unavailableDirectory, firstDirectory); denied = false; app = await open(); await app.restore();
+    expect(await app.knowledgeCommand({ action: "status" })).toMatchObject({
+      capture: { state: "idle", pendingObservations: 0 },
+    });
+    const found = await app.knowledgeCommand({ action: "search", request: { query: "counted", mode: "lexical", limit: 10, maxBytes: 4096 } });
+    expect(found).toMatchObject({ kind: "ok", items: [{}, {}, {}] });
+    for (const [conversationId, activities] of [[conversations[0]!, 2], [conversations[1]!, 1]] as const) {
+      await app.command({ kind: "select_conversation", conversationId });
+      expect((await app.snapshot()).activity).toHaveLength(activities);
+    }
+  } finally {
+    await app.close();
+    await rename(unavailableDirectory, firstDirectory).catch(() => undefined);
+    await rm(root, { recursive: true, force: true });
+  }
+}, 30_000);
+
+test("enabled product word count captures selected counts without retaining supplied text", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-outcome-product-"));
+  const data = join(root, "data");
+  const app = await createDesktopApplication(data, { knowledge: { service: createManagedLocalKnowledgeClient({ root: join(data, "knowledge"), workingDirectory: root }) } });
+  try {
+    await app.knowledgeCommand({ action: "configure", configuration: { ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, captureOutcomes: true } });
+    const directory = join(root, "project"); await mkdir(directory);
+    await app.command({ kind: "add_project", directory });
+    await app.command({ kind: "create_conversation", workbenchId: "text", provider: "synthetic" });
+    const id = (await app.snapshot()).selectedId!;
+    await app.command({ kind: "operator", conversationId: id, workbenchId: "text", command: { kind: "set_tool_grant", toolName: "text.word_count", allowed: true } });
+    await app.command({ kind: "send", conversationId: id, text: "PRIVATE WORDS HERE", attachmentKeys: [], contextArtifactIds: [] });
+    let found: unknown;
+    for (let i = 0; i < 100; i++) {
+      found = await app.knowledgeCommand({ action: "search", request: { query: "counted", mode: "lexical", limit: 10, maxBytes: 4096 } });
+      if (JSON.stringify(found).includes("counted 3 words")) break;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    expect(JSON.stringify(found)).toContain("counted 3 words");
+    expect(JSON.stringify(found)).not.toContain("PRIVATE WORDS HERE");
+  } finally { await app.close(); await rm(root, { recursive: true, force: true }); }
+}, 30_000);
 
 test("two project conversations capture into the real shared SQLite service and remain readable after host restart", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-knowledge-two-projects-"));

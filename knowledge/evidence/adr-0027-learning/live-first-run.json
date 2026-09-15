@@ -1,0 +1,36 @@
+{
+  "date": "2026-09-15",
+  "status": "stopped-before-curation-completed",
+  "model": "gpt-5.6-terra",
+  "effort": "low",
+  "allowance": { "maximumAttempts": 12, "maximumElapsedMilliseconds": 600000, "usedAttempts": 2, "firstSubmissionAt": 1789459196404 },
+  "data": "Public synthetic fixtures only",
+  "foreground": {
+    "query": "Use text.word_count to count these words: copper lantern seven",
+    "answer": "3",
+    "retainedObservation": "The text inspection counted 3 words.",
+    "scenarioMilliseconds": 9659,
+    "nativeTurnMilliseconds": 8959,
+    "reportedUsage": { "totalTokens": 49879, "inputTokens": 49743, "cachedInputTokens": 32256, "outputTokens": 136, "reasoningOutputTokens": 15 }
+  },
+  "assessment": {
+    "accepted": true,
+    "receiptOutcomeBeforeCleanup": "running",
+    "workflowOutcome": "deferred",
+    "desktopPresentation": "uncertain",
+    "runnerError": "Curation uncertain",
+    "terminalOutcome": "interrupted-by-test-cleanup",
+    "nativeTurnMilliseconds": 156,
+    "usage": "unknown"
+  },
+  "cleanup": { "liveConversationsArchived": 2, "unresolvedLiveAttempts": 0, "separateZeroTurnPreflightIdentity": "retained-uncertain" },
+  "unexpectedApprovalsGranted": 0,
+  "retries": 0,
+  "limitations": [
+    "No curated claim or fresh-conversation usefulness was verified.",
+    "All later hostile, contrary, stale, irrelevant and comparison scenarios were untested.",
+    "Fixture-native capabilities were restricted; this is not a product-default isolation claim.",
+    "Token counters are provider observations, not a monetary cost calculation.",
+    "This is a selected public summary; raw receipts remain retained in the local ignored test ledger."
+  ]
+}

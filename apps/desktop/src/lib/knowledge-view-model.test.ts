@@ -7,6 +7,69 @@ Bun.plugin({ name: 'knowledge-view-model-tests', setup(build) {
 } });
 const { createKnowledgeViewModel } = await import('./knowledge-view-model.svelte.js');
 
+test('learning is off until explicitly saved; refresh preserves an unsaved choice', async () => {
+  const commands: unknown[] = [];
+  const vm = createKnowledgeViewModel({ send: async command => {
+    commands.push(command);
+    return command.action === 'configure' ? { ...status(), configuration: command.configuration } : status();
+  } });
+  await vm.open();
+  expect(vm.presentation.learning).toEqual({ captureOutcomes: false, automaticContext: false, automaticCuration: false, dirty: false });
+  vm.actions.setLearning('automaticContext', true);
+  await vm.actions.refresh();
+  expect(vm.presentation.learning.automaticContext).toBe(true);
+  expect(commands).toEqual([{ action: 'status' }, { action: 'status' }]);
+  await vm.actions.saveLearning();
+  expect(vm.presentation.configuration?.automaticContext).toBe(true);
+  expect(vm.presentation.configuration?.captureOutcomes).toBe(false);
+  expect(vm.presentation.learning.dirty).toBe(false);
+});
+
+test('failed learning save retains draft and authoritative settings; pending save rejects duplicates', async () => {
+  let rejectSave!: (cause: Error) => void;
+  let saves = 0;
+  const vm = createKnowledgeViewModel({ send: async command => {
+    if (command.action === 'status') return status();
+    saves++;
+    return new Promise((_resolve, reject) => { rejectSave = reject; });
+  } });
+  await vm.open(); vm.actions.setLearning('captureOutcomes', true);
+  const saving = vm.actions.saveLearning();
+  await vm.actions.saveLearning();
+  vm.actions.setLearning('automaticContext', true);
+  rejectSave(Error('Could not save settings')); await saving;
+  expect(saves).toBe(1);
+  expect(vm.presentation.configuration?.captureOutcomes).toBe(false);
+  expect(vm.presentation.learning.captureOutcomes).toBe(true);
+  expect(vm.presentation.learning.automaticContext).toBe(false);
+  expect(vm.presentation.error).toBe('Could not save settings');
+});
+
+test('automatic curation requires a successful save, reloads durably and disables independently', async () => {
+  let saved = status();
+  let fail = true;
+  let saves = 0;
+  const send = async (command: import('./knowledge-protocol.js').KnowledgeCommand) => {
+    if (command.action === 'configure') { saves++; if (fail) throw Error('Save failed'); saved = { ...saved, configuration: command.configuration }; }
+    return saved;
+  };
+  const vm = createKnowledgeViewModel({ send });
+  await vm.open();
+  vm.actions.setLearning('automaticCuration', true);
+  expect(vm.presentation.configuration?.automaticCuration).toBe(false);
+  expect(saves).toBe(0);
+  await vm.actions.saveLearning();
+  expect(vm.presentation.configuration?.automaticCuration).toBe(false);
+  expect(vm.presentation.learning.automaticCuration).toBe(true);
+  expect(vm.presentation.error).toBe('Save failed');
+  fail = false; await vm.actions.saveLearning();
+  expect(vm.presentation.configuration?.automaticCuration).toBe(true);
+  const reopened = createKnowledgeViewModel({ send }); await reopened.open();
+  expect(reopened.presentation.learning.automaticCuration).toBe(true);
+  reopened.actions.setLearning('automaticCuration', false); await reopened.actions.saveLearning();
+  expect(reopened.presentation.configuration).toMatchObject({ automaticCuration: false, captureOutcomes: false, automaticContext: false });
+});
+
 test('cleanup refusal stays visible without a success acknowledgement', async () => {
   const vm = createKnowledgeViewModel({ send: async () => { throw Error('provider refused'); } });
   await vm.actions.cleanupObsolete();
@@ -50,6 +113,16 @@ test('evidence denial clears previous material and commands contain no browser s
   expect(commands.every(value => !JSON.stringify(value).includes('subject'))).toBe(true);
 });
 
+test('closing an evidence scope clears its error and selection before a replacement opens', async () => {
+  const vm = createKnowledgeViewModel({ send: async () => ({ kind: 'denied' }) });
+  await vm.actions.inspect(record('denied').ref);
+  expect(vm.presentation.error).toContain('permission');
+  vm.close();
+  expect(vm.presentation.error).toBe('');
+  expect(vm.presentation.selected).toBeUndefined();
+  expect(vm.presentation.evidencePending).toBe(false);
+});
+
 test('opening knowledge does not download models or start assessments', async () => {
   const commands: unknown[] = [];
   const vm = createKnowledgeViewModel({ send: async command => { commands.push(command); throw Error('Not configured'); } });
@@ -58,7 +131,32 @@ test('opening knowledge does not download models or start assessments', async ()
   expect(vm.presentation.error).toContain('Not configured');
 });
 
-const status = (paused = false) => ({ availability: 'ready', message: 'Ready', configuration: { embeddingModel: 'qwen3-embedding-0.6b-gguf', assessmentModel: 'gpt-5.6-terra', assessmentTimeoutMs: 300000, maxAutomaticStartsPerDay: 6, maxAutomaticMillisecondsPerDay: 1800000 }, models: [{ id: 'qwen3-embedding-0.6b-gguf', title: 'Qwen GGUF', licence: 'Apache-2.0 model and conversion', source: 'https://example.invalid/model', modelDirectory: '/data/models/active/qwen', runtimeDirectory: '/data/models/runtime/mlx', prerequisites: 'Apple Silicon with Metal', runtime: { package: 'llama.cpp', version: '0.1.0', licence: 'MIT' }, runtimeBytes: 1000, runtimeDownloadAvailable: true, weightsBytes: 10, state: 'missing' }], indexing: 'unavailable', maintenance: { state: paused ? 'paused' : 'idle', pendingUpdates: 0, message: 'Ready', automaticStartsToday: 0, automaticMillisecondsToday: 0 } });
+test('pending learning status remains visible until a confirmed recovery status replaces it', async () => {
+  let pending = true;
+  const vm = createKnowledgeViewModel({ send: async () => ({ ...status(), capture: pending
+    ? { state: 'pending', pendingObservations: 2, message: 'Two observations are waiting for recovery.' }
+    : { state: 'idle', pendingObservations: 0, message: '' } }) });
+  await vm.open();
+  expect(vm.presentation.status?.capture).toEqual({ state: 'pending', pendingObservations: 2, message: 'Two observations are waiting for recovery.' });
+  pending = false; await vm.actions.refresh();
+  expect(vm.presentation.status?.capture).toEqual({ state: 'idle', pendingObservations: 0, message: '' });
+});
+
+test('source and curation warnings survive unrelated actions and failed refresh until authoritative recovery', async () => {
+  let failed = true, refuse = false;
+  const vm = createKnowledgeViewModel({ send: async () => {
+    if (refuse) throw Error('Could not refresh status');
+    return { ...status(), source: { projectId: 'p', enabled: true, state: failed ? 'unavailable' : 'ready', message: 'Repository collection is unavailable.' },
+      maintenance: { ...status().maintenance, state: failed ? 'uncertain' : 'idle', message: 'The earlier assessment cannot be confirmed. No replacement will start.' } };
+  } });
+  await vm.open();
+  expect(vm.presentation.recoveryNotices).toEqual(['Repository collection is unavailable.', 'The earlier assessment cannot be confirmed. No replacement will start.']);
+  await vm.actions.pause(true); expect(vm.presentation.recoveryNotices).toHaveLength(2);
+  refuse = true; await vm.actions.refresh(); expect(vm.presentation.recoveryNotices).toHaveLength(2);
+  refuse = false; failed = false; await vm.actions.refresh(); expect(vm.presentation.recoveryNotices).toEqual([]); expect(vm.presentation.error).toBe('');
+});
+
+const status = (paused = false) => ({ availability: 'ready', message: 'Ready', configuration: { embeddingModel: 'qwen3-embedding-0.6b-gguf', assessmentModel: 'gpt-5.6-terra', assessmentTimeoutMs: 300000, maxAutomaticStartsPerDay: 6, maxAutomaticMillisecondsPerDay: 1800000 }, capture: { state: 'idle', pendingObservations: 0, message: '' }, models: [{ id: 'qwen3-embedding-0.6b-gguf', title: 'Qwen GGUF', licence: 'Apache-2.0 model and conversion', source: 'https://example.invalid/model', modelDirectory: '/data/models/active/qwen', runtimeDirectory: '/data/models/runtime/mlx', prerequisites: 'Apple Silicon with Metal', runtime: { package: 'llama.cpp', version: '0.1.0', licence: 'MIT' }, runtimeBytes: 1000, runtimeDownloadAvailable: true, weightsBytes: 10, state: 'missing' }], indexing: 'unavailable', maintenance: { paused, state: paused ? 'paused' : 'idle', pendingUpdates: 0, message: 'Ready', automaticStartsToday: 0, automaticMillisecondsToday: 0 } });
 
 test('source collection requires its own explicit action and does not submit filesystem authority', async () => {
   const commands: unknown[] = [];
@@ -66,6 +164,45 @@ test('source collection requires its own explicit action and does not submit fil
   await vm.open(); await vm.actions.source(true); await vm.actions.source(false);
   expect(commands).toEqual([{action:'status'},{action:'source',enabled:true},{action:'source',enabled:false}]);
   expect(vm.presentation.pendingAction).toBeUndefined();
+});
+test('source setup rejection stays actionable when models exist and never exposes raw provider errors', async () => {
+  const vm = createKnowledgeViewModel({ send: async command => {
+    if (command.action === 'source') throw Error('secret path /private/source');
+    return status();
+  } });
+  await vm.open(); await vm.actions.source(true);
+  expect(vm.presentation.error).toBe('Collection could not start. Choose a project with an installed Git source, then connect it.');
+  expect(vm.presentation.status?.source).toBeUndefined();
+  await vm.actions.refresh(); expect(vm.presentation.error).toContain('Collection could not start');
+});
+test('authoritative first-source warning survives unrelated commands and deduplicates configured-source feedback', async () => {
+  const warning = 'Installed Git source is unavailable.';
+  let sourceWarning: string | undefined = warning;
+  let configured = false;
+  const vm = createKnowledgeViewModel({ send: async command => {
+    if (command.action === 'source' && command.enabled) throw Error('private setup details');
+    if (command.action === 'source' && !command.enabled) sourceWarning = undefined;
+    return { ...status(), ...(sourceWarning ? { sourceWarning } : {}),
+      ...(configured ? { source: { projectId: 'p', enabled: true, state: 'unavailable', message: warning } } : {}) };
+  } });
+  await vm.open(); await vm.actions.source(true); await vm.actions.pause(true); await vm.actions.refresh();
+  expect(vm.presentation.error).toBe(''); expect(vm.presentation.recoveryNotices).toEqual([warning]);
+  vm.actions.setLearning('captureOutcomes', true); await vm.actions.saveLearning();
+  expect(vm.presentation.recoveryNotices).toEqual([warning]);
+  configured = true; await vm.actions.refresh(); expect(vm.presentation.recoveryNotices).toEqual([warning]);
+  configured = false; await vm.actions.source(false); expect(vm.presentation.recoveryNotices).toEqual([]);
+});
+test('first-source command failure stays visible until an unrelated command returns authoritative warning', async () => {
+  let release!: (value: unknown) => void;
+  const vm = createKnowledgeViewModel({ send: async command => {
+    if (command.action === 'source') throw Error('private failure');
+    if (command.action === 'pause') return new Promise(resolve => { release = resolve; });
+    return status();
+  } });
+  await vm.open(); await vm.actions.source(true); const pausing = vm.actions.pause(true);
+  expect(vm.presentation.error).toContain('Collection could not start');
+  release({ ...status(), sourceWarning: 'Installed Git source is unavailable.' }); await pausing;
+  expect(vm.presentation.error).toBe(''); expect(vm.presentation.recoveryNotices).toEqual(['Installed Git source is unavailable.']);
 });
 test('a status read started before a pause cannot overwrite the pause response', async () => {
   let release!: (value: unknown) => void;

@@ -11,12 +11,31 @@ import type { RpcTransport } from "@drawloom/host";
 import { createStdioTransport } from "@drawloom/node-host";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { ContextPreparationRequestSchema, ContextPreparationResultSchema, type ContextPreparationRequest, type ContextPreparationResult } from "@drawloom/context";
+import { LocalWarmupResultSchema } from "./protocol.js";
 import { LocalKnowledgeConfigurationSchema, LocalKnowledgeStatusSchema, type LocalKnowledgeConfiguration } from "./protocol.js";
 
 export function createLocalKnowledgeClient(rpc: RpcTransport) {
   const request = async <T>(method: string, value: unknown, schema: z.ZodType<T>): Promise<T> => schema.parse(await rpc.request(method, value));
   let closing: Promise<void> | undefined;
   return {
+    warmup: () => request("knowledge.warmup", {}, LocalWarmupResultSchema),
+    prepare(value: ContextPreparationRequest): Promise<ContextPreparationResult> {
+      const { signal, ...data } = value;
+      const parsed = ContextPreparationRequestSchema.parse(data);
+      if (signal.aborted) return Promise.resolve({ kind: "cancelled", references: [], bytes: 0 });
+      const requestId = crypto.randomUUID();
+      return new Promise(resolve => {
+        let done = false;
+        const finish = (result: ContextPreparationResult) => { if (done) return; done = true; signal.removeEventListener("abort", cancel); resolve(result); };
+        const cancel = () => {
+          void rpc.request("knowledge.cancel-preparation", { requestId }).catch(() => undefined);
+          finish({ kind: "cancelled", references: [], bytes: 0 });
+        };
+        signal.addEventListener("abort", cancel, { once: true });
+        void request("knowledge.prepare", { ...parsed, requestId }, ContextPreparationResultSchema).then(finish, () => finish({ kind: "unavailable", references: [], bytes: 0 }));
+      });
+    },
     status: () => request("knowledge.status", {}, LocalKnowledgeStatusSchema),
     configure: (value: LocalKnowledgeConfiguration) => request("knowledge.configure", LocalKnowledgeConfigurationSchema.parse(value), LocalKnowledgeStatusSchema),
     search: (value: SearchRequest) => request("knowledge.search", SearchRequestSchema.parse(value), SearchResultSchema),

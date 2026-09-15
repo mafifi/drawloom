@@ -7,7 +7,7 @@ import {
   type ClaimRecord, type EvidencePackage, type KnowledgeAssessment, type KnowledgeEmbeddingIndex,
   type EmbeddingBatch, type KnowledgeEmbeddings, type KnowledgeIndexWork, type KnowledgeIntake, type KnowledgeMaintenance,
   type EmbeddingConfiguration, type KnowledgeRecord, type KnowledgeRetrieval, type RecordRef,
-  type TrustedKnowledgeSubject,
+  type TrustedKnowledgeSubject, type EvidenceReadReceipts, type EvidenceRequest, type EvidenceResult,
 } from "./index.js";
 
 export interface KnowledgeStorageConformanceFixture {
@@ -24,6 +24,7 @@ export interface KnowledgeAssessmentConformanceFixture {
   evidence: EvidencePackage;
 }
 export interface KnowledgeEmbeddingConformanceFixture {
+  intake: KnowledgeIntake;
   embeddings: KnowledgeEmbeddings;
   embeddingIndex: KnowledgeEmbeddingIndex;
   configuration: EmbeddingConfiguration;
@@ -42,6 +43,31 @@ export interface KnowledgeConformanceFixture extends KnowledgeStorageConformance
   KnowledgeIndexWorkConformanceFixture {}
 
 function check(value: unknown, message: string): asserts value { if (!value) throw new Error(message); }
+
+/** Reusable receipt rules for every execution-local implementation. The caller
+ * must still exercise its authorization and actual provider confirmation path. */
+export function runEvidenceReadReceiptConformance(create: () => EvidenceReadReceipts): void {
+  const receipts = create();
+  const root = { type: "source" as const, origin: "public-conformance", id: "meter", revision: "1" };
+  const request: EvidenceRequest = { root, direction: "forward", maxDepth: 2, maxRecords: 5, maxLinks: 5, maxBytes: 4096 };
+  const result: Extract<EvidenceResult, { kind: "ok" }> = { kind: "ok", records: [{ ref: root, body: "Measured seven units", confidence: {}, provenance: { producer: { type: "fixture", id: "meter" }, inputs: [] }, status: "active" }], links: [], bytes: 100 };
+  check(receipts.select("one", "first", request, result).kind === "ok", "First body must be sent");
+  check(receipts.select("one", "second", request, result).kind === "ok", "Execution alone does not confirm delivery");
+  check(!receipts.confirmDelivered("other", "first", result), "Wrong execution cannot confirm delivery");
+  check(receipts.confirmDelivered("one", "first", result), "Exact delivery must confirm");
+  check(receipts.select("one", "third", request, result).kind === "already_delivered", "Confirmed body should be reused");
+  for (const changed of [{ ...request, direction: "reverse" as const }, { ...request, maxDepth: 3 }, { ...request, maxRecords: 6 }, { ...request, maxLinks: 6 }, { ...request, maxBytes: 8192 }]) {
+    check(receipts.select("one", "changed", changed, result).kind === "ok", "Changed read bounds must resend");
+  }
+  const revisedRoot = { ...root, revision: "2" };
+  const revised = { ...result, records: result.records.map(record => ({ ...record, ref: revisedRoot })) };
+  check(receipts.select("one", "revision", { ...request, root: revisedRoot }, revised).kind === "ok", "Changed exact revision must resend");
+  check(receipts.select("two", "new", request, result).kind === "ok", "Fresh execution must resend");
+  check(create().select("one", "restart", request, result).kind === "ok", "Restart must resend");
+  receipts.invalidate("one");
+  check(!receipts.confirmDelivered("one", "second", result), "Invalidation must remove pending delivery correlation too");
+  check(receipts.select("one", "after", request, result).kind === "ok", "Compaction or uncertainty must resend");
+}
 function ref(type: RecordRef["type"], id: string, revision: string): RecordRef {
   return { type, origin: "conformance", id, revision };
 }
@@ -68,7 +94,7 @@ function withdrawn(reference: RecordRef, body: string): WithdrawnKnowledgeRecord
     reference.type === "observation" ? { ...common, ref: { ...reference, type: "observation" } } :
       { ...common, ref: { ...reference, type: "source" } };
 }
-async function accept(fixture: KnowledgeStorageConformanceFixture, input: Parameters<KnowledgeIntake["ingest"]>[1]) {
+async function accept(fixture: Pick<KnowledgeStorageConformanceFixture, "intake" | "authorizedSubject">, input: Parameters<KnowledgeIntake["ingest"]>[1]) {
   const result = IntakeResultSchema.parse(await fixture.intake.ingest(fixture.authorizedSubject, input));
   check(result.kind === "accepted", "intake accepts a valid compare-and-swap operation");
 }
@@ -292,6 +318,9 @@ export async function knowledgeEmbeddingConformance(fixture: KnowledgeEmbeddingC
   const queryVector = queryEmbedding.items[0]!.vector;
 
   const source1 = ref("source", "indexed", "r1");
+  const unaffected = ref("source", "unaffected", "r1");
+  await accept(fixture, { operation: "upsert", expectedRevision: null, record: record(source1, "First indexed source revision."), links: [] });
+  await accept(fixture, { operation: "upsert", expectedRevision: null, record: record(unaffected, "Unaffected indexed source."), links: [] });
   const prepared1 = EmbeddingIndexPrepareResultSchema.parse(await fixture.embeddingIndex.prepare({ configuration, generation: 1, expectedActiveGeneration: null }));
   check(prepared1.kind === "ready", "an initial inactive generation can be staged");
   if (prepared1.kind !== "ready") return;
@@ -299,40 +328,55 @@ export async function knowledgeEmbeddingConformance(fixture: KnowledgeEmbeddingC
   check(dimensionMismatch.kind === "dimension_mismatch", "staging validates configured vector dimensions");
   const staged1 = EmbeddingIndexStageResultSchema.parse(await fixture.embeddingIndex.stage({
     stageId: prepared1.stageId,
-    entries: embedded.items.map((item) => ({ id: item.id, ref: source1, vector: item.vector })), removals: [],
+    entries: [
+      ...embedded.items.map((item) => ({ id: item.id, ref: source1, vector: item.vector })),
+      { id: "unaffected", ref: unaffected, vector: Array(configuration.dimensions).fill(1 / configuration.dimensions) },
+    ], removals: [],
   }));
   check(staged1.kind === "staged", "multiple provider-private passages can index one authoritative record revision");
   const activated1 = EmbeddingIndexActivateResultSchema.parse(await fixture.embeddingIndex.activate({ stageId: prepared1.stageId, expectedActiveGeneration: null }));
   check(activated1.kind === "activated", "staged generation activates with compare-and-swap");
   const query1 = EmbeddingIndexQueryResultSchema.parse(await fixture.embeddingIndex.query({ configuration, vector: queryVector, limit: 10 }));
-  check(query1.kind === "ok" && query1.items.length === 1 && query1.items[0]?.ref.revision === "r1",
+  check(query1.kind === "ok" && query1.items.filter((item) => sameRef(item.ref, source1)).length === 1 && query1.items.some((item) => sameRef(item.ref, unaffected)),
     "ranked results deduplicate passages to authoritative record revisions");
 
   const source2 = ref("source", "indexed", "r2");
+  await accept(fixture, { operation: "upsert", expectedRevision: "r1", record: record(source2, "Replacement indexed source revision."), links: [] });
   const prepared2 = await fixture.embeddingIndex.prepare({ configuration, generation: 2, expectedActiveGeneration: 1 });
   check(prepared2.kind === "ready", "an incremental replacement generation can be staged");
   if (prepared2.kind !== "ready") return;
   const replacementVector = Array(configuration.dimensions).fill(1 / configuration.dimensions);
-  await fixture.embeddingIndex.stage({ stageId: prepared2.stageId, entries: [{ id: "replacement", ref: source2, vector: replacementVector }], removals: [source1] });
+  const staged2 = EmbeddingIndexStageResultSchema.parse(await fixture.embeddingIndex.stage({ stageId: prepared2.stageId, entries: [{ id: "replacement", ref: source2, vector: replacementVector }], removals: [source1] }));
+  check(staged2.kind === "staged", "the replacement delta is accepted before activation");
   const beforeActivation = await fixture.embeddingIndex.query({ configuration, vector: queryVector, limit: 10 });
-  check(beforeActivation.kind === "ok" && beforeActivation.activeGeneration === 1 && beforeActivation.items[0]?.ref.revision === "r1",
-    "queries never see a staged or mixed generation");
-  await fixture.embeddingIndex.activate({ stageId: prepared2.stageId, expectedActiveGeneration: 1 });
+  check(beforeActivation.kind === "ok" && beforeActivation.activeGeneration === 1 &&
+    beforeActivation.items.some((item) => sameRef(item.ref, unaffected)) &&
+    !beforeActivation.items.some((item) => sameRef(item.ref, source2)) &&
+    !beforeActivation.items.some((item) => sameRef(item.ref, source1)),
+    "queries retain the active generation without exposing staged replacements or obsolete authoritative revisions");
+  const activated2 = EmbeddingIndexActivateResultSchema.parse(await fixture.embeddingIndex.activate({ stageId: prepared2.stageId, expectedActiveGeneration: 1 }));
+  check(activated2.kind === "activated" && activated2.generation === 2, "the replacement generation activates with its expected compare-and-swap state");
   const afterActivation = await fixture.embeddingIndex.query({ configuration, vector: queryVector, limit: 10 });
-  check(afterActivation.kind === "ok" && afterActivation.activeGeneration === 2 && afterActivation.items[0]?.ref.revision === "r2",
+  check(afterActivation.kind === "ok" && afterActivation.activeGeneration === 2 && afterActivation.items.some((item) => sameRef(item.ref, source2)) &&
+    afterActivation.items.some((item) => sameRef(item.ref, unaffected)) && !afterActivation.items.some((item) => sameRef(item.ref, source1)),
     "activation atomically removes obsolete revisions and exposes the replacement generation");
   const mismatch = await fixture.embeddingIndex.query({ configuration: { ...configuration, fingerprint: `${configuration.fingerprint}:mismatch` }, vector: queryVector, limit: 10 });
   check(mismatch.kind === "configuration_mismatch", "configuration identity includes the immutable fingerprint");
   const replacementConfiguration = { ...configuration, id: `${configuration.id}:replacement`, fingerprint: `${configuration.fingerprint}:replacement` };
-  const prepared3 = await fixture.embeddingIndex.prepare({ configuration: replacementConfiguration, generation: 3, expectedActiveGeneration: 2 });
-  check(prepared3.kind === "ready", "a replacement configuration can stage separately from the active index");
+  const prepared3 = await fixture.embeddingIndex.prepare({ configuration: replacementConfiguration, generation: 1, expectedActiveGeneration: null });
+  check(prepared3.kind === "ready" && prepared3.activeGeneration === null, "a replacement configuration starts with independent generation state");
   if (prepared3.kind !== "ready") return;
-  const source3 = ref("source", "new-configuration", "r1");
-  await fixture.embeddingIndex.stage({ stageId: prepared3.stageId, entries: [{ id: "new-configuration", ref: source3, vector: replacementVector }], removals: [] });
-  await fixture.embeddingIndex.activate({ stageId: prepared3.stageId, expectedActiveGeneration: 2 });
+  const staged3 = EmbeddingIndexStageResultSchema.parse(await fixture.embeddingIndex.stage({ stageId: prepared3.stageId, entries: [{ id: "new-configuration", ref: source2, vector: replacementVector }], removals: [] }));
+  check(staged3.kind === "staged", "an independent configuration accepts current authoritative records");
+  const activated3 = EmbeddingIndexActivateResultSchema.parse(await fixture.embeddingIndex.activate({ stageId: prepared3.stageId, expectedActiveGeneration: null }));
+  check(activated3.kind === "activated" && activated3.generation === 1, "an independent configuration activates against its own compare-and-swap state");
   const switched = await fixture.embeddingIndex.query({ configuration: replacementConfiguration, vector: queryVector, limit: 10 });
-  check(switched.kind === "ok" && switched.items.length === 1 && switched.items[0]?.ref.id === source3.id,
+  check(switched.kind === "ok" && switched.activeGeneration === 1 && switched.items.length === 1 && sameRef(switched.items[0]!.ref, source2),
     "switching configuration starts a clean generation instead of copying incompatible entries");
+  const originalAfterSwitch = await fixture.embeddingIndex.query({ configuration, vector: queryVector, limit: 10 });
+  check(originalAfterSwitch.kind === "ok" && originalAfterSwitch.activeGeneration === 2 &&
+    originalAfterSwitch.items.some((item) => sameRef(item.ref, source2)) && originalAfterSwitch.items.some((item) => sameRef(item.ref, unaffected)),
+    "activating another configuration preserves the original configuration and its active generation");
 }
 
 export async function knowledgeConformance(fixture: KnowledgeConformanceFixture): Promise<void> {

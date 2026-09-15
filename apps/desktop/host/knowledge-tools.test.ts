@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION } from "@drawloom/local-knowledge-runtime";
 import { createKnowledgePlugin, knowledgeObservation } from "./knowledge-tools.js";
+import * as knowledgeTools from "./knowledge-tools.js";
+import { runEvidenceReadReceiptConformance } from "@drawloom/knowledge/conformance";
 import type { KnowledgeService } from "./knowledge-host.js";
 
 function service(calls: unknown[]): KnowledgeService {
@@ -11,6 +13,37 @@ function service(calls: unknown[]): KnowledgeService {
     async evidence() { return { kind: "ok", records: [], links: [], bytes: 0 }; }, async export() { return { kind: "ok", records: [], links: [], bytes: 0 }; },
     async ingest(value) { calls.push(value); return { kind: "accepted", revision: "r1" }; }, async download() { return status; }, async cancelDownload() { return status; }, async close() {} };
 }
+test("desktop execution receipts pass the portable knowledge conformance rules", () => {
+  runEvidenceReadReceiptConformance(knowledgeTools.createEvidenceReadReceipts);
+});
+
+test("evidence bodies are omitted only after exact same-execution delivery and every hit reauthorizes", async () => {
+  expect(typeof knowledgeTools.createEvidenceReadReceipts).toBe("function");
+  const receipts = knowledgeTools.createEvidenceReadReceipts();
+  const ref = { type: "source" as const, origin: "public", id: "manual", revision: "1" };
+  let denied = false; let reads = 0;
+  let body = "The public instrument measured seven units.";
+  const evidenceService = { ...service([]), async evidence() { reads++; return denied ? { kind: "denied" as const } : {
+    kind: "ok" as const, records: [{ ref, body, confidence: {}, status: "active" as const, provenance: { producer: { type: "test", id: "manual" }, inputs: [] } }], links: [], bytes: 100,
+  }; } };
+  const tool = createKnowledgePlugin(evidenceService, receipts).plugin.prepare({})().tools!.find(tool => tool.name === "knowledge.evidence")!;
+  const request = { root: ref, direction: "forward", maxDepth: 2, maxRecords: 10, maxLinks: 10, maxBytes: 4096 };
+  let invocation = 0;
+  const read = (operationId = "execution", input = request) => tool.execute(tool.parseInput(input), { operationId, invocationId: `read-${++invocation}`, signal: new AbortController().signal });
+  const first = await read();
+  expect(await read()).toMatchObject({ kind: "ok" });
+  expect(receipts.confirmDelivered("wrong-execution", "read-1", first)).toBe(false);
+  expect(receipts.confirmDelivered("execution", "read-1", first)).toBe(true);
+  expect(await read()).toMatchObject({ kind: "already_delivered", records: [ref] });
+  expect(reads).toBe(3);
+  denied = true; expect(await read()).toEqual({ kind: "denied" }); denied = false;
+  body = "Changed content"; expect(await read()).toMatchObject({ kind: "ok" });
+  expect(await read("another-execution")).toMatchObject({ kind: "ok" });
+  expect(await read("execution", { ...request, direction: "reverse" })).toMatchObject({ kind: "ok" });
+  receipts.invalidate("execution");
+  expect(receipts.confirmDelivered("execution", "read-1", first)).toBe(false);
+  expect(await read()).toMatchObject({ kind: "ok" });
+});
 
 test("knowledge retrieval tools expose bounded contract inputs without subject or provider controls", async () => {
   const calls: unknown[] = [];

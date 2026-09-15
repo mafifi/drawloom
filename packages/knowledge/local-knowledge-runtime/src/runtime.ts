@@ -11,6 +11,8 @@ import {
 import type { RpcTransport } from "@drawloom/host";
 import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, LocalKnowledgeConfigurationSchema, LocalKnowledgeStatusSchema, parseStoredLocalKnowledgeConfiguration, type LocalKnowledgeConfiguration, type LocalKnowledgeStatus } from "./protocol.js";
 import { createSemanticRetrieval } from "./semantic.js";
+import { createKnowledgeContextPreparer } from "@drawloom/knowledge-context";
+import { ContextPreparationRequestSchema, type ContextPreparationRequest, type ContextPreparationResult } from "@drawloom/context";
 
 const subject = Object.freeze({ type: "user", id: "local-owner", properties: { locality: "device", scope: "global-knowledge" } }) as unknown as TrustedKnowledgeSubject;
 const resource = (request: { action: string; ref?: { type: string; origin: string; id: string; revision: string } }) => ({
@@ -61,6 +63,13 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
   let indexing: Promise<void> | undefined;
   let preparing: Promise<void> | undefined;
   const installs = new Set<Promise<unknown>>();
+  const preparations = new Set<AbortController>();
+  const preparer = createKnowledgeContextPreparer({
+    retrieval: { ...sqlite.retrieval, search: (_subject, request) => activeSemantic?.retrieval.search(request) ?? sqlite.retrieval.search(subject, request) },
+    authorizer, subject,
+    destination: { type: "agent-provider", id: "codex", properties: {} },
+    resolveDisclosureResource: async ({ ref, destination }) => ({ ...resource({ action: "knowledge.disclose", ref }), properties: { locality: "device", scope: "global-knowledge", destination } }),
+  });
 
   function assessmentFor(value: LocalKnowledgeConfiguration) {
     return createCodexAssessment({ model: value.assessmentModel, effort: "low", timeoutMs: value.assessmentTimeoutMs,
@@ -153,9 +162,36 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
   }
   return {
     status,
+    async warmup(): Promise<{ kind: "ready" | "unavailable" }> {
+      ensureOpen();
+      try {
+        await prepareSelectedSemantic();
+        const worker = (candidateSemantic ?? activeSemantic)?.worker;
+        if (!worker?.warmup) return { kind: "unavailable" };
+        await worker.warmup({ timeoutMs: 30_000 });
+        return { kind: "ready" };
+      } catch { return { kind: "unavailable" }; }
+    },
+    async prepare(value: ContextPreparationRequest): Promise<ContextPreparationResult> {
+      ensureOpen();
+      const { signal, ...data } = value;
+      const request = ContextPreparationRequestSchema.parse(data);
+      if (!configuration.automaticContext) return { kind: "unavailable", references: [], bytes: 0 };
+      const controller = new AbortController(); preparations.add(controller);
+      const cancel = () => controller.abort(); signal.addEventListener("abort", cancel, { once: true });
+      if (signal.aborted) cancel();
+      try { return await preparer.prepare({ ...request, signal: controller.signal }); }
+      finally { preparations.delete(controller); signal.removeEventListener("abort", cancel); }
+    },
     async configure(value: LocalKnowledgeConfiguration) {
       ensureOpen(); const next = LocalKnowledgeConfigurationSchema.parse(value);
-      await state.set("configuration", next); await assessment.close(); configuration = next; assessment = assessmentFor(next); return status();
+      // Stop foreground additions immediately, including while assessment config is stable.
+      if (!next.automaticContext) for (const pending of preparations) pending.abort();
+      await state.set("configuration", next);
+      const assessmentChanged = next.assessmentModel !== configuration.assessmentModel || next.assessmentTimeoutMs !== configuration.assessmentTimeoutMs;
+      configuration = next;
+      if (assessmentChanged) { await assessment.close(); assessment = assessmentFor(next); }
+      return status();
     },
     search(request: SearchRequest) { ensureOpen(); return activeSemantic?.retrieval.search(request) ?? sqlite.retrieval.search(subject, request); },
     get(ref: RecordRef) { ensureOpen(); return sqlite.retrieval.get(subject, ref); },
@@ -184,6 +220,7 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
       return status();
     },
     async close() { if (closed) return; closed = true; for (const setup of setups.values()) setup.cancel();
+      for (const pending of preparations) pending.abort();
       activeSemantic?.retrieval.close(); candidateSemantic?.retrieval.close();
       const workers = await Promise.allSettled([activeSemantic?.worker.close(), candidateSemantic?.worker.close()]);
       const remainder = await Promise.allSettled([preparing, indexing, ...installs, assessment.close()]);

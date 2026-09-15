@@ -70,6 +70,8 @@ and supporting tests in more detail.
   [ADR 0007](docs/adr/0007-provider-neutral-agent-execution.md) explains how agents
   receive context, and [ADR 0016](docs/adr/0016-discoverable-contributions-and-resources.md)
   covers discovering skills and resources.
+  [ADR 0027](docs/adr/0027-complete-learning-journey.md) adds bounded knowledge
+  references to ordinary conversations, with explicit consent and access checks.
 - **Tools:** Makes functions and MCP tools available to the agent, checking
   permission before execution and recording what happened.
   [ADR 0008](docs/adr/0008-tool-execution-and-exposure.md) defines invocation,
@@ -89,6 +91,8 @@ and supporting tests in more detail.
   implementation using SQLite for storage and Temporal to coordinate curation,
   with local semantic search updated in
   [ADR 0026](docs/adr/0026-permissive-dependencies-and-local-gguf-embeddings.md).
+  [ADR 0027](docs/adr/0027-complete-learning-journey.md) connects capture,
+  curation and recall in the desktop, with separate opt-in controls.
 - **Evaluation:** Assesses saved results or runs experiments to help you improve
   a workbench and compare models. [ADR 0025](docs/adr/0025-evaluation-boundaries-and-comparative-proof.md)
   defines cases, scorers, findings and feedback, reusing orchestration for
@@ -118,8 +122,9 @@ and supporting tests in more detail.
   covers AI edit approval, and [ADR 0023](docs/adr/0023-knowledge-memory-authorization-boundaries.md)
   covers knowledge and memory access.
 
-These are capabilities, not ten independent services. Context currently has a
-shared data shape rather than a compiler service; memory uses the knowledge
+These are capabilities, not ten independent services. Context provides shared
+instruction types and bounded knowledge preparation, not a general prompt
+compiler; memory uses the knowledge
 interfaces; sandboxing relies on the execution environment; and policy is
 enforced through the relevant agent, tool and knowledge interfaces.
 

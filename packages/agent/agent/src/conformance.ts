@@ -16,6 +16,7 @@ export type AgentConformanceFixture = {
   driver: AgentDriver;
   complete(): Promise<void>;
   contextText(): string;
+  referenceText(): string;
   controls?: {
     steeringText(): string;
     interruptCount(): number;
@@ -294,6 +295,7 @@ export async function agentConformance(
       operationId: "a",
       text: "hello",
       additionalContext: { text: "fresh sentinel" },
+      references: { kind: "ready", text: "untrusted reference sentinel", bytes: 28, references: [] },
     });
     check(
       (await session.execute({ operationId: "overlap", text: "x" })).status ===
@@ -315,6 +317,7 @@ export async function agentConformance(
         fixture.contextText().includes("fresh sentinel"),
       "session and fresh context consumption",
     );
+    check(fixture.referenceText().includes("untrusted reference sentinel") && !fixture.contextText().includes("untrusted reference sentinel"), "references reach user content without promotion into application context");
     if (session.steer) {
       check(
         (await session.steer({ operationId: "stale", text: "x" })).status ===
@@ -328,6 +331,7 @@ export async function agentConformance(
             operationId: "a",
             text: "steering sentinel",
             additionalContext: { text: "steering context" },
+            references: { kind: "ready", text: "untrusted steering reference", bytes: 28, references: [] },
           })
         ).status === "ok",
         "steer accepted",
@@ -337,6 +341,7 @@ export async function agentConformance(
           fixture.controls.steeringText().includes("steering context"),
         "steering text and context consumption",
       );
+      check(fixture.referenceText().includes("untrusted steering reference"), "steering includes fresh user references");
     }
     if (fixture.tools) {
       exposure.tools.length = 0;

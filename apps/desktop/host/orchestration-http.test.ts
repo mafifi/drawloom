@@ -34,7 +34,7 @@ test('workflow HTTP is authenticated, bounded, scope validated and separate from
     const before = seen.length;
     expect((await fetch(url, { method: 'POST', headers, body: JSON.stringify({ action: 'respond', projectId: 'p', installationId: 'i', runId: 'run', requestId: 'review', value: 'x'.repeat(65536) }) })).status).toBe(413);
     expect(seen.length).toBe(before);
-    const long = fetch(server.origin + '/api/command', { method: 'POST', headers, body: '{}' });
+    const long = fetch(server.origin + '/api/command', { method: 'POST', headers, body: JSON.stringify({ kind: 'select_project', projectId: 'synthetic-long-command' }) });
     await enteredCommand;
     const cancelled = await fetch(url, { method: 'POST', headers, body: command, signal: AbortSignal.timeout(1500) });
     expect(cancelled.status).toBe(200); expect(await cancelled.json()).toMatchObject({ runId: 'run', cancellationRequested: true });

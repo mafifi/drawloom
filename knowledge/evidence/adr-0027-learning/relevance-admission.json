@@ -1,0 +1,792 @@
+{
+  "schemaVersion": 1,
+  "status": "scoped evidence; maintainer owns acceptance",
+  "boundary": "Filter wholly unrelated material; related incomplete references may be retained. Ask the answering model to acknowledge missing information, without guaranteeing compliance.",
+  "policy": {
+    "lexical": "English function-word exclusion then OR; no AND or fitted fraction",
+    "minimumCosine": 0.52,
+    "placement": "Actual SQLite best-passage cosine before RRF"
+  },
+  "calibration": {
+    "fixture": "evaluations/knowledge/relevance-calibration.json",
+    "fixtureSha256": "adb88ccdb6409c6665e5ee28ec5347ef9adc58db8b2521e204fde1ed3e5b93a5",
+    "resultSha256": "90ab07d4005bd92cffc09655dcdfaa0926c12caf6df000d5aa3a40c57d219a57",
+    "pairs": [
+      {
+        "queryId": "p1",
+        "documentId": "p1",
+        "expectedRelevant": true,
+        "cosine": 0.6058640109357305
+      },
+      {
+        "queryId": "p1",
+        "documentId": "p2",
+        "expectedRelevant": false,
+        "cosine": 0.1866052749848027
+      },
+      {
+        "queryId": "p1",
+        "documentId": "p3",
+        "expectedRelevant": false,
+        "cosine": 0.20003882782732782
+      },
+      {
+        "queryId": "p1",
+        "documentId": "p4",
+        "expectedRelevant": false,
+        "cosine": 0.1803338770900456
+      },
+      {
+        "queryId": "p1",
+        "documentId": "p5",
+        "expectedRelevant": false,
+        "cosine": 0.11230398526048843
+      },
+      {
+        "queryId": "p1",
+        "documentId": "p6",
+        "expectedRelevant": false,
+        "cosine": 0.26519563866321083
+      },
+      {
+        "queryId": "p1",
+        "documentId": "p7",
+        "expectedRelevant": false,
+        "cosine": 0.22968020812051304
+      },
+      {
+        "queryId": "p1",
+        "documentId": "p8",
+        "expectedRelevant": false,
+        "cosine": 0.16151181587073873
+      },
+      {
+        "queryId": "p1",
+        "documentId": "hostile",
+        "expectedRelevant": false,
+        "cosine": 0.3106831784617552
+      },
+      {
+        "queryId": "p1",
+        "documentId": "filler",
+        "expectedRelevant": false,
+        "cosine": 0.19232930937221232
+      },
+      {
+        "queryId": "p2",
+        "documentId": "p1",
+        "expectedRelevant": false,
+        "cosine": 0.17164098880257866
+      },
+      {
+        "queryId": "p2",
+        "documentId": "p2",
+        "expectedRelevant": true,
+        "cosine": 0.7714161324994833
+      },
+      {
+        "queryId": "p2",
+        "documentId": "p3",
+        "expectedRelevant": false,
+        "cosine": 0.02720010769862364
+      },
+      {
+        "queryId": "p2",
+        "documentId": "p4",
+        "expectedRelevant": false,
+        "cosine": 0.12064420857959289
+      },
+      {
+        "queryId": "p2",
+        "documentId": "p5",
+        "expectedRelevant": false,
+        "cosine": 0.24982225371275404
+      },
+      {
+        "queryId": "p2",
+        "documentId": "p6",
+        "expectedRelevant": false,
+        "cosine": 0.18062307475850625
+      },
+      {
+        "queryId": "p2",
+        "documentId": "p7",
+        "expectedRelevant": false,
+        "cosine": 0.1659964561687916
+      },
+      {
+        "queryId": "p2",
+        "documentId": "p8",
+        "expectedRelevant": false,
+        "cosine": 0.12237951888025732
+      },
+      {
+        "queryId": "p2",
+        "documentId": "hostile",
+        "expectedRelevant": false,
+        "cosine": 0.15541670082331271
+      },
+      {
+        "queryId": "p2",
+        "documentId": "filler",
+        "expectedRelevant": false,
+        "cosine": 0.12413921351809046
+      },
+      {
+        "queryId": "p3",
+        "documentId": "p1",
+        "expectedRelevant": false,
+        "cosine": 0.42968528755214547
+      },
+      {
+        "queryId": "p3",
+        "documentId": "p2",
+        "expectedRelevant": false,
+        "cosine": 0.1741430335899591
+      },
+      {
+        "queryId": "p3",
+        "documentId": "p3",
+        "expectedRelevant": true,
+        "cosine": 0.7074743686949928
+      },
+      {
+        "queryId": "p3",
+        "documentId": "p4",
+        "expectedRelevant": false,
+        "cosine": 0.13401611502446387
+      },
+      {
+        "queryId": "p3",
+        "documentId": "p5",
+        "expectedRelevant": false,
+        "cosine": 0.10561488992598057
+      },
+      {
+        "queryId": "p3",
+        "documentId": "p6",
+        "expectedRelevant": false,
+        "cosine": 0.21619082248081875
+      },
+      {
+        "queryId": "p3",
+        "documentId": "p7",
+        "expectedRelevant": false,
+        "cosine": 0.2611807389680258
+      },
+      {
+        "queryId": "p3",
+        "documentId": "p8",
+        "expectedRelevant": false,
+        "cosine": 0.24229018444782519
+      },
+      {
+        "queryId": "p3",
+        "documentId": "hostile",
+        "expectedRelevant": false,
+        "cosine": 0.2515370335800358
+      },
+      {
+        "queryId": "p3",
+        "documentId": "filler",
+        "expectedRelevant": false,
+        "cosine": 0.25994608548950876
+      },
+      {
+        "queryId": "p4",
+        "documentId": "p1",
+        "expectedRelevant": false,
+        "cosine": 0.2028439165717943
+      },
+      {
+        "queryId": "p4",
+        "documentId": "p2",
+        "expectedRelevant": false,
+        "cosine": 0.1739579442944812
+      },
+      {
+        "queryId": "p4",
+        "documentId": "p3",
+        "expectedRelevant": false,
+        "cosine": 0.10653477359586593
+      },
+      {
+        "queryId": "p4",
+        "documentId": "p4",
+        "expectedRelevant": true,
+        "cosine": 0.7405607623933939
+      },
+      {
+        "queryId": "p4",
+        "documentId": "p5",
+        "expectedRelevant": false,
+        "cosine": 0.09884971290289193
+      },
+      {
+        "queryId": "p4",
+        "documentId": "p6",
+        "expectedRelevant": false,
+        "cosine": 0.2799141957076746
+      },
+      {
+        "queryId": "p4",
+        "documentId": "p7",
+        "expectedRelevant": false,
+        "cosine": 0.22290062165065264
+      },
+      {
+        "queryId": "p4",
+        "documentId": "p8",
+        "expectedRelevant": false,
+        "cosine": 0.14456381123821585
+      },
+      {
+        "queryId": "p4",
+        "documentId": "hostile",
+        "expectedRelevant": false,
+        "cosine": 0.43258229611100957
+      },
+      {
+        "queryId": "p4",
+        "documentId": "filler",
+        "expectedRelevant": false,
+        "cosine": 0.15686388778790303
+      },
+      {
+        "queryId": "p5",
+        "documentId": "p1",
+        "expectedRelevant": false,
+        "cosine": 0.133416775829813
+      },
+      {
+        "queryId": "p5",
+        "documentId": "p2",
+        "expectedRelevant": false,
+        "cosine": 0.3487721668996489
+      },
+      {
+        "queryId": "p5",
+        "documentId": "p3",
+        "expectedRelevant": false,
+        "cosine": 0.18974110300551614
+      },
+      {
+        "queryId": "p5",
+        "documentId": "p4",
+        "expectedRelevant": false,
+        "cosine": 0.16371706990135423
+      },
+      {
+        "queryId": "p5",
+        "documentId": "p5",
+        "expectedRelevant": true,
+        "cosine": 0.76286060612531
+      },
+      {
+        "queryId": "p5",
+        "documentId": "p6",
+        "expectedRelevant": false,
+        "cosine": 0.12779306554936445
+      },
+      {
+        "queryId": "p5",
+        "documentId": "p7",
+        "expectedRelevant": false,
+        "cosine": 0.1586152974972137
+      },
+      {
+        "queryId": "p5",
+        "documentId": "p8",
+        "expectedRelevant": false,
+        "cosine": 0.15614643903653116
+      },
+      {
+        "queryId": "p5",
+        "documentId": "hostile",
+        "expectedRelevant": false,
+        "cosine": 0.20223183899856426
+      },
+      {
+        "queryId": "p5",
+        "documentId": "filler",
+        "expectedRelevant": false,
+        "cosine": 0.15026988169536762
+      },
+      {
+        "queryId": "p6",
+        "documentId": "p1",
+        "expectedRelevant": false,
+        "cosine": 0.3407118975069884
+      },
+      {
+        "queryId": "p6",
+        "documentId": "p2",
+        "expectedRelevant": false,
+        "cosine": 0.29226310934524485
+      },
+      {
+        "queryId": "p6",
+        "documentId": "p3",
+        "expectedRelevant": false,
+        "cosine": 0.09619652650626173
+      },
+      {
+        "queryId": "p6",
+        "documentId": "p4",
+        "expectedRelevant": false,
+        "cosine": 0.26068446240770177
+      },
+      {
+        "queryId": "p6",
+        "documentId": "p5",
+        "expectedRelevant": false,
+        "cosine": 0.1310514882290753
+      },
+      {
+        "queryId": "p6",
+        "documentId": "p6",
+        "expectedRelevant": true,
+        "cosine": 0.8409108865644996
+      },
+      {
+        "queryId": "p6",
+        "documentId": "p7",
+        "expectedRelevant": false,
+        "cosine": 0.20573528390495996
+      },
+      {
+        "queryId": "p6",
+        "documentId": "p8",
+        "expectedRelevant": false,
+        "cosine": 0.16447735854075174
+      },
+      {
+        "queryId": "p6",
+        "documentId": "hostile",
+        "expectedRelevant": false,
+        "cosine": 0.34141274481430994
+      },
+      {
+        "queryId": "p6",
+        "documentId": "filler",
+        "expectedRelevant": false,
+        "cosine": 0.17653856462956252
+      },
+      {
+        "queryId": "p7",
+        "documentId": "p1",
+        "expectedRelevant": false,
+        "cosine": 0.26094615411299016
+      },
+      {
+        "queryId": "p7",
+        "documentId": "p2",
+        "expectedRelevant": false,
+        "cosine": 0.2120607106556527
+      },
+      {
+        "queryId": "p7",
+        "documentId": "p3",
+        "expectedRelevant": false,
+        "cosine": 0.21617321723410463
+      },
+      {
+        "queryId": "p7",
+        "documentId": "p4",
+        "expectedRelevant": false,
+        "cosine": 0.23235442068912962
+      },
+      {
+        "queryId": "p7",
+        "documentId": "p5",
+        "expectedRelevant": false,
+        "cosine": 0.07133122014872477
+      },
+      {
+        "queryId": "p7",
+        "documentId": "p6",
+        "expectedRelevant": false,
+        "cosine": 0.13448067109907055
+      },
+      {
+        "queryId": "p7",
+        "documentId": "p7",
+        "expectedRelevant": true,
+        "cosine": 0.7960096029425597
+      },
+      {
+        "queryId": "p7",
+        "documentId": "p8",
+        "expectedRelevant": false,
+        "cosine": 0.1825602157737751
+      },
+      {
+        "queryId": "p7",
+        "documentId": "hostile",
+        "expectedRelevant": false,
+        "cosine": 0.3151619975989305
+      },
+      {
+        "queryId": "p7",
+        "documentId": "filler",
+        "expectedRelevant": false,
+        "cosine": 0.16664255662609245
+      },
+      {
+        "queryId": "p8",
+        "documentId": "p1",
+        "expectedRelevant": false,
+        "cosine": 0.14926597960297752
+      },
+      {
+        "queryId": "p8",
+        "documentId": "p2",
+        "expectedRelevant": false,
+        "cosine": 0.15187485001223322
+      },
+      {
+        "queryId": "p8",
+        "documentId": "p3",
+        "expectedRelevant": false,
+        "cosine": 0.26009627213957437
+      },
+      {
+        "queryId": "p8",
+        "documentId": "p4",
+        "expectedRelevant": false,
+        "cosine": 0.14315620218468716
+      },
+      {
+        "queryId": "p8",
+        "documentId": "p5",
+        "expectedRelevant": false,
+        "cosine": 0.08572655074462646
+      },
+      {
+        "queryId": "p8",
+        "documentId": "p6",
+        "expectedRelevant": false,
+        "cosine": 0.11114693576693446
+      },
+      {
+        "queryId": "p8",
+        "documentId": "p7",
+        "expectedRelevant": false,
+        "cosine": 0.1989811545585351
+      },
+      {
+        "queryId": "p8",
+        "documentId": "p8",
+        "expectedRelevant": true,
+        "cosine": 0.7229093998981428
+      },
+      {
+        "queryId": "p8",
+        "documentId": "hostile",
+        "expectedRelevant": false,
+        "cosine": 0.16036804119847128
+      },
+      {
+        "queryId": "p8",
+        "documentId": "filler",
+        "expectedRelevant": false,
+        "cosine": 0.20065670718388043
+      }
+    ],
+    "positiveMin": 0.6058640109357305,
+    "negativeMax": 0.43258229611100957,
+    "selected": 0.52,
+    "model": "qwen3-embedding-0.6b-gguf",
+    "modelRevision": "370f27d7550e0def9b39c1f16d3fbaa13aa67728",
+    "weightSha256": "06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439",
+    "runtimeRevision": "2f539596c6e9a977e91b6bc6344650422c6bc3b0",
+    "configuration": {
+      "id": "local:qwen3-embedding-0.6b-gguf",
+      "dimensions": 1024,
+      "fingerprint": "d5825b2947ee5aedd585b371f0096f584efd955704e279c956c0338bf8a8bdbc"
+    },
+    "preprocessing": "Product role=query/document formatting, last-token pooling and L2 normalization; one passage per document, <=512 Unicode code points."
+  },
+  "originalCriterion": {
+    "unchangedCorpusSha256": "70ab90e0be0e1ba9e7872dbd1e7286b1ef5c5fd343660b5e950cbd8c7a90e5e5",
+    "before": {
+      "lexical": {
+        "relevantEvidence": {
+          "precision": 0.11057692307692307,
+          "recall": 0.8518518518518519
+        },
+        "exactIdentifierRecall": 0.75,
+        "chainCompleteness": 0.8,
+        "irrelevantAbstention": 0
+      },
+      "hybrid": {
+        "relevantEvidence": {
+          "precision": 0.1125,
+          "recall": 1
+        },
+        "exactIdentifierRecall": 1,
+        "chainCompleteness": 0.8,
+        "irrelevantAbstention": 0
+      }
+    },
+    "candidate": {
+      "lexical": {
+        "relevantEvidence": {
+          "precision": 0.36363636363636365,
+          "recall": 0.7407407407407407
+        },
+        "exactIdentifierRecall": 0.75,
+        "chainCompleteness": 0.8,
+        "irrelevantAbstention": 0
+      },
+      "hybrid": {
+        "relevantEvidence": {
+          "precision": 0.4,
+          "recall": 0.9629629629629629
+        },
+        "exactIdentifierRecall": 1,
+        "chainCompleteness": 0.8,
+        "irrelevantAbstention": 0
+      }
+    },
+    "resultSha256": "61a7c302d173c2dde8b73103e49c177996c992c0a7893db845e01fd955119a86",
+    "interpretation": "Original irrelevant-abstention remains zero. Hybrid recall loses museum-access@r1 on s1 (cosine approximately 0.5068); linked museum-visiting@r1 survives. Lexical recall also declines. These results were not relabeled or tuned away."
+  },
+  "independentNewCriterion": {
+    "fixture": "evaluations/knowledge/relevance-challenge.json",
+    "fixtureSha256": "70e7c0405ff9d2cf889a15fa8345dcd8babc989ef24e9d99245357ade2045eb0",
+    "resultSha256": "88d0677ee62158a08657a46f14a5066d591cfc49bee0aafd3100bf2cef13cee0",
+    "passed": true,
+    "answeringModelCalls": 0,
+    "transport": "actual Codex adapter with controlled RPC; no native process",
+    "cases": [
+      {
+        "id": "useful",
+        "category": "useful",
+        "mode": "lexical",
+        "query": "What ink does Cedar Press use?",
+        "preparationKind": "ready",
+        "selected": [
+          "ink",
+          "collection",
+          "hostile-related"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "passed": true,
+        "providerInputMethods": [
+          "turn/start",
+          "turn/steer"
+        ],
+        "guidanceInEveryInput": true
+      },
+      {
+        "id": "paraphrase",
+        "category": "paraphrase",
+        "mode": "lexical",
+        "query": "What supplies energy to the print shop?",
+        "preparationKind": "empty",
+        "selected": [],
+        "missing": [],
+        "unexpected": [],
+        "passed": true,
+        "providerInputMethods": [],
+        "guidanceInEveryInput": null
+      },
+      {
+        "id": "wholly-unrelated",
+        "category": "unrelated",
+        "mode": "lexical",
+        "query": "How do jellyfish reproduce?",
+        "preparationKind": "empty",
+        "selected": [],
+        "missing": [],
+        "unexpected": [],
+        "passed": true,
+        "providerInputMethods": [],
+        "guidanceInEveryInput": null
+      },
+      {
+        "id": "related-incomplete",
+        "category": "related_missing_attribute",
+        "mode": "lexical",
+        "query": "Who founded Cedar Press?",
+        "preparationKind": "ready",
+        "selected": [
+          "ink",
+          "collection",
+          "hostile-related"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "passed": true,
+        "providerInputMethods": [
+          "turn/start",
+          "turn/steer"
+        ],
+        "guidanceInEveryInput": true
+      },
+      {
+        "id": "hostile-related",
+        "category": "hostile_reference_not_instruction",
+        "mode": "lexical",
+        "query": "What does the Cedar Press security memo say?",
+        "preparationKind": "ready",
+        "selected": [
+          "hostile-related",
+          "ink",
+          "collection"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "passed": true,
+        "providerInputMethods": [
+          "turn/start",
+          "turn/steer"
+        ],
+        "guidanceInEveryInput": true
+      },
+      {
+        "id": "identifier",
+        "category": "identifier",
+        "mode": "lexical",
+        "query": "VX-83D",
+        "preparationKind": "ready",
+        "selected": [
+          "identifier"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "passed": true,
+        "providerInputMethods": [
+          "turn/start",
+          "turn/steer"
+        ],
+        "guidanceInEveryInput": true
+      },
+      {
+        "id": "useful",
+        "category": "useful",
+        "mode": "hybrid",
+        "query": "What ink does Cedar Press use?",
+        "preparationKind": "ready",
+        "selected": [
+          "ink",
+          "collection",
+          "hostile-related"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "passed": true,
+        "providerInputMethods": [
+          "turn/start",
+          "turn/steer"
+        ],
+        "guidanceInEveryInput": true
+      },
+      {
+        "id": "paraphrase",
+        "category": "paraphrase",
+        "mode": "hybrid",
+        "query": "What supplies energy to the print shop?",
+        "preparationKind": "ready",
+        "selected": [
+          "power"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "passed": true,
+        "providerInputMethods": [
+          "turn/start",
+          "turn/steer"
+        ],
+        "guidanceInEveryInput": true
+      },
+      {
+        "id": "wholly-unrelated",
+        "category": "unrelated",
+        "mode": "hybrid",
+        "query": "How do jellyfish reproduce?",
+        "preparationKind": "empty",
+        "selected": [],
+        "missing": [],
+        "unexpected": [],
+        "passed": true,
+        "providerInputMethods": [],
+        "guidanceInEveryInput": null
+      },
+      {
+        "id": "related-incomplete",
+        "category": "related_missing_attribute",
+        "mode": "hybrid",
+        "query": "Who founded Cedar Press?",
+        "preparationKind": "ready",
+        "selected": [
+          "ink",
+          "collection",
+          "hostile-related"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "passed": true,
+        "providerInputMethods": [
+          "turn/start",
+          "turn/steer"
+        ],
+        "guidanceInEveryInput": true
+      },
+      {
+        "id": "hostile-related",
+        "category": "hostile_reference_not_instruction",
+        "mode": "hybrid",
+        "query": "What does the Cedar Press security memo say?",
+        "preparationKind": "ready",
+        "selected": [
+          "hostile-related",
+          "ink",
+          "collection"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "passed": true,
+        "providerInputMethods": [
+          "turn/start",
+          "turn/steer"
+        ],
+        "guidanceInEveryInput": true
+      },
+      {
+        "id": "identifier",
+        "category": "identifier",
+        "mode": "hybrid",
+        "query": "VX-83D",
+        "preparationKind": "ready",
+        "selected": [
+          "identifier"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "passed": true,
+        "providerInputMethods": [
+          "turn/start",
+          "turn/steer"
+        ],
+        "guidanceInEveryInput": true
+      }
+    ],
+    "disclosureDenied": {
+      "kind": "empty",
+      "references": [],
+      "bytes": 0
+    },
+    "limitation": "Lexical paraphrase empty is allowed, not a lexical recall success. Related hostile retention is expected; no live model obedience/rejection claim. Small synthetic challenge, not universal relevance proof."
+  },
+  "sourceHashes": {
+    "packages/knowledge/knowledge/src/index.ts": "c4eda311e7197d73895646408ef8e9763674e3425f8013c51167f628e090da36",
+    "packages/knowledge/sqlite-knowledge/src/index.ts": "8d2451aecf52eb4dc6d8ca111a64a1579d5c3b2bb792ad230a5a1acda2c52abb",
+    "packages/knowledge/local-knowledge-runtime/src/semantic.ts": "2126e1de1f9c4f84e8eefea3c2a9461ac3d45f6999d3a2f20167bc8cd0c7cd97",
+    "packages/context/knowledge-context/src/index.ts": "9f406f00aaae93399822d8f13cb42444447b149582e0452e7bc10f132c6c0639",
+    "evaluations/knowledge/relevance-calibration.mjs": "759b79ca383ff2b16120370c714a05d5bf67f394436aa251fff45ad574cdfb8a",
+    "evaluations/knowledge/relevance-context.mjs": "97abcafaef611022c8ed76d5b67779a56fba9213448f6d84b7ce127da5013c08"
+  }
+}

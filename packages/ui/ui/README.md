@@ -28,6 +28,11 @@ summaries/attempts supplied by the host, never task arguments/results or media.
 Unresolved effects are reported separately from the workflow's terminal status.
 Cancellation requested is not cancellation completed. Consumer ViewModels own
 pagination, input validation, permissions, stale-response handling and recovery.
+Optional `statusLabel` and `stepLabel(id)` let trusted consumers supply readable
+presentation for their own domain status and step names. They do not change the
+snapshot, cancellation eligibility or input authority. Omitted props preserve
+the default engine-status and run-relative step labels. A read-only consumer
+omits cancel and input callbacks.
 
 ### EvaluationWorkbench (ADR 0025)
 

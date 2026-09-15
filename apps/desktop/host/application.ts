@@ -3,10 +3,12 @@ import { mkdir } from 'node:fs/promises';
 import { z } from 'zod';
 import { createInstallationStore } from './plugin-installations.js';
 import { createOrchestrationHost } from './orchestration-host.js';
+import { createKnowledgeActivity } from './knowledge-activity.js';
 import { createWorkflowAuthority } from './workflow-authority.js';
 import { createWorkflowToolScope } from './workflow-tools.js';
 import { createGrantRefresh } from './grant-refresh.js';
-import type { createLocalTemporalManager } from '@drawloom/temporal-orchestration';
+import { KnowledgeCommandSchema } from '../src/lib/knowledge-protocol.js';
+import type { createLocalTemporalManager, LocalTemporalRegistration } from '@drawloom/temporal-orchestration';
 import { loadInstalledPackages } from './plugin-packages.js';
 import { createElicitationPresenter } from './elicitation.js';
 import { PackageActionSchema, PackageInspectionSchema, ResourceOriginSchema } from '../src/lib/package-protocol.js';
@@ -80,7 +82,8 @@ import { createManagedLocalKnowledgeClient } from '@drawloom/local-knowledge-run
 import { createKnowledgeHost, type KnowledgeService } from './knowledge-host.js';
 import { createInstalledGitKnowledgeFeed } from './knowledge-source.js';
 import { createKnowledgeNightloom, isNightloomKnowledgeService } from './knowledge-nightloom.js';
-import { createKnowledgePlugin, KNOWLEDGE_RETRIEVAL_GUIDANCE, KNOWLEDGE_TOOL_IDS, knowledgeObservation } from './knowledge-tools.js';
+import { createKnowledgePlugin, KNOWLEDGE_RETRIEVAL_GUIDANCE, KNOWLEDGE_TOOL_IDS, createKnowledgeOutcomeCapture, createEvidenceReadReceipts } from './knowledge-tools.js';
+import { toolOutcomeProjectors } from './composition.js';
 import {createInstalledEvaluation} from './evaluation-host.js';
 import {createDesktopAssessment} from './evaluation-assessment.js';
 import type {EvaluationAssessmentProvider} from '@drawloom/evaluation';
@@ -106,9 +109,15 @@ export async function retireCreatedRuntimes<T>(
 export async function createDesktopApplication(
   root: string,
   options: { experimentalPluginDiscovery?: boolean; mediaOrigins?: readonly string[];
+    /** Trusted host composition only; never browser/model configuration. */
+    codex?: { connect(workingDirectory: string): Promise<import('@drawloom/host').RpcTransport>; store?: import('@drawloom/host').JsonStore };
     evaluation?: {assessment?:EvaluationAssessmentProvider;model?:string};
     orchestration?: { temporalPath?: string; nodePath?: string; runtimeDirectory?: string; manager?: () => Promise<ReturnType<typeof createLocalTemporalManager>> };
-    knowledge?: { service?: KnowledgeService; nodePath?: string; runtimeEntrypoint?: string; nightloomDirectory?: string } } = {},
+    knowledge?: { service?: KnowledgeService; nodePath?: string; runtimeEntrypoint?: string; nightloomDirectory?: string;
+      /** Trusted host clock: returns a cancellation function, never browser configuration. */
+      schedulePreparationDeadline?: (expire: () => void, milliseconds: number) => () => void;
+      scheduleNightloomTick?: (tick: () => Promise<void>, milliseconds: number) => () => void;
+    } } = {},
 ) {
   const operationTelemetry = createOperationTelemetry();
   // Do not load the assessment SDK for installations that never request it.
@@ -144,7 +153,7 @@ export async function createDesktopApplication(
     project.selectedId = project.conversations[0]?.id ?? '';
   const live = new Map<string, Live>();
   const discoveryConnections = new Map<string, ReturnType<typeof createDiscoveryCache<Live>>>();
-  const submissions = new Map<string, { text: string; assets: Asset[]; selections: NonNullable<HistoryEntry['selections']>; resources: NonNullable<HistoryEntry['resources']> }[]>();
+  const submissions = new Map<string, { displayId: string; text: string; assets: Asset[]; selections: NonNullable<HistoryEntry['selections']>; resources: NonNullable<HistoryEntry['resources']> }[]>();
   const localRevision = crypto.randomUUID();
   const conversationSearchSchema=z.strictObject({query:z.string().trim().min(1).max(500),projectId:z.string().min(1).max(256).optional(),archived:z.enum(['active','archived','all']).default('active'),cursor:z.string().min(1).optional(),limit:z.number().int().min(1).max(100).default(50)});
   const pumps = new Set<Promise<void>>();
@@ -275,7 +284,8 @@ export async function createDesktopApplication(
     ...(options.knowledge?.nodePath ? { nodePath: options.knowledge.nodePath } : {}),
     ...(options.knowledge?.runtimeEntrypoint ? { runtimeEntrypoint: options.knowledge.runtimeEntrypoint } : {}),
   });
-  const knowledgePlugin = createKnowledgePlugin(knowledgeService);
+  const evidenceReadReceipts = createEvidenceReadReceipts();
+  const knowledgePlugin = createKnowledgePlugin(knowledgeService, evidenceReadReceipts);
   function runtimeFor(binding?: DirectoryProject) {
     const key = binding?.id ?? 'legacy';
     let runtime = runtimes.get(key);
@@ -412,13 +422,26 @@ export async function createDesktopApplication(
   } catch (error) { await Promise.all([...mcpApps.values()].map(app => app.close())); throw error; }
     return { packages, packageToolIds, packageGrants, knowledgeToolIds, knowledgeGrants, registry, controllers, grants, refreshWorkbenchGrants, text, mcpApps, store: runtimeStore, activated: available };
   }
+  let knowledgeRegistration: LocalTemporalRegistration | undefined;
+  const knowledgeActivity = createKnowledgeActivity(() => knowledgeRegistration);
   const nightloom = isNightloomKnowledgeService(knowledgeService) ? createKnowledgeNightloom({ service: knowledgeService, store,
+    ...(options.knowledge?.scheduleNightloomTick ? { scheduleTick: options.knowledge.scheduleNightloomTick } : {}),
     packageDirectory: options.knowledge?.nightloomDirectory ?? join(import.meta.dir, '../../../packages/knowledge/nightloom'),
     settings: async () => (await knowledgeService.status()).configuration,
-    prepareHost: owner => manager().then(instance => instance.prepareHost(owner)),
+    prepareHost: async owner => {
+      const registration = await (await manager()).prepareHost(owner);
+      knowledgeRegistration = registration;
+      return registration;
+    },
   }) : undefined;
+  const outcomeCaptures = new Map<string, Promise<Awaited<ReturnType<typeof createKnowledgeOutcomeCapture>>>>();
   const knowledge = createKnowledgeHost({
     service: knowledgeService, store,
+    captureQueues: async () => Promise.all([...outcomeCaptures].map(async ([conversationId, pendingCapture]) => {
+      try { return { conversationId, pendingObservations: (await pendingCapture).pending().length }; }
+      catch { return { conversationId, pendingObservations: 0 }; }
+    })),
+    ...(options.knowledge?.schedulePreparationDeadline ? { schedulePreparationDeadline: options.knowledge.schedulePreparationDeadline } : {}),
     selectedProjectId: () => project.selectedProjectId,
     sourceForProject: async projectId => {
       const binding = project.projects.find(candidate => candidate.id === projectId);
@@ -442,6 +465,23 @@ export async function createDesktopApplication(
   async function refreshGrants(workbenchId: string, runtime: Awaited<ReturnType<typeof createRuntime>>) {
     return (await runtime.refreshWorkbenchGrants([workbenchId])).get(workbenchId)!;
   }
+  function outcomeCaptureFor(conversationId: string) {
+    let current = outcomeCaptures.get(conversationId);
+    if (!current) {
+      current = (async () => {
+        const binding = await requireProject(conversationId);
+        const runtime = await runtimeForConversation(conversationId);
+        return createKnowledgeOutcomeCapture({ store, conversationId, projectId: binding.id, evidence: await evidenceFor(conversationId),
+          enabled: async () => (await knowledgeService.status()).configuration.captureOutcomes,
+          ingest: input => knowledgeService.ingest(input), projectors: toolOutcomeProjectors,
+          registeredName: tool => runtime.packages.toolPresentation.get(tool)?.name ?? tool,
+          producerOrigin: tool => runtime.packages.toolSources.get(tool),
+        });
+      })();
+      outcomeCaptures.set(conversationId, current);
+    }
+    return current;
+  }
   async function connect(conversationId: string): Promise<Live> {
     const binding = await requireProject(conversationId);
     const existing = live.get(conversationId);
@@ -455,6 +495,7 @@ export async function createDesktopApplication(
       if (!conversation) throw Error("Conversation unavailable");
       const runtime = await runtimeForConversation(conversationId);
       const { registry, controllers, packageToolIds, knowledgeToolIds, grants, text } = runtime;
+      knowledge.warmup();
       const workbench = registry.workbenches.find(
         (w) => w.id === conversation.workbenchId,
       );
@@ -470,6 +511,9 @@ export async function createDesktopApplication(
       const historyWriter = writer(conversationId);
       const operationBindings = new Map<string, ToolBinding>();
       const sink = await evidenceFor(conversationId);
+      const capture = await outcomeCaptureFor(conversationId);
+      await capture.recover();
+      knowledge.reportObservationRecovery(conversationId);
       const resourceRecovery = await recoveryFor(conversationId);
       const gateway = observedToolGateway(createLocalToolGateway({
         tools: observedTools(registry.tools.filter((t) => workbench.tools.includes(t.name) || packageToolIds.has(t.name) || knowledgeToolIds.has(t.name))),
@@ -478,22 +522,15 @@ export async function createDesktopApplication(
           Boolean(grants.get(workbench.id)?.has(name)),
         nextInvocationId: () => crypto.randomUUID(),
         evidence: { record: async record => {
+          if (record.kind === 'started') await capture.started(record);
           await sink.record(record);
           if (record.kind === 'finished') {
             try { await resourceRecovery.record(record.result); }
             catch { historyWriter.reportStorageFailure(); }
             try {
-              const tool = sink.toolFor(record.result.invocationId);
-              const presentation = tool ? runtime.packages.toolPresentation.get(tool) : undefined;
-              const observation = tool ? knowledgeObservation({ toolName: tool,
-                ...(presentation ? { registeredName: presentation.name } : {}),
-                ...(runtime.packages.toolSources.get(tool) ? { producerOrigin: runtime.packages.toolSources.get(tool)! } : {}),
-                invocationId: record.result.invocationId, outcome: record.result.outcome }) : undefined;
-              if (observation) {
-                const saved = await knowledgeService.ingest(observation);
-                if (saved.kind !== 'accepted' && saved.kind !== 'duplicate') knowledge.reportObservationFailure();
-              }
-            } catch { knowledge.reportObservationFailure(); }
+              await capture.finished(record.result);
+              knowledge.reportObservationRecovery(conversationId);
+            } catch { knowledge.reportObservationFailure(conversationId); }
           }
         } },
       }), operationTelemetry);
@@ -515,6 +552,17 @@ export async function createDesktopApplication(
           : createCodexDriver({
               workingDirectory: binding.directory,
               experimentalPluginDiscovery: options.experimentalPluginDiscovery === true,
+              onContextInvalidated: operationId => evidenceReadReceipts.invalidate(operationId),
+              onToolResultDelivered: delivery => {
+                if (delivery.server !== 'drawloom' || delivery.tool !== 'knowledge.evidence') return;
+                const parsed = z.object({ _meta: z.object({ invocationId: z.string(), operationId: z.string(), evidence: z.literal('recorded') }), content: z.unknown() }).safeParse(delivery.result);
+                if (!parsed.success || parsed.data._meta.operationId !== delivery.operationId) return;
+                const result = sink.activity().find(result => result.invocationId === parsed.data._meta.invocationId && result.operationId === delivery.operationId);
+                if (!result || result.evidence !== 'recorded' || result.outcome.status !== 'ok' || sink.toolFor(result.invocationId) !== 'knowledge.evidence') return;
+                const expected = result.outcome.content ?? [{ type: 'text', text: result.outcome.text }];
+                if (JSON.stringify(parsed.data.content) !== JSON.stringify(expected)) return;
+                evidenceReadReceipts.confirmDelivered(delivery.operationId, result.invocationId, result.outcome.value);
+              },
               onToolContent: async result => {
                 // Our gateway already captured its correlated execution result.
                 if (result.source === 'drawloom' || !result.content.some(c => c.type !== 'text')) return;
@@ -522,12 +570,12 @@ export async function createDesktopApplication(
                 catch { historyWriter.reportStorageFailure(); throw Error('Resource capture could not be persisted'); }
               },
               connect: async () =>
-                observedRpc(createStdioTransport({
+                observedRpc(options.codex ? await options.codex.connect(binding.directory) : createStdioTransport({
                   ...codexCommand(),
                   cwd: binding.directory,
                   maxMessageBytes: nativeRpcMessageByteLimit,
                 })),
-              store,
+              store: options.codex?.store ?? store,
               imageInput: assets.imageInput,
               captureImage: async result => {
                 const asset = await assets.captureImage(result);
@@ -551,6 +599,7 @@ export async function createDesktopApplication(
               },
               onTurnFinished: (thread, turn) => {
                 bridge.retire(thread, turn);
+                for (const operationId of operationBindings.keys()) evidenceReadReceipts.invalidate(operationId);
               },
             });
       // Tokens belong to isolated provider configuration, never model context.
@@ -580,6 +629,7 @@ export async function createDesktopApplication(
         session,
         signals,
         close: async () => {
+          for (const operationId of operationBindings.keys()) evidenceReadReceipts.invalidate(operationId);
           if (state.active) operationTelemetry.end(state.active, 'unknown');
           for (const binding of operationBindings.values())
             gateway.revoke(binding);
@@ -614,9 +664,12 @@ export async function createDesktopApplication(
                 : signal.text;
             message.state = signal.kind === 'message.completed' ? 'complete' : 'partial';
             if (signal.kind === 'message.completed' && signal.assets) message.assets = signal.assets;
+            if (signal.kind === 'message.completed' && signal.preparation) message.preparation = signal.preparation;
             if (signal.kind === 'message.completed' && signal.role === 'user') {
-              const submission = submissions.get(signal.operationId)?.shift();
-              if (submission) Object.assign(message, submission);
+              const pending = submissions.get(signal.operationId);
+              const index = pending?.findIndex(value => value.displayId === signal.displayId) ?? -1;
+              const submission = index >= 0 ? pending?.splice(index, 1)[0] : undefined;
+              if (submission) { const { displayId: _, ...visible } = submission; Object.assign(message, visible); }
             }
             await historyWriter.write({ ...message });
             if (message.state === 'complete') messages.delete(key);
@@ -701,13 +754,35 @@ export async function createDesktopApplication(
     configuration: [],
     grants: [],
   };
+  const pendingKnowledgeRevocations = new Map<symbol, { conversationId: string; workbenchId: string; toolName: string }>();
   const application = {
     installations,
     workflowOwners: orchestration.owners,
+    knowledgeActivityOwner: knowledgeActivity.owner,
+    knowledgeActivityRuns: knowledgeActivity.list,
+    knowledgeActivityRun: knowledgeActivity.detail,
+    knowledgeActivitySteps: knowledgeActivity.steps,
     workflowRuns: orchestration.list,
     workflowSteps: orchestration.steps,
     workflowCommand: orchestration.command,
     knowledgeCommand: knowledge.command,
+    admitKnowledgeCommand(raw: unknown) {
+      const command = KnowledgeCommandSchema.parse(raw);
+      if (command.action === 'configure' && !command.configuration.automaticContext) return knowledge.suppressAutomaticContext();
+    },
+    async admitCommand(raw: unknown) {
+      const command = DesktopCommandSchema.parse(raw);
+      if (command.kind !== 'operator' || command.command.kind !== 'set_tool_grant' || command.command.allowed || !KNOWLEDGE_TOOL_IDS.includes(command.command.toolName as typeof KNOWLEDGE_TOOL_IDS[number])) return;
+      const validTarget = () => command.conversationId === project.selectedId && project.conversations.find(c => c.id === command.conversationId)?.workbenchId === command.workbenchId;
+      if (!validTarget()) throw Error('Conversation unavailable');
+      await requireProject(command.conversationId);
+      const runtime = await runtimeForConversation(command.conversationId);
+      if (!validTarget() || !runtime.controllers.has(command.workbenchId) || !runtime.knowledgeToolIds.has(command.command.toolName)) throw Error('Workbench unavailable');
+      const intent = Symbol();
+      pendingKnowledgeRevocations.set(intent, { conversationId: command.conversationId, workbenchId: command.workbenchId, toolName: command.command.toolName });
+      knowledge.invalidatePreparation();
+      return () => { pendingKnowledgeRevocations.delete(intent); };
+    },
     bindOAuthRedirect: (url: string) => { oauthRedirect = url; },
     oauthCallback: (url: URL) => oauth.callback(url),
     async packageOAuth(raw: unknown) {
@@ -1060,9 +1135,19 @@ export async function createDesktopApplication(
       });
     },
     async restore() {
+      for (const conversation of project.conversations) {
+        const pending = await store.get(`knowledge-pending-outcomes:${conversation.id}`);
+        if (!Array.isArray(pending) || !pending.length) continue;
+        try {
+          const capture = await outcomeCaptureFor(conversation.id);
+          await capture.recover();
+          knowledge.reportObservationRecovery(conversation.id);
+        } catch { knowledge.reportObservationFailure(conversation.id); }
+      }
       const workflowReadiness = await orchestration.restore();
       if (workflowReadiness?.message) notice = workflowReadiness.message;
       void nightloom?.initialize().catch(() => undefined);
+      nightloom?.startScheduling();
       void knowledge.pollSource().catch(() => undefined);
       const c = project.conversations.find((c) => c.id === project.selectedId);
       if (c?.provider === "codex" && c.projectId) {
@@ -1167,6 +1252,7 @@ export async function createDesktopApplication(
         const runtime = await selectedRuntime();
         const { controllers, packageToolIds, packageGrants, knowledgeToolIds, knowledgeGrants } = runtime;
         if (command.command.kind === 'set_tool_grant' && knowledgeToolIds.has(command.command.toolName)) {
+          knowledge.invalidatePreparation();
           if (!controllers.has(command.workbenchId)) throw Error('Workbench unavailable');
           const selected = new Set(knowledgeGrants[command.workbenchId] ?? []);
           if (command.command.allowed) selected.add(command.command.toolName); else selected.delete(command.command.toolName);
@@ -1221,7 +1307,8 @@ export async function createDesktopApplication(
           const result = await state.session.respondToInput(command.resolution);
           if (result.status !== "ok") throw Error(result.failure.message);
         } else {
-          const op = state.active ?? crypto.randomUUID();
+          let op = state.active ?? crypto.randomUUID();
+          const preparationTarget = state.active;
           const operator = await refreshGrants(conversation.workbenchId, runtime);
           const catalogue = command.selections.length ? await this.discover(conversation.id) : undefined;
           const selected = [...new Map(command.selections.map(s => [s.id, s])).values()].map(selection => {
@@ -1270,6 +1357,9 @@ export async function createDesktopApplication(
           if (context.reduce((size, text) => size + text.length, 0) + command.text.length + viewContext.forConversation(conversation.id).length > 200_000) throw Error('Selected context is too large');
           const input = {
             operationId: op,
+            originalDisplayText: command.text,
+            displayId: crypto.randomUUID(),
+            referenceSignal: knowledge.referenceSignal,
             reviewer: conversation.reviewer,
             ...(!state.active && conversation.modelSelection ? {modelSelection:conversation.modelSelection}:{}),
             text: [
@@ -1282,13 +1372,29 @@ export async function createDesktopApplication(
             ...(selectedInstructions.length ? { additionalContext: { text: selectedInstructions.join('\n') } } : {}),
             selections: selected.filter(e => e.origin !== 'drawloom').map(e => ({ id: e.id, revision: e.revision })),
           };
-          if (conversation.provider === 'synthetic') await writer(conversation.id).write({
-            id: crypto.randomUUID(), role: 'user', text: command.text, assets: attachments, operationId: op, state: 'complete',
-            selections: selected.map(e => ({ id: e.id, title: e.name, source: e.origin })),
-            resources: selectedResources,
-          });
+          const preparationEpoch = knowledge.preparationEpoch;
+          if (input.text.length + selectedInstructions.join('\n').length + 512 > 200_000) throw Error('Selected context is too large');
+          const preparationAllowed = () => live.get(conversation.id) === state
+            && ![...pendingKnowledgeRevocations.values()].some(intent => intent.conversationId === conversation.id && intent.workbenchId === conversation.workbenchId)
+            && Boolean(runtime.grants.get(conversation.workbenchId)?.has('knowledge.search') && runtime.grants.get(conversation.workbenchId)?.has('knowledge.evidence'));
+          let prepared = await knowledge.prepare({ request: command.text, binding: { executionId: op, conversationId: conversation.id },
+            budget: { maxRecords: 8, maxBytes: Math.max(1, Math.min(12288, 200_000 - input.text.length - selectedInstructions.join('\n').length - 512)) } },
+            preparationAllowed);
+          // No wire submission has occurred. A completed steering target needs
+          // a fresh operation and freshly scoped preparation, never a retry of
+          // the already completed identity.
+          if (preparationTarget && state.active !== preparationTarget) {
+            if (state.active) throw Error('Conversation execution changed during preparation');
+            op = crypto.randomUUID(); input.operationId = op;
+            if (conversation.modelSelection) Object.assign(input, { modelSelection: conversation.modelSelection });
+            prepared = await knowledge.prepare({ request: command.text, binding: { executionId: op, conversationId: conversation.id },
+              budget: { maxRecords: 8, maxBytes: Math.max(1, Math.min(12288, 200_000 - input.text.length - selectedInstructions.join('\n').length - 512)) } }, preparationAllowed);
+          }
+          const preparedInput = () => preparationEpoch === knowledge.preparationEpoch && (!prepared.references || preparationAllowed())
+            ? { ...input, preparation: prepared.summary, ...(prepared.references ? { references: prepared.references } : {}) }
+            : { ...input, preparation: { kind: 'cancelled' as const, references: [] } };
           const starting = !state.active;
-          const submitted = { text: command.text, assets: attachments, selections: selected.map(e => ({ id: e.id, title: e.name, source: e.origin })), resources: selectedResources };
+          const submitted = { displayId: input.displayId, text: command.text, assets: attachments, selections: selected.map(e => ({ id: e.id, title: e.name, source: e.origin })), resources: selectedResources };
           if (conversation.provider === 'codex') {
             const pending = submissions.get(op) ?? []; pending.push(submitted); submissions.set(op, pending);
           }
@@ -1298,13 +1404,18 @@ export async function createDesktopApplication(
           try {
             const result = starting
               ? await operationTelemetry.run(op, () => observed('agent.submit', { 'drawloom.operation.id': op }, async () => {
-                const result = await state.session.execute(input);
+                const result = await state.session.execute(preparedInput());
                 if (result.status !== 'ok') observeOutcome('error');
                 return result;
               }))
-              : await (state.session.steer?.(input) ??
+              : await (state.session.steer?.(preparedInput()) ??
                   Promise.reject(Error("Steering unavailable")));
             if (result.status !== "ok") throw Error(result.failure.message);
+            if (conversation.provider === 'synthetic') await writer(conversation.id).write({
+              id: crypto.randomUUID(), role: 'user', text: command.text, assets: attachments, operationId: op, state: 'complete',
+              preparation: preparedInput().preparation,
+              selections: selected.map(e => ({ id: e.id, title: e.name, source: e.origin })), resources: selectedResources,
+            });
           } catch (error) {
             const pending = submissions.get(op);
             if (pending) submissions.set(op, pending.filter(s => s !== submitted));
@@ -1363,7 +1474,10 @@ export async function createDesktopApplication(
       return asset;
     },
     async close() {
+      await nightloom?.stopScheduling();
       await orchestration.close();
+      // Nightloom can be the only consumer that opened the shared manager.
+      await (await temporalManager?.catch(() => undefined))?.close();
       await knowledge.close();
       operationTelemetry.close();
       await Promise.allSettled([...opening.values()]);

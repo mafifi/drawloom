@@ -2,6 +2,15 @@ import type { KnowledgeRecord, KnowledgeLink, RecordRef, SearchResult } from '@d
 import type { KnowledgeConfiguration, KnowledgeStatus } from './knowledge-protocol.js';
 
 export const knowledgeCopy = {
+  learning: 'Learning from your work',
+  capture: 'Remember useful tool outcomes',
+  captureHelp: 'Retain selected results from participating tools, not full conversations or arbitrary tool input. Nightloom may send this evidence to Codex for assessment when maintenance is enabled.',
+  automaticContext: 'Use knowledge in conversations',
+  automaticContextHelp: 'Find relevant knowledge locally and send selected references to Codex with your messages. Your existing knowledge permissions still apply.',
+  automaticCuration: 'Curate knowledge automatically',
+  automaticCurationHelp: 'Send selected retained evidence to your configured Codex model to build and update knowledge. Local search does not send evidence to Codex.',
+  curationDisableHelp: 'Turning this off prevents new automatic assessments. An assessment already accepted may finish.',
+  disableHelp: 'Turning this off stops new references being sent. Material already sent remains in earlier conversation turns.',
   title: 'Knowledge', introduction: 'Find what you’ve learned across your projects, with the evidence behind it.',
   searchLabel: 'Search knowledge', searchPlaceholder: 'Search your knowledge…', search: 'Search', searching: 'Searching',
   more: 'Next results', inspect: 'Inspect evidence', empty: 'No matching knowledge. Try another phrase or add a source.',
@@ -35,11 +44,15 @@ export interface KnowledgePresentation {
   readonly pendingAction?: string;
   readonly error: string;
   readonly notice: string;
+  readonly recoveryNotices: readonly string[];
   readonly searchStatus: string;
   readonly status?: KnowledgeStatus;
   readonly configuration?: KnowledgeConfiguration;
+  readonly learning: { readonly captureOutcomes: boolean; readonly automaticContext: boolean; readonly automaticCuration: boolean; readonly dirty: boolean };
 }
 export interface KnowledgeActions {
+  setLearning(key: 'captureOutcomes' | 'automaticContext' | 'automaticCuration', enabled: boolean): void;
+  saveLearning(): Promise<void>;
   setQuery(value: string): void;
   search(more?: boolean): Promise<void>;
   inspect(ref: RecordRef, more?: boolean): Promise<void>;

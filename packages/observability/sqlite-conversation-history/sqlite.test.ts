@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, test, spyOn } from "bun:test";
 import { Database } from "bun:sqlite";
 import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -23,7 +23,7 @@ test('version one migrates additively with records, checkpoints and cursors unch
   const cursor = (await store.page('conversation')).changeCursor;
   await store.close();
   const old = new Database(file);
-  old.exec('DROP TRIGGER history_entries_fts_insert; DROP TRIGGER history_entries_fts_delete; DROP TRIGGER history_entries_fts_update; DROP TABLE history_entries_fts; ALTER TABLE history_entries DROP COLUMN resources; ALTER TABLE history_entries DROP COLUMN selections; PRAGMA user_version=1;'); old.close();
+  old.exec('DROP TRIGGER history_entries_fts_insert; DROP TRIGGER history_entries_fts_delete; DROP TRIGGER history_entries_fts_update; DROP TABLE history_entries_fts; ALTER TABLE history_entries DROP COLUMN resources; ALTER TABLE history_entries DROP COLUMN selections; ALTER TABLE history_entries DROP COLUMN preparation; PRAGMA user_version=1;'); old.close();
   store = createSqliteConversationHistory(file);
   try {
     expect((await store.get('conversation', 'one'))?.text).toBe('hello');
@@ -38,10 +38,45 @@ test('version one migrates additively with records, checkpoints and cursors unch
 test('version two migration backfills full-text search without changing stored records', async () => {
   const file=path();let store=createSqliteConversationHistory(file);
   await store.commit('old',{expectedRevision:0,entries:[{id:'kept',position:[0,0],role:'assistant',text:'Synthetic migration lighthouse',assets:[],state:'complete'}]});await store.close();
-  const old=new Database(file);old.exec("DROP TRIGGER history_entries_fts_insert; DROP TRIGGER history_entries_fts_delete; DROP TRIGGER history_entries_fts_update; DROP TABLE history_entries_fts; PRAGMA user_version=2;");old.close();
+  const old=new Database(file);old.exec("DROP TRIGGER history_entries_fts_insert; DROP TRIGGER history_entries_fts_delete; DROP TRIGGER history_entries_fts_update; DROP TABLE history_entries_fts; ALTER TABLE history_entries DROP COLUMN preparation; PRAGMA user_version=2;");old.close();
   store=createSqliteConversationHistory(file);
   expect((await store.search({query:'lighthouse'})).items).toEqual([expect.objectContaining({conversationId:'old',entryId:'kept'})]);
   expect((await store.get('old','kept'))?.text).toBe('Synthetic migration lighthouse');await store.close();
+});
+
+test('version three preserves originals and stores preparation references across reopen', async () => {
+  const file = path(); let store = createSqliteConversationHistory(file);
+  await store.commit('conversation', { expectedRevision: 0, entries: [entry()] }); await store.close();
+  const old = new Database(file); old.exec('ALTER TABLE history_entries DROP COLUMN preparation; PRAGMA user_version=3;'); old.close();
+  store = createSqliteConversationHistory(file);
+  const preparation = { kind: 'ready' as const, references: [{ ref: { type: 'source' as const, origin: 'public', id: 'guide', revision: 'r1' }, status: 'active' as const, inclusion: 'reference_only' as const }], receipt: { executionId: 'execution', submissionId: 'submission' } };
+  await store.commit('conversation', { expectedRevision: 1, entries: [{ ...entry(), preparation }] }); await store.close();
+  store = createSqliteConversationHistory(file);
+  try { expect(await store.get('conversation', 'one')).toMatchObject({ text: 'hello', preparation }); }
+  finally { await store.close(); }
+});
+
+test.each([1, 2])('interrupted migration from version %s retains a resumable v3 boundary', async version => {
+  const file = path(); let store = createSqliteConversationHistory(file);
+  await store.commit('conversation', { expectedRevision: 0, entries: [entry()], checkpoints: [{ namespace: 'native', key: 'covered', value: 'kept' }] });
+  const cursor = (await store.page('conversation')).changeCursor; await store.close();
+  const old = new Database(file);
+  old.exec('DROP TRIGGER history_entries_fts_insert; DROP TRIGGER history_entries_fts_delete; DROP TRIGGER history_entries_fts_update; DROP TABLE history_entries_fts; ALTER TABLE history_entries DROP COLUMN preparation;');
+  if (version === 1) old.exec('ALTER TABLE history_entries DROP COLUMN resources; ALTER TABLE history_entries DROP COLUMN selections;');
+  old.exec(`PRAGMA user_version=${version}`); old.close();
+  const original = Database.prototype.exec;
+  const failure = spyOn(Database.prototype, 'exec').mockImplementation(function(this: Database, sql: string) {
+    if (sql === 'ALTER TABLE history_entries ADD COLUMN preparation TEXT') throw Error('Injected interruption at additive migration');
+    return original.call(this, sql);
+  });
+  try { expect(() => createSqliteConversationHistory(file)).toThrow(); }
+  finally { failure.mockRestore(); }
+  const interrupted = new Database(file);
+  const boundary = interrupted.query('PRAGMA user_version').get(); interrupted.close();
+  expect(boundary).toEqual({ user_version: 3 });
+  store = createSqliteConversationHistory(file);
+  try { expect((await store.get('conversation', 'one'))?.text).toBe('hello'); expect(await store.checkpoint('conversation', 'native', 'covered')).toBe('kept'); expect((await store.changes('conversation', { after: cursor })).entries).toEqual([]); }
+  finally { await store.close(); }
 });
 
 test('existing data directory and SQLite sidecars have private permissions', async () => {

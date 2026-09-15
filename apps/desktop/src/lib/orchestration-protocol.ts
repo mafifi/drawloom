@@ -26,3 +26,14 @@ export const WorkflowCommandSchema = z.discriminatedUnion('action', [
 export type WorkflowOwner = z.infer<typeof WorkflowOwnerSchema>;
 export type WorkflowRun = z.infer<typeof WorkflowRunSchema>;
 export type WorkflowCommand = z.infer<typeof WorkflowCommandSchema>;
+
+// Fixed host capability: callers never supply a project, installation or owner.
+export const KnowledgeActivityReadSchema = z.strictObject({ cursor: cursor.optional(), limit: z.coerce.number().int().min(1).max(100).default(20) });
+export const KnowledgeActivityDetailSchema = KnowledgeActivityReadSchema.extend({ runId: id });
+export const KnowledgeActivityOwnerSchema = z.strictObject({ title: z.literal('Knowledge maintenance'), context: z.literal('Across all projects'), readiness: OrchestrationReadinessSchema });
+export const KnowledgeActivityRunSchema = WorkflowRunSchema.extend({
+  displayStatus: z.enum(['Running', 'Cancellation requested', 'Completed', 'Cancelled', 'Failed', 'Needs attention', 'Unavailable']), message: z.string().max(1024),
+});
+export const KnowledgeActivityPageSchema = z.strictObject({ runs: z.array(KnowledgeActivityRunSchema).max(100), cursor: cursor.optional() });
+export type KnowledgeActivityRun = z.infer<typeof KnowledgeActivityRunSchema>;
+export type KnowledgeActivityOwner = z.infer<typeof KnowledgeActivityOwnerSchema>;

@@ -127,7 +127,7 @@ export default {
     },
     exclude: {
       // Keep known private imports visible to the rule even when installed.
-      path: `(^|/)node_modules/(?!${privatePackagePath})|^spikes/adr-0017-orchestration/dist/|^apps/desktop/(?:build/|\.svelte-kit/|src-tauri/(?:target/|binaries/))`,
+      path: `(^|/)node_modules/(?!${privatePackagePath})|^\\.superpowers/|^spikes/adr-0017-orchestration/dist/|^apps/desktop/(?:build/|\.svelte-kit/|src-tauri/(?:target/|binaries/))`,
     },
     tsConfig: {
       fileName: "tsconfig.json",

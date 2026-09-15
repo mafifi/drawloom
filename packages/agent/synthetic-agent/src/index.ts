@@ -78,7 +78,7 @@ export function createSyntheticDriver(
             void Promise.resolve()
               .then(() =>
                 respond(
-                  operation.text,
+                  [operation.text, operation.referenceSignal?.aborted ? undefined : operation.references?.text].filter(Boolean).join("\n\n"),
                   [input.context.text, operation.additionalContext?.text]
                     .filter(Boolean)
                     .join("\n"),

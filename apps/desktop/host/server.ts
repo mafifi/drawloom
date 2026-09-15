@@ -68,16 +68,17 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
       if (url.pathname === '/api/telemetry/v1/traces' && request.method === 'POST') return telemetry ? telemetry.handle(request) : new Response(null, { status: 404, headers: secure });
       return observedHttp(request, async () => {
       try {
-        if (['/api/orchestration/owners', '/api/orchestration/runs', '/api/orchestration/steps'].includes(url.pathname)) {
+        if (['/api/orchestration/owners', '/api/orchestration/runs', '/api/orchestration/steps', '/api/knowledge-activity/owner', '/api/knowledge-activity/runs', '/api/knowledge-activity/run', '/api/knowledge-activity/steps'].includes(url.pathname)) {
           const result = await workflows(request, url);
           return json(result.body, result.status);
         }
         if (url.pathname === '/api/knowledge' && request.method === 'POST') {
           const command = KnowledgeCommandSchema.parse(await request.json());
+          const settleAdmission = app.admitKnowledgeCommand(command);
           // Cancellation must not queue behind the download it interrupts.
           if (command.action === 'cancel_download') return json(await app.knowledgeCommand(command));
           if (['status', 'search', 'evidence', 'export'].includes(command.action)) return json(await app.knowledgeCommand(command));
-          const next = commandQueue.then(() => app.knowledgeCommand(command));
+          const next = commandQueue.then(() => app.knowledgeCommand(command)).finally(() => settleAdmission?.());
           commandQueue = next.catch(() => {}); return json(await next);
         }
         if(url.pathname==='/api/project-directory' && request.method==='POST') {
@@ -188,7 +189,8 @@ export function serveDesktop(app: Application, webRoot: string, port = 0, teleme
         }
         if (url.pathname === '/api/command' && request.method === 'POST') {
           const raw: unknown = await request.json();
-          const next = commandQueue.then(() => app.command(raw)); commandQueue = next.catch(() => {});
+          const settleAdmission = await app.admitCommand(raw);
+          const next = commandQueue.then(() => app.command(raw)).finally(() => settleAdmission?.()); commandQueue = next.catch(() => {});
           return json(await next);
         }
         if (url.pathname === '/api/import' && request.method === 'POST') {

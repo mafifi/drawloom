@@ -63,7 +63,13 @@ const integer = (value: unknown): number | undefined => {
 function parsedRecord(value: unknown): KnowledgeRecord { return KnowledgeRecordSchema.parse(JSON.parse(String(value))); }
 function parsedRef(value: unknown): RecordRef { return RecordRefSchema.parse(JSON.parse(String(value))); }
 /** Natural-language lexical lookup ranks any matching token; requiring every filler word turns identifier questions into false negatives. */
-function queryText(query: string): string { return query.trim().split(/\s+/).map((term) => `"${term.replaceAll('"', '""')}"`).join(" OR "); }
+// Local admission policy, not a language detector. Keep unknown-language words,
+// numbers and compound identifiers; do not broaden an all-function-word query.
+const functionWords = new Set("a an the is are was were be been being do does did can could would should will may might must have has had i me my we our you your he she it its they their this that these those what which who whom whose where when why how and or but if then than as at by for from in into of on onto to with without about".split(" "));
+function queryText(query: string): string {
+  return query.trim().split(/\s+/).filter(term => /[\p{L}\p{N}]/u.test(term) && !functionWords.has(term.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "").toLowerCase()))
+    .map(term => `"${term.replaceAll('"', '""')}"`).join(" OR ");
+}
 
 export function createSqliteKnowledge(options: SqliteKnowledgeOptions): SqliteKnowledge {
   mkdirSync(dirname(options.databasePath), { recursive: true, mode: 0o700 });
@@ -230,7 +236,8 @@ export function createSqliteKnowledge(options: SqliteKnowledgeOptions): SqliteKn
         // Cursor existence must not disclose filtered-out results. Only create
         // one after finding an authorized successor in this bounded raw window.
         const scanBudget = Math.max(100, parsed.limit * 4);
-        const matches = db.prepare("SELECT key, bm25(records_fts) AS score FROM records_fts WHERE records_fts MATCH ? ORDER BY score LIMIT ? OFFSET ?").all(queryText(parsed.query), scanBudget + 1, offset);
+        const admittedQuery = queryText(parsed.query);
+        const matches = admittedQuery ? db.prepare("SELECT key, bm25(records_fts) AS score FROM records_fts WHERE records_fts MATCH ? ORDER BY score LIMIT ? OFFSET ?").all(admittedQuery, scanBudget + 1, offset) : [];
         const items: Extract<SearchResult, { readonly kind: "ok" }>["items"] = [];
         let nextOffset: number | undefined;
         for (let index = 0; index < matches.length; index++) {

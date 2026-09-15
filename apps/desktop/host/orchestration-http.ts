@@ -1,11 +1,21 @@
-import { WorkflowCommandSchema, WorkflowReadSchema, WorkflowScopeSchema } from '../src/lib/orchestration-protocol.js';
+import { WorkflowCommandSchema, WorkflowReadSchema, WorkflowScopeSchema, KnowledgeActivityReadSchema, KnowledgeActivityDetailSchema } from '../src/lib/orchestration-protocol.js';
 import type { createDesktopApplication } from './application.js';
 
 /** Separate short management-command queue; never waits for task/operator work. */
-export function createOrchestrationHttp(app: Pick<Awaited<ReturnType<typeof createDesktopApplication>>, 'workflowOwners' | 'workflowRuns' | 'workflowSteps' | 'workflowCommand'>) {
+export function createOrchestrationHttp(app: Pick<Awaited<ReturnType<typeof createDesktopApplication>>, 'workflowOwners' | 'workflowRuns' | 'workflowSteps' | 'workflowCommand' | 'knowledgeActivityOwner' | 'knowledgeActivityRuns' | 'knowledgeActivityRun' | 'knowledgeActivitySteps'>) {
   const commands = new Map<string, Promise<unknown>>();
   return async (request: Request, url: URL): Promise<{ body: unknown; status: number }> => {
     const query = Object.fromEntries(url.searchParams);
+    if (url.pathname.startsWith('/api/knowledge-activity/')) {
+      if (request.method !== 'GET') return { body: { error: 'Knowledge maintenance activity is read-only.' }, status: 405 };
+      if (url.pathname.endsWith('/owner')) {
+        KnowledgeActivityReadSchema.pick({}).parse(query);
+        return { body: await app.knowledgeActivityOwner(), status: 200 };
+      }
+      if (url.pathname.endsWith('/runs')) return { body: await app.knowledgeActivityRuns(KnowledgeActivityReadSchema.parse(query)), status: 200 };
+      const input = KnowledgeActivityDetailSchema.parse(query);
+      return { body: await (url.pathname.endsWith('/steps') ? app.knowledgeActivitySteps(input) : app.knowledgeActivityRun(input)), status: 200 };
+    }
     if (request.method === 'GET') {
       if (url.pathname.endsWith('/owners')) {
         const { projectId } = WorkflowScopeSchema.pick({ projectId: true }).parse(query);

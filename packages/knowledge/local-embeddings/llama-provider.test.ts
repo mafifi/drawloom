@@ -73,6 +73,17 @@ class AlreadyExitedChild extends FakeChild {
 
 const jsonResponse = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
 
+test("warmup starts the installed worker without tokenization or inference", async () => {
+  const calls: string[] = []; let starts = 0;
+  const worker = new LlamaEmbeddingWorker({ root: "/controlled", model: modelId,
+    ready: async () => ({ manifest: KnownModelManifests[modelId], directory: "/controlled/model", runtimeDirectory: "/controlled/runtime" }),
+    spawn: () => { starts++; return new FakeChild(); },
+    fetch: async url => { calls.push(String(url)); return jsonResponse({}); },
+  });
+  try { await worker.warmup(); await worker.warmup(); expect(starts).toBe(1); expect(calls).toHaveLength(1); expect(calls[0]).toEndWith("/v1/models"); }
+  finally { await worker.close(); }
+});
+
 test("llama worker starts one authenticated loopback embedding-only Metal server and tokenizes before embedding", async () => {
   const children: FakeChild[] = [];
   const starts: Array<{ command: string; args: readonly string[]; options: unknown }> = [];

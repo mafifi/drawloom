@@ -64,8 +64,8 @@ if (configuration.mode === "service") {
               const path = await realpath(resource);
               const generated = path === entry || path.startsWith(`${entry}-`);
               // Only the package, provider runtime, Temporal runtime and portable public dependencies.
-              const dependency = /[/\\]node_modules[/\\](?:\.bun[/\\][^/\\]+[/\\]node_modules[/\\])?(?:@temporalio[/\\]|@drawloom[/\\](?:orchestration|evaluation|agent|tools|context|host)[/\\]|@modelcontextprotocol[/\\]sdk[/\\]|zod[/\\]|long[/\\]|ms[/\\]|protobufjs[/\\]|@protobufjs[/\\]|uuid[/\\]|abort-controller[/\\]|event-target-shim[/\\]|nexus-rpc[/\\])/.test(path);
-              const publicContract = /[/\\]packages[/\\](?:orchestration[/\\]orchestration|evaluation[/\\]evaluation|agent[/\\]agent|tools[/\\]tools|context[/\\]context|host[/\\]host)[/\\]dist[/\\]/.test(path);
+              const dependency = /[/\\]node_modules[/\\](?:\.bun[/\\][^/\\]+[/\\]node_modules[/\\])?(?:@temporalio[/\\]|@drawloom[/\\](?:orchestration|evaluation|agent|tools|context|host|knowledge)[/\\]|@modelcontextprotocol[/\\]sdk[/\\]|zod[/\\]|long[/\\]|ms[/\\]|protobufjs[/\\]|@protobufjs[/\\]|uuid[/\\]|abort-controller[/\\]|event-target-shim[/\\]|nexus-rpc[/\\])/.test(path);
+              const publicContract = /[/\\]packages[/\\](?:orchestration[/\\]orchestration|evaluation[/\\]evaluation|agent[/\\]agent|tools[/\\]tools|context[/\\]context|host[/\\]host|knowledge[/\\]knowledge)[/\\]dist[/\\]/.test(path);
               const hostKnowledgeContract = configuration.hostCapability === true && (/[/\\]packages[/\\]knowledge[/\\]knowledge[/\\]dist[/\\]/.test(path) || /[/\\]node_modules[/\\](?:\.bun[/\\][^/\\]+[/\\]node_modules[/\\])?@drawloom[/\\]knowledge[/\\]/.test(path));
               if (!generated && !inside(packageRoot, path) && !inside(runtimeRoot, path) && !dependency && !publicContract && !hostKnowledgeContract)
                 throw new Error(`Workflow dependency containment rejected: ${path}`);

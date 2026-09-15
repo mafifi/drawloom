@@ -37,6 +37,7 @@ type NativeDisplay = {
   text: string;
   assets: Asset[];
   resources?: HistoryEntry['resources'];
+  preparation?: HistoryEntry['preparation'];
   operationId?: string;
   state: "partial" | "complete" | "interrupted";
 };
@@ -47,6 +48,7 @@ export function createCodexHistoryReader(
   operations: Record<string, string>,
   captureImage?: (result: string) => Promise<Asset>,
   captureToolContent?: CaptureToolContent,
+  recoverDisplay?: (sent: string) => Promise<{ text: string; preparation?: HistoryEntry['preparation'] }>,
 ): ConversationHistoryReader {
   const captured = new Map<string, Promise<Asset>>();
   const publicHistoryId = async (turnId: string, itemId: string) => operations[turnId]
@@ -99,7 +101,9 @@ export function createCodexHistoryReader(
       const texts = content.data.filter(value => value.type === "text").map(value => z.string().safeParse(value.text));
       if (texts.some(value => !value.success)) throw new HistoryReadError("error", "Native conversation history returned invalid item data.");
       const existing = await context.get(id);
-      return { ...common, role: "user", text: texts.map(value => value.data).join("\n"), assets: existing?.assets ?? [] };
+      const sent = texts.map(value => value.data).join("\n");
+      const display = recoverDisplay ? await recoverDisplay(sent) : { text: sent };
+      return { ...common, role: "user", text: display.text, ...(display.preparation ? { preparation: display.preparation } : {}), assets: existing?.assets ?? [] };
     }
     if (item.type === "imageGeneration" && item.status === "completed" && captureImage) {
       const existing = await context.get(id);
@@ -150,7 +154,7 @@ export function createCodexHistoryReader(
           bounds.min = Math.min(bounds.min, existing.position[0]);
           bounds.max = Math.max(bounds.max, existing.position[0]);
           const updated = entry(existing.state === "complete" && item.state === "partial" ? { ...item, state: "complete" } : item, existing.position);
-          if (updated.role !== existing.role || updated.text !== existing.text || updated.state !== existing.state || updated.operationId !== existing.operationId || JSON.stringify(updated.assets) !== JSON.stringify(existing.assets) || JSON.stringify(updated.resources) !== JSON.stringify(existing.resources)) output.push(updated);
+          if (updated.role !== existing.role || updated.text !== existing.text || updated.state !== existing.state || updated.operationId !== existing.operationId || JSON.stringify(updated.assets) !== JSON.stringify(existing.assets) || JSON.stringify(updated.resources) !== JSON.stringify(existing.resources) || JSON.stringify(updated.preparation) !== JSON.stringify(existing.preparation)) output.push(updated);
           continue;
         }
         created++;

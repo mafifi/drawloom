@@ -1,7 +1,16 @@
 import { z } from "zod";
 import { KnownModelManifests } from "@drawloom/local-embeddings";
+import { ContextPreparationRequestSchema } from "@drawloom/context";
+
+/** Private host-to-sidecar boundary. Subject and destination are runtime-owned. */
+export const LocalPreparationSchema = ContextPreparationRequestSchema.extend({ requestId: z.string().uuid() });
+export const LocalPreparationCancellationSchema = z.strictObject({ requestId: z.string().uuid() });
+export const LocalWarmupResultSchema = z.strictObject({ kind: z.enum(["ready", "unavailable"]) });
 
 export const LocalKnowledgeConfigurationSchema = z.strictObject({
+  automaticContext: z.boolean().default(false),
+  captureOutcomes: z.boolean().default(false),
+  automaticCuration: z.boolean().default(false),
   embeddingModel: z.literal("qwen3-embedding-0.6b-gguf"),
   assessmentModel: z.string().trim().min(1).max(128),
   assessmentTimeoutMs: z.number().int().min(1000).max(300_000),
@@ -10,6 +19,9 @@ export const LocalKnowledgeConfigurationSchema = z.strictObject({
 });
 export type LocalKnowledgeConfiguration = z.infer<typeof LocalKnowledgeConfigurationSchema>;
 export const DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION: LocalKnowledgeConfiguration = Object.freeze({
+  automaticContext: false,
+  captureOutcomes: false,
+  automaticCuration: false,
   embeddingModel: "qwen3-embedding-0.6b-gguf",
   assessmentModel: "gpt-5.6-terra",
   assessmentTimeoutMs: 300_000,

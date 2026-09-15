@@ -51,6 +51,7 @@ for (const file of [
   'packages/knowledge/local-embeddings/llama-worker.node-check.mjs',
   'packages/knowledge/local-knowledge-runtime/runtime.node-check.ts',
   'packages/knowledge/local-knowledge-runtime/semantic.node-check.ts',
+  'packages/knowledge/local-knowledge-runtime/embedding-conformance.node-check.ts',
 ]) {
   const checked = spawnSync(process.execPath, ['--test', file], { stdio: 'inherit' });
   if (checked.error) throw checked.error;
