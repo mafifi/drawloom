@@ -88,6 +88,9 @@ External dependency versions are owned by the root Bun catalog. See the
 [dependency and package policy](docs/reference/dependency-policy.md) before
 adding a workspace dependency.
 
+To run the application from source, follow the
+[desktop setup guide](apps/desktop/README.md).
+
 ## Licence
 
 Drawloom is licensed under the [Apache License 2.0](LICENSE). Contributions are

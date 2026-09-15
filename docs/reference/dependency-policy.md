@@ -26,21 +26,24 @@ Workspace manifests declare usage without repeating version ranges:
 - Use `workspace:*` for another Drawloom workspace package.
 - Do not use direct semver ranges, `*`, `latest`, URLs, Git repositories,
   `file:`, or `link:` in a workspace manifest by default.
-- Put root-only development tools in the root `devDependencies` with their
-  versions declared there.
+- Put root-only development tools in the root `devDependencies` with a
+  `catalog:` reference. Keep their version range in the root workspace catalog,
+  like every other external dependency.
 - Put exceptional transitive compatibility overrides in root `overrides` or
   `resolutions`; do not disguise them as catalog policy.
 
 Run `bun install` after changing the root catalog and commit the resulting
 `bun.lock` change.
 
-The root `drawloom.externalRuntimes` entry explicitly designates the MLX Python
-requirements and hash-locked dependency file under ADR 0024. This is a
-non-JavaScript runtime, installed independently after user consent; Bun cannot
-resolve Python wheels. That designated lock is the version authority for the
-isolated environment. Do not add ad-hoc pip dependencies, resolve `latest` during
-setup or bundle the environment/weights into application packages. The JavaScript
-catalog rule is unchanged. Runtime licence notices remain applicable.
+The local embeddings package uses a JavaScript worker with a separately built
+llama.cpp executable and Qwen GGUF model. The
+[runtime and model manifest](../../packages/knowledge/local-embeddings/src/manifest.ts)
+is the authority for their revisions, hashes and download availability; the
+[runtime build script](../../scripts/build-llama-runtime.sh) pins the source used
+to build the executable. Neither executable nor model weights are bundled with
+the package. Do not duplicate those pins in root package metadata or resolve a
+new version during setup. Runtime and model licence obligations still require
+release review.
 
 ## Package metadata
 

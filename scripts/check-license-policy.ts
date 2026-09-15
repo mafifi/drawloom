@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import {
+  KnownLlamaRuntime,
+  KnownModelManifests,
+} from "../packages/knowledge/local-embeddings/src/manifest.js";
 import { assessLicense, isReviewedMpl, selectedLicense } from "./license-policy.js";
 
 const root = resolve(import.meta.dir, "..");
@@ -59,8 +63,33 @@ for (const missing of inventory.unresolvedRuntime.filter(
   console.error(`Unresolved runtime dependency: ${missing.from} -> ${missing.name}`);
   blocked++;
 }
-if (inventory.python.length) {
-  console.error("Legacy Python runtime still present; product licence review incomplete");
+const supportedModel = KnownModelManifests["qwen3-embedding-0.6b-gguf"];
+const expectedExternalArtifacts = [
+  {
+    kind: "native-runtime",
+    id: KnownLlamaRuntime.id,
+    revision: KnownLlamaRuntime.revision,
+    sha256: KnownLlamaRuntime.sha256,
+    binarySha256: KnownLlamaRuntime.binarySha256,
+    authority: "packages/knowledge/local-embeddings/src/manifest.ts#KnownLlamaRuntime",
+    buildAuthority: "scripts/build-llama-runtime.sh",
+    bundled: false,
+    releaseReview: "required",
+  },
+  ...supportedModel.artifacts.map((artifact) => ({
+    kind: "model",
+    id: supportedModel.id,
+    revision: supportedModel.revision,
+    path: artifact.path,
+    bytes: artifact.bytes,
+    sha256: artifact.sha256,
+    authority: "packages/knowledge/local-embeddings/src/manifest.ts#KnownModelManifests",
+    bundled: false,
+    releaseReview: "required",
+  })),
+];
+if (JSON.stringify(inventory.externalArtifacts) !== JSON.stringify(expectedExternalArtifacts)) {
+  console.error("Supported external artifacts are not routed to separate release review");
   blocked++;
 }
 console.log(

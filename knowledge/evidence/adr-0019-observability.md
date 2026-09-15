@@ -140,8 +140,10 @@ completion times: [isolated trace](assets/adr-0019/discovery-isolated.png).
 
 Confirmed Drawloom causes:
 
-1. [The deadline](../../apps/desktop/host/discovery-deadline.ts) is exactly 8,000 ms.
-   It returns a fallback; it does not cancel the provider request.
+1. [The deadline in the observed revision](https://github.com/mafifi/drawloom/blob/4351a83bd31579c832a4ebd7d89d73c34f744883/apps/desktop/host/discovery-deadline.ts)
+   is exactly 8,000 ms. It returns a fallback; it does not cancel the provider
+   request. The implementation has since moved; this immutable link preserves
+   the source for the historical observation.
 2. [The host](../../apps/desktop/host/application.ts) prepares registered entries
    but waits for the combined native result before returning any catalogue.
    Deadline expiry reports native categories unavailable, including fast ones.

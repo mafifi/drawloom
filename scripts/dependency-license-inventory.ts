@@ -10,6 +10,10 @@ import {
 import { resolve, join, dirname, relative } from "node:path";
 import { execFileSync } from "node:child_process";
 import { parseConfigFileTextToJson } from "typescript";
+import {
+  KnownLlamaRuntime,
+  KnownModelManifests,
+} from "../packages/knowledge/local-embeddings/src/manifest.js";
 import { runtimeDependencies } from "./runtime-dependencies.js";
 const root = resolve(import.meta.dir, "..");
 const lock = parseConfigFileTextToJson(
@@ -145,37 +149,37 @@ const rust = cargo.package
       distribution: "native shell lock entry; target/build inclusion not resolved",
     };
   });
-const pythonLock = join(root, "packages/knowledge/local-embeddings/python/mlx-requirements.lock");
-const python = [
-  ...(existsSync(pythonLock) ? readFileSync(pythonLock, "utf8") : "").matchAll(
-    /^([a-zA-Z0-9_.-]+)==([^\s]+)/gm,
-  ),
-].map((m) => ({
-  name: m[1]!,
-  version: m[2]!,
-  distribution: "separately downloaded Python environment",
-  license: null as any,
-  metadataSource: "",
-}));
-// Inspect registry metadata only; no package/model is downloaded or executed.
-if (!process.argv.includes("--offline"))
-  for (let i = 0; i < python.length; i += 8)
-    await Promise.all(
-      python.slice(i, i + 8).map(async (p) => {
-        try {
-          const url = `https://pypi.org/pypi/${p.name}/${p.version}/json`;
-          const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
-          if (!response.ok) return;
-          const data: any = await response.json();
-          p.license =
-            data.info.license_expression ||
-            data.info.license ||
-            data.info.classifiers?.filter((c: string) => c.startsWith("License ::")) ||
-            null;
-          p.metadataSource = url;
-        } catch {}
-      }),
-    );
+const supportedModel = KnownModelManifests["qwen3-embedding-0.6b-gguf"];
+const runtimeBuildAuthority = "scripts/build-llama-runtime.sh";
+const runtimeBuildRevision = readFileSync(join(root, runtimeBuildAuthority), "utf8").match(
+  /^expected_revision=([a-f0-9]{40})$/m,
+)?.[1];
+if (runtimeBuildRevision !== KnownLlamaRuntime.revision)
+  throw Error("llama.cpp build revision does not match the supported runtime manifest");
+const externalArtifacts = [
+  {
+    kind: "native-runtime",
+    id: KnownLlamaRuntime.id,
+    revision: KnownLlamaRuntime.revision,
+    sha256: KnownLlamaRuntime.sha256,
+    binarySha256: KnownLlamaRuntime.binarySha256,
+    authority: "packages/knowledge/local-embeddings/src/manifest.ts#KnownLlamaRuntime",
+    buildAuthority: runtimeBuildAuthority,
+    bundled: false,
+    releaseReview: "required",
+  },
+  ...supportedModel.artifacts.map((artifact) => ({
+    kind: "model",
+    id: supportedModel.id,
+    revision: supportedModel.revision,
+    path: artifact.path,
+    bytes: artifact.bytes,
+    sha256: artifact.sha256,
+    authority: "packages/knowledge/local-embeddings/src/manifest.ts#KnownModelManifests",
+    bundled: false,
+    releaseReview: "required",
+  })),
+];
 const counts = (items: any[]) =>
   Object.fromEntries(
     [
@@ -200,15 +204,17 @@ const counts = (items: any[]) =>
       ).length,
     ]),
   );
-const output = join(root, "docs/reference/evidence/generated/dependency-licenses");
+const output = process.env.DRAWLOOM_LICENSE_INVENTORY_OUTPUT
+  ? resolve(process.env.DRAWLOOM_LICENSE_INVENTORY_OUTPUT)
+  : join(root, "docs/reference/evidence/generated/dependency-licenses");
 mkdirSync(output, { recursive: true });
 const result = {
   baseRevision: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
   scope:
-    "Locked dependency inventory plus local installed metadata. Not an artifact SBOM or licence clearance.",
+    "Locked dependencies, local installed metadata and manifest-routed external artifact identities. Not an artifact SBOM or licence clearance.",
   npm,
   rust,
-  python,
+  externalArtifacts,
   unresolvedRuntime,
   summary: {
     npm: npm.length,
@@ -216,8 +222,7 @@ const result = {
     npmLicenses: counts(npm),
     rust: rust.length,
     rustLicenses: counts(rust),
-    python: python.length,
-    pythonLicenses: counts(python),
+    externalArtifacts: externalArtifacts.length,
   },
 };
 writeFileSync(join(output, "inventory.json"), JSON.stringify(result, null, 2) + "\n");
@@ -227,7 +232,7 @@ console.log(
       npm: npm.length,
       runtimeCandidates: result.summary.runtimeCandidates,
       rust: rust.length,
-      python: python.length,
+      externalArtifacts: externalArtifacts.length,
       output: relative(root, output),
     },
     null,

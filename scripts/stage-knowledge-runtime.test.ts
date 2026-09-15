@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { stageKnowledgeRuntime } from "./stage-knowledge-runtime.js";
@@ -31,19 +31,18 @@ test("knowledge staging includes the managed sidecar and Nightloom without check
     await pkg(join(root, "packages/knowledge/nightloom"), "@drawloom/nightloom", "workflows.js");
     const embeddings = join(root, "node_modules/@drawloom/local-embeddings");
     await mkdir(join(embeddings, "dist"), { recursive: true });
-    await mkdir(join(embeddings, "python"), { recursive: true });
+    await mkdir(join(embeddings, "src"), { recursive: true });
     await writeFile(
       join(embeddings, "package.json"),
       JSON.stringify({
         name: "@drawloom/local-embeddings",
         version: "0.0.0",
-        files: ["dist", "python"],
+        files: ["dist", "src"],
         dependencies: {},
       }),
     );
-    await writeFile(join(embeddings, "dist/index.js"), "mlx provider");
-    await writeFile(join(embeddings, "python/mlx_worker.py"), "worker");
-    await writeFile(join(embeddings, "python/mlx-requirements.lock"), "hash lock");
+    await writeFile(join(embeddings, "dist/index.js"), "gguf provider");
+    await writeFile(join(embeddings, "src/llama-worker.ts"), "JavaScript worker");
     await stageKnowledgeRuntime({ repositoryRoot: root, destination });
     expect(
       await readFile(
@@ -59,16 +58,18 @@ test("knowledge staging includes the managed sidecar and Nightloom without check
     ).toContain("nightloom");
     expect(
       await readFile(
-        join(destination, "node_modules/@drawloom/local-embeddings/python/mlx_worker.py"),
+        join(destination, "node_modules/@drawloom/local-embeddings/src/llama-worker.ts"),
         "utf8",
       ),
-    ).toBe("worker");
+    ).toBe("JavaScript worker");
     expect(
-      await readFile(
-        join(destination, "node_modules/@drawloom/local-embeddings/python/mlx-requirements.lock"),
-        "utf8",
+      access(join(destination, "node_modules/@drawloom/local-embeddings/python")),
+    ).rejects.toThrow();
+    expect(
+      access(
+        join(destination, "node_modules/@drawloom/local-embeddings/Qwen3-Embedding-0.6B-Q8_0.gguf"),
       ),
-    ).toBe("hash lock");
+    ).rejects.toThrow();
   } finally {
     await rm(root, { recursive: true, force: true });
   }

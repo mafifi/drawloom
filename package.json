@@ -9,13 +9,6 @@
   },
   "drawloom": {
     "releaseVersion": "0.0.0",
-    "externalRuntimes": {
-      "mlxEmbeddings": {
-        "requirements": "packages/knowledge/local-embeddings/python/mlx-requirements.in",
-        "lock": "packages/knowledge/local-embeddings/python/mlx-requirements.lock",
-        "reason": "User-installed isolated Python runtime; Python wheels use a hash-locked requirements file, not Bun's JavaScript catalog. No runtime or model weights are bundled."
-      }
-    },
     "dependencyPolicy": {
       "exceptions": []
     }
