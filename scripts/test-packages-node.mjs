@@ -66,6 +66,10 @@ for (const file of [
   "packages/knowledge/local-knowledge-runtime/runtime.node-check.ts",
   "packages/knowledge/local-knowledge-runtime/semantic.node-check.ts",
   "packages/knowledge/local-knowledge-runtime/embedding-conformance.node-check.ts",
+  "evaluations/knowledge/candidate-runtime.node-check.ts",
+  "evaluations/knowledge/evaluation-shutdown.node-check.ts",
+  "evaluations/knowledge/runner.node-check.ts",
+  "evaluations/knowledge/scale-run.node-check.ts",
 ]) {
   const checked = spawnSync(process.execPath, ["--test", file], { stdio: "inherit" });
   if (checked.error) throw checked.error;

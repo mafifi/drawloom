@@ -24,6 +24,17 @@ const contained = (root: string, path: string) => {
   const rel = relative(root, path);
   return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 };
+const temporalBridgeTriple = () => {
+  const triple = {
+    "darwin:arm64": "aarch64-apple-darwin",
+    "darwin:x64": "x86_64-apple-darwin",
+    "linux:arm64": "aarch64-unknown-linux-gnu",
+    "linux:x64": "x86_64-unknown-linux-gnu",
+  }[`${process.platform}:${process.arch}`];
+  if (!triple)
+    throw Error(`Unsupported Temporal bridge platform: ${process.platform}/${process.arch}`);
+  return triple;
+};
 /** Reproduce the installed, frozen dependency layout. Do not resolve new versions,
  * execute package scripts, or copy private source into the public app bundle.
  */
@@ -81,6 +92,12 @@ export async function stageTemporalRuntime(options: {
     const entries = internal
       ? ["package.json", ...(manifest.files ?? ["dist", "src"])]
       : await readdir(source);
+    const bridgeTriple =
+      manifest.name === "@temporalio/core-bridge" ? temporalBridgeTriple() : undefined;
+    if (bridgeTriple)
+      await readFile(join(source, "releases", bridgeTriple, "index.node")).catch(() => {
+        throw Error(`Missing Temporal bridge payload for ${bridgeTriple}`);
+      });
     for (const entry of entries) {
       if (entry === "node_modules" || entry === ".git") continue;
       const path = resolve(source, entry);
@@ -91,6 +108,11 @@ export async function stageTemporalRuntime(options: {
           filter: async (candidate) => {
             if (basename(candidate) === "node_modules" || basename(candidate) === ".git")
               return false;
+            if (bridgeTriple) {
+              const parts = relative(source, candidate).split("/");
+              if (parts[0] === "releases" && parts.length >= 2 && parts[1] !== bridgeTriple)
+                return false;
+            }
             if ((await lstat(candidate)).isSymbolicLink())
               throw Error(`Runtime package contains an unsupported file symlink: ${manifest.name}`);
             return true;

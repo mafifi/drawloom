@@ -69,6 +69,7 @@ writeFileSync(
       rust: inventory.rust.map(
         ({ legalFiles, ...item }: { legalFiles: string[]; [key: string]: unknown }) => item,
       ),
+      externalArtifacts: inventory.externalArtifacts,
       unresolvedRuntime: inventory.unresolvedRuntime,
     },
     null,

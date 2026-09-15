@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
 import { createSqliteKnowledge } from "@drawloom/sqlite-knowledge";
 import {
   KnownModelManifests,
@@ -33,6 +34,16 @@ import {
   type RetrievalMetrics,
   type RetrievalQuestionCategory,
 } from "./metrics.ts";
+
+const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as {
+  DatabaseSync: new (
+    path: string,
+    options: { readOnly: boolean },
+  ) => {
+    prepare(sql: string): { get(): unknown };
+    close(): void;
+  };
+};
 
 export interface PhaseMeasurement {
   readonly elapsedMs: number;
@@ -97,6 +108,10 @@ export interface KnowledgeEvaluationOptions {
   /** Existing verified local-embedding root; defaults to <root>/models. */
   readonly modelRoot?: string;
   readonly embedding?: EvaluationEmbedding;
+  /** Evaluation-only recovery after a receipt proves ingestion completed. */
+  readonly resume?: { readonly ingestion: PhaseMeasurement };
+  readonly onIngestionComplete?: (measurement: PhaseMeasurement) => Promise<void>;
+  readonly onProgress?: (phase: string, completed: number, total: number) => void;
 }
 
 export interface KnowledgeEvaluationReport {
@@ -104,6 +119,11 @@ export interface KnowledgeEvaluationReport {
   readonly corpus: { readonly version: string; readonly sha256: string; readonly records: number };
   /** Ingest performance is separate from retrieval and semantic-indexing phases. */
   readonly ingestion: PhaseMeasurement;
+  readonly measurementProvenance: {
+    readonly ingestion: "current_attempt" | "retained_prior_segment";
+    readonly lexical: "current_attempt";
+    readonly hybridIndexing: "current_attempt" | "not_run";
+  };
   readonly lexical: RetrievalRun;
   readonly hybrid: HybridRun;
   /** No answering-model contract exists yet; expected answers are never sent to retrieval. */
@@ -144,10 +164,19 @@ export async function runKnowledgeEvaluation(
   const databasePath = join(root, "knowledge.sqlite");
   const provider = createSqliteKnowledge({ databasePath, authorizer, resolveResource });
   try {
-    const ingestion = await ingest(provider, corpusAtSize(size), size);
+    const ingestion = options.resume
+      ? await validateResumedCorpus(
+          provider,
+          databasePath,
+          corpusAtSize(size),
+          size,
+          options.resume.ingestion,
+        )
+      : await ingest(provider, corpusAtSize(size), size, options.onProgress);
+    if (!options.resume) await options.onIngestionComplete?.(ingestion);
     const lexical = await measureLexical(provider, databasePath);
     const hybrid = options.embedding
-      ? await measureEmbedding(provider, size, options.embedding, databasePath)
+      ? await measureEmbedding(provider, size, options.embedding, databasePath, options.onProgress)
       : options.model
         ? await measureHybrid(
             provider,
@@ -161,6 +190,11 @@ export async function runKnowledgeEvaluation(
       kind: hybrid.kind === "real_vectors" ? "real_vector_evaluation" : "deterministic_smoke",
       corpus: { version: corpusVersion, sha256: await corpusHash(), records: size },
       ingestion,
+      measurementProvenance: {
+        ingestion: options.resume ? "retained_prior_segment" : "current_attempt",
+        lexical: "current_attempt",
+        hybridIndexing: hybrid.kind === "real_vectors" ? "current_attempt" : "not_run",
+      },
       lexical,
       hybrid,
       answerEvaluation: "not_configured",
@@ -174,6 +208,7 @@ async function ingest(
   provider: ReturnType<typeof createSqliteKnowledge>,
   records: Iterable<EvaluationDocument>,
   total: number,
+  onProgress?: (phase: string, completed: number, total: number) => void,
 ): Promise<PhaseMeasurement> {
   const measurement = beginPhaseMeasurement();
   const revisions = new Map<string, string>();
@@ -202,8 +237,39 @@ async function ingest(
     revisions.set(key, document.revision);
     measurement.sample();
     reportProgress("ingestion", ++completed, total);
+    onProgress?.("ingestion", completed, total);
   }
   return measurement.finish();
+}
+
+async function validateResumedCorpus(
+  provider: ReturnType<typeof createSqliteKnowledge>,
+  databasePath: string,
+  records: Iterable<EvaluationDocument>,
+  expectedRecords: number,
+  ingestion: PhaseMeasurement,
+): Promise<PhaseMeasurement> {
+  for (const document of records) {
+    const result = await provider.retrieval.get(subject, recordRef(document));
+    if (
+      result.kind !== "ok" ||
+      !result.record ||
+      result.record.body !== document.text ||
+      (document.current && result.record.status !== "active")
+    )
+      throw Error(`Resume corpus mismatch at ${document.id}@${document.revision}`);
+  }
+  const inspection = new DatabaseSync(databasePath, { readOnly: true });
+  try {
+    const retained = inspection.prepare("SELECT count(*) AS count FROM records").get() as {
+      count: number;
+    };
+    if (Number(retained.count) !== expectedRecords)
+      throw Error(`Resume corpus record count mismatch: ${retained.count}/${expectedRecords}`);
+  } finally {
+    inspection.close();
+  }
+  return ingestion;
 }
 
 async function measureLexical(
@@ -257,6 +323,7 @@ async function measureEmbedding(
   recordCount: number,
   embedding: EvaluationEmbedding,
   databasePath: string,
+  onProgress?: (phase: string, completed: number, total: number) => void,
 ): Promise<HybridRun> {
   const embeddings = embedding.implementation;
   const configuration = embedding.configuration;
@@ -280,6 +347,7 @@ async function measureEmbedding(
       await semantic.indexNext();
       indexing.sample();
       reportProgress("semantic indexing", step + 1, recordCount);
+      onProgress?.("semantic indexing", step + 1, recordCount);
       if (semantic.state === "ready") {
         reportReady("semantic indexing", step + 1);
         break;
@@ -440,6 +508,10 @@ async function corpusHash(): Promise<string> {
   return createHash("sha256")
     .update(await readFile(new URL("./corpus.ts", import.meta.url)))
     .digest("hex");
+}
+
+export async function evaluationCorpusIdentity(records: number) {
+  return { version: corpusVersion, sha256: await corpusHash(), records };
 }
 
 export function parseCliOptions(arguments_: readonly string[]): KnowledgeEvaluationOptions {

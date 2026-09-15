@@ -1,6 +1,6 @@
 {
-  "baseRevision": "8c52152cc1f0480ffcfd35894dc4232413b4becb",
-  "scope": "Locked dependency inventory plus local installed metadata. Not an artifact SBOM or licence clearance.",
+  "baseRevision": "e45c1216d951f0ca2a3461b6700eb614b8a5cdc4",
+  "scope": "Locked dependencies, local installed metadata and manifest-routed external artifact identities. Not an artifact SBOM or licence clearance.",
   "npm": [
     {
       "name": "@ai-sdk/gateway",
@@ -1026,6 +1026,94 @@
       "directDeclarations": []
     },
     {
+      "name": "@biomejs/biome",
+      "version": "2.5.13",
+      "integrity": "sha512-+SEC/mFk1a+5mvUANZgbZTaiZXs1nj4iMhL/PHiqDT5TPUEPFIlliEtkKKZB4N862yylHC3UI+/Sj2I0HJEqhA==",
+      "license": "MIT OR Apache-2.0",
+      "installed": true,
+      "distribution": "not in installed runtime closure; may be dev, peer or another platform",
+      "directDeclarations": [
+        {
+          "manifest": "package.json",
+          "kind": "devDependencies",
+          "name": "@biomejs/biome",
+          "range": "catalog:"
+        }
+      ]
+    },
+    {
+      "name": "@biomejs/cli-darwin-arm64",
+      "version": "2.5.13",
+      "integrity": "sha512-nYSuDJ6zgVqZUkAkJkvhXxsF2PYIrUk/g638K4voCXz7foI9f7b6C2/7+oAihsHQlivZNMUrm/y8ywlcHQtZOw==",
+      "license": "MIT OR Apache-2.0",
+      "installed": true,
+      "distribution": "not in installed runtime closure; may be dev, peer or another platform",
+      "directDeclarations": []
+    },
+    {
+      "name": "@biomejs/cli-darwin-x64",
+      "version": "2.5.13",
+      "integrity": "sha512-KVy1ceEDuJ3AzFxjT9kkxbVy+UANw1pjEMUS6lvKfxjJ+fmkRvc7sQn1Xo6ETgseEI7wUQoV03KSga3XfE8YRQ==",
+      "license": null,
+      "installed": false,
+      "distribution": "not in installed runtime closure; may be dev, peer or another platform",
+      "directDeclarations": []
+    },
+    {
+      "name": "@biomejs/cli-linux-arm64",
+      "version": "2.5.13",
+      "integrity": "sha512-VlNMtoxOqs0dUR6drxxHr18SNUvI7xxAuHZlH4s/dstYSf3g6RaqVgo8JRnhcOhKz9afWrvtJTboNG1JuYlIDQ==",
+      "license": null,
+      "installed": false,
+      "distribution": "not in installed runtime closure; may be dev, peer or another platform",
+      "directDeclarations": []
+    },
+    {
+      "name": "@biomejs/cli-linux-arm64-musl",
+      "version": "2.5.13",
+      "integrity": "sha512-CH32xpep3dNS5EVJpAHlYchkBYznxyVZQrx0b6YYYlPL9u9ZeD2NtqiK/6s64+HFS2a7hGnryLlqqZAOh8ax5g==",
+      "license": null,
+      "installed": false,
+      "distribution": "not in installed runtime closure; may be dev, peer or another platform",
+      "directDeclarations": []
+    },
+    {
+      "name": "@biomejs/cli-linux-x64",
+      "version": "2.5.13",
+      "integrity": "sha512-Fi6gIxbUaJ3ZCIXeG3ggIBPF76O2DjDN67WrPX/ODRv54GeXPm2gbEPC96Yb0yrJoiH0Eax1JLx1Pi0XbsNFZQ==",
+      "license": null,
+      "installed": false,
+      "distribution": "not in installed runtime closure; may be dev, peer or another platform",
+      "directDeclarations": []
+    },
+    {
+      "name": "@biomejs/cli-linux-x64-musl",
+      "version": "2.5.13",
+      "integrity": "sha512-F3pmwl+VHoUuVJN/tbNLKeLt0SVK3EIyN1jXlMcNyQGYRQQTVqXF+GgkP0/CjGXFN87e/mv0sBfUnWqWza5PKQ==",
+      "license": null,
+      "installed": false,
+      "distribution": "not in installed runtime closure; may be dev, peer or another platform",
+      "directDeclarations": []
+    },
+    {
+      "name": "@biomejs/cli-win32-arm64",
+      "version": "2.5.13",
+      "integrity": "sha512-+WD13qshXrr0Icv4BfsAdzm8Fs3TL+nZ59zEQxsYNd8lcgZJ0A5+OrlwsL1PipVCmWeRpxgIPD6DAcEd7smkCQ==",
+      "license": null,
+      "installed": false,
+      "distribution": "not in installed runtime closure; may be dev, peer or another platform",
+      "directDeclarations": []
+    },
+    {
+      "name": "@biomejs/cli-win32-x64",
+      "version": "2.5.13",
+      "integrity": "sha512-VOofU/nW761XWzUeUNE8zzYNyPrxuMuNFMizL0qz7J75yeV8N7WFheUlk1/K6dOkaFpH9wJ+lDKlwjAbw0346w==",
+      "license": null,
+      "installed": false,
+      "distribution": "not in installed runtime closure; may be dev, peer or another platform",
+      "directDeclarations": []
+    },
+    {
       "name": "@borewit/text-codec",
       "version": "0.2.2",
       "integrity": "sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ==",
@@ -1409,6 +1497,15 @@
       "name": "@drawloom/knowledge",
       "version": "workspace:packages/knowledge/knowledge",
       "integrity": "@drawloom/knowledge@workspace:packages/knowledge/knowledge",
+      "license": null,
+      "installed": false,
+      "distribution": "not in installed runtime closure; may be dev, peer or another platform",
+      "directDeclarations": []
+    },
+    {
+      "name": "@drawloom/knowledge-context",
+      "version": "workspace:packages/context/knowledge-context",
+      "integrity": "@drawloom/knowledge-context@workspace:packages/context/knowledge-context",
       "license": null,
       "installed": false,
       "distribution": "not in installed runtime closure; may be dev, peer or another platform",
@@ -3063,9 +3160,14 @@
       "name": "@lucide/svelte",
       "version": "1.43.0",
       "integrity": "sha512-IfxS4hVxojnafzFKkQGzndoM6yUODmGc07I0h6R/1SlwDoZwd/5gl90zHz+fTaBVLZo7uE5sPDySFGiK4iMQKw==",
-      "license": null,
-      "installed": false,
-      "distribution": "not in installed runtime closure; may be dev, peer or another platform",
+      "license": "ISC",
+      "installed": true,
+      "runtimePath": [
+        "@drawloom/desktop@0.0.0",
+        "@drawloom/ui@0.0.0",
+        "@lucide/svelte@1.43.0"
+      ],
+      "distribution": "runtime candidate; confirm against release artifact",
       "directDeclarations": [
         {
           "manifest": "packages/ui/ui/package.json",
@@ -5363,7 +5465,7 @@
       "runtimePath": [
         "@drawloom/desktop@0.0.0",
         "@drawloom/ui@0.0.0",
-        "@lucide/svelte@1.45.0",
+        "@lucide/svelte@1.43.0",
         "svelte@5.57.0",
         "@sveltejs/acorn-typescript@1.0.13"
       ],
@@ -7496,7 +7598,7 @@
       "runtimePath": [
         "@drawloom/desktop@0.0.0",
         "@drawloom/ui@0.0.0",
-        "@lucide/svelte@1.45.0",
+        "@lucide/svelte@1.43.0",
         "svelte@5.57.0",
         "axobject-query@4.1.0"
       ],
@@ -8224,7 +8326,7 @@
       "runtimePath": [
         "@drawloom/desktop@0.0.0",
         "@drawloom/ui@0.0.0",
-        "@lucide/svelte@1.45.0",
+        "@lucide/svelte@1.43.0",
         "svelte@5.57.0",
         "clsx@2.1.1"
       ],
@@ -8970,7 +9072,7 @@
       "runtimePath": [
         "@drawloom/desktop@0.0.0",
         "@drawloom/ui@0.0.0",
-        "@lucide/svelte@1.45.0",
+        "@lucide/svelte@1.43.0",
         "svelte@5.57.0",
         "devalue@5.9.2"
       ],
@@ -9528,7 +9630,7 @@
       "runtimePath": [
         "@drawloom/desktop@0.0.0",
         "@drawloom/ui@0.0.0",
-        "@lucide/svelte@1.45.0",
+        "@lucide/svelte@1.43.0",
         "svelte@5.57.0",
         "esm-env@1.2.2"
       ],
@@ -9568,7 +9670,7 @@
       "runtimePath": [
         "@drawloom/desktop@0.0.0",
         "@drawloom/ui@0.0.0",
-        "@lucide/svelte@1.45.0",
+        "@lucide/svelte@1.43.0",
         "svelte@5.57.0",
         "esrap@2.3.7"
       ],
@@ -11267,7 +11369,7 @@
       "runtimePath": [
         "@drawloom/desktop@0.0.0",
         "@drawloom/ui@0.0.0",
-        "@lucide/svelte@1.45.0",
+        "@lucide/svelte@1.43.0",
         "svelte@5.57.0",
         "is-reference@3.0.3"
       ],
@@ -11940,7 +12042,7 @@
       "runtimePath": [
         "@drawloom/desktop@0.0.0",
         "@drawloom/ui@0.0.0",
-        "@lucide/svelte@1.45.0",
+        "@lucide/svelte@1.43.0",
         "svelte@5.57.0",
         "locate-character@3.0.0"
       ],
@@ -15855,7 +15957,7 @@
       "runtimePath": [
         "@drawloom/desktop@0.0.0",
         "@drawloom/ui@0.0.0",
-        "@lucide/svelte@1.45.0",
+        "@lucide/svelte@1.43.0",
         "svelte@5.57.0"
       ],
       "distribution": "runtime candidate; confirm against release artifact",
@@ -17581,7 +17683,7 @@
       "runtimePath": [
         "@drawloom/desktop@0.0.0",
         "@drawloom/ui@0.0.0",
-        "@lucide/svelte@1.45.0",
+        "@lucide/svelte@1.43.0",
         "svelte@5.57.0",
         "zimmerframe@1.1.5"
       ],
@@ -17600,7 +17702,8 @@
         "@drawloom/orchestration@0.0.0",
         "@drawloom/agent@0.0.0",
         "@drawloom/conversation-history@0.0.0",
-        "@drawloom/host@0.0.0",
+        "@drawloom/context@0.0.0",
+        "@drawloom/knowledge@0.0.0",
         "zod@4.5.4"
       ],
       "distribution": "runtime candidate; confirm against release artifact",
@@ -19580,7 +19683,7 @@
       "runtimePath": [
         "@drawloom/desktop@0.0.0",
         "@drawloom/ui@0.0.0",
-        "@lucide/svelte@1.45.0",
+        "@lucide/svelte@1.43.0",
         "svelte@5.57.0",
         "aria-query@5.3.1"
       ],
@@ -23965,6 +24068,30 @@
       "checksum": "29666d0abbfad1e3dc4dcf6144730dd3a3ab225bbbdac83319345b1b44ccfc1b",
       "license": "MIT",
       "distribution": "native shell lock entry; target/build inclusion not resolved"
+    }
+  ],
+  "externalArtifacts": [
+    {
+      "kind": "native-runtime",
+      "id": "llama.cpp-darwin-arm64",
+      "revision": "2f539596c6e9a977e91b6bc6344650422c6bc3b0",
+      "sha256": "0bf91c702d391a106aba0e0b61f15a5b77bab5d269aff0c7590b2f82332de88a",
+      "binarySha256": "e1e60e0d2dde29a6da46474f6ba1b8365f714527230bc4cb35134c3839096007",
+      "authority": "packages/knowledge/local-embeddings/src/manifest.ts#KnownLlamaRuntime",
+      "buildAuthority": "scripts/build-llama-runtime.sh",
+      "bundled": false,
+      "releaseReview": "required"
+    },
+    {
+      "kind": "model",
+      "id": "qwen3-embedding-0.6b-gguf",
+      "revision": "370f27d7550e0def9b39c1f16d3fbaa13aa67728",
+      "path": "Qwen3-Embedding-0.6B-Q8_0.gguf",
+      "bytes": 639150592,
+      "sha256": "06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439",
+      "authority": "packages/knowledge/local-embeddings/src/manifest.ts#KnownModelManifests",
+      "bundled": false,
+      "releaseReview": "required"
     }
   ],
   "unresolvedRuntime": [

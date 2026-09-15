@@ -5,6 +5,11 @@ expected_revision=2f539596c6e9a977e91b6bc6344650422c6bc3b0
 repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 source_root=${DRAWLOOM_LLAMA_SOURCE:-"$repository_root/../llama.cpp"}
 output_root=${DRAWLOOM_LLAMA_OUTPUT:-"$repository_root/dist/llama-runtime"}
+tauri_config="$repository_root/apps/desktop/src-tauri/tauri.conf.json"
+deployment_target=$(sed -n 's/.*"minimumSystemVersion"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$tauri_config")
+case "$deployment_target" in
+  ''|*[!0-9.]*) echo "Invalid macOS deployment target in $tauri_config" >&2; exit 1 ;;
+esac
 patch_file="$repository_root/scripts/patches/llama-server-embedding-only.patch"
 source_snapshot="$repository_root/dist/.llama-source-$expected_revision"
 build_root="$output_root/build"
@@ -50,6 +55,8 @@ git -C "$source_snapshot" apply --check "$patch_file"
 git -C "$source_snapshot" apply "$patch_file"
 
 cmake -S "$source_snapshot" -B "$build_root" \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET="$deployment_target" \
+  -DGGML_METAL_MACOSX_VERSION_MIN="$deployment_target" \
   -DCMAKE_BUILD_TYPE=Release \
   -DBUILD_SHARED_LIBS=OFF \
   -DLLAMA_BUILD_TESTS=OFF \

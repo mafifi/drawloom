@@ -11,6 +11,7 @@ test("a failed worktree add never removes staging owned by another build", async
     const tools = join(root, "tools");
     const log = join(root, "git.log");
     await mkdir(join(repository, "scripts", "patches"), { recursive: true });
+    await mkdir(join(repository, "apps", "desktop", "src-tauri"), { recursive: true });
     await mkdir(source);
     await mkdir(tools);
     await writeFile(
@@ -20,6 +21,10 @@ test("a failed worktree add never removes staging owned by another build", async
     await writeFile(
       join(repository, "scripts", "patches", "llama-server-embedding-only.patch"),
       "fixture",
+    );
+    await writeFile(
+      join(repository, "apps", "desktop", "src-tauri", "tauri.conf.json"),
+      JSON.stringify({ bundle: { macOS: { minimumSystemVersion: "14.0" } } }),
     );
     await writeFile(
       join(tools, "uname"),
@@ -52,6 +57,7 @@ esac
       env: {
         ...globalThis.process.env,
         PATH: `${tools}:/usr/bin:/bin`,
+        DRAWLOOM_MACOSX_DEPLOYMENT_TARGET: "14.0",
         DRAWLOOM_LLAMA_SOURCE: source,
         DRAWLOOM_LLAMA_OUTPUT: join(root, "output"),
       },
@@ -69,4 +75,18 @@ esac
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("the runtime build requires and propagates one explicit macOS deployment target", async () => {
+  const script = await readFile(join(import.meta.dirname, "build-llama-runtime.sh"), "utf8");
+  const config = JSON.parse(
+    await readFile(join(import.meta.dirname, "../apps/desktop/src-tauri/tauri.conf.json"), "utf8"),
+  );
+  expect(config.bundle.macOS.minimumSystemVersion).toBe("14.0");
+  expect(script).toContain(
+    'tauri_config="$repository_root/apps/desktop/src-tauri/tauri.conf.json"',
+  );
+  expect(script).toContain("deployment_target=$(sed -n");
+  expect(script).toContain('-DCMAKE_OSX_DEPLOYMENT_TARGET="$deployment_target"');
+  expect(script).toContain('-DGGML_METAL_MACOSX_VERSION_MIN="$deployment_target"');
 });

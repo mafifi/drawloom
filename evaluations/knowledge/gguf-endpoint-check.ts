@@ -2,9 +2,20 @@
 import assert from "node:assert/strict";
 import { LlamaEmbeddingWorker } from "@drawloom/local-embeddings";
 import { writeFile } from "node:fs/promises";
-const [root, report] = process.argv.slice(2);
+import { verifyEvaluationCandidate } from "./candidate-runtime.ts";
+const [root, report, candidateBuild] = process.argv.slice(2);
 if (process.env.DRAWLOOM_GGUF_EVALUATION !== "1" || !root || !report)
   throw Error("Explicit local proof opt-in and installed root/report paths required");
+const candidate = candidateBuild
+  ? await verifyEvaluationCandidate({
+      build: candidateBuild,
+      expectedRuntimeSha256:
+        process.env.DRAWLOOM_GGUF_RUNTIME_SHA256 ??
+        (() => {
+          throw Error("Explicit DRAWLOOM_GGUF_RUNTIME_SHA256 candidate identity required");
+        })(),
+    })
+  : undefined;
 const generationRequests = [
   ["/completion", { prompt: "A public negative-control test.", n_predict: 1, stream: false }],
   ["/completions", { prompt: "A public negative-control test.", n_predict: 1, stream: false }],
@@ -60,6 +71,7 @@ let probed = false;
 const worker = new LlamaEmbeddingWorker({
   root,
   model: "qwen3-embedding-0.6b-gguf",
+  ...(candidate ? { ready: async () => candidate } : {}),
   fetch: async (input, init) => {
     const result = await fetch(input, init);
     if (String(input).endsWith("/tokenize") && result.ok) tokenizeFunctional = true;

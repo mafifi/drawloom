@@ -57,6 +57,12 @@ function legalFiles(path: string) {
     }
   }
   walk(path, 0);
+  const temporalSdkLicense = join(path, "sdk-core", "LICENSE.txt");
+  if (
+    existsSync(temporalSdkLicense) &&
+    JSON.parse(readFileSync(join(path, "package.json"), "utf8")).name === "@temporalio/core-bridge"
+  )
+    result.push(relative(root, temporalSdkLicense));
   return result;
 }
 const manifests = execFileSync("git", ["ls-files", "-z", "*package.json"], {

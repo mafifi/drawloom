@@ -115,7 +115,8 @@ project-specific state in detail.
 ## Native macOS verification
 
 Building the app requires the Rust/Tauri build tools as well as the source
-dependencies. With those tools installed and Cargo on your PATH, run:
+dependencies. The supported desktop and its local embedding runtime require
+macOS 14 or later. With the build tools installed and Cargo on your PATH, run:
 
 ```sh
 bun run --cwd apps/desktop tauri build --bundles app

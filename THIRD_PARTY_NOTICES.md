@@ -55,6 +55,7 @@ This compliance record is retained source material, not a build artifact.
 | @jsonjoy.com/json-pack@1.21.0 | Apache-2.0 | [LICENSE](LICENSES/texts/5669a5ce7ad1fd1fc06cd4a436008d27866523969a8b39023d0cb9bb73c35093.txt) |
 | @jsonjoy.com/json-pointer@1.0.2 | Apache-2.0 | **Unresolved: no local legal file found** |
 | @jsonjoy.com/util@1.9.0 | Apache-2.0 | [LICENSE](LICENSES/texts/5669a5ce7ad1fd1fc06cd4a436008d27866523969a8b39023d0cb9bb73c35093.txt) |
+| @lucide/svelte@1.43.0 | ISC | [LICENSE](LICENSES/texts/b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57.txt) |
 | @modelcontextprotocol/ext-apps@1.7.5 | MIT | [LICENSE](LICENSES/texts/0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a.txt) |
 | @modelcontextprotocol/sdk@1.30.0 | MIT | [LICENSE](LICENSES/texts/5e13dbbc1d120fc2a03cecde7c91424ae2d7de11b63d58ded2f4431e261ee50d.txt) |
 | @napi-rs/keyring@2.0.0 | MIT | [LICENSE](LICENSES/texts/02965ed67e29f871a53f7a7afa593a0ddc8020f86ccce0faaf1aa59215b5269e.txt) |
@@ -107,7 +108,7 @@ This compliance record is retained source material, not a build artifact.
 | @temporalio/activity@1.23.0 | MIT | [LICENSE](LICENSES/texts/434e542427eae40756e435acb1ad7273164953277a090b54ed3336e7339bcde9.txt) |
 | @temporalio/client@1.23.0 | MIT | [LICENSE](LICENSES/texts/434e542427eae40756e435acb1ad7273164953277a090b54ed3336e7339bcde9.txt) |
 | @temporalio/common@1.23.0 | MIT | [LICENSE](LICENSES/texts/434e542427eae40756e435acb1ad7273164953277a090b54ed3336e7339bcde9.txt) |
-| @temporalio/core-bridge@1.23.0 | MIT | **Unresolved: no local legal file found** |
+| @temporalio/core-bridge@1.23.0 | MIT | [LICENSE.txt](LICENSES/texts/cf8fe04521deeb6f99f644570bc8bee71c11dc410dbb72bccfb3a51829860c7b.txt) |
 | @temporalio/nexus@1.23.0 | MIT | [LICENSE](LICENSES/texts/434e542427eae40756e435acb1ad7273164953277a090b54ed3336e7339bcde9.txt) |
 | @temporalio/proto@1.23.0 | MIT | [LICENSE](LICENSES/texts/434e542427eae40756e435acb1ad7273164953277a090b54ed3336e7339bcde9.txt) |
 | @temporalio/worker@1.23.0 | MIT | [LICENSE](LICENSES/texts/434e542427eae40756e435acb1ad7273164953277a090b54ed3336e7339bcde9.txt) |
@@ -411,7 +412,7 @@ This compliance record is retained source material, not a build artifact.
 | @jsonjoy.com/json-pointer@17.67.0 | Apache-2.0 | [LICENSE](LICENSES/texts/5669a5ce7ad1fd1fc06cd4a436008d27866523969a8b39023d0cb9bb73c35093.txt) |
 | @esbuild/darwin-arm64@0.28.1 | MIT | **Unresolved: no local legal file found** |
 
-Inspected 401 installed product candidates; 22 have no captured legal file.
+Inspected 402 installed product candidates; 21 have no captured legal file.
 
 Reviewed MPL dependencies and corresponding source locations are recorded in
 [LICENSES/MPL-REVIEW.md](LICENSES/MPL-REVIEW.md); preserve that source-availability notice

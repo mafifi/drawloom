@@ -20,6 +20,12 @@ test("inventory routes supported external artifacts to separate release review",
     const inventory = JSON.parse(readFileSync(join(output, "inventory.json"), "utf8"));
 
     expect(inventory.scope).toContain("Not an artifact SBOM or licence clearance");
+    const temporalBridge = inventory.npm.find(
+      (item: { name: string }) => item.name === "@temporalio/core-bridge",
+    );
+    expect(temporalBridge?.legalFiles).toContain(
+      "node_modules/@temporalio/core-bridge/sdk-core/LICENSE.txt",
+    );
     expect(inventory).not.toHaveProperty("python");
     expect(inventory.summary).not.toHaveProperty("python");
     expect(inventory.externalArtifacts).toEqual([

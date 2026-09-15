@@ -35,6 +35,47 @@ and `gguf-endpoint-check.ts` (negative server-capability control). They require
 The endpoint control attempts **one local generated token** to test rejection:
 it is not an answering-model evaluation. Read the ADR 0026 evidence before use.
 
+An uninstalled candidate supplied to `gguf-local.ts`, or as the optional third
+path argument to `gguf-endpoint-check.ts`, requires the SHA-256 of the exact
+local candidate executable in `DRAWLOOM_GGUF_RUNTIME_SHA256`. It checks that
+identity and the manifest-owned model hash before starting. The isolated root
+holds a strict identity-bound receipt and one worker lock. After completed
+ingestion, `--resume` verifies the retained corpus and continues through the
+existing durable index-work checkpoint; interrupted ingestion is not resumable.
+Each attempt remains a separate segment, so resumed work is not reported as
+fresh throughput.
+
+Use a new root for the first candidate stress attempt, then the same root and
+identity to resume after a safely recorded interruption:
+
+```sh
+DRAWLOOM_GGUF_EVALUATION=1 \
+DRAWLOOM_GGUF_RUNTIME_SHA256=<candidate-llama-server-sha256> \
+node --experimental-strip-types evaluations/knowledge/gguf-local.ts \
+  /absolute/new/evaluation-root /absolute/candidate-build-root 100000
+
+DRAWLOOM_GGUF_EVALUATION=1 \
+DRAWLOOM_GGUF_RUNTIME_SHA256=<same-candidate-llama-server-sha256> \
+node --experimental-strip-types evaluations/knowledge/gguf-local.ts \
+  /absolute/new/evaluation-root /absolute/candidate-build-root 100000 --resume
+```
+
+Run the candidate endpoint denial check separately before scale execution:
+
+```sh
+DRAWLOOM_GGUF_EVALUATION=1 \
+DRAWLOOM_GGUF_RUNTIME_SHA256=<candidate-llama-server-sha256> \
+node --experimental-strip-types evaluations/knowledge/gguf-endpoint-check.ts \
+  /absolute/new/endpoint-root /absolute/endpoint-report.json \
+  /absolute/candidate-build-root
+```
+
+At start the stress harness requires at least 8 GiB free disk and 4 GiB available
+memory. During execution it stops on the three-hour cap, disk below 4 GiB, red
+macOS memory pressure, child RSS above 4 GiB, persistently growing swap, or 15
+minutes without indexing progress. A candidate run is local qualification only:
+it does not change installer hashes or establish signed/notarized release status.
+
 Additional integration runners are explicitly opt-in:
 
 - `DRAWLOOM_TEMPORAL_TEST=1 node evaluations/knowledge/temporal-nightloom.mjs`

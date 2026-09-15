@@ -3,8 +3,18 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { createRequire } from "node:module";
 import { heldOutQuestions } from "./corpus.ts";
-import { parseCliOptions, runKnowledgeEvaluation } from "./runner.ts";
+import { parseCliOptions, runKnowledgeEvaluation, type EvaluationEmbedding } from "./runner.ts";
+
+const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as {
+  DatabaseSync: new (
+    path: string,
+  ) => {
+    prepare(sql: string): { run(...values: unknown[]): unknown };
+    close(): void;
+  };
+};
 
 test("default evaluation is a deterministic lexical smoke run without semantic claims", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-knowledge-evaluation-"));
@@ -111,6 +121,53 @@ test("an external embedding implementation exercises the unchanged path with sep
     assert.ok(
       report.hybrid.kind === "real_vectors" && report.hybrid.indexing.elapsedMs < 1000,
       "Index timing must stop before simulated query time advances",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("completed ingestion resumes through durable index work without replaying intake", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-evaluation-resume-"));
+  const configuration = { id: "evaluation:resume", fingerprint: "fixture-v1", dimensions: 2 };
+  const embedding: EvaluationEmbedding = {
+    label: "resume-fixture",
+    configuration,
+    implementation: {
+      async embed(_subject, batch) {
+        return {
+          kind: "ok" as const,
+          configuration,
+          items: batch.items.map((item) => ({
+            id: item.id,
+            ...(item.revision ? { revision: item.revision } : {}),
+            vector: [1, 0],
+          })),
+        };
+      },
+    },
+  };
+  try {
+    const first = await runKnowledgeEvaluation({ root, embedding });
+    const resumed = await runKnowledgeEvaluation({
+      root,
+      embedding,
+      resume: { ingestion: first.ingestion },
+    });
+    assert.deepEqual(resumed.ingestion, first.ingestion);
+    assert.equal(first.measurementProvenance.ingestion, "current_attempt");
+    assert.equal(resumed.measurementProvenance.ingestion, "retained_prior_segment");
+    assert.equal(resumed.measurementProvenance.lexical, "current_attempt");
+    assert.equal(resumed.measurementProvenance.hybridIndexing, "current_attempt");
+    assert.equal(resumed.hybrid.kind, "real_vectors");
+    const database = new DatabaseSync(join(root, "knowledge.sqlite"));
+    database
+      .prepare("INSERT INTO records(type,origin,id,revision,json) VALUES(?,?,?,?,?)")
+      .run("source", "evaluation-public", "unexpected", "r1", "{}");
+    database.close();
+    await assert.rejects(
+      runKnowledgeEvaluation({ root, embedding, resume: { ingestion: first.ingestion } }),
+      /record count mismatch/,
     );
   } finally {
     await rm(root, { recursive: true, force: true });
