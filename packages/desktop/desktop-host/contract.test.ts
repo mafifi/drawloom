@@ -1,10 +1,11 @@
 import { expect, test } from "bun:test";
 import { z } from "zod";
-import { registerTaskHandler } from "@drawloom/orchestration";
+import { OrchestrationReadinessSchema, registerTaskHandler } from "@drawloom/orchestration";
 import * as desktopHost from "./src/index.ts";
 import type { PluginBackend, PluginBackendContext } from "./src/index.ts";
 
 test("orchestration readiness is a strict bounded desktop-host report", () => {
+  expect(desktopHost.OrchestrationReadinessSchema).toBe(OrchestrationReadinessSchema);
   expect(typeof (desktopHost as Record<string, unknown>).OrchestrationReadinessSchema).toBe(
     "object",
   );

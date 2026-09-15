@@ -3,6 +3,23 @@ import { z } from "zod";
 import { parse, canonical, workflowResult, type Orchestrator } from "./src/index.ts";
 import * as orchestration from "./src/index.ts";
 
+test("orchestration readiness is strict and bounded", () => {
+  expect(
+    orchestration.OrchestrationReadinessSchema.parse({
+      status: "configuration_required",
+      code: "runtime_missing",
+      message: "Choose a local runtime.",
+    }),
+  ).toEqual({
+    status: "configuration_required",
+    code: "runtime_missing",
+    message: "Choose a local runtime.",
+  });
+  expect(
+    orchestration.OrchestrationReadinessSchema.safeParse({ status: "ready", extra: true }).success,
+  ).toBe(false);
+});
+
 test("published orchestration boundary rejects non-JSON transforms and mismatched result definitions", async () => {
   expect(() =>
     parse(

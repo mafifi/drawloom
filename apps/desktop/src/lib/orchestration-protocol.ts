@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MAX_TASK_ATTEMPTS, RunSnapshotSchema } from "@drawloom/orchestration";
-import { OrchestrationReadinessSchema } from "@drawloom/desktop-host";
+import { OrchestrationReadinessSchema } from "@drawloom/orchestration";
 
 // Authenticated desktop presentation only. MCP Apps retains its standard tool route.
 const id = z.string().min(1).max(1024);

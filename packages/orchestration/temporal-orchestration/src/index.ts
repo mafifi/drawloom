@@ -17,9 +17,9 @@ import {
   type Registry,
   type Orchestrator,
   type RegisteredTaskHandler,
+  type OrchestrationReadiness,
   type Json,
 } from "@drawloom/orchestration";
-import type { OrchestrationReadiness } from "@drawloom/desktop-host";
 import { digest, readJson, writeJson } from "./storage.js";
 import { acquireLock, command, stopChild, unusedPort } from "./processes.js";
 import { createReceiptDispatcher } from "./receipts.js";

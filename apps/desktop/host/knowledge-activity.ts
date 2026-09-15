@@ -1,5 +1,4 @@
-import type { Orchestrator, RunSnapshot } from "@drawloom/orchestration";
-import type { OrchestrationReadiness } from "@drawloom/desktop-host";
+import type { OrchestrationReadiness, Orchestrator, RunSnapshot } from "@drawloom/orchestration";
 import { NightloomWorkflowResultSchema } from "@drawloom/nightloom";
 import {
   KnowledgeActivityReadSchema,

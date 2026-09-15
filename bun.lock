@@ -365,7 +365,6 @@
       "version": "0.0.0",
       "dependencies": {
         "@drawloom/agent": "workspace:*",
-        "@drawloom/desktop-host": "workspace:*",
         "@drawloom/host": "workspace:*",
         "@drawloom/orchestration": "workspace:*",
         "@opentelemetry/api": "catalog:",

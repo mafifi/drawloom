@@ -2,8 +2,6 @@ import { basename, join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { z } from "zod";
 import { createInstallationStore } from "./plugin-installations.js";
-import { createOrchestrationHost } from "./orchestration-host.js";
-import { createKnowledgeActivity } from "./knowledge-activity.js";
 import { createWorkflowAuthority } from "./workflow-authority.js";
 import { createWorkflowToolScope } from "./workflow-tools.js";
 import { createGrantRefresh } from "./grant-refresh.js";
@@ -99,20 +97,22 @@ import {
   observeCache,
 } from "./telemetry.js";
 import { createManagedLocalKnowledgeClient } from "@drawloom/local-knowledge-runtime";
-import { createKnowledgeHost, type KnowledgeService } from "./knowledge-host.js";
+import type { KnowledgeService } from "./knowledge-host.js";
 import { createInstalledGitKnowledgeFeed } from "./knowledge-source.js";
-import { createKnowledgeNightloom, isNightloomKnowledgeService } from "./knowledge-nightloom.js";
 import {
-  createKnowledgePlugin,
   KNOWLEDGE_RETRIEVAL_GUIDANCE,
   KNOWLEDGE_TOOL_IDS,
   createKnowledgeOutcomeCapture,
-  createEvidenceReadReceipts,
 } from "./knowledge-tools.js";
 import { toolOutcomeProjectors } from "./composition.js";
-import { createInstalledEvaluation } from "./evaluation-host.js";
 import { createDesktopAssessment } from "./evaluation-assessment.js";
 import type { EvaluationAssessmentProvider } from "@drawloom/evaluation";
+import {
+  createEvaluationAssessmentResolver,
+  createInstalledEvaluationPreparation,
+} from "./evaluation-composition.js";
+import { createOrchestrationComposition } from "./orchestration-composition.js";
+import { createKnowledgeComposition } from "./knowledge-composition.js";
 
 type Live = {
   session: AgentSession;
@@ -162,19 +162,12 @@ export async function createDesktopApplication(
 ) {
   const operationTelemetry = createOperationTelemetry();
   // Do not load the assessment SDK for installations that never request it.
-  let evaluationAssessment: Promise<EvaluationAssessmentProvider> | undefined;
-  const assessment = (installationId: string, projectId: string, workingDirectory: string) => {
-    if (options.evaluation?.assessment) return Promise.resolve(options.evaluation.assessment);
-    const create = () =>
-      createDesktopAssessment({
-        dataDirectory: root,
-        scope: { installationId, projectId },
-        workingDirectory,
-        ...(options.evaluation?.model !== undefined ? { model: options.evaluation.model } : {}),
-      });
-    // Native session mappings must never be shared across installed owners.
-    return options.evaluation?.model !== undefined ? create() : (evaluationAssessment ??= create());
-  };
+  const assessment = createEvaluationAssessmentResolver({
+    dataDirectory: root,
+    assessment: options.evaluation?.assessment,
+    model: options.evaluation?.model,
+    create: createDesktopAssessment,
+  });
   const mediaOrigins = z.array(ResourceOriginSchema).parse(options.mediaOrigins ?? []);
   await mkdir(root, { recursive: true, mode: 0o700 });
   const history = createSqliteConversationHistory(join(root, "history.sqlite"));
@@ -384,11 +377,9 @@ export async function createDesktopApplication(
           : {}),
       });
     });
-  let temporalManager: Promise<ReturnType<typeof createLocalTemporalManager>> | undefined;
-  const manager = () => (temporalManager ??= createTemporalManager());
-  const orchestration = createOrchestrationHost({
+  const orchestrationComposition = createOrchestrationComposition({
     dataDirectory: root,
-    manager,
+    createManager: createTemporalManager,
     ensureProject: async (id) => {
       const binding = project.projects.find((p) => p.id === id);
       if (!binding) throw Error("Project unavailable");
@@ -396,6 +387,7 @@ export async function createDesktopApplication(
       await runtimeFor(binding);
     },
   });
+  const { host: orchestration, manager } = orchestrationComposition;
   const knowledgeService =
     options.knowledge?.service ??
     createManagedLocalKnowledgeClient({
@@ -406,8 +398,6 @@ export async function createDesktopApplication(
         ? { runtimeEntrypoint: options.knowledge.runtimeEntrypoint }
         : {}),
     });
-  const evidenceReadReceipts = createEvidenceReadReceipts();
-  const knowledgePlugin = createKnowledgePlugin(knowledgeService, evidenceReadReceipts);
   function runtimeFor(binding?: DirectoryProject) {
     const key = binding?.id ?? "legacy";
     let runtime = runtimes.get(key);
@@ -525,13 +515,11 @@ export async function createDesktopApplication(
         : {}),
       ...(binding
         ? {
-            prepareEvaluation: async (installation, _inventory, workflow) =>
-              createInstalledEvaluation({
-                dataDirectory: root,
-                scope: { installationId: installation.id, projectId: binding.id },
-                assessment: await assessment(installation.id, binding.id, binding.directory),
-                ...(workflow ? { workflow } : {}),
-              }),
+            prepareEvaluation: createInstalledEvaluationPreparation({
+              dataDirectory: root,
+              project: binding,
+              assessment,
+            }),
           }
         : {}),
       toolsFor: (installation, tools, workbenchIds) => {
@@ -660,60 +648,58 @@ export async function createDesktopApplication(
       activated: available,
     };
   }
-  let knowledgeRegistration: LocalTemporalRegistration | undefined;
-  const knowledgeActivity = createKnowledgeActivity(() => knowledgeRegistration);
-  const nightloom = isNightloomKnowledgeService(knowledgeService)
-    ? createKnowledgeNightloom({
-        service: knowledgeService,
-        store,
-        ...(options.knowledge?.scheduleNightloomTick
-          ? { scheduleTick: options.knowledge.scheduleNightloomTick }
-          : {}),
-        packageDirectory:
-          options.knowledge?.nightloomDirectory ??
-          join(import.meta.dir, "../../../packages/knowledge/nightloom"),
-        settings: async () => (await knowledgeService.status()).configuration,
-        prepareHost: async (owner) => {
-          const registration = await (await manager()).prepareHost(owner);
-          knowledgeRegistration = registration;
-          return registration;
-        },
-      })
-    : undefined;
   const outcomeCaptures = new Map<
     string,
     Promise<Awaited<ReturnType<typeof createKnowledgeOutcomeCapture>>>
   >();
-  const knowledge = createKnowledgeHost({
+  const knowledgeComposition = createKnowledgeComposition({
     service: knowledgeService,
     store,
-    captureQueues: async () =>
-      Promise.all(
-        [...outcomeCaptures].map(async ([conversationId, pendingCapture]) => {
-          try {
-            return { conversationId, pendingObservations: (await pendingCapture).pending().length };
-          } catch {
-            return { conversationId, pendingObservations: 0 };
-          }
-        }),
-      ),
-    ...(options.knowledge?.schedulePreparationDeadline
-      ? { schedulePreparationDeadline: options.knowledge.schedulePreparationDeadline }
+    manager,
+    nightloomDirectory:
+      options.knowledge?.nightloomDirectory ??
+      join(import.meta.dir, "../../../packages/knowledge/nightloom"),
+    ...(options.knowledge?.scheduleNightloomTick
+      ? { scheduleNightloomTick: options.knowledge.scheduleNightloomTick }
       : {}),
-    selectedProjectId: () => project.selectedProjectId,
-    sourceForProject: async (projectId) => {
-      const binding = project.projects.find((candidate) => candidate.id === projectId);
-      if (!binding) throw Error("Configured knowledge source project is unavailable");
-      await verifyProjectDirectory(binding, root);
-      const runtime = await runtimeFor(binding);
-      return createInstalledGitKnowledgeFeed({
-        projectId,
-        tools: runtime.registry.tools.filter((tool) => runtime.packageToolIds.has(tool.name)),
-        presentation: runtime.packages.toolPresentation,
-      });
+    host: {
+      captureQueues: async () =>
+        Promise.all(
+          [...outcomeCaptures].map(async ([conversationId, pendingCapture]) => {
+            try {
+              return {
+                conversationId,
+                pendingObservations: (await pendingCapture).pending().length,
+              };
+            } catch {
+              return { conversationId, pendingObservations: 0 };
+            }
+          }),
+        ),
+      ...(options.knowledge?.schedulePreparationDeadline
+        ? { schedulePreparationDeadline: options.knowledge.schedulePreparationDeadline }
+        : {}),
+      selectedProjectId: () => project.selectedProjectId,
+      sourceForProject: async (projectId) => {
+        const binding = project.projects.find((candidate) => candidate.id === projectId);
+        if (!binding) throw Error("Configured knowledge source project is unavailable");
+        await verifyProjectDirectory(binding, root);
+        const runtime = await runtimeFor(binding);
+        return createInstalledGitKnowledgeFeed({
+          projectId,
+          tools: runtime.registry.tools.filter((tool) => runtime.packageToolIds.has(tool.name)),
+          presentation: runtime.packages.toolPresentation,
+        });
+      },
     },
-    ...(nightloom ? { nightloom } : {}),
   });
+  const {
+    activity: knowledgeActivity,
+    evidenceReadReceipts,
+    host: knowledge,
+    nightloom,
+    plugin: knowledgePlugin,
+  } = knowledgeComposition;
   async function viewTarget(raw: unknown) {
     const target = ViewTargetSchema.parse(raw);
     const conversation = project.conversations.find((c) => c.id === project.selectedId);
@@ -2471,7 +2457,7 @@ export async function createDesktopApplication(
       await nightloom?.stopScheduling();
       await orchestration.close();
       // Nightloom can be the only consumer that opened the shared manager.
-      await (await temporalManager?.catch(() => undefined))?.close();
+      await orchestrationComposition.closeManager();
       await knowledge.close();
       operationTelemetry.close();
       await Promise.allSettled([...opening.values()]);

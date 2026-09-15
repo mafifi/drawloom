@@ -1,5 +1,11 @@
 import { z } from "zod";
 export type Json = z.infer<ReturnType<typeof z.json>>;
+export const OrchestrationReadinessSchema = z.strictObject({
+  status: z.enum(["ready", "configuration_required", "unavailable"]),
+  code: z.string().min(1).max(128).optional(),
+  message: z.string().min(1).max(512).optional(),
+});
+export type OrchestrationReadiness = z.infer<typeof OrchestrationReadinessSchema>;
 /** Shared retry ceiling; retries remain opt-in and do not permit uncertain writes. */
 export const MAX_TASK_ATTEMPTS = 10;
 /** Local-v1 task attempts remain finite and may run for at most one day. */

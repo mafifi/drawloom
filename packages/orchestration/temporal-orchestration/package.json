@@ -28,7 +28,6 @@
     "@drawloom/orchestration": "workspace:*",
     "@drawloom/agent": "workspace:*",
     "@drawloom/host": "workspace:*",
-    "@drawloom/desktop-host": "workspace:*",
     "@opentelemetry/api": "catalog:",
     "@temporalio/client": "catalog:",
     "@temporalio/worker": "catalog:",

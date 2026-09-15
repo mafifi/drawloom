@@ -3,8 +3,15 @@ import type { PluginContributions } from "@drawloom/plugins";
 import type { OperatorController } from "@drawloom/workbench";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { ToolGateway } from "@drawloom/tools";
-import { z } from "zod";
-import type { Orchestrator, RegisteredTaskHandler } from "@drawloom/orchestration";
+import type {
+  OrchestrationReadiness,
+  Orchestrator,
+  RegisteredTaskHandler,
+} from "@drawloom/orchestration";
+export {
+  OrchestrationReadinessSchema,
+  type OrchestrationReadiness,
+} from "@drawloom/orchestration";
 import type { EvaluationComposer } from "@drawloom/evaluation";
 export interface DesktopCompositionContext {
   /** Namespaced persistence; the host owns its project/navigation records. */
@@ -12,13 +19,6 @@ export interface DesktopCompositionContext {
   /** put stores bytes AND registers the resulting asset for authenticated viewing. */
   readonly assets: AssetLibrary;
 }
-
-export const OrchestrationReadinessSchema = z.strictObject({
-  status: z.enum(["ready", "configuration_required", "unavailable"]),
-  code: z.string().min(1).max(128).optional(),
-  message: z.string().min(1).max(512).optional(),
-});
-export type OrchestrationReadiness = z.infer<typeof OrchestrationReadinessSchema>;
 
 /** Supported backend API, not an OS security boundary or a browser capability. */
 export interface PluginBackendCapabilities {

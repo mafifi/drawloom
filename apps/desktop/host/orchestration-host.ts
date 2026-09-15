@@ -4,9 +4,8 @@ import type {
   createLocalTemporalManager,
   LocalTemporalRegistration,
 } from "@drawloom/temporal-orchestration";
-import type { OrchestrationReadiness } from "@drawloom/desktop-host";
 import type { PackageInventory } from "@drawloom/plugins";
-import type { RegisteredTaskHandler } from "@drawloom/orchestration";
+import type { OrchestrationReadiness, RegisteredTaskHandler } from "@drawloom/orchestration";
 import type { Installation } from "./plugin-installations.js";
 import type { InstalledWorkflowRegistration } from "./plugin-packages.js";
 import { WorkflowOwnersSchema, WorkflowScopeSchema } from "../src/lib/orchestration-protocol.js";
