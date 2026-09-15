@@ -164,8 +164,10 @@ export async function createDesktopApplication(
   // Do not load the assessment SDK for installations that never request it.
   const assessment = createEvaluationAssessmentResolver({
     dataDirectory: root,
-    assessment: options.evaluation?.assessment,
-    model: options.evaluation?.model,
+    ...(options.evaluation?.assessment !== undefined
+      ? { assessment: options.evaluation.assessment }
+      : {}),
+    ...(options.evaluation?.model !== undefined ? { model: options.evaluation.model } : {}),
     create: createDesktopAssessment,
   });
   const mediaOrigins = z.array(ResourceOriginSchema).parse(options.mediaOrigins ?? []);
