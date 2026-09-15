@@ -110,6 +110,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@drawloom/agent": "workspace:*",
+        "@drawloom/context": "workspace:*",
         "@drawloom/conversation-history": "workspace:*",
         "@drawloom/host": "workspace:*",
         "@drawloom/tools": "workspace:*",
@@ -280,8 +281,10 @@
       "version": "0.0.0",
       "dependencies": {
         "@drawloom/codex-assessment": "workspace:*",
+        "@drawloom/context": "workspace:*",
         "@drawloom/host": "workspace:*",
         "@drawloom/knowledge": "workspace:*",
+        "@drawloom/knowledge-context": "workspace:*",
         "@drawloom/local-embeddings": "workspace:*",
         "@drawloom/node-host": "workspace:*",
         "@drawloom/sqlite-knowledge": "workspace:*",
@@ -316,6 +319,7 @@
       "name": "@drawloom/conversation-history",
       "version": "0.0.0",
       "dependencies": {
+        "@drawloom/context": "workspace:*",
         "@drawloom/host": "workspace:*",
         "zod": "catalog:",
       },
