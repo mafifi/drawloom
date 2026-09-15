@@ -77,20 +77,17 @@ export const retry: Workflow<number, number> = {
 export const denied: Workflow<number, number> = {
   ...arithmetic,
   id: "denied",
-  run: (c) =>
-    c.task("denied", { ...numberTask, id: "denied" }, 1, { maxAttempts: 3 }),
+  run: (c) => c.task("denied", { ...numberTask, id: "denied" }, 1, { maxAttempts: 3 }),
 };
 export const invalid: Workflow<number, number> = {
   ...denied,
   id: "invalid",
-  run: (c) =>
-    c.task("invalid", { ...numberTask, id: "invalid" }, 1, { maxAttempts: 3 }),
+  run: (c) => c.task("invalid", { ...numberTask, id: "invalid" }, 1, { maxAttempts: 3 }),
 };
 export const unknown: Workflow<number, number> = {
   ...denied,
   id: "unknown",
-  run: (c) =>
-    c.task("unknown", { ...numberTask, id: "unknown" }, 1, { maxAttempts: 3 }),
+  run: (c) => c.task("unknown", { ...numberTask, id: "unknown" }, 1, { maxAttempts: 3 }),
 };
 export const lostResponse: Workflow<number, number> = {
   ...unknown,
@@ -255,12 +252,10 @@ export const fixtureRegistry: Registry = {
   tasks: [
     catalogueTask,
     numberTask,
-    ...["fail-once", "denied", "invalid", "unknown", "lost-response"].map(
-      (id) => ({
-        ...numberTask,
-        id,
-      }),
-    ),
+    ...["fail-once", "denied", "invalid", "unknown", "lost-response"].map((id) => ({
+      ...numberTask,
+      id,
+    })),
     ...Object.values(agentTasks),
   ],
 };

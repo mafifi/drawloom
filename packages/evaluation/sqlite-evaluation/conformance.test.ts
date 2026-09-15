@@ -9,7 +9,9 @@ test("SQLite implements the evaluation storage contract", async () => {
   expect(provider?.createSqliteEvaluationStore).toBeFunction();
   const directory = mkdtempSync(join(tmpdir(), "drawloom-evaluation-conformance-"));
   try {
-    await evaluationStoreConformance((scope) => provider!.createSqliteEvaluationStore({ dataDirectory: directory, scope }));
+    await evaluationStoreConformance((scope) =>
+      provider!.createSqliteEvaluationStore({ dataDirectory: directory, scope }),
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

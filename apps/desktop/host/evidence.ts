@@ -1,17 +1,10 @@
 import type { JsonStore } from "@drawloom/host";
-import { JsonValueSchema } from '@drawloom/host';
+import { JsonValueSchema } from "@drawloom/host";
 import { z } from "zod";
-import {
-  ToolResultSchema,
-  type ToolEvidence,
-  type ToolResult,
-} from "@drawloom/tools";
+import { ToolResultSchema, type ToolEvidence, type ToolResult } from "@drawloom/tools";
 import { ToolStartSchema } from "../src/lib/protocol.js";
 
-export async function createDesktopEvidence(
-  store: JsonStore,
-  conversationId: string,
-) {
+export async function createDesktopEvidence(store: JsonStore, conversationId: string) {
   const key = "tool-evidence:" + conversationId;
   const schema = z.array(
     z.discriminatedUnion("kind", [
@@ -27,8 +20,8 @@ export async function createDesktopEvidence(
   let queue: Promise<void> = Promise.resolve();
   return {
     toolFor: (invocationId: string) => {
-      const started = records.find(r => r.kind === 'started' && r.invocationId === invocationId);
-      return started?.kind === 'started' ? started.tool : undefined;
+      const started = records.find((r) => r.kind === "started" && r.invocationId === invocationId);
+      return started?.kind === "started" ? started.tool : undefined;
     },
     activity: () =>
       structuredClone([
@@ -38,9 +31,7 @@ export async function createDesktopEvidence(
       ]),
     pending: () => {
       const finished = new Set(
-        records.flatMap((r) =>
-          r.kind === "finished" ? [r.result.invocationId] : [],
-        ),
+        records.flatMap((r) => (r.kind === "finished" ? [r.result.invocationId] : [])),
       );
       return structuredClone(
         records.filter(
@@ -62,9 +53,7 @@ export async function createDesktopEvidence(
               ? { ...entry.result, evidence: "outcome_failed" }
               : {
                   invocationId: entry.invocationId,
-                  ...(entry.operationId
-                    ? { operationId: entry.operationId }
-                    : {}),
+                  ...(entry.operationId ? { operationId: entry.operationId } : {}),
                   evidence: "start_failed",
                   outcome: {
                     status: "failed",

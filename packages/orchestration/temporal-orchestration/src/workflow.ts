@@ -47,9 +47,7 @@ export interface Activities {
 }
 export const stateQuery = defineQuery<RunSnapshot>("state");
 export const startQuery = defineQuery<string>("startIdentity");
-export const stepsQuery = defineQuery<RunSnapshot["steps"], [number, number]>(
-  "steps",
-);
+export const stepsQuery = defineQuery<RunSnapshot["steps"], [number, number]>("steps");
 export const answerUpdate = defineUpdate<void, [string, Json]>("answer");
 export const answerQuery = defineQuery<boolean, [string, Json]>("answered");
 
@@ -68,14 +66,8 @@ export async function executeWorkflow(registry: Registry, start: Start): Promise
     pendingInputs: [],
     steps: [],
   };
-  const responses = new Map<
-    string,
-    { schema: z.ZodType; value?: Json; fingerprint?: string }
-  >();
-  const memo = new Map<
-    string,
-    { fingerprint: string; result: Promise<unknown> }
-  >();
+  const responses = new Map<string, { schema: z.ZodType; value?: Json; fingerprint?: string }>();
+  const memo = new Map<string, { fingerprint: string; result: Promise<unknown> }>();
   const children: ChildWorkflowHandle<(start: Start) => Promise<Json>>[] = [];
   // A successful submit receipt is not native operation completion. Preserve that
   // distinction when cancellation/failure happens between submit and result.
@@ -87,18 +79,12 @@ export async function executeWorkflow(registry: Registry, start: Start): Promise
     steps: state.steps.slice(0, 100),
     stepsTruncated: state.steps.length > 100,
   }));
-  setHandler(stepsQuery, (offset, limit) =>
-    state.steps.slice(offset, offset + limit),
-  );
+  setHandler(stepsQuery, (offset, limit) => state.steps.slice(offset, offset + limit));
   const validateAnswer = (id: string, value: Json) => {
     const pending = responses.get(id);
-    if (!pending)
-      throw ApplicationFailure.nonRetryable("Stale or cross-run input");
+    if (!pending) throw ApplicationFailure.nonRetryable("Stale or cross-run input");
     parse(pending.schema, value);
-    if (
-      pending.fingerprint !== undefined &&
-      pending.fingerprint !== canonical(value)
-    )
+    if (pending.fingerprint !== undefined && pending.fingerprint !== canonical(value))
       throw ApplicationFailure.nonRetryable("Conflicting input");
     return pending;
   };
@@ -120,16 +106,11 @@ export async function executeWorkflow(registry: Registry, start: Start): Promise
       },
     },
   );
-  function stable<T>(
-    step: string,
-    fingerprint: string,
-    work: () => Promise<T>,
-  ): Promise<T> {
+  function stable<T>(step: string, fingerprint: string, work: () => Promise<T>): Promise<T> {
     if (!step) throw new Error("Empty step");
     const previous = memo.get(step);
     if (previous) {
-      if (previous.fingerprint !== fingerprint)
-        throw new Error("Conflicting step");
+      if (previous.fingerprint !== fingerprint) throw new Error("Conflicting step");
       return previous.result as Promise<T>;
     }
     const result = Promise.resolve().then(work);
@@ -140,9 +121,7 @@ export async function executeWorkflow(registry: Registry, start: Start): Promise
   const context: WorkflowContext = {
     runId,
     task(step, task, input, retry) {
-      const registered = registry.tasks.find(
-        (t) => t.id === task.id && t.version === task.version,
-      );
+      const registered = registry.tasks.find((t) => t.id === task.id && t.version === task.version);
       if (!registered) throw new Error("Unregistered task version");
       const parsed = parse(registered.input, input) as Json;
       const maximumAttempts = retry?.maxAttempts ?? 1;
@@ -166,8 +145,7 @@ export async function executeWorkflow(registry: Registry, start: Start): Promise
             const result = await proxyActivities<Activities>({
               startToCloseTimeout: taskExecutionLimits(registered).startToCloseTimeoutMs,
               heartbeatTimeout: "3 seconds",
-              cancellationType:
-                ActivityCancellationType.WAIT_CANCELLATION_COMPLETED,
+              cancellationType: ActivityCancellationType.WAIT_CANCELLATION_COMPLETED,
               retry: {
                 maximumAttempts,
                 initialInterval: "20 milliseconds",
@@ -187,25 +165,30 @@ export async function executeWorkflow(registry: Registry, start: Start): Promise
             record.status = "completed";
             if (["agent.submit", "agent.inspect", "agent.result"].includes(task.id)) {
               const receipt = record.result;
-              if (receipt && typeof receipt === "object" && !Array.isArray(receipt)
-                && typeof receipt.sessionId === "string" && typeof receipt.operationId === "string") {
+              if (
+                receipt &&
+                typeof receipt === "object" &&
+                !Array.isArray(receipt) &&
+                typeof receipt.sessionId === "string" &&
+                typeof receipt.operationId === "string"
+              ) {
                 const key = canonical([receipt.sessionId, receipt.operationId]);
-                if (["completed", "failed", "interrupted", "denied"].includes(String(receipt.status))) nativeOperations.delete(key);
+                if (
+                  ["completed", "failed", "interrupted", "denied"].includes(String(receipt.status))
+                )
+                  nativeOperations.delete(key);
                 else nativeOperations.set(key, record.stepId);
               }
             }
             return record.result as never;
           } catch (error) {
             record.status = "failed";
-            const cause =
-              error instanceof ActivityFailure ? error.cause : error;
-            if (
-              cause instanceof ApplicationFailure &&
-              typeof cause.details?.[0] === "number"
-            )
+            const cause = error instanceof ActivityFailure ? error.cause : error;
+            if (cause instanceof ApplicationFailure && typeof cause.details?.[0] === "number")
               record.attempts = cause.details[0];
             if (
-              isCancellation(error) || cause instanceof TimeoutFailure ||
+              isCancellation(error) ||
+              cause instanceof TimeoutFailure ||
               (cause instanceof ApplicationFailure && cause.type === "unknown")
             )
               state.unresolvedEffects.push(record.stepId);
@@ -220,64 +203,60 @@ export async function executeWorkflow(registry: Registry, start: Start): Promise
       );
       if (!registered) throw new Error("Unregistered workflow version");
       const parsed = parse(registered.input, input) as Json;
-      return stable(
-        step,
-        canonical(["child", workflow.id, workflow.version, parsed]),
-        async () => {
-          if (state.childRunIds.length >= 100) throw new Error("Child limit");
-          const id = `${runId}/child/${encodeURIComponent(step)}`;
-          state.childRunIds.push(id);
-          const handle = await startChild<(start: Start) => Promise<Json>>("drawloomWorkflow", {
-            workflowId: id,
-            args: [
-              {
-                identity: step,
-                workflow: workflow.id,
-                version: workflow.version,
-                input: parsed,
-                fingerprint: canonical([workflow.id, workflow.version, parsed]),
-              },
-            ],
-          });
-          children.push(handle);
-          return (await handle.result()) as never;
-        },
-      );
+      return stable(step, canonical(["child", workflow.id, workflow.version, parsed]), async () => {
+        if (state.childRunIds.length >= 100) throw new Error("Child limit");
+        const id = `${runId}/child/${encodeURIComponent(step)}`;
+        state.childRunIds.push(id);
+        const handle = await startChild<(start: Start) => Promise<Json>>("drawloomWorkflow", {
+          workflowId: id,
+          args: [
+            {
+              identity: step,
+              workflow: workflow.id,
+              version: workflow.version,
+              input: parsed,
+              fingerprint: canonical([workflow.id, workflow.version, parsed]),
+            },
+          ],
+        });
+        children.push(handle);
+        return (await handle.result()) as never;
+      });
     },
     input(step, schema) {
       let fingerprint: string | undefined;
-      try { fingerprint = canonical(z.toJSONSchema(schema)); }
-      catch {
+      try {
+        fingerprint = canonical(z.toJSONSchema(schema));
+      } catch {
         // Valid JSON-preserving transforms need not have a JSON Schema. The
         // pinned workflow registers their schema object for this named wait.
       }
       const previous = inputSchemas.get(step);
-      if (previous && previous.schema !== schema &&
-        (fingerprint === undefined || previous.fingerprint === undefined || fingerprint !== previous.fingerprint))
+      if (
+        previous &&
+        previous.schema !== schema &&
+        (fingerprint === undefined ||
+          previous.fingerprint === undefined ||
+          fingerprint !== previous.fingerprint)
+      )
         throw new Error("Conflicting input schema");
       inputSchemas.set(step, { schema, fingerprint });
-      return stable(
-        step,
-        canonical(["input", fingerprint ?? "registered-schema"]),
-        async () => {
-          if (state.pendingInputs.length >= 100) throw new Error("Input limit");
-          const id = `${runId}/input/${encodeURIComponent(step)}`;
-          const pending: {
-            schema: z.ZodType;
-            value?: Json;
-            fingerprint?: string;
-          } = { schema };
-          responses.set(id, pending);
-          state.pendingInputs.push(id);
-          await condition(() => pending.fingerprint !== undefined);
-          return pending.value as never;
-        },
-      );
+      return stable(step, canonical(["input", fingerprint ?? "registered-schema"]), async () => {
+        if (state.pendingInputs.length >= 100) throw new Error("Input limit");
+        const id = `${runId}/input/${encodeURIComponent(step)}`;
+        const pending: {
+          schema: z.ZodType;
+          value?: Json;
+          fingerprint?: string;
+        } = { schema };
+        responses.set(id, pending);
+        state.pendingInputs.push(id);
+        await condition(() => pending.fingerprint !== undefined);
+        return pending.value as never;
+      });
     },
     sleep(step, milliseconds) {
-      return stable(step, canonical(["sleep", milliseconds]), () =>
-        sleep(milliseconds),
-      );
+      return stable(step, canonical(["sleep", milliseconds]), () => sleep(milliseconds));
     },
   };
   try {
@@ -286,11 +265,7 @@ export async function executeWorkflow(registry: Registry, start: Start): Promise
     );
     if (!registered) throw new Error("Unregistered workflow");
     state.output = await scope.run(
-      async () =>
-        parse(
-          registered.output,
-          await registered.run(context, start.input),
-        ) as Json,
+      async () => parse(registered.output, await registered.run(context, start.input)) as Json,
     );
     state.status = "completed";
     return state.output;

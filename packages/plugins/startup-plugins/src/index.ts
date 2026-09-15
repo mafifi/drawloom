@@ -42,9 +42,7 @@ export function createPluginRegistry(
         throw Error(`Missing capability: ${req.id}`);
     }
   const contributions = prepared.map((prepare) => prepare());
-  const tools: ToolDefinition[] = contributions.flatMap((c) => [
-    ...(c.tools ?? []),
-  ]);
+  const tools: ToolDefinition[] = contributions.flatMap((c) => [...(c.tools ?? [])]);
   const skills = contributions
     .flatMap((c) => [...(c.skills ?? [])])
     .map((s) => SkillSchema.parse(s));
@@ -54,14 +52,23 @@ export function createPluginRegistry(
   const views = contributions.flatMap((contribution, index) =>
     (contribution.views ?? []).map((raw) => {
       const view = WorkbenchViewSchema.parse(raw);
-      if (!contribution.workbenches?.some(w => w.id === view.workbenchId))
-        throw Error('View must belong to a workbench contributed by its plugin');
+      if (!contribution.workbenches?.some((w) => w.id === view.workbenchId))
+        throw Error("View must belong to a workbench contributed by its plugin");
       return { ...view, pluginId: installs[index]!.plugin.id };
     }),
   );
-  unique(views.map(v => v.id), 'view');
-  unique(views.map(v => v.workbenchId), 'workbench view');
-  unique(views.map(v => v.entrypoint), 'view entrypoint');
+  unique(
+    views.map((v) => v.id),
+    "view",
+  );
+  unique(
+    views.map((v) => v.workbenchId),
+    "workbench view",
+  );
+  unique(
+    views.map((v) => v.entrypoint),
+    "view entrypoint",
+  );
   const toolIds = unique(
     tools.map((t) => t.name),
     "tool",
@@ -81,14 +88,8 @@ export function createPluginRegistry(
       inputSchema: t.inputSchema,
       outputSchema: t.outputSchema,
     });
-    for (const method of [
-      "parseInput",
-      "parseOutput",
-      "execute",
-      "render",
-    ] as const)
-      if (typeof t[method] !== "function")
-        throw Error("Invalid tool definition");
+    for (const method of ["parseInput", "parseOutput", "execute", "render"] as const)
+      if (typeof t[method] !== "function") throw Error("Invalid tool definition");
   }
   for (const { plugin } of installs)
     for (const req of plugin.requires) {
@@ -102,23 +103,38 @@ export function createPluginRegistry(
     for (const tool of workbench.tools)
       if (!toolIds.has(tool)) throw Error(`Missing workbench tool: ${tool}`);
     for (const skill of workbench.skills)
-      if (!skillIds.has(skill))
-        throw Error(`Missing workbench skill: ${skill}`);
+      if (!skillIds.has(skill)) throw Error(`Missing workbench skill: ${skill}`);
   }
   return Object.freeze({
-    contributions: freeze(contributions.flatMap((contribution,index) => {
-      const pluginId=installs[index]!.plugin.id;
-      const entry=(kind:'skill'|'tool'|'workbench'|'view',contributionId:string,title:string,description:string) => ({id:`drawloom:${encodeURIComponent(pluginId)}:${kind}:${encodeURIComponent(contributionId)}`,pluginId,kind,contributionId,title,description});
-      return [
-        ...(contribution.skills??[]).map(s=>entry('skill',s.id,s.title,s.description??'')),
-        ...(contribution.tools??[]).map(t=>entry('tool',t.name,t.name,t.description)),
-        ...(contribution.workbenches??[]).map(w=>entry('workbench',w.id,w.title,w.description)),
-        ...(contribution.views??[]).map(v=>entry('view',v.id,v.title,'')),
-      ];
-    })),
-    plugins: freeze(
-      installs.map((i) => ({ id: i.plugin.id, version: i.plugin.version })),
+    contributions: freeze(
+      contributions.flatMap((contribution, index) => {
+        const pluginId = installs[index]!.plugin.id;
+        const entry = (
+          kind: "skill" | "tool" | "workbench" | "view",
+          contributionId: string,
+          title: string,
+          description: string,
+        ) => ({
+          id: `drawloom:${encodeURIComponent(pluginId)}:${kind}:${encodeURIComponent(contributionId)}`,
+          pluginId,
+          kind,
+          contributionId,
+          title,
+          description,
+        });
+        return [
+          ...(contribution.skills ?? []).map((s) =>
+            entry("skill", s.id, s.title, s.description ?? ""),
+          ),
+          ...(contribution.tools ?? []).map((t) => entry("tool", t.name, t.name, t.description)),
+          ...(contribution.workbenches ?? []).map((w) =>
+            entry("workbench", w.id, w.title, w.description),
+          ),
+          ...(contribution.views ?? []).map((v) => entry("view", v.id, v.title, "")),
+        ];
+      }),
     ),
+    plugins: freeze(installs.map((i) => ({ id: i.plugin.id, version: i.plugin.version }))),
     tools: Object.freeze([...tools]),
     skills: freeze(skills),
     workbenches: freeze(workbenches),

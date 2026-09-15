@@ -1,9 +1,29 @@
 export { LocalEmbeddingsError } from "./errors.js";
 export { createKnowledgeEmbeddings, embeddingConfiguration } from "./adapter.js";
-export { KnownLlamaRuntime, KnownModelManifests, ModelManifestSchema, RuntimeArtifactSchema, formatEmbeddingInput, knownManifest } from "./manifest.js";
-export type { KnownModelId, ModelManifest, RuntimeArtifact, TrustedRuntimeArtifact } from "./manifest.js";
+export {
+  KnownLlamaRuntime,
+  KnownModelManifests,
+  ModelManifestSchema,
+  RuntimeArtifactSchema,
+  formatEmbeddingInput,
+  knownManifest,
+} from "./manifest.js";
+export type {
+  KnownModelId,
+  ModelManifest,
+  RuntimeArtifact,
+  TrustedRuntimeArtifact,
+} from "./manifest.js";
 export { ModelSetup, createModelSetup } from "./setup.js";
-export type { ArtifactFetch, InstallOptions, LlamaRuntimeSetupOptions, ModelSetupOptions, ModelSetupStatus, ObsoleteRuntimeCleanup, ReadyModel } from "./setup.js";
+export type {
+  ArtifactFetch,
+  InstallOptions,
+  LlamaRuntimeSetupOptions,
+  ModelSetupOptions,
+  ModelSetupStatus,
+  ObsoleteRuntimeCleanup,
+  ReadyModel,
+} from "./setup.js";
 export { LlamaEmbeddingWorker } from "./llama-worker-client.js";
 export type { LlamaEmbeddingWorkerOptions } from "./llama-worker-client.js";
 export type { EmbedOptions, EmbedRequest, EmbeddingWorker } from "./worker-types.js";

@@ -11,12 +11,7 @@ import {
 import { z } from "zod";
 export async function createMcpToolServer(options: {
   exposure: ToolExposure;
-  invoke: (
-    metadata: unknown,
-    name: string,
-    args: unknown,
-    signal: AbortSignal,
-  ) => Promise<unknown>;
+  invoke: (metadata: unknown, name: string, args: unknown, signal: AbortSignal) => Promise<unknown>;
 }): Promise<{ url: string; token: string; close(): Promise<void> }> {
   const exposure = ToolExposureSchema.parse(structuredClone(options.exposure));
   const token = randomBytes(32).toString("hex");
@@ -73,9 +68,7 @@ export async function createMcpToolServer(options: {
       } catch {
         return {
           isError: true,
-          content: [
-            { type: "text" as const, text: "Tool invocation unavailable" },
-          ],
+          content: [{ type: "text" as const, text: "Tool invocation unavailable" }],
         };
       }
     });
@@ -118,8 +111,7 @@ export async function createMcpToolServer(options: {
     http.listen(0, "127.0.0.1", () => resolve());
   });
   const address = http.address();
-  if (!address || typeof address === "string")
-    throw Error("MCP server unavailable");
+  if (!address || typeof address === "string") throw Error("MCP server unavailable");
   let closed = false;
   return {
     url: `http://127.0.0.1:${address.port}/mcp`,
@@ -130,9 +122,7 @@ export async function createMcpToolServer(options: {
       await Promise.all([...active].map((s) => s.close()));
       await new Promise<void>((resolve, reject) => {
         http.close((error) =>
-          error && error.message !== "Server is not running."
-            ? reject(error)
-            : resolve(),
+          error && error.message !== "Server is not running." ? reject(error) : resolve(),
         );
         http.closeAllConnections();
       });

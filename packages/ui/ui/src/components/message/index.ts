@@ -6,17 +6,17 @@ import Header from "./message-header.svelte";
 import Root from "./message.svelte";
 
 export {
-	Root,
-	Group,
-	Avatar,
-	Content,
-	Header,
-	Footer,
-	//
-	Root as Message,
-	Group as MessageGroup,
-	Avatar as MessageAvatar,
-	Content as MessageContent,
-	Header as MessageHeader,
-	Footer as MessageFooter,
+  Root,
+  Group,
+  Avatar,
+  Content,
+  Header,
+  Footer,
+  //
+  Root as Message,
+  Group as MessageGroup,
+  Avatar as MessageAvatar,
+  Content as MessageContent,
+  Header as MessageHeader,
+  Footer as MessageFooter,
 };

@@ -1,101 +1,214 @@
-import { expect, test } from 'bun:test';
-import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { App } from '@modelcontextprotocol/ext-apps';
-import { getUiCapability, registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from '@modelcontextprotocol/ext-apps/server';
-import { z } from 'zod';
-import { closePluginViewBridge, createPluginViewBridge } from '../src/lib/plugin-view-bridge.js';
-import { connectMcpApp } from './mcp-app.js';
+import { expect, test } from "bun:test";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { App } from "@modelcontextprotocol/ext-apps";
+import {
+  getUiCapability,
+  registerAppResource,
+  registerAppTool,
+  RESOURCE_MIME_TYPE,
+} from "@modelcontextprotocol/ext-apps/server";
+import { z } from "zod";
+import { closePluginViewBridge, createPluginViewBridge } from "../src/lib/plugin-view-bridge.js";
+import { connectMcpApp } from "./mcp-app.js";
 
 async function fixture() {
-  const server = new McpServer({ name: 'public-counter', version: '1.0.0' });
-  const uri = 'ui://counter/view.html';
-  let value = 3, privateCalls = 0;
-  registerAppResource(server, 'Counter', uri, {}, async () => ({ contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: '<!doctype html><p>Counter</p>' }] }));
-  registerAppTool(server, 'counter.open', { inputSchema: {}, _meta: { ui: { resourceUri: uri, visibility: ['app'] } } }, async () => ({ content: [], structuredContent: { value } }));
-  registerAppTool(server, 'counter.choose', { inputSchema: { value: z.number().int().min(0) }, _meta: { ui: { visibility: ['app'] } } }, async input => ({ content: [], structuredContent: { value: value = input.value } }));
-  registerAppTool(server, 'private.action', { inputSchema: {}, _meta: { ui: { visibility: ['model'] } } }, async () => { privateCalls++; return { content: [] }; });
-  server.registerResource('Reference', 'document://public/reference', { mimeType: 'text/plain', _meta: { privateConfiguration: 'do-not-project' } }, async () => ({ contents: [{ uri: 'document://public/reference', text: 'Reference text', mimeType: 'text/plain' }] }));
-  server.registerResource('Unlisted reference', new ResourceTemplate('document://unlisted/{id}', { list: undefined }), { mimeType: 'text/plain' }, async uri => ({ contents: [{ uri: uri.href, text: 'Tool-linked reference', mimeType: 'text/plain' }] }));
-  registerAppTool(server, 'counter.reference', { inputSchema: {}, _meta: { ui: { visibility: ['app'] } } }, async () => ({ content: [{ type: 'resource_link', uri: 'document://unlisted/one', name: 'Unlisted reference', mimeType: 'text/plain' }] }));
+  const server = new McpServer({ name: "public-counter", version: "1.0.0" });
+  const uri = "ui://counter/view.html";
+  let value = 3,
+    privateCalls = 0;
+  registerAppResource(server, "Counter", uri, {}, async () => ({
+    contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: "<!doctype html><p>Counter</p>" }],
+  }));
+  registerAppTool(
+    server,
+    "counter.open",
+    { inputSchema: {}, _meta: { ui: { resourceUri: uri, visibility: ["app"] } } },
+    async () => ({ content: [], structuredContent: { value } }),
+  );
+  registerAppTool(
+    server,
+    "counter.choose",
+    { inputSchema: { value: z.number().int().min(0) }, _meta: { ui: { visibility: ["app"] } } },
+    async (input) => ({ content: [], structuredContent: { value: (value = input.value) } }),
+  );
+  registerAppTool(
+    server,
+    "private.action",
+    { inputSchema: {}, _meta: { ui: { visibility: ["model"] } } },
+    async () => {
+      privateCalls++;
+      return { content: [] };
+    },
+  );
+  server.registerResource(
+    "Reference",
+    "document://public/reference",
+    { mimeType: "text/plain", _meta: { privateConfiguration: "do-not-project" } },
+    async () => ({
+      contents: [
+        { uri: "document://public/reference", text: "Reference text", mimeType: "text/plain" },
+      ],
+    }),
+  );
+  server.registerResource(
+    "Unlisted reference",
+    new ResourceTemplate("document://unlisted/{id}", { list: undefined }),
+    { mimeType: "text/plain" },
+    async (uri) => ({
+      contents: [{ uri: uri.href, text: "Tool-linked reference", mimeType: "text/plain" }],
+    }),
+  );
+  registerAppTool(
+    server,
+    "counter.reference",
+    { inputSchema: {}, _meta: { ui: { visibility: ["app"] } } },
+    async () => ({
+      content: [
+        {
+          type: "resource_link",
+          uri: "document://unlisted/one",
+          name: "Unlisted reference",
+          mimeType: "text/plain",
+        },
+      ],
+    }),
+  );
   const [transport, peer] = InMemoryTransport.createLinkedPair();
   await server.connect(peer);
   return { server, uri, transport, privateCalls: () => privateCalls };
 }
 
-test('standard App reaches plugin-owned data without OperatorSnapshot or controller assumptions', async () => {
+test("standard App reaches plugin-owned data without OperatorSnapshot or controller assumptions", async () => {
   const f = await fixture();
-  const host = await connectMcpApp({ transport: f.transport, toolName: 'counter.open' }, f.uri);
-  expect(getUiCapability(f.server.server.getClientCapabilities()!)?.mimeTypes).toContain(RESOURCE_MIME_TYPE);
-  const bridge = createPluginViewBridge({ theme: 'light', callTool: args => host.callTool(args) });
-  const app = new App({ name: 'counter', version: '1.0.0' }, {}, { autoResize: false });
+  const host = await connectMcpApp({ transport: f.transport, toolName: "counter.open" }, f.uri);
+  expect(getUiCapability(f.server.server.getClientCapabilities()!)?.mimeTypes).toContain(
+    RESOURCE_MIME_TYPE,
+  );
+  const bridge = createPluginViewBridge({
+    theme: "light",
+    callTool: (args) => host.callTool(args),
+  });
+  const app = new App({ name: "counter", version: "1.0.0" }, {}, { autoResize: false });
   const [parent, child] = InMemoryTransport.createLinkedPair();
   try {
     await bridge.connect(parent);
     await app.connect(child);
-    expect(app.getHostContext()?.theme).toBe('light');
-    expect((await app.callServerTool({ name: 'counter.open', arguments: {} })).structuredContent).toEqual({ value: 3 });
-    expect((await app.callServerTool({ name: 'counter.choose', arguments: { value: 8 } })).structuredContent).toEqual({ value: 8 });
-    expect((await app.callServerTool({ name: 'counter.choose', arguments: { value: -1 } })).isError).toBe(true);
-    await expect(app.callServerTool({ name: 'private.action', arguments: {} })).rejects.toThrow();
-    await expect(app.callServerTool({ name: 'another-server.action', arguments: {} })).rejects.toThrow();
+    expect(app.getHostContext()?.theme).toBe("light");
+    expect(
+      (await app.callServerTool({ name: "counter.open", arguments: {} })).structuredContent,
+    ).toEqual({ value: 3 });
+    expect(
+      (await app.callServerTool({ name: "counter.choose", arguments: { value: 8 } }))
+        .structuredContent,
+    ).toEqual({ value: 8 });
+    expect(
+      (await app.callServerTool({ name: "counter.choose", arguments: { value: -1 } })).isError,
+    ).toBe(true);
+    await expect(app.callServerTool({ name: "private.action", arguments: {} })).rejects.toThrow();
+    await expect(
+      app.callServerTool({ name: "another-server.action", arguments: {} }),
+    ).rejects.toThrow();
     expect(f.privateCalls()).toBe(0);
-    expect(host.html).toContain('Counter');
+    expect(host.html).toContain("Counter");
     let cleaned = false;
-    app.onteardown = async () => { cleaned = true; return {}; };
+    app.onteardown = async () => {
+      cleaned = true;
+      return {};
+    };
     await closePluginViewBridge(bridge);
     expect(cleaned).toBe(true);
-  } finally { await app.close(); await bridge.close(); await host.close(); }
+  } finally {
+    await app.close();
+    await bridge.close();
+    await host.close();
+  }
 });
 
-test('resource discovery is read-only and reads are limited to source-advertised identities', async () => {
+test("resource discovery is read-only and reads are limited to source-advertised identities", async () => {
   const f = await fixture();
-  const host = await connectMcpApp({ transport: f.transport, toolName: 'counter.open' }, f.uri);
+  const host = await connectMcpApp({ transport: f.transport, toolName: "counter.open" }, f.uri);
   try {
     const listed = await host.listResources();
-    expect(listed.resources.some(r => r.uri === 'document://public/reference')).toBe(true);
-    expect(JSON.stringify(listed)).not.toContain('do-not-project');
-    expect((await host.readResource('document://public/reference')).contents[0]).toMatchObject({ text: 'Reference text' });
-    await expect(host.readResource('file:///etc/passwd')).rejects.toThrow();
+    expect(listed.resources.some((r) => r.uri === "document://public/reference")).toBe(true);
+    expect(JSON.stringify(listed)).not.toContain("do-not-project");
+    expect((await host.readResource("document://public/reference")).contents[0]).toMatchObject({
+      text: "Reference text",
+    });
+    await expect(host.readResource("file:///etc/passwd")).rejects.toThrow();
     expect(f.privateCalls()).toBe(0);
-  } finally { await host.close(); }
+  } finally {
+    await host.close();
+  }
 });
 
-test('host refuses a resource not associated with its opening tool', async () => {
+test("host refuses a resource not associated with its opening tool", async () => {
   const f = await fixture();
-  await expect(connectMcpApp({ transport: f.transport, toolName: 'counter.open' }, 'ui://other/view.html')).rejects.toThrow();
+  await expect(
+    connectMcpApp({ transport: f.transport, toolName: "counter.open" }, "ui://other/view.html"),
+  ).rejects.toThrow();
   await f.server.close();
 });
 
-test('a tool-returned link is readable even when absent from resources/list', async () => {
+test("a tool-returned link is readable even when absent from resources/list", async () => {
   const f = await fixture();
-  const host = await connectMcpApp({ transport: f.transport, toolName: 'counter.open' }, f.uri);
+  const host = await connectMcpApp({ transport: f.transport, toolName: "counter.open" }, f.uri);
   try {
-    expect((await host.listResources()).resources.some(r => r.uri === 'document://unlisted/one')).toBe(false);
-    await expect(host.readResource('document://unlisted/one')).rejects.toThrow('Resource unavailable');
-    const result = await host.callTool({ name: 'counter.reference', arguments: {} });
-    expect(result.content[0]).toMatchObject({ type: 'resource_link', uri: 'document://unlisted/one' });
-    expect((await host.readResource('document://unlisted/one')).contents[0]).toMatchObject({ text: 'Tool-linked reference' });
-    await expect(host.readResource('document://unlisted/two')).rejects.toThrow('Resource unavailable');
+    expect(
+      (await host.listResources()).resources.some((r) => r.uri === "document://unlisted/one"),
+    ).toBe(false);
+    await expect(host.readResource("document://unlisted/one")).rejects.toThrow(
+      "Resource unavailable",
+    );
+    const result = await host.callTool({ name: "counter.reference", arguments: {} });
+    expect(result.content[0]).toMatchObject({
+      type: "resource_link",
+      uri: "document://unlisted/one",
+    });
+    expect((await host.readResource("document://unlisted/one")).contents[0]).toMatchObject({
+      text: "Tool-linked reference",
+    });
+    await expect(host.readResource("document://unlisted/two")).rejects.toThrow(
+      "Resource unavailable",
+    );
     expect(f.privateCalls()).toBe(0);
-  } finally { await host.close(); }
+  } finally {
+    await host.close();
+  }
 });
 
-test('standard context and message methods negotiate separately and preserve host rejection', async () => {
+test("standard context and message methods negotiate separately and preserve host rejection", async () => {
   const events: unknown[] = [];
-  const bridge = createPluginViewBridge({ theme: 'dark', callTool: async () => ({ content: [] }),
-    updateContext: async params => { events.push(params); return {}; },
-    message: async params => { events.push(params); return { isError: true }; },
+  const bridge = createPluginViewBridge({
+    theme: "dark",
+    callTool: async () => ({ content: [] }),
+    updateContext: async (params) => {
+      events.push(params);
+      return {};
+    },
+    message: async (params) => {
+      events.push(params);
+      return { isError: true };
+    },
   });
-  const app = new App({ name: 'public-editor', version: '1.0.0' }, {}, { autoResize: false });
+  const app = new App({ name: "public-editor", version: "1.0.0" }, {}, { autoResize: false });
   const [parent, child] = InMemoryTransport.createLinkedPair();
   try {
-    await bridge.connect(parent); await app.connect(child);
-    await app.updateModelContext({ structuredContent: { passage: 'Selected public fixture' } });
-    expect(events).toEqual([{ structuredContent: { passage: 'Selected public fixture' } }]);
-    expect(await app.sendMessage({ role: 'user', content: [{ type: 'text', text: 'Suggest a shorter passage' }] })).toEqual({ isError: true });
+    await bridge.connect(parent);
+    await app.connect(child);
+    await app.updateModelContext({ structuredContent: { passage: "Selected public fixture" } });
+    expect(events).toEqual([{ structuredContent: { passage: "Selected public fixture" } }]);
+    expect(
+      await app.sendMessage({
+        role: "user",
+        content: [{ type: "text", text: "Suggest a shorter passage" }],
+      }),
+    ).toEqual({ isError: true });
     expect(events).toHaveLength(2);
     await app.updateModelContext({});
     expect(events.at(-1)).toEqual({});
-  } finally { await app.close(); await bridge.close(); }
+  } finally {
+    await app.close();
+    await bridge.close();
+  }
 });

@@ -5,10 +5,7 @@ import { createLocalToolGateway } from "../../tools/local-tools/src/index.js";
 import { createCodexToolBridge } from "../../agent/codex-agent/src/index.js";
 import { z } from "zod";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import {
-  JSONRPCMessageSchema,
-  type JSONRPCMessage,
-} from "@modelcontextprotocol/sdk/types.js";
+import { JSONRPCMessageSchema, type JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 
 class FetchMcpTransport implements Transport {
@@ -191,13 +188,7 @@ test("MCP authentication, schema projection and canonical result boundary", asyn
   }
 });
 test("MCP exposure rejects malformed annotations", async () => {
-  for (const annotations of [
-    null,
-    false,
-    0,
-    { readOnlyHint: "yes" },
-    { unknownHint: true },
-  ]) {
+  for (const annotations of [null, false, 0, { readOnlyHint: "yes" }, { unknownHint: true }]) {
     await expect(
       createMcpToolServer({
         exposure: {

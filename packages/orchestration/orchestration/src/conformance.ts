@@ -1,10 +1,6 @@
 import { check as assert } from "./conformance-check.js";
 import { z } from "zod";
-import {
-  StepFailure,
-  type Orchestrator,
-  type TaskContext,
-} from "./index.js";
+import { StepFailure, type Orchestrator, type TaskContext } from "./index.js";
 import { arithmetic, waiting, retry, workflows } from "./conformance-fixtures.js";
 export type Fixture = {
   engine: Orchestrator;
@@ -17,17 +13,9 @@ export async function orchestrationConformance(create: () => Promise<Fixture>) {
   try {
     const boundaryChecks = await Promise.allSettled([
       (async () => {
-        const accepted = await e.start(
-          "retry-max",
-          workflows.retryBoundary,
-          10,
-        );
+        const accepted = await e.start("retry-max", workflows.retryBoundary, 10);
         assert.equal(await e.result(accepted), 4);
-        const rejected = await e.start(
-          "retry-excess",
-          workflows.retryBoundary,
-          11,
-        );
+        const rejected = await e.start("retry-excess", workflows.retryBoundary, 11);
         await assert.rejects(e.result(rejected));
       })(),
       (async () => {
@@ -51,19 +39,13 @@ export async function orchestrationConformance(create: () => Promise<Fixture>) {
       ["fulfilled", "fulfilled"],
       "retry ceiling and repeated input schema must agree across providers",
     );
-    const catalogue = await e.start("catalogue", workflows.catalogue, [
-      " Pear ",
-      "apple",
-      "pear",
-    ]);
+    const catalogue = await e.start("catalogue", workflows.catalogue, [" Pear ", "apple", "pear"]);
     assert.deepEqual(await e.result(catalogue), ["apple", "pear"]);
     const id = await e.start("same", arithmetic, 3);
     assert.equal(await e.start("same", arithmetic, 3), id);
     await assert.rejects(e.start("same", arithmetic, 4));
     assert.equal(await e.result(id), 6);
-    await assert.rejects(
-      e.start("invalid", arithmetic, "bad" as unknown as number),
-    );
+    await assert.rejects(e.start("invalid", arithmetic, "bad" as unknown as number));
     const wait = await e.start("wait", waiting, null);
     let snapshot = await e.get(wait);
     for (let i = 0; !snapshot.pendingInputs.length && i < 100; i++) {
@@ -95,8 +77,7 @@ export async function orchestrationConformance(create: () => Promise<Fixture>) {
       assert.equal(f.attempts.filter((a) => a.runId === run).length, 1);
       const failedSnapshot = await e.get(run);
       assert.equal(failedSnapshot.steps[0]?.attempts, 1);
-      if (code === "unknown")
-        assert.ok(failedSnapshot.unresolvedEffects.length);
+      if (code === "unknown") assert.ok(failedSnapshot.unresolvedEffects.length);
     }
     const cancelled = await e.start("cancel", waiting, null);
     const lost = await e.start("lost-response", workflows.lostResponse, 1);
@@ -119,10 +100,7 @@ export async function orchestrationConformance(create: () => Promise<Fixture>) {
     const failed = await e.start("fanout-fail", workflows.failedFanout, null);
     await assert.rejects(e.result(failed));
     const failedState = await e.get(failed);
-    assert.equal(
-      failedState.steps.find((s) => s.status === "completed")?.result,
-      10,
-    );
+    assert.equal(failedState.steps.find((s) => s.status === "completed")?.result, 10);
     assert.equal(failedState.childRunIds.length, 2);
     for (const child of failedState.childRunIds) {
       await assert.rejects(e.result(child));
@@ -141,11 +119,7 @@ export async function orchestrationConformance(create: () => Promise<Fixture>) {
     await f.dispose();
   }
 }
-export function taskHandler(
-  task: string,
-  input: unknown,
-  context: TaskContext,
-) {
+export function taskHandler(task: string, input: unknown, context: TaskContext) {
   if (task === "catalogue")
     return [
       ...new Set(
@@ -155,10 +129,8 @@ export function taskHandler(
           .map((s) => s.trim().toLowerCase()),
       ),
     ].sort();
-  if (["denied", "invalid", "unknown"].includes(task))
-    throw new StepFailure(task as "denied");
+  if (["denied", "invalid", "unknown"].includes(task)) throw new StepFailure(task as "denied");
   if (task === "lost-response") throw new StepFailure("unknown");
-  if (task === "fail-once" && context.attempt === 1)
-    throw new StepFailure("retryable");
+  if (task === "fail-once" && context.attempt === 1) throw new StepFailure("retryable");
   return z.number().parse(input) * 2;
 }

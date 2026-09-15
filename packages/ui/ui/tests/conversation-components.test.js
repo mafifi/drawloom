@@ -9,11 +9,13 @@ plugin({
   name: "conversation-server-components",
   setup(build) {
     build.onLoad({ filter: /\.svelte$/ }, async ({ path }) => ({
-      contents: compile(await readFile(path, "utf8"), { filename: path, generate: "server" }).js.code,
+      contents: compile(await readFile(path, "utf8"), { filename: path, generate: "server" }).js
+        .code,
       loader: "js",
     }));
     build.onLoad({ filter: /\.svelte\.js$/ }, async ({ path }) => ({
-      contents: compileModule(await readFile(path, "utf8"), { filename: path, generate: "server" }).js.code,
+      contents: compileModule(await readFile(path, "utf8"), { filename: path, generate: "server" })
+        .js.code,
       loader: "js",
     }));
   },
@@ -28,42 +30,67 @@ let Button;
 let DownloadProgress;
 
 beforeAll(async () => {
-  ({ Attachment, Bubble, Marker, Message, Spinner, Button, DownloadProgress } = await import("@drawloom/ui"));
+  ({ Attachment, Bubble, Marker, Message, Spinner, Button, DownloadProgress } = await import(
+    "@drawloom/ui"
+  ));
 });
 
 const children = (text) => createRawSnippet(() => ({ render: () => text }));
 
 describe("conversation primitive public boundary", () => {
-  test('download progress exposes measured current-file bytes and bounded accessible progress',()=>{
-    const html=render(DownloadProgress,{props:{received:524288,total:1048576,label:'Weights file'}}).body;
+  test("download progress exposes measured current-file bytes and bounded accessible progress", () => {
+    const html = render(DownloadProgress, {
+      props: { received: 524288, total: 1048576, label: "Weights file" },
+    }).body;
     expect(html).toContain('role="progressbar"');
     expect(html).toContain('aria-valuenow="50"');
     expect(html).toContain('aria-label="Weights file"');
-    expect(html).toContain('0.5 / 1.0 MiB');
-    expect(render(DownloadProgress,{props:{received:200,total:100}}).body).toContain('aria-valuenow="100"');
-    expect(render(DownloadProgress,{props:{received:0,total:0}}).body).not.toContain('aria-valuenow=');
+    expect(html).toContain("0.5 / 1.0 MiB");
+    expect(render(DownloadProgress, { props: { received: 200, total: 100 } }).body).toContain(
+      'aria-valuenow="100"',
+    );
+    expect(render(DownloadProgress, { props: { received: 0, total: 0 } }).body).not.toContain(
+      "aria-valuenow=",
+    );
   });
-  test('semantic body sizes coexist with foreground colours and permit consumer size overrides',()=>{
-    const coloured=render(Message.Root,{props:{class:'text-primary',children:children('Text')}}).body;
-    expect(coloured).toContain('text-body');
-    expect(coloured).toContain('text-primary');
-    const resized=render(Message.Root,{props:{class:'text-base',children:children('Text')}}).body;
-    expect(resized).toContain('text-base');
-    expect(resized).not.toContain('text-body');
-    const rounded=render(Bubble.Content,{props:{class:'rounded-lg',children:children('Text')}}).body;
-    expect(rounded).toContain('rounded-lg');
-    expect(rounded).not.toContain('rounded-bubble');
+  test("semantic body sizes coexist with foreground colours and permit consumer size overrides", () => {
+    const coloured = render(Message.Root, {
+      props: { class: "text-primary", children: children("Text") },
+    }).body;
+    expect(coloured).toContain("text-body");
+    expect(coloured).toContain("text-primary");
+    const resized = render(Message.Root, {
+      props: { class: "text-base", children: children("Text") },
+    }).body;
+    expect(resized).toContain("text-base");
+    expect(resized).not.toContain("text-body");
+    const rounded = render(Bubble.Content, {
+      props: { class: "rounded-lg", children: children("Text") },
+    }).body;
+    expect(rounded).toContain("rounded-lg");
+    expect(rounded).not.toContain("rounded-bubble");
   });
-  test('small primary buttons preserve their foreground alongside semantic sizing',()=>{
-    const html=render(Button,{props:{size:'sm',children:children('Save')}}).body;
-    expect(html).toContain('text-primary-foreground');
-    expect(html).toContain('text-small-control');
+  test("small primary buttons preserve their foreground alongside semantic sizing", () => {
+    const html = render(Button, { props: { size: "sm", children: children("Save") } }).body;
+    expect(html).toContain("text-primary-foreground");
+    expect(html).toContain("text-small-control");
   });
   test("exports the complete component namespaces and spinner", () => {
-    for (const name of ["Action", "Actions", "Content", "Description", "Group", "Media", "Root", "Title", "Trigger"]) {
+    for (const name of [
+      "Action",
+      "Actions",
+      "Content",
+      "Description",
+      "Group",
+      "Media",
+      "Root",
+      "Title",
+      "Trigger",
+    ]) {
       expect(Attachment[name]).toBeTypeOf("function");
     }
-    for (const name of ["Content", "Group", "Reactions", "Root"]) expect(Bubble[name]).toBeTypeOf("function");
+    for (const name of ["Content", "Group", "Reactions", "Root"])
+      expect(Bubble[name]).toBeTypeOf("function");
     for (const name of ["Content", "Icon", "Root"]) expect(Marker[name]).toBeTypeOf("function");
     for (const name of ["Avatar", "Content", "Footer", "Group", "Header", "Root"]) {
       expect(Message[name]).toBeTypeOf("function");
@@ -94,13 +121,23 @@ describe("conversation primitive public boundary", () => {
 
   test("forwards conversation presentation props without owning message content", () => {
     const bubble = render(Bubble.Root, {
-      props: { variant: "secondary", align: "end", "data-consumer": "bubble", children: children("Hello") },
+      props: {
+        variant: "secondary",
+        align: "end",
+        "data-consumer": "bubble",
+        children: children("Hello"),
+      },
     }).body;
     const message = render(Message.Root, {
       props: { align: "end", "data-consumer": "message", children: children("Hello") },
     }).body;
     const marker = render(Marker.Root, {
-      props: { variant: "separator", role: "status", "data-consumer": "marker", children: children("Thinking") },
+      props: {
+        variant: "separator",
+        role: "status",
+        "data-consumer": "marker",
+        children: children("Thinking"),
+      },
     }).body;
 
     expect(bubble).toContain('data-variant="secondary"');

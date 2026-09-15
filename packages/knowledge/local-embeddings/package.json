@@ -3,16 +3,32 @@
   "version": "0.0.0",
   "type": "module",
   "license": "Apache-2.0",
-  "engines": { "node": ">=24" },
-  "files": ["dist", "src"],
-  "exports": {
-    ".": { "bun": "./src/index.ts", "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  "engines": {
+    "node": ">=24"
   },
-  "drawloom": { "role": "provider", "runtime": "node" },
-  "scripts": { "test:node": "node --test llama-worker.node-check.mjs" },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    ".": {
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "drawloom": {
+    "role": "provider",
+    "runtime": "node"
+  },
+  "scripts": {
+    "test:node": "node --test llama-worker.node-check.mjs"
+  },
   "dependencies": {
     "@drawloom/knowledge": "workspace:*",
     "zod": "catalog:"
   },
-  "devDependencies": { "@types/node": "catalog:node-runtime" }
+  "devDependencies": {
+    "@types/node": "catalog:node-runtime"
+  }
 }

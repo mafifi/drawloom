@@ -1,4 +1,4 @@
-import type { ResourceReference } from '@drawloom/host';
+import type { ResourceReference } from "@drawloom/host";
 
 export type ResourceCardPresentation = Readonly<{
   resource: ResourceReference;

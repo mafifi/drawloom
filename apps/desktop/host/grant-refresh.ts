@@ -11,7 +11,7 @@ export function createGrantRefresh<T>(
       try {
         const states = new Map<string, T>();
         for (const id of selected) states.set(id, await read(id));
-        const next = selected.map(id => [id, project(states.get(id)!, id)] as const);
+        const next = selected.map((id) => [id, project(states.get(id)!, id)] as const);
         for (const [id, value] of next) grants.set(id, value);
         return states;
       } catch (error) {

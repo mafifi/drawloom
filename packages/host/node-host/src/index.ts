@@ -19,22 +19,26 @@ export { createMcpToolServer } from "./mcp.js";
 const managedAssetByteLimit = 256 * 1024 * 1024;
 const assetChunkByteLimit = 64 * 1024;
 class AssetReplacedDuringOpen extends Error {
-  constructor() { super('Asset file changed during open'); }
+  constructor() {
+    super("Asset file changed during open");
+  }
 }
 
 function aborted(signal?: AbortSignal): void {
   if (!signal?.aborted) return;
-  const error = Error('Asset operation cancelled');
-  error.name = 'AbortError';
+  const error = Error("Asset operation cancelled");
+  error.name = "AbortError";
   throw error;
 }
 
 function validateLimit(maxBytes: number): void {
-  if (!Number.isSafeInteger(maxBytes) || maxBytes < 0)
-    throw Error('Invalid asset byte limit');
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 0) throw Error("Invalid asset byte limit");
 }
 
-function validateRange(options: AssetReadOptions, size: number): { start: number; endExclusive: number } {
+function validateRange(
+  options: AssetReadOptions,
+  size: number,
+): { start: number; endExclusive: number } {
   const start = options.start ?? 0;
   const endExclusive = options.endExclusive ?? size;
   if (
@@ -43,16 +47,20 @@ function validateRange(options: AssetReadOptions, size: number): { start: number
     start < 0 ||
     endExclusive < start ||
     endExclusive > size
-  ) throw Error('Invalid asset range');
+  )
+    throw Error("Invalid asset range");
   return { start, endExclusive };
 }
 
 function inside(root: string, candidate: string): boolean {
   const path = relative(root, candidate);
-  return path === '' || (!path.startsWith('..' + sep) && path !== '..' && !isAbsolute(path));
+  return path === "" || (!path.startsWith(".." + sep) && path !== ".." && !isAbsolute(path));
 }
 
-export function createNodeAssetStore(root: string, binding?: { device: string; inode: string }): AssetStore {
+export function createNodeAssetStore(
+  root: string,
+  binding?: { device: string; inode: string },
+): AssetStore {
   const base = resolve(root);
   const expected = binding ? { ...binding } : undefined;
   let identity: { canonical: string; dev: bigint; ino: bigint } | undefined;
@@ -60,17 +68,23 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
   async function canonicalRoot(create: boolean): Promise<string> {
     if (create) await mkdir(base, { recursive: true });
     const info = await lstat(base);
-    if (info.isSymbolicLink() || !info.isDirectory()) throw Error('Invalid asset root');
+    if (info.isSymbolicLink() || !info.isDirectory()) throw Error("Invalid asset root");
     const canonical = await realpath(base);
     const canonicalInfo = await lstat(canonical, { bigint: true });
-    if (!canonicalInfo.isDirectory()) throw Error('Invalid asset root');
-    if (expected && (expected.device !== String(canonicalInfo.dev) || expected.inode !== String(canonicalInfo.ino))) throw Error('Asset root changed');
+    if (!canonicalInfo.isDirectory()) throw Error("Invalid asset root");
+    if (
+      expected &&
+      (expected.device !== String(canonicalInfo.dev) ||
+        expected.inode !== String(canonicalInfo.ino))
+    )
+      throw Error("Asset root changed");
     if (!identity) identity = { canonical, dev: canonicalInfo.dev, ino: canonicalInfo.ino };
     else if (
       identity.canonical !== canonical ||
       identity.dev !== canonicalInfo.dev ||
       identity.ino !== canonicalInfo.ino
-    ) throw Error('Asset root changed');
+    )
+      throw Error("Asset root changed");
     return canonical;
   }
 
@@ -92,17 +106,16 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
           if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
         });
       const info = await lstat(parent);
-      if (info.isSymbolicLink() || !info.isDirectory())
-        throw Error("Invalid asset directory");
+      if (info.isSymbolicLink() || !info.isDirectory()) throw Error("Invalid asset directory");
       const canonicalParent = await realpath(parent);
-      if (!inside(canonical, canonicalParent)) throw Error('Invalid asset directory');
+      if (!inside(canonical, canonicalParent)) throw Error("Invalid asset directory");
       parent = canonicalParent;
     }
     const target = join(parent, segments.at(-1)!);
     try {
       const info = await lstat(target);
       if (info.isSymbolicLink()) throw Error("Invalid asset link");
-      if (!info.isFile()) throw Error('Invalid asset file');
+      if (!info.isFile()) throw Error("Invalid asset file");
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
     }
@@ -111,7 +124,11 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
 
   async function syncDirectory(path: string): Promise<void> {
     const directory = await open(path, constants.O_RDONLY);
-    try { await directory.sync(); } finally { await directory.close(); }
+    try {
+      await directory.sync();
+    } finally {
+      await directory.close();
+    }
   }
 
   async function openReader(key: string): Promise<AssetReader> {
@@ -120,17 +137,17 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
     try {
       const info = await file.stat();
       if (!info.isFile() || !Number.isSafeInteger(info.size) || info.size < 0)
-        throw Error('Invalid asset file');
+        throw Error("Invalid asset file");
       try {
         const canonicalTarget = await realpath(target);
-        if (!inside(canonical, canonicalTarget)) throw Error('Invalid asset file');
+        if (!inside(canonical, canonicalTarget)) throw Error("Invalid asset file");
         const pathInfo = await lstat(canonicalTarget);
         if (!pathInfo.isFile() || pathInfo.dev !== info.dev || pathInfo.ino !== info.ino)
           throw new AssetReplacedDuringOpen();
       } catch (error) {
         // The handle already exists. Linux realpath can resolve an inode replaced
         // by rename to a deleted path; that is not evidence of a missing key.
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new AssetReplacedDuringOpen();
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new AssetReplacedDuringOpen();
         throw error;
       }
       await canonicalRoot(false);
@@ -143,11 +160,11 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
           const { signal } = options;
           return {
             async *[Symbol.asyncIterator]() {
-              if (closed) throw Error('Asset reader closed');
+              if (closed) throw Error("Asset reader closed");
               aborted(signal);
               let position = start;
               while (position < endExclusive) {
-                if (closed) throw Error('Asset reader closed');
+                if (closed) throw Error("Asset reader closed");
                 aborted(signal);
                 const length = Math.min(assetChunkByteLimit, endExclusive - position);
                 const buffer = new Uint8Array(length);
@@ -155,15 +172,15 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
                 try {
                   ({ bytesRead } = await file.read(buffer, 0, length, position));
                 } catch {
-                  if (closed) throw Error('Asset reader closed');
-                  throw Error('Asset read failed');
+                  if (closed) throw Error("Asset reader closed");
+                  throw Error("Asset read failed");
                 }
-                if (closed) throw Error('Asset reader closed');
+                if (closed) throw Error("Asset reader closed");
                 aborted(signal);
-                if (bytesRead === 0) throw Error('Asset read ended before expected range');
+                if (bytesRead === 0) throw Error("Asset read ended before expected range");
                 position += bytesRead;
                 yield bytesRead === buffer.byteLength ? buffer : buffer.subarray(0, bytesRead);
-                if (closed) throw Error('Asset reader closed');
+                if (closed) throw Error("Asset reader closed");
                 aborted(signal);
               }
             },
@@ -199,15 +216,15 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
       let total = 0;
       for await (const chunk of chunks) {
         aborted(options.signal);
-        if (!(chunk instanceof Uint8Array)) throw Error('Invalid asset chunk');
-        if (chunk.byteLength > options.maxBytes - total) throw Error('Asset byte limit exceeded');
+        if (!(chunk instanceof Uint8Array)) throw Error("Invalid asset chunk");
+        if (chunk.byteLength > options.maxBytes - total) throw Error("Asset byte limit exceeded");
         total += chunk.byteLength;
         let offset = 0;
         while (offset < chunk.byteLength) {
           aborted(options.signal);
           const length = Math.min(assetChunkByteLimit, chunk.byteLength - offset);
           const { bytesWritten } = await file.write(chunk, offset, length, null);
-          if (bytesWritten === 0) throw Error('Asset write failed');
+          if (bytesWritten === 0) throw Error("Asset write failed");
           offset += bytesWritten;
         }
       }
@@ -216,11 +233,11 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
       await file.close();
       file = undefined;
       const validated = await location(key, false).catch((error: unknown) => {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { target, canonical };
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return { target, canonical };
         throw error;
       });
       if (validated.target !== target || validated.canonical !== canonical)
-        throw Error('Asset root changed');
+        throw Error("Asset root changed");
       await canonicalRoot(false);
       await rename(temporary, target);
       created = false;
@@ -228,9 +245,10 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
     } finally {
       if (file) await file.close().catch(() => {});
       if (created) {
-        try { await unlink(temporary); }
-        catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        try {
+          await unlink(temporary);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
         }
       }
     }
@@ -241,7 +259,7 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
     async read(key) {
       const reader = await openReader(key);
       try {
-        if (reader.size > managedAssetByteLimit) throw Error('Asset byte limit exceeded');
+        if (reader.size > managedAssetByteLimit) throw Error("Asset byte limit exceeded");
         const bytes = new Uint8Array(reader.size);
         let offset = 0;
         for await (const chunk of reader.stream()) {
@@ -254,7 +272,9 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
       }
     },
     async write(key, bytes) {
-      async function* input() { yield bytes; }
+      async function* input() {
+        yield bytes;
+      }
       await writeStream(key, input(), { maxBytes: managedAssetByteLimit });
     },
     writeStream,
@@ -262,8 +282,7 @@ export function createNodeAssetStore(root: string, binding?: { device: string; i
 }
 export function createNodeJsonStore(root: string): JsonStore {
   const assets = createNodeAssetStore(root);
-  const key = (value: string) =>
-    encodeURIComponent(z.string().min(1).parse(value)) + ".json";
+  const key = (value: string) => encodeURIComponent(z.string().min(1).parse(value)) + ".json";
   return {
     async get(value) {
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -280,14 +299,11 @@ export function createNodeJsonStore(root: string): JsonStore {
           throw Error("Stored value unavailable");
         }
       }
-      throw Error('Stored value unavailable');
+      throw Error("Stored value unavailable");
     },
     async set(value, data) {
       const valid = JsonValueSchema.parse(data);
-      await assets.write(
-        key(value),
-        new TextEncoder().encode(JSON.stringify(valid)),
-      );
+      await assets.write(key(value), new TextEncoder().encode(JSON.stringify(valid)));
     },
   };
 }
@@ -341,9 +357,7 @@ export function createStdioTransport(options: {
   process.stdout.on("data", (chunk: string) => {
     if (ended) return;
     buffer += chunk;
-    if (
-      Buffer.byteLength(buffer) > (options.maxMessageBytes ?? 4 * 1024 * 1024)
-    ) {
+    if (Buffer.byteLength(buffer) > (options.maxMessageBytes ?? 4 * 1024 * 1024)) {
       fail();
       return;
     }
@@ -353,9 +367,7 @@ export function createStdioTransport(options: {
       buffer = buffer.slice(newline + 1);
       if (!line.trim()) continue;
       try {
-        const envelope = z
-          .record(z.string(), z.unknown())
-          .parse(JSON.parse(line));
+        const envelope = z.record(z.string(), z.unknown()).parse(JSON.parse(line));
         if (typeof envelope.method === "string") {
           const id =
             envelope.id === undefined
@@ -373,10 +385,13 @@ export function createStdioTransport(options: {
           if (!entry) continue;
           // Keep the entry and its deadline until validation succeeds, so fail()
           // can reject this request as well as all other pending requests.
-          if (("error" in envelope) === ("result" in envelope)) throw Error();
-          const rejection = "error" in envelope
-            ? new RpcRequestError(z.object({ code: z.number().int().safe() }).parse(envelope.error).code)
-            : undefined;
+          if ("error" in envelope === "result" in envelope) throw Error();
+          const rejection =
+            "error" in envelope
+              ? new RpcRequestError(
+                  z.object({ code: z.number().int().safe() }).parse(envelope.error).code,
+                )
+              : undefined;
           pending.delete(id);
           clearTimeout(entry.timer);
           if (rejection) entry.reject(rejection);
@@ -397,8 +412,7 @@ export function createStdioTransport(options: {
   process.stdin.on("error", fail);
   return {
     request(method, params) {
-      if (ended || closed)
-        return Promise.reject(Error("Transport unavailable"));
+      if (ended || closed) return Promise.reject(Error("Transport unavailable"));
       const id = ++nextId;
       return new Promise((resolve, reject) => {
         const timer = setTimeout(fail, options.requestTimeoutMs ?? 30000);

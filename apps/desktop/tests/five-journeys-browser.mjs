@@ -1,149 +1,264 @@
 // Opt-in, disposable synthetic host only. No live models or private fixtures.
-import assert from 'node:assert/strict';
-import { mkdir } from 'node:fs/promises';
-import { chromium } from 'playwright';
-const { DRAWLOOM_JOURNEYS_URL:url, DRAWLOOM_JOURNEYS_TOKEN:token, DRAWLOOM_UI_EVIDENCE_DIR:output } = process.env;
-if (!url || !token || !output) throw Error('Provide disposable journeys host URL, token and evidence directory.');
-await mkdir(output,{recursive:true});
-const browser = await chromium.launch({headless:true,...(process.env.DRAWLOOM_BROWSER_EXECUTABLE ? {executablePath:process.env.DRAWLOOM_BROWSER_EXECUTABLE} : {})});
+import assert from "node:assert/strict";
+import { mkdir } from "node:fs/promises";
+import { chromium } from "playwright";
+const {
+  DRAWLOOM_JOURNEYS_URL: url,
+  DRAWLOOM_JOURNEYS_TOKEN: token,
+  DRAWLOOM_UI_EVIDENCE_DIR: output,
+} = process.env;
+if (!url || !token || !output)
+  throw Error("Provide disposable journeys host URL, token and evidence directory.");
+await mkdir(output, { recursive: true });
+const browser = await chromium.launch({
+  headless: true,
+  ...(process.env.DRAWLOOM_BROWSER_EXECUTABLE
+    ? { executablePath: process.env.DRAWLOOM_BROWSER_EXECUTABLE }
+    : {}),
+});
 try {
-  const context = await browser.newContext({viewport:{width:1440,height:1000}});
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   context.setDefaultTimeout(10000);
-  await context.addCookies([{name:'drawloom_'+new URL(url).port,value:token,url}]);
-  const page = await context.newPage(); const errors=[];
-  const commands=[];
-  page.on('pageerror',error=>errors.push(error.message));
-  page.on('request',request=>{if(new URL(request.url()).pathname==='/api/command')commands.push(request.postDataJSON());});
+  await context.addCookies([{ name: "drawloom_" + new URL(url).port, value: token, url }]);
+  const page = await context.newPage();
+  const errors = [];
+  const commands = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/command") commands.push(request.postDataJSON());
+  });
   await page.goto(url);
-  await page.getByRole('button',{name:'Search conversations',exact:true}).click();
-  await page.getByRole('dialog').waitFor();
-  await page.getByRole('textbox',{name:'Search conversations',exact:true}).fill('synthetic writing');
-  await page.getByRole('dialog').getByText('A clear introduction for our synthetic writing project.',{exact:false}).first().waitFor();
-  await page.screenshot({path:output+'/search.png'});
-  await page.keyboard.press('Escape');
-  await page.getByRole('dialog').waitFor({state:'hidden'});
-  assert.equal(await page.getByRole('dialog').count(),0);
-  assert.equal(await page.getByRole('button',{name:'Search conversations',exact:true}).evaluate(element=>element===document.activeElement),true,'Escape restores search-trigger focus');
-  await page.keyboard.press(process.platform==='darwin'?'Meta+k':'Control+k');
-  await page.getByRole('dialog').waitFor();
-  await page.getByRole('textbox',{name:'Search conversations',exact:true}).fill('amber lighthouse');
-  await page.getByRole('dialog').getByRole('button',{name:/Reference notes.*amber lighthouse/}).click();
-  const anchor=page.locator('[data-history-id="reference-120"]');
+  await page.getByRole("button", { name: "Search conversations", exact: true }).click();
+  await page.getByRole("dialog").waitFor();
+  await page
+    .getByRole("textbox", { name: "Search conversations", exact: true })
+    .fill("synthetic writing");
+  await page
+    .getByRole("dialog")
+    .getByText("A clear introduction for our synthetic writing project.", { exact: false })
+    .first()
+    .waitFor();
+  await page.screenshot({ path: output + "/search.png" });
+  await page.keyboard.press("Escape");
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  assert.equal(await page.getByRole("dialog").count(), 0);
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Search conversations", exact: true })
+      .evaluate((element) => element === document.activeElement),
+    true,
+    "Escape restores search-trigger focus",
+  );
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+k" : "Control+k");
+  await page.getByRole("dialog").waitFor();
+  await page
+    .getByRole("textbox", { name: "Search conversations", exact: true })
+    .fill("amber lighthouse");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /Reference notes.*amber lighthouse/ })
+    .click();
+  const anchor = page.locator('[data-history-id="reference-120"]');
   await anchor.waitFor();
-  await page.waitForFunction(()=>document.activeElement?.getAttribute('data-history-id')==='reference-120');
-  assert.equal(await anchor.getAttribute('data-search-anchor'),'true');
-  assert.ok(await anchor.evaluate(element=>{const r=element.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}),'Exact match is visible, not merely loaded');
-  assert.ok(await page.locator('[data-history-id]').count()<=200);
-  await page.getByRole('button',{name:'Back to latest',exact:true}).click();
+  await page.waitForFunction(
+    () => document.activeElement?.getAttribute("data-history-id") === "reference-120",
+  );
+  assert.equal(await anchor.getAttribute("data-search-anchor"), "true");
+  assert.ok(
+    await anchor.evaluate((element) => {
+      const r = element.getBoundingClientRect();
+      return r.top >= 0 && r.bottom <= innerHeight;
+    }),
+    "Exact match is visible, not merely loaded",
+  );
+  assert.ok((await page.locator("[data-history-id]").count()) <= 200);
+  await page.getByRole("button", { name: "Back to latest", exact: true }).click();
   await page.locator('[data-history-id="reference-349"]').waitFor();
   // Re-entering the same search hit must work on every visit, not just first use.
-  await page.keyboard.press(process.platform==='darwin'?'Meta+k':'Control+k');
-  await page.getByRole('dialog').getByRole('button',{name:/Reference notes.*amber lighthouse/}).click();
-  await page.waitForFunction(()=>document.activeElement?.getAttribute('data-history-id')==='reference-120');
-  await page.getByRole('button',{name:'Back to latest',exact:true}).click();
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+k" : "Control+k");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /Reference notes.*amber lighthouse/ })
+    .click();
+  await page.waitForFunction(
+    () => document.activeElement?.getAttribute("data-history-id") === "reference-120",
+  );
+  await page.getByRole("button", { name: "Back to latest", exact: true }).click();
   await page.locator('[data-history-id="reference-349"]').waitFor();
-  await page.route('**/api/history/around?*',route=>route.fulfill({status:503,json:{error:'Synthetic unavailable history window'}}));
-  await page.keyboard.press(process.platform==='darwin'?'Meta+k':'Control+k');
-  await page.getByRole('dialog').getByRole('button',{name:/Reference notes.*amber lighthouse/}).click();
-  await page.getByRole('dialog').getByRole('alert').waitFor();
-  await page.screenshot({path:output+'/search-window-error.png'});
-  assert.ok(await page.getByRole('dialog').getByRole('button',{name:/Reference notes.*amber lighthouse/}).isVisible(),'Failed opening retains search results');
-  await page.unroute('**/api/history/around?*');
-  await page.getByRole('dialog').getByRole('button',{name:/Reference notes.*amber lighthouse/}).click();
-  await page.waitForFunction(()=>document.activeElement?.getAttribute('data-history-id')==='reference-120');
-  await page.getByRole('button',{name:'Back to latest',exact:true}).click();
-  await page.getByRole('textbox',{name:'Message',exact:true}).fill('Keep this unsent research draft.');
-  const createsBefore=commands.filter(command=>command.kind==='create_conversation').length;
-  await page.getByRole('button',{name:'Writing',exact:true}).click();
-  await page.getByRole('heading',{name:'Writing',exact:true,level:1}).waitFor();
-  await page.getByRole('main').getByRole('button',{name:'Text studio',exact:true}).click();
-  await page.getByRole('heading',{name:'Text studio',exact:true}).first().waitFor();
-  assert.equal(commands.filter(command=>command.kind==='create_conversation').length,createsBefore,'Selection creates nothing');
-  await page.getByRole('button',{name:'Reference notes',exact:true}).click();
-  assert.equal(await page.getByRole('textbox',{name:'Message',exact:true}).inputValue(),'Keep this unsent research draft.');
-  await page.getByRole('button',{name:'Conversation actions for Reference notes',exact:true}).click();
-  await page.getByRole('menuitem',{name:'Rename',exact:true}).click();
-  await page.getByRole('dialog',{name:'Rename conversation'}).waitFor();
-  await page.getByRole('textbox',{name:'Conversation title',exact:true}).fill('Renamed reference notes');
-  await page.getByRole('dialog').getByRole('button',{name:'Save',exact:true}).click();
-  await page.getByRole('dialog').waitFor({state:'hidden'});
-  await page.getByRole('button',{name:'Conversation actions for Renamed reference notes',exact:true}).click();
-  await page.getByRole('menuitem',{name:'Archive',exact:true}).click();
-  await page.getByRole('button',{name:'Archived',exact:true}).click();
-  await page.getByRole('heading',{name:'Archived conversations',exact:true}).waitFor();
-  await page.getByRole('main').getByText('Renamed reference notes',{exact:true}).waitFor();
-  await page.getByRole('main').getByRole('button',{name:'Restore',exact:true}).click();
-  await page.getByRole('button',{name:'Conversation actions for Renamed reference notes',exact:true}).waitFor();
-  await page.getByRole('button',{name:'Conversation actions for Renamed reference notes',exact:true}).click();
-  await page.getByRole('menuitem',{name:'Rename',exact:true}).click();
-  await page.getByRole('textbox',{name:'Conversation title',exact:true}).fill('Reference notes');
-  await page.getByRole('dialog').getByRole('button',{name:'Save',exact:true}).click();
-  await page.getByRole('dialog').waitFor({state:'hidden'});
+  await page.route("**/api/history/around?*", (route) =>
+    route.fulfill({ status: 503, json: { error: "Synthetic unavailable history window" } }),
+  );
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+k" : "Control+k");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /Reference notes.*amber lighthouse/ })
+    .click();
+  await page.getByRole("dialog").getByRole("alert").waitFor();
+  await page.screenshot({ path: output + "/search-window-error.png" });
+  assert.ok(
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /Reference notes.*amber lighthouse/ })
+      .isVisible(),
+    "Failed opening retains search results",
+  );
+  await page.unroute("**/api/history/around?*");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /Reference notes.*amber lighthouse/ })
+    .click();
+  await page.waitForFunction(
+    () => document.activeElement?.getAttribute("data-history-id") === "reference-120",
+  );
+  await page.getByRole("button", { name: "Back to latest", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "Message", exact: true })
+    .fill("Keep this unsent research draft.");
+  const createsBefore = commands.filter((command) => command.kind === "create_conversation").length;
+  await page.getByRole("button", { name: "Writing", exact: true }).click();
+  await page.getByRole("heading", { name: "Writing", exact: true, level: 1 }).waitFor();
+  await page.getByRole("main").getByRole("button", { name: "Text studio", exact: true }).click();
+  await page.getByRole("heading", { name: "Text studio", exact: true }).first().waitFor();
+  assert.equal(
+    commands.filter((command) => command.kind === "create_conversation").length,
+    createsBefore,
+    "Selection creates nothing",
+  );
+  await page.getByRole("button", { name: "Reference notes", exact: true }).click();
+  assert.equal(
+    await page.getByRole("textbox", { name: "Message", exact: true }).inputValue(),
+    "Keep this unsent research draft.",
+  );
+  await page
+    .getByRole("button", { name: "Conversation actions for Reference notes", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Rename", exact: true }).click();
+  await page.getByRole("dialog", { name: "Rename conversation" }).waitFor();
+  await page
+    .getByRole("textbox", { name: "Conversation title", exact: true })
+    .fill("Renamed reference notes");
+  await page.getByRole("dialog").getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await page
+    .getByRole("button", { name: "Conversation actions for Renamed reference notes", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Archive", exact: true }).click();
+  await page.getByRole("button", { name: "Archived", exact: true }).click();
+  await page.getByRole("heading", { name: "Archived conversations", exact: true }).waitFor();
+  await page.getByRole("main").getByText("Renamed reference notes", { exact: true }).waitFor();
+  await page.getByRole("main").getByRole("button", { name: "Restore", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Conversation actions for Renamed reference notes", exact: true })
+    .waitFor();
+  await page
+    .getByRole("button", { name: "Conversation actions for Renamed reference notes", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Rename", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "Conversation title", exact: true })
+    .fill("Reference notes");
+  await page.getByRole("dialog").getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
   // The same mounted conversation keeps its scroll while Activity covers it.
-  await page.getByRole('button',{name:'Reference notes',exact:true}).click();
-  const scroller=page.locator('.conversation-scroll');
-  await scroller.evaluate(element=>{element.scrollTop=180;});
-  const scrollBefore=await scroller.evaluate(element=>element.scrollTop);
-  await page.getByRole('button',{name:'Activity',exact:true}).first().click();
-  await page.getByRole('heading',{name:'Activity',exact:true}).waitFor();
-  await page.getByRole('button',{name:'Reference notes',exact:true}).click();
-  assert.equal(await scroller.evaluate(element=>element.scrollTop),scrollBefore,'Activity preserves conversation scroll');
-  await page.getByRole('button',{name:'Activity',exact:true}).first().click();
-  for(const theme of ['light','dark']) {
-    await page.emulateMedia({colorScheme:theme});
-    await page.waitForFunction(expected=>{
-      const button=[...document.querySelectorAll('button')].find(element=>element.textContent?.trim()==='New conversation');
-      return button&&getComputedStyle(button).color===expected;
-    },theme==='dark'?'rgb(245, 245, 245)':'rgb(38, 38, 38)');
-    await page.screenshot({path:output+`/activity-${theme}.png`});
+  await page.getByRole("button", { name: "Reference notes", exact: true }).click();
+  const scroller = page.locator(".conversation-scroll");
+  await scroller.evaluate((element) => {
+    element.scrollTop = 180;
+  });
+  const scrollBefore = await scroller.evaluate((element) => element.scrollTop);
+  await page.getByRole("button", { name: "Activity", exact: true }).first().click();
+  await page.getByRole("heading", { name: "Activity", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Reference notes", exact: true }).click();
+  assert.equal(
+    await scroller.evaluate((element) => element.scrollTop),
+    scrollBefore,
+    "Activity preserves conversation scroll",
+  );
+  await page.getByRole("button", { name: "Activity", exact: true }).first().click();
+  for (const theme of ["light", "dark"]) {
+    await page.emulateMedia({ colorScheme: theme });
+    await page.waitForFunction(
+      (expected) => {
+        const button = [...document.querySelectorAll("button")].find(
+          (element) => element.textContent?.trim() === "New conversation",
+        );
+        return button && getComputedStyle(button).color === expected;
+      },
+      theme === "dark" ? "rgb(245, 245, 245)" : "rgb(38, 38, 38)",
+    );
+    await page.screenshot({ path: output + `/activity-${theme}.png` });
   }
-  for(const theme of ['light','dark']) {
-    await page.emulateMedia({colorScheme:theme,reducedMotion:'reduce'});
-    await page.getByRole('button',{name:'Writing',exact:true}).click();
-    await page.getByRole('heading',{name:'Writing',level:1,exact:true}).waitFor();
-    await page.screenshot({path:output+`/project-${theme}.png`});
-    await page.getByRole('main').getByRole('button',{name:'Text studio',exact:true}).click();
-    await page.screenshot({path:output+`/workbench-${theme}.png`});
-    await page.keyboard.press(process.platform==='darwin'?'Meta+k':'Control+k');
-    await page.getByRole('textbox',{name:'Search conversations',exact:true}).fill('synthetic writing');
-    const hit=page.getByRole('dialog').getByRole('button',{name:/synthetic writing/}).first();
+  for (const theme of ["light", "dark"]) {
+    await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
+    await page.getByRole("button", { name: "Writing", exact: true }).click();
+    await page.getByRole("heading", { name: "Writing", level: 1, exact: true }).waitFor();
+    await page.screenshot({ path: output + `/project-${theme}.png` });
+    await page.getByRole("main").getByRole("button", { name: "Text studio", exact: true }).click();
+    await page.screenshot({ path: output + `/workbench-${theme}.png` });
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+k" : "Control+k");
+    await page
+      .getByRole("textbox", { name: "Search conversations", exact: true })
+      .fill("synthetic writing");
+    const hit = page
+      .getByRole("dialog")
+      .getByRole("button", { name: /synthetic writing/ })
+      .first();
     await hit.waitFor();
-    await page.screenshot({path:output+`/search-${theme}.png`});
+    await page.screenshot({ path: output + `/search-${theme}.png` });
     await hit.click();
-    await page.getByRole('dialog').waitFor({state:'hidden'});
-    await page.screenshot({path:output+`/completion-${theme}.png`});
-    await page.getByRole('button',{name:'Toggle artifact pane',exact:true}).click();
-    const pane=page.getByRole('complementary',{name:'Artifact and details'});
-    if(theme==='light') {
-      await pane.getByRole('button',{name:'Edit document',exact:true}).click();
-      await pane.getByRole('textbox',{name:'Document revision',exact:true}).fill('A second synthetic revision for comparison.');
-      await pane.getByRole('button',{name:'Save revision',exact:true}).click();
-      await pane.getByRole('button',{name:'Edit document',exact:true}).waitFor();
-      await pane.getByRole('button',{name:'Compare',exact:true}).click();
-      await pane.getByRole('heading',{name:'Compare revisions',exact:true}).waitFor();
+    await page.getByRole("dialog").waitFor({ state: "hidden" });
+    await page.screenshot({ path: output + `/completion-${theme}.png` });
+    await page.getByRole("button", { name: "Toggle artifact pane", exact: true }).click();
+    const pane = page.getByRole("complementary", { name: "Artifact and details" });
+    if (theme === "light") {
+      await pane.getByRole("button", { name: "Edit document", exact: true }).click();
+      await pane
+        .getByRole("textbox", { name: "Document revision", exact: true })
+        .fill("A second synthetic revision for comparison.");
+      await pane.getByRole("button", { name: "Save revision", exact: true }).click();
+      await pane.getByRole("button", { name: "Edit document", exact: true }).waitFor();
+      await pane.getByRole("button", { name: "Compare", exact: true }).click();
+      await pane.getByRole("heading", { name: "Compare revisions", exact: true }).waitFor();
     }
-    const width=page.getByRole('slider',{name:'Workspace width'});
-    await width.focus(); const previous=Number(await width.inputValue());
-    await page.keyboard.press('ArrowRight');
-    assert.equal(Number(await width.inputValue()),Math.min(previous+20,720));
-    await page.screenshot({path:output+`/workspace-${theme}.png`});
-    await page.getByRole('button',{name:'Expand workspace',exact:true}).click();
-    await page.getByRole('button',{name:'Restore workspace',exact:true}).click();
-    await page.getByRole('button',{name:'Close artifact pane',exact:true}).click();
+    const width = page.getByRole("slider", { name: "Workspace width" });
+    await width.focus();
+    const previous = Number(await width.inputValue());
+    await page.keyboard.press("ArrowRight");
+    assert.equal(Number(await width.inputValue()), Math.min(previous + 20, 720));
+    await page.screenshot({ path: output + `/workspace-${theme}.png` });
+    await page.getByRole("button", { name: "Expand workspace", exact: true }).click();
+    await page.getByRole("button", { name: "Restore workspace", exact: true }).click();
+    await page.getByRole("button", { name: "Close artifact pane", exact: true }).click();
   }
   // Chromium CSS zoom exercises 200% reflow, not an OS accessibility setting.
-  await page.evaluate(()=>{document.documentElement.style.zoom='2';});
-  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'200% zoom has no horizontal overflow');
-  await page.screenshot({path:output+'/conversation-200-percent.png'});
-  await page.evaluate(()=>{document.documentElement.style.zoom='';});
-  await page.setViewportSize({width:390,height:844});
-  await page.emulateMedia({reducedMotion:'reduce'});
-  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'No horizontal overflow');
-  await page.screenshot({path:output+'/activity-narrow.png'});
-  await page.getByRole('button',{name:'Toggle artifact pane',exact:true}).click();
-  await page.getByRole('button',{name:'Back to conversation',exact:true}).click();
-  await page.getByRole('textbox',{name:'Message',exact:true}).waitFor();
-  assert.deepEqual(errors,[]);
-  console.log('Passed: keyboard search, repeat exact anchor, failed-window recovery, rename/archive/restore, zero implicit creation, draft and scroll retention, direct revision comparison, resize/expand/back, Activity, light/dark, 200% reflow and narrow layout.');
-} finally { await browser.close(); }
+  await page.evaluate(() => {
+    document.documentElement.style.zoom = "2";
+  });
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+  assert.ok(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    "200% zoom has no horizontal overflow",
+  );
+  await page.screenshot({ path: output + "/conversation-200-percent.png" });
+  await page.evaluate(() => {
+    document.documentElement.style.zoom = "";
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  assert.ok(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    "No horizontal overflow",
+  );
+  await page.screenshot({ path: output + "/activity-narrow.png" });
+  await page.getByRole("button", { name: "Toggle artifact pane", exact: true }).click();
+  await page.getByRole("button", { name: "Back to conversation", exact: true }).click();
+  await page.getByRole("textbox", { name: "Message", exact: true }).waitFor();
+  assert.deepEqual(errors, []);
+  console.log(
+    "Passed: keyboard search, repeat exact anchor, failed-window recovery, rename/archive/restore, zero implicit creation, draft and scroll retention, direct revision comparison, resize/expand/back, Activity, light/dark, 200% reflow and narrow layout.",
+  );
+} finally {
+  await browser.close();
+}

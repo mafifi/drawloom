@@ -26,6 +26,7 @@
       "packages/*/*"
     ],
     "catalog": {
+      "@biomejs/biome": "2.5.13",
       "promptfoo": "0.123.0",
       "braintrust": "3.32.0",
       "autoevals": "0.3.0",
@@ -90,7 +91,9 @@
       "shadcn-svelte": "1.6.1"
     },
     "catalogs": {
-      "node-runtime": { "@types/node": "24.13.4" }
+      "node-runtime": {
+        "@types/node": "24.13.4"
+      }
     }
   },
   "scripts": {
@@ -114,7 +117,9 @@
     "spike:adr-0009:preview": "cd spikes/adr-0009-publishing && astro preview --host 127.0.0.1",
     "check:publishing-types": "tsc --noEmit -p spikes/adr-0009-publishing/tsconfig.json && bun run journal:check",
     "check": "bun run check:ci",
-    "check:ci": "bun run check:dependency-policy && bun run check:licenses && bun run build:packages && bun run check:package-artifacts && bun run desktop:check && bun run --cwd apps/desktop build && bun run check:architecture && bun run check:design && bun run check:types && bun run check:publishing-types && bun run test && bun run test:node",
+    "check:ci": "bun run check:format && bun run check:dependency-policy && bun run check:licenses && bun run build:packages && bun run check:package-artifacts && bun run desktop:check && bun run --cwd apps/desktop build && bun run check:architecture && bun run check:design && bun run check:types && bun run check:publishing-types && bun run test && bun run test:node",
+    "format": "biome format --write .",
+    "check:format": "biome format .",
     "check:licenses": "bun run scripts/dependency-license-inventory.ts --offline && bun run scripts/check-license-policy.ts",
     "licenses:inventory": "bun run scripts/dependency-license-inventory.ts",
     "licenses:export": "bun run scripts/export-license-notices.ts",
@@ -134,6 +139,7 @@
     "spike:adr-0017": "bun run build:packages && node --experimental-strip-types --test spikes/adr-0017-orchestration/temporal-host.test.ts && bun build spikes/adr-0017-orchestration/temporal-worker.ts --target node --packages external --outdir spikes/adr-0017-orchestration/dist && node --experimental-strip-types spikes/adr-0017-orchestration/temporal-run.ts"
   },
   "devDependencies": {
+    "@biomejs/biome": "catalog:",
     "promptfoo": "catalog:",
     "braintrust": "catalog:",
     "autoevals": "catalog:",

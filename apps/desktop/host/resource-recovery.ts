@@ -1,10 +1,16 @@
-import type { ToolResult } from '@drawloom/tools';
+import type { ToolResult } from "@drawloom/tools";
 
 /** Retry display projection from the existing authoritative evidence, not tools. */
-export function createResourceRecovery(retained: readonly ToolResult[], capture: (result: ToolResult) => Promise<void>) {
+export function createResourceRecovery(
+  retained: readonly ToolResult[],
+  capture: (result: ToolResult) => Promise<void>,
+) {
   const pending = new Map<string, ToolResult>();
   const add = (result: ToolResult) => {
-    if (result.outcome.status === 'ok' && result.outcome.content?.some(block => block.type !== 'text'))
+    if (
+      result.outcome.status === "ok" &&
+      result.outcome.content?.some((block) => block.type !== "text")
+    )
       pending.set(result.invocationId, result);
   };
   retained.forEach(add);
@@ -19,5 +25,11 @@ export function createResourceRecovery(retained: readonly ToolResult[], capture:
     queue = next.catch(() => {});
     return next;
   };
-  return { recover, record(result: ToolResult) { add(result); return recover(); } };
+  return {
+    recover,
+    record(result: ToolResult) {
+      add(result);
+      return recover();
+    },
+  };
 }

@@ -11,21 +11,9 @@ export const dependencySections = [
 
 export type DependencySection = (typeof dependencySections)[number];
 
-export const packageRoles = [
-  "contract",
-  "provider",
-  "consumer",
-  "runtime",
-  "composition",
-] as const;
+export const packageRoles = ["contract", "provider", "consumer", "runtime", "composition"] as const;
 
-export const runtimeClasses = [
-  "portable",
-  "bun",
-  "node",
-  "cloudflare",
-  "tauri",
-] as const;
+export const runtimeClasses = ["portable", "bun", "node", "cloudflare", "tauri"] as const;
 
 export interface DependencyPolicyException {
   workspace: string;
@@ -78,19 +66,17 @@ export interface PolicyViolation {
   message: string;
 }
 
-const violation = (
-  workspace: string,
-  field: string,
-  message: string,
-): PolicyViolation => ({ field, message, workspace });
+const violation = (workspace: string, field: string, message: string): PolicyViolation => ({
+  field,
+  message,
+  workspace,
+});
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
 
-const isAllowedValue = <T extends string>(
-  values: readonly T[],
-  value: unknown,
-): value is T => typeof value === "string" && values.includes(value as T);
+const isAllowedValue = <T extends string>(values: readonly T[], value: unknown): value is T =>
+  typeof value === "string" && values.includes(value as T);
 
 const exceptionKey = (
   workspace: string,
@@ -99,19 +85,13 @@ const exceptionKey = (
   spec: string,
 ): string => `${workspace}\u0000${section}\u0000${dependency}\u0000${spec}`;
 
-const catalogContains = (
-  root: RootManifest,
-  dependency: string,
-  spec: string,
-): boolean => {
+const catalogContains = (root: RootManifest, dependency: string, spec: string): boolean => {
   const catalogName = spec.slice("catalog:".length);
   if (catalogName === "") {
     return isNonEmptyString(root.workspaces?.catalog?.[dependency]);
   }
 
-  return isNonEmptyString(
-    root.workspaces?.catalogs?.[catalogName]?.[dependency],
-  );
+  return isNonEmptyString(root.workspaces?.catalogs?.[catalogName]?.[dependency]);
 };
 
 const isForbiddenCatalogSpec = (spec: string): boolean => {
@@ -145,10 +125,7 @@ export const validateDependencyPolicy = (
     dependencies: Record<string, string>,
   ) => {
     for (const [name, spec] of Object.entries(dependencies)) {
-      if (
-        privatePackage.test(name) ||
-        privatePackage.test(spec.replace(/^npm:/, ""))
-      ) {
+      if (privatePackage.test(name) || privatePackage.test(spec.replace(/^npm:/, ""))) {
         violations.push(
           violation(
             path,
@@ -159,51 +136,30 @@ export const validateDependencyPolicy = (
       }
     }
   };
-  for (const { path, manifest } of [
-    { path: rootPath, manifest: root },
-    ...workspaces,
-  ]) {
+  for (const { path, manifest } of [{ path: rootPath, manifest: root }, ...workspaces]) {
     for (const section of dependencySections) {
       checkPrivateDependencies(path, section, manifest[section] ?? {});
     }
   }
-  checkPrivateDependencies(
-    rootPath,
-    "workspaces.catalog",
-    root.workspaces?.catalog ?? {},
-  );
-  for (const [name, catalog] of Object.entries(
-    root.workspaces?.catalogs ?? {},
-  )) {
+  checkPrivateDependencies(rootPath, "workspaces.catalog", root.workspaces?.catalog ?? {});
+  for (const [name, catalog] of Object.entries(root.workspaces?.catalogs ?? {})) {
     checkPrivateDependencies(rootPath, `workspaces.catalogs.${name}`, catalog);
   }
 
   if (root.private !== true) {
-    violations.push(
-      violation(rootPath, "private", "The root workspace must be private."),
-    );
+    violations.push(violation(rootPath, "private", "The root workspace must be private."));
   }
   if (root.type !== "module") {
-    violations.push(
-      violation(rootPath, "type", 'The root workspace must use type "module".'),
-    );
+    violations.push(violation(rootPath, "type", 'The root workspace must use type "module".'));
   }
   if (!root.packageManager?.startsWith("bun@")) {
     violations.push(
-      violation(
-        rootPath,
-        "packageManager",
-        "The root workspace must pin Bun with packageManager.",
-      ),
+      violation(rootPath, "packageManager", "The root workspace must pin Bun with packageManager."),
     );
   }
   if (!Array.isArray(root.workspaces?.packages)) {
     violations.push(
-      violation(
-        rootPath,
-        "workspaces.packages",
-        "The root workspace must declare package globs.",
-      ),
+      violation(rootPath, "workspaces.packages", "The root workspace must declare package globs."),
     );
   }
   if (root.workspaces?.catalog === undefined) {
@@ -216,9 +172,7 @@ export const validateDependencyPolicy = (
     );
   }
 
-  for (const [dependency, spec] of Object.entries(
-    root.workspaces?.catalog ?? {},
-  )) {
+  for (const [dependency, spec] of Object.entries(root.workspaces?.catalog ?? {})) {
     if (!isNonEmptyString(spec) || isForbiddenCatalogSpec(spec)) {
       violations.push(
         violation(
@@ -230,9 +184,7 @@ export const validateDependencyPolicy = (
     }
   }
 
-  for (const [catalogName, catalog] of Object.entries(
-    root.workspaces?.catalogs ?? {},
-  )) {
+  for (const [catalogName, catalog] of Object.entries(root.workspaces?.catalogs ?? {})) {
     for (const [dependency, spec] of Object.entries(catalog)) {
       if (!isNonEmptyString(spec) || isForbiddenCatalogSpec(spec)) {
         violations.push(
@@ -276,9 +228,7 @@ export const validateDependencyPolicy = (
       );
       continue;
     }
-    exceptionKeys.add(
-      exceptionKey(item.workspace, item.section, item.dependency, item.spec),
-    );
+    exceptionKeys.add(exceptionKey(item.workspace, item.section, item.dependency, item.spec));
   }
 
   const usedExceptions = new Set<string>();
@@ -289,9 +239,7 @@ export const validateDependencyPolicy = (
   const seenNames = new Map<string, string>();
   for (const { path, manifest } of workspaces) {
     if (!isNonEmptyString(manifest.name)) {
-      violations.push(
-        violation(path, "name", "Every workspace must declare a package name."),
-      );
+      violations.push(violation(path, "name", "Every workspace must declare a package name."));
     } else {
       const existing = seenNames.get(manifest.name);
       if (existing !== undefined) {
@@ -308,9 +256,7 @@ export const validateDependencyPolicy = (
     }
 
     if (manifest.type !== "module") {
-      violations.push(
-        violation(path, "type", 'Every workspace must use type "module".'),
-      );
+      violations.push(violation(path, "type", 'Every workspace must use type "module".'));
     }
     if (!isAllowedValue(packageRoles, manifest.drawloom?.role)) {
       violations.push(
@@ -333,17 +279,11 @@ export const validateDependencyPolicy = (
 
     if (path.startsWith("apps/")) {
       if (manifest.private !== true) {
-        violations.push(
-          violation(path, "private", "Application workspaces must be private."),
-        );
+        violations.push(violation(path, "private", "Application workspaces must be private."));
       }
       if (manifest.drawloom?.role !== "composition") {
         violations.push(
-          violation(
-            path,
-            "drawloom.role",
-            "Application workspaces must be composition roots.",
-          ),
+          violation(path, "drawloom.role", "Application workspaces must be composition roots."),
         );
       }
     }
@@ -359,9 +299,7 @@ export const validateDependencyPolicy = (
     }
 
     for (const section of dependencySections) {
-      for (const [dependency, spec] of Object.entries(
-        manifest[section] ?? {},
-      )) {
+      for (const [dependency, spec] of Object.entries(manifest[section] ?? {})) {
         const key = exceptionKey(path, section, dependency, spec);
         if (exceptionKeys.has(key)) {
           usedExceptions.add(key);
@@ -371,24 +309,14 @@ export const validateDependencyPolicy = (
         const field = `${section}.${dependency}`;
         if (internalNames.has(dependency)) {
           if (spec !== "workspace:*") {
-            violations.push(
-              violation(
-                path,
-                field,
-                "Internal dependencies must use workspace:*.",
-              ),
-            );
+            violations.push(violation(path, field, "Internal dependencies must use workspace:*."));
           }
           continue;
         }
 
         if (!spec.startsWith("catalog:")) {
           violations.push(
-            violation(
-              path,
-              field,
-              "External dependencies must use a root catalog reference.",
-            ),
+            violation(path, field, "External dependencies must use a root catalog reference."),
           );
           continue;
         }
@@ -407,12 +335,7 @@ export const validateDependencyPolicy = (
   }
 
   for (const item of exceptions) {
-    const key = exceptionKey(
-      item.workspace,
-      item.section,
-      item.dependency,
-      item.spec,
-    );
+    const key = exceptionKey(item.workspace, item.section, item.dependency, item.spec);
     if (exceptionKeys.has(key) && !usedExceptions.has(key)) {
       violations.push(
         violation(
@@ -453,9 +376,7 @@ export const discoverWorkspaceManifests = async (
         continue;
       }
       seenPaths.add(relativePath);
-      const manifest = await readJson<PackageManifest>(
-        join(rootDirectory, relativePath),
-      );
+      const manifest = await readJson<PackageManifest>(join(rootDirectory, relativePath));
       manifests.push({ manifest, path: relativePath });
     }
   }

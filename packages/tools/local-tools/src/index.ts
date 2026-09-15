@@ -19,9 +19,7 @@ function freeze<T>(value: T): T {
 }
 function path(error: unknown): (string | number)[] {
   return error instanceof z.ZodError
-    ? (error.issues[0]?.path ?? []).map((p) =>
-        typeof p === "symbol" ? "?" : p,
-      )
+    ? (error.issues[0]?.path ?? []).map((p) => (typeof p === "symbol" ? "?" : p))
     : [];
 }
 export function createLocalToolGateway(options: {
@@ -43,19 +41,14 @@ export function createLocalToolGateway(options: {
         ({ name, description, annotations, inputSchema, outputSchema }) => ({
           name,
           description,
-          ...(annotations !== undefined
-            ? { annotations: structuredClone(annotations) }
-            : {}),
+          ...(annotations !== undefined ? { annotations: structuredClone(annotations) } : {}),
           inputSchema: structuredClone(inputSchema),
           outputSchema: structuredClone(outputSchema),
         }),
       ),
     }),
   );
-  const bindings = new WeakMap<
-    ToolBinding,
-    { operationId: string; active: boolean }
-  >();
+  const bindings = new WeakMap<ToolBinding, { operationId: string; active: boolean }>();
   const issuedIds = new Set<string>();
   return {
     exposure,
@@ -72,8 +65,7 @@ export function createLocalToolGateway(options: {
     async invoke(binding, name, args, signal) {
       const origin = bindings.get(binding);
       const invocationId = z.string().min(1).parse(options.nextInvocationId());
-      if (issuedIds.has(invocationId))
-        throw Error("Duplicate invocation identity");
+      if (issuedIds.has(invocationId)) throw Error("Duplicate invocation identity");
       issuedIds.add(invocationId);
       const base = {
         invocationId,
@@ -118,8 +110,7 @@ export function createLocalToolGateway(options: {
         });
       }
       if (!outcome && !authorized()) outcome = failure("denied", "not_started");
-      if (!outcome && signal.aborted)
-        outcome = failure("cancelled", "not_started");
+      if (!outcome && signal.aborted) outcome = failure("cancelled", "not_started");
       if (!outcome && tool && origin) {
         let raw: unknown;
         try {
@@ -129,22 +120,17 @@ export function createLocalToolGateway(options: {
             signal,
           });
         } catch {
-          outcome = failure(
-            signal.aborted ? "cancelled" : "handler_failed",
-            "unknown",
-          );
+          outcome = failure(signal.aborted ? "cancelled" : "handler_failed", "unknown");
         }
-        if (!outcome && signal.aborted)
-          outcome = failure("cancelled", "completed");
+        if (!outcome && signal.aborted) outcome = failure("cancelled", "completed");
         if (!outcome) {
           try {
             const value = tool.parseOutput(raw);
             try {
-              const text = z
-                .string()
-                .parse(tool.render(structuredClone(value)));
+              const text = z.string().parse(tool.render(structuredClone(value)));
               const content = tool.renderContent
-                ? ToolContentSchema.parse(tool.renderContent(structuredClone(value))) : undefined;
+                ? ToolContentSchema.parse(tool.renderContent(structuredClone(value)))
+                : undefined;
               outcome = { status: "ok", value, text, ...(content ? { content } : {}) };
             } catch {
               outcome = failure("render_failed", "completed");

@@ -1,252 +1,495 @@
-import { expect, test } from 'bun:test';
-import { compileModule } from 'svelte/compiler';
-Bun.plugin({ name: 'knowledge-view-model-tests', setup(build) {
-  build.onLoad({ filter: /knowledge-view-model\.svelte\.ts$/ }, async ({ path }) => ({
-    contents: compileModule(new Bun.Transpiler({ loader: 'ts' }).transformSync(await Bun.file(path).text()), { filename: path, generate: 'client' }).js.code, loader: 'js',
-  }));
-} });
-const { createKnowledgeViewModel } = await import('./knowledge-view-model.svelte.js');
+import { expect, test } from "bun:test";
+import { compileModule } from "svelte/compiler";
+Bun.plugin({
+  name: "knowledge-view-model-tests",
+  setup(build) {
+    build.onLoad({ filter: /knowledge-view-model\.svelte\.ts$/ }, async ({ path }) => ({
+      contents: compileModule(
+        new Bun.Transpiler({ loader: "ts" }).transformSync(await Bun.file(path).text()),
+        { filename: path, generate: "client" },
+      ).js.code,
+      loader: "js",
+    }));
+  },
+});
+const { createKnowledgeViewModel } = await import("./knowledge-view-model.svelte.js");
 
-test('learning is off until explicitly saved; refresh preserves an unsaved choice', async () => {
+test("learning is off until explicitly saved; refresh preserves an unsaved choice", async () => {
   const commands: unknown[] = [];
-  const vm = createKnowledgeViewModel({ send: async command => {
-    commands.push(command);
-    return command.action === 'configure' ? { ...status(), configuration: command.configuration } : status();
-  } });
+  const vm = createKnowledgeViewModel({
+    send: async (command) => {
+      commands.push(command);
+      return command.action === "configure"
+        ? { ...status(), configuration: command.configuration }
+        : status();
+    },
+  });
   await vm.open();
-  expect(vm.presentation.learning).toEqual({ captureOutcomes: false, automaticContext: false, automaticCuration: false, dirty: false });
-  vm.actions.setLearning('automaticContext', true);
+  expect(vm.presentation.learning).toEqual({
+    captureOutcomes: false,
+    automaticContext: false,
+    automaticCuration: false,
+    dirty: false,
+  });
+  vm.actions.setLearning("automaticContext", true);
   await vm.actions.refresh();
   expect(vm.presentation.learning.automaticContext).toBe(true);
-  expect(commands).toEqual([{ action: 'status' }, { action: 'status' }]);
+  expect(commands).toEqual([{ action: "status" }, { action: "status" }]);
   await vm.actions.saveLearning();
   expect(vm.presentation.configuration?.automaticContext).toBe(true);
   expect(vm.presentation.configuration?.captureOutcomes).toBe(false);
   expect(vm.presentation.learning.dirty).toBe(false);
 });
 
-test('failed learning save retains draft and authoritative settings; pending save rejects duplicates', async () => {
+test("failed learning save retains draft and authoritative settings; pending save rejects duplicates", async () => {
   let rejectSave!: (cause: Error) => void;
   let saves = 0;
-  const vm = createKnowledgeViewModel({ send: async command => {
-    if (command.action === 'status') return status();
-    saves++;
-    return new Promise((_resolve, reject) => { rejectSave = reject; });
-  } });
-  await vm.open(); vm.actions.setLearning('captureOutcomes', true);
+  const vm = createKnowledgeViewModel({
+    send: async (command) => {
+      if (command.action === "status") return status();
+      saves++;
+      return new Promise((_resolve, reject) => {
+        rejectSave = reject;
+      });
+    },
+  });
+  await vm.open();
+  vm.actions.setLearning("captureOutcomes", true);
   const saving = vm.actions.saveLearning();
   await vm.actions.saveLearning();
-  vm.actions.setLearning('automaticContext', true);
-  rejectSave(Error('Could not save settings')); await saving;
+  vm.actions.setLearning("automaticContext", true);
+  rejectSave(Error("Could not save settings"));
+  await saving;
   expect(saves).toBe(1);
   expect(vm.presentation.configuration?.captureOutcomes).toBe(false);
   expect(vm.presentation.learning.captureOutcomes).toBe(true);
   expect(vm.presentation.learning.automaticContext).toBe(false);
-  expect(vm.presentation.error).toBe('Could not save settings');
+  expect(vm.presentation.error).toBe("Could not save settings");
 });
 
-test('automatic curation requires a successful save, reloads durably and disables independently', async () => {
+test("automatic curation requires a successful save, reloads durably and disables independently", async () => {
   let saved = status();
   let fail = true;
   let saves = 0;
-  const send = async (command: import('./knowledge-protocol.js').KnowledgeCommand) => {
-    if (command.action === 'configure') { saves++; if (fail) throw Error('Save failed'); saved = { ...saved, configuration: command.configuration }; }
+  const send = async (command: import("./knowledge-protocol.js").KnowledgeCommand) => {
+    if (command.action === "configure") {
+      saves++;
+      if (fail) throw Error("Save failed");
+      saved = { ...saved, configuration: command.configuration };
+    }
     return saved;
   };
   const vm = createKnowledgeViewModel({ send });
   await vm.open();
-  vm.actions.setLearning('automaticCuration', true);
+  vm.actions.setLearning("automaticCuration", true);
   expect(vm.presentation.configuration?.automaticCuration).toBe(false);
   expect(saves).toBe(0);
   await vm.actions.saveLearning();
   expect(vm.presentation.configuration?.automaticCuration).toBe(false);
   expect(vm.presentation.learning.automaticCuration).toBe(true);
-  expect(vm.presentation.error).toBe('Save failed');
-  fail = false; await vm.actions.saveLearning();
+  expect(vm.presentation.error).toBe("Save failed");
+  fail = false;
+  await vm.actions.saveLearning();
   expect(vm.presentation.configuration?.automaticCuration).toBe(true);
-  const reopened = createKnowledgeViewModel({ send }); await reopened.open();
+  const reopened = createKnowledgeViewModel({ send });
+  await reopened.open();
   expect(reopened.presentation.learning.automaticCuration).toBe(true);
-  reopened.actions.setLearning('automaticCuration', false); await reopened.actions.saveLearning();
-  expect(reopened.presentation.configuration).toMatchObject({ automaticCuration: false, captureOutcomes: false, automaticContext: false });
+  reopened.actions.setLearning("automaticCuration", false);
+  await reopened.actions.saveLearning();
+  expect(reopened.presentation.configuration).toMatchObject({
+    automaticCuration: false,
+    captureOutcomes: false,
+    automaticContext: false,
+  });
 });
 
-test('cleanup refusal stays visible without a success acknowledgement', async () => {
-  const vm = createKnowledgeViewModel({ send: async () => { throw Error('provider refused'); } });
+test("cleanup refusal stays visible without a success acknowledgement", async () => {
+  const vm = createKnowledgeViewModel({
+    send: async () => {
+      throw Error("provider refused");
+    },
+  });
   await vm.actions.cleanupObsolete();
-  expect(vm.presentation.error).toContain('safely');
-  expect(vm.presentation.notice).toBe('');
+  expect(vm.presentation.error).toContain("safely");
+  expect(vm.presentation.notice).toBe("");
 });
 
-test('confirmed obsolete cleanup submits consent without accepting arbitrary file targets', async () => {
+test("confirmed obsolete cleanup submits consent without accepting arbitrary file targets", async () => {
   const commands: unknown[] = [];
-  const vm = createKnowledgeViewModel({ send: async command => { commands.push(command); return { ...status(), obsoleteRuntimePresent: false }; } });
+  const vm = createKnowledgeViewModel({
+    send: async (command) => {
+      commands.push(command);
+      return { ...status(), obsoleteRuntimePresent: false };
+    },
+  });
   await vm.actions.cleanupObsolete();
-  expect(commands).toEqual([{ action: 'cleanup_obsolete', consent: true }]);
+  expect(commands).toEqual([{ action: "cleanup_obsolete", consent: true }]);
   expect(vm.presentation.pendingAction).toBeUndefined();
-  expect(vm.presentation.notice).toContain('no longer present');
+  expect(vm.presentation.notice).toContain("no longer present");
 });
-const record = (id: string) => ({ ref: { type: 'source' as const, origin: 'public', id, revision: '1' }, body: id, status: 'active' as const, confidence: {}, provenance: { producer: { type: 'test', id: 'fixture' }, inputs: [] } });
-const page = (id: string) => ({ kind: 'ok', mode: 'lexical', semantic: { status: 'unavailable' }, items: [{ record: record(id), relevance: 1 }], bytes: 100 });
+const record = (id: string) => ({
+  ref: { type: "source" as const, origin: "public", id, revision: "1" },
+  body: id,
+  status: "active" as const,
+  confidence: {},
+  provenance: { producer: { type: "test", id: "fixture" }, inputs: [] },
+});
+const page = (id: string) => ({
+  kind: "ok",
+  mode: "lexical",
+  semantic: { status: "unavailable" },
+  items: [{ record: record(id), relevance: 1 }],
+  bytes: 100,
+});
 
-test('late search cannot replace a newer query and close discards pending pages', async () => {
+test("late search cannot replace a newer query and close discards pending pages", async () => {
   const responses: Array<(value: unknown) => void> = [];
-  const vm = createKnowledgeViewModel({ send: async () => new Promise(resolve => responses.push(resolve)) });
-  vm.actions.setQuery('earlier'); const earlier = vm.actions.search();
-  vm.actions.setQuery('newer'); const newer = vm.actions.search();
-  responses[1]!(page('newer')); await newer;
-  responses[0]!(page('earlier')); await earlier;
-  expect(vm.presentation.results.map(item => item.record.ref.id)).toEqual(['newer']);
-  const late = vm.actions.search(); vm.close(); responses[2]!(page('late')); await late;
+  const vm = createKnowledgeViewModel({
+    send: async () => new Promise((resolve) => responses.push(resolve)),
+  });
+  vm.actions.setQuery("earlier");
+  const earlier = vm.actions.search();
+  vm.actions.setQuery("newer");
+  const newer = vm.actions.search();
+  responses[1]!(page("newer"));
+  await newer;
+  responses[0]!(page("earlier"));
+  await earlier;
+  expect(vm.presentation.results.map((item) => item.record.ref.id)).toEqual(["newer"]);
+  const late = vm.actions.search();
+  vm.close();
+  responses[2]!(page("late"));
+  await late;
   expect(vm.presentation.results).toEqual([]);
 });
 
-test('evidence denial clears previous material and commands contain no browser subject', async () => {
+test("evidence denial clears previous material and commands contain no browser subject", async () => {
   const commands: unknown[] = [];
-  const vm = createKnowledgeViewModel({ send: async command => {
-    commands.push(command);
-    if (command.action === 'evidence' && command.request.root.id === 'first') return { kind: 'ok', records: [record('first')], links: [], bytes: 100 };
-    return { kind: 'denied' };
-  } });
-  await vm.actions.inspect(record('first').ref); expect(vm.presentation.evidence?.records.length).toBe(1);
-  await vm.actions.inspect(record('denied').ref); expect(vm.presentation.evidence).toBeUndefined();
-  expect(vm.presentation.error).toContain('permission');
-  expect(commands.every(value => !JSON.stringify(value).includes('subject'))).toBe(true);
+  const vm = createKnowledgeViewModel({
+    send: async (command) => {
+      commands.push(command);
+      if (command.action === "evidence" && command.request.root.id === "first")
+        return { kind: "ok", records: [record("first")], links: [], bytes: 100 };
+      return { kind: "denied" };
+    },
+  });
+  await vm.actions.inspect(record("first").ref);
+  expect(vm.presentation.evidence?.records.length).toBe(1);
+  await vm.actions.inspect(record("denied").ref);
+  expect(vm.presentation.evidence).toBeUndefined();
+  expect(vm.presentation.error).toContain("permission");
+  expect(commands.every((value) => !JSON.stringify(value).includes("subject"))).toBe(true);
 });
 
-test('closing an evidence scope clears its error and selection before a replacement opens', async () => {
-  const vm = createKnowledgeViewModel({ send: async () => ({ kind: 'denied' }) });
-  await vm.actions.inspect(record('denied').ref);
-  expect(vm.presentation.error).toContain('permission');
+test("closing an evidence scope clears its error and selection before a replacement opens", async () => {
+  const vm = createKnowledgeViewModel({ send: async () => ({ kind: "denied" }) });
+  await vm.actions.inspect(record("denied").ref);
+  expect(vm.presentation.error).toContain("permission");
   vm.close();
-  expect(vm.presentation.error).toBe('');
+  expect(vm.presentation.error).toBe("");
   expect(vm.presentation.selected).toBeUndefined();
   expect(vm.presentation.evidencePending).toBe(false);
 });
 
-test('opening knowledge does not download models or start assessments', async () => {
+test("opening knowledge does not download models or start assessments", async () => {
   const commands: unknown[] = [];
-  const vm = createKnowledgeViewModel({ send: async command => { commands.push(command); throw Error('Not configured'); } });
+  const vm = createKnowledgeViewModel({
+    send: async (command) => {
+      commands.push(command);
+      throw Error("Not configured");
+    },
+  });
   await vm.open();
-  expect(commands).toEqual([{ action: 'status' }]);
-  expect(vm.presentation.error).toContain('Not configured');
+  expect(commands).toEqual([{ action: "status" }]);
+  expect(vm.presentation.error).toContain("Not configured");
 });
 
-test('pending learning status remains visible until a confirmed recovery status replaces it', async () => {
+test("pending learning status remains visible until a confirmed recovery status replaces it", async () => {
   let pending = true;
-  const vm = createKnowledgeViewModel({ send: async () => ({ ...status(), capture: pending
-    ? { state: 'pending', pendingObservations: 2, message: 'Two observations are waiting for recovery.' }
-    : { state: 'idle', pendingObservations: 0, message: '' } }) });
+  const vm = createKnowledgeViewModel({
+    send: async () => ({
+      ...status(),
+      capture: pending
+        ? {
+            state: "pending",
+            pendingObservations: 2,
+            message: "Two observations are waiting for recovery.",
+          }
+        : { state: "idle", pendingObservations: 0, message: "" },
+    }),
+  });
   await vm.open();
-  expect(vm.presentation.status?.capture).toEqual({ state: 'pending', pendingObservations: 2, message: 'Two observations are waiting for recovery.' });
-  pending = false; await vm.actions.refresh();
-  expect(vm.presentation.status?.capture).toEqual({ state: 'idle', pendingObservations: 0, message: '' });
+  expect(vm.presentation.status?.capture).toEqual({
+    state: "pending",
+    pendingObservations: 2,
+    message: "Two observations are waiting for recovery.",
+  });
+  pending = false;
+  await vm.actions.refresh();
+  expect(vm.presentation.status?.capture).toEqual({
+    state: "idle",
+    pendingObservations: 0,
+    message: "",
+  });
 });
 
-test('source and curation warnings survive unrelated actions and failed refresh until authoritative recovery', async () => {
-  let failed = true, refuse = false;
-  const vm = createKnowledgeViewModel({ send: async () => {
-    if (refuse) throw Error('Could not refresh status');
-    return { ...status(), source: { projectId: 'p', enabled: true, state: failed ? 'unavailable' : 'ready', message: 'Repository collection is unavailable.' },
-      maintenance: { ...status().maintenance, state: failed ? 'uncertain' : 'idle', message: 'The earlier assessment cannot be confirmed. No replacement will start.' } };
-  } });
+test("source and curation warnings survive unrelated actions and failed refresh until authoritative recovery", async () => {
+  let failed = true,
+    refuse = false;
+  const vm = createKnowledgeViewModel({
+    send: async () => {
+      if (refuse) throw Error("Could not refresh status");
+      return {
+        ...status(),
+        source: {
+          projectId: "p",
+          enabled: true,
+          state: failed ? "unavailable" : "ready",
+          message: "Repository collection is unavailable.",
+        },
+        maintenance: {
+          ...status().maintenance,
+          state: failed ? "uncertain" : "idle",
+          message: "The earlier assessment cannot be confirmed. No replacement will start.",
+        },
+      };
+    },
+  });
   await vm.open();
-  expect(vm.presentation.recoveryNotices).toEqual(['Repository collection is unavailable.', 'The earlier assessment cannot be confirmed. No replacement will start.']);
-  await vm.actions.pause(true); expect(vm.presentation.recoveryNotices).toHaveLength(2);
-  refuse = true; await vm.actions.refresh(); expect(vm.presentation.recoveryNotices).toHaveLength(2);
-  refuse = false; failed = false; await vm.actions.refresh(); expect(vm.presentation.recoveryNotices).toEqual([]); expect(vm.presentation.error).toBe('');
+  expect(vm.presentation.recoveryNotices).toEqual([
+    "Repository collection is unavailable.",
+    "The earlier assessment cannot be confirmed. No replacement will start.",
+  ]);
+  await vm.actions.pause(true);
+  expect(vm.presentation.recoveryNotices).toHaveLength(2);
+  refuse = true;
+  await vm.actions.refresh();
+  expect(vm.presentation.recoveryNotices).toHaveLength(2);
+  refuse = false;
+  failed = false;
+  await vm.actions.refresh();
+  expect(vm.presentation.recoveryNotices).toEqual([]);
+  expect(vm.presentation.error).toBe("");
 });
 
-const status = (paused = false) => ({ availability: 'ready', message: 'Ready', configuration: { embeddingModel: 'qwen3-embedding-0.6b-gguf', assessmentModel: 'gpt-5.6-terra', assessmentTimeoutMs: 300000, maxAutomaticStartsPerDay: 6, maxAutomaticMillisecondsPerDay: 1800000 }, capture: { state: 'idle', pendingObservations: 0, message: '' }, models: [{ id: 'qwen3-embedding-0.6b-gguf', title: 'Qwen GGUF', licence: 'Apache-2.0 model and conversion', source: 'https://example.invalid/model', modelDirectory: '/data/models/active/qwen', runtimeDirectory: '/data/models/runtime/mlx', prerequisites: 'Apple Silicon with Metal', runtime: { package: 'llama.cpp', version: '0.1.0', licence: 'MIT' }, runtimeBytes: 1000, runtimeDownloadAvailable: true, weightsBytes: 10, state: 'missing' }], indexing: 'unavailable', maintenance: { paused, state: paused ? 'paused' : 'idle', pendingUpdates: 0, message: 'Ready', automaticStartsToday: 0, automaticMillisecondsToday: 0 } });
+const status = (paused = false) => ({
+  availability: "ready",
+  message: "Ready",
+  configuration: {
+    embeddingModel: "qwen3-embedding-0.6b-gguf",
+    assessmentModel: "gpt-5.6-terra",
+    assessmentTimeoutMs: 300000,
+    maxAutomaticStartsPerDay: 6,
+    maxAutomaticMillisecondsPerDay: 1800000,
+  },
+  capture: { state: "idle", pendingObservations: 0, message: "" },
+  models: [
+    {
+      id: "qwen3-embedding-0.6b-gguf",
+      title: "Qwen GGUF",
+      licence: "Apache-2.0 model and conversion",
+      source: "https://example.invalid/model",
+      modelDirectory: "/data/models/active/qwen",
+      runtimeDirectory: "/data/models/runtime/mlx",
+      prerequisites: "Apple Silicon with Metal",
+      runtime: { package: "llama.cpp", version: "0.1.0", licence: "MIT" },
+      runtimeBytes: 1000,
+      runtimeDownloadAvailable: true,
+      weightsBytes: 10,
+      state: "missing",
+    },
+  ],
+  indexing: "unavailable",
+  maintenance: {
+    paused,
+    state: paused ? "paused" : "idle",
+    pendingUpdates: 0,
+    message: "Ready",
+    automaticStartsToday: 0,
+    automaticMillisecondsToday: 0,
+  },
+});
 
-test('source collection requires its own explicit action and does not submit filesystem authority', async () => {
+test("source collection requires its own explicit action and does not submit filesystem authority", async () => {
   const commands: unknown[] = [];
-  const vm = createKnowledgeViewModel({send: async command => { commands.push(command); return status(); }});
-  await vm.open(); await vm.actions.source(true); await vm.actions.source(false);
-  expect(commands).toEqual([{action:'status'},{action:'source',enabled:true},{action:'source',enabled:false}]);
+  const vm = createKnowledgeViewModel({
+    send: async (command) => {
+      commands.push(command);
+      return status();
+    },
+  });
+  await vm.open();
+  await vm.actions.source(true);
+  await vm.actions.source(false);
+  expect(commands).toEqual([
+    { action: "status" },
+    { action: "source", enabled: true },
+    { action: "source", enabled: false },
+  ]);
   expect(vm.presentation.pendingAction).toBeUndefined();
 });
-test('source setup rejection stays actionable when models exist and never exposes raw provider errors', async () => {
-  const vm = createKnowledgeViewModel({ send: async command => {
-    if (command.action === 'source') throw Error('secret path /private/source');
-    return status();
-  } });
-  await vm.open(); await vm.actions.source(true);
-  expect(vm.presentation.error).toBe('Collection could not start. Choose a project with an installed Git source, then connect it.');
+test("source setup rejection stays actionable when models exist and never exposes raw provider errors", async () => {
+  const vm = createKnowledgeViewModel({
+    send: async (command) => {
+      if (command.action === "source") throw Error("secret path /private/source");
+      return status();
+    },
+  });
+  await vm.open();
+  await vm.actions.source(true);
+  expect(vm.presentation.error).toBe(
+    "Collection could not start. Choose a project with an installed Git source, then connect it.",
+  );
   expect(vm.presentation.status?.source).toBeUndefined();
-  await vm.actions.refresh(); expect(vm.presentation.error).toContain('Collection could not start');
+  await vm.actions.refresh();
+  expect(vm.presentation.error).toContain("Collection could not start");
 });
-test('authoritative first-source warning survives unrelated commands and deduplicates configured-source feedback', async () => {
-  const warning = 'Installed Git source is unavailable.';
+test("authoritative first-source warning survives unrelated commands and deduplicates configured-source feedback", async () => {
+  const warning = "Installed Git source is unavailable.";
   let sourceWarning: string | undefined = warning;
   let configured = false;
-  const vm = createKnowledgeViewModel({ send: async command => {
-    if (command.action === 'source' && command.enabled) throw Error('private setup details');
-    if (command.action === 'source' && !command.enabled) sourceWarning = undefined;
-    return { ...status(), ...(sourceWarning ? { sourceWarning } : {}),
-      ...(configured ? { source: { projectId: 'p', enabled: true, state: 'unavailable', message: warning } } : {}) };
-  } });
-  await vm.open(); await vm.actions.source(true); await vm.actions.pause(true); await vm.actions.refresh();
-  expect(vm.presentation.error).toBe(''); expect(vm.presentation.recoveryNotices).toEqual([warning]);
-  vm.actions.setLearning('captureOutcomes', true); await vm.actions.saveLearning();
+  const vm = createKnowledgeViewModel({
+    send: async (command) => {
+      if (command.action === "source" && command.enabled) throw Error("private setup details");
+      if (command.action === "source" && !command.enabled) sourceWarning = undefined;
+      return {
+        ...status(),
+        ...(sourceWarning ? { sourceWarning } : {}),
+        ...(configured
+          ? { source: { projectId: "p", enabled: true, state: "unavailable", message: warning } }
+          : {}),
+      };
+    },
+  });
+  await vm.open();
+  await vm.actions.source(true);
+  await vm.actions.pause(true);
+  await vm.actions.refresh();
+  expect(vm.presentation.error).toBe("");
   expect(vm.presentation.recoveryNotices).toEqual([warning]);
-  configured = true; await vm.actions.refresh(); expect(vm.presentation.recoveryNotices).toEqual([warning]);
-  configured = false; await vm.actions.source(false); expect(vm.presentation.recoveryNotices).toEqual([]);
+  vm.actions.setLearning("captureOutcomes", true);
+  await vm.actions.saveLearning();
+  expect(vm.presentation.recoveryNotices).toEqual([warning]);
+  configured = true;
+  await vm.actions.refresh();
+  expect(vm.presentation.recoveryNotices).toEqual([warning]);
+  configured = false;
+  await vm.actions.source(false);
+  expect(vm.presentation.recoveryNotices).toEqual([]);
 });
-test('first-source command failure stays visible until an unrelated command returns authoritative warning', async () => {
+test("first-source command failure stays visible until an unrelated command returns authoritative warning", async () => {
   let release!: (value: unknown) => void;
-  const vm = createKnowledgeViewModel({ send: async command => {
-    if (command.action === 'source') throw Error('private failure');
-    if (command.action === 'pause') return new Promise(resolve => { release = resolve; });
-    return status();
-  } });
-  await vm.open(); await vm.actions.source(true); const pausing = vm.actions.pause(true);
-  expect(vm.presentation.error).toContain('Collection could not start');
-  release({ ...status(), sourceWarning: 'Installed Git source is unavailable.' }); await pausing;
-  expect(vm.presentation.error).toBe(''); expect(vm.presentation.recoveryNotices).toEqual(['Installed Git source is unavailable.']);
+  const vm = createKnowledgeViewModel({
+    send: async (command) => {
+      if (command.action === "source") throw Error("private failure");
+      if (command.action === "pause")
+        return new Promise((resolve) => {
+          release = resolve;
+        });
+      return status();
+    },
+  });
+  await vm.open();
+  await vm.actions.source(true);
+  const pausing = vm.actions.pause(true);
+  expect(vm.presentation.error).toContain("Collection could not start");
+  release({ ...status(), sourceWarning: "Installed Git source is unavailable." });
+  await pausing;
+  expect(vm.presentation.error).toBe("");
+  expect(vm.presentation.recoveryNotices).toEqual(["Installed Git source is unavailable."]);
 });
-test('a status read started before a pause cannot overwrite the pause response', async () => {
+test("a status read started before a pause cannot overwrite the pause response", async () => {
   let release!: (value: unknown) => void;
-  const vm = createKnowledgeViewModel({ send: async command => command.action === 'status' ? new Promise(resolve => { release = resolve; }) : status(true) });
-  const reading = vm.open(); await vm.actions.pause(true); release(status(false)); await reading;
-  expect(vm.presentation.status?.maintenance.state).toBe('paused');
+  const vm = createKnowledgeViewModel({
+    send: async (command) =>
+      command.action === "status"
+        ? new Promise((resolve) => {
+            release = resolve;
+          })
+        : status(true),
+  });
+  const reading = vm.open();
+  await vm.actions.pause(true);
+  release(status(false));
+  await reading;
+  expect(vm.presentation.status?.maintenance.state).toBe("paused");
 });
-test('status remains readable while a download request is pending', async () => {
-  let release!: (value: unknown) => void; let reads = 0;
-  const vm = createKnowledgeViewModel({ send: async command => {
-    if (command.action === 'download') return new Promise(resolve => { release = resolve; });
-    reads++; return status();
-  } });
-  const downloading = vm.actions.download('qwen3-embedding-0.6b-gguf');
-  await vm.actions.refresh(); expect(reads).toBe(1);
-  release(status()); await downloading;
+test("status remains readable while a download request is pending", async () => {
+  let release!: (value: unknown) => void;
+  let reads = 0;
+  const vm = createKnowledgeViewModel({
+    send: async (command) => {
+      if (command.action === "download")
+        return new Promise((resolve) => {
+          release = resolve;
+        });
+      reads++;
+      return status();
+    },
+  });
+  const downloading = vm.actions.download("qwen3-embedding-0.6b-gguf");
+  await vm.actions.refresh();
+  expect(reads).toBe(1);
+  release(status());
+  await downloading;
 });
 
-test('download suppresses duplicates while cancel remains available and a settled cancellation can retry', async () => {
+test("download suppresses duplicates while cancel remains available and a settled cancellation can retry", async () => {
   const commands: unknown[] = [];
   let finishDownload!: (value: unknown) => void;
   let attempts = 0;
-  const withModelState = (state: 'cancelled' | 'ready') => ({ ...status(), models: status().models.map(model => ({ ...model, state })) });
-  const vm = createKnowledgeViewModel({ send: async command => {
-    commands.push(command);
-    if (command.action === 'download' && attempts++ === 0) return new Promise(resolve => { finishDownload = resolve; });
-    if (command.action === 'cancel_download') return withModelState('cancelled');
-    return withModelState('ready');
-  } });
-  const first = vm.actions.download('qwen3-embedding-0.6b-gguf');
-  await vm.actions.download('qwen3-embedding-0.6b-gguf');
-  expect(commands.filter(command => (command as { action: string }).action === 'download')).toHaveLength(1);
-  const cancelling = vm.actions.cancelDownload('qwen3-embedding-0.6b-gguf');
-  finishDownload(withModelState('cancelled'));
+  const withModelState = (state: "cancelled" | "ready") => ({
+    ...status(),
+    models: status().models.map((model) => ({ ...model, state })),
+  });
+  const vm = createKnowledgeViewModel({
+    send: async (command) => {
+      commands.push(command);
+      if (command.action === "download" && attempts++ === 0)
+        return new Promise((resolve) => {
+          finishDownload = resolve;
+        });
+      if (command.action === "cancel_download") return withModelState("cancelled");
+      return withModelState("ready");
+    },
+  });
+  const first = vm.actions.download("qwen3-embedding-0.6b-gguf");
+  await vm.actions.download("qwen3-embedding-0.6b-gguf");
+  expect(
+    commands.filter((command) => (command as { action: string }).action === "download"),
+  ).toHaveLength(1);
+  const cancelling = vm.actions.cancelDownload("qwen3-embedding-0.6b-gguf");
+  finishDownload(withModelState("cancelled"));
   await Promise.all([first, cancelling]);
-  expect(vm.presentation.status?.models[0]?.state).toBe('cancelled');
-  await vm.actions.download('qwen3-embedding-0.6b-gguf');
-  expect(vm.presentation.status?.models[0]?.state).toBe('ready');
-  expect(commands.map(command => (command as { action: string }).action)).toEqual(['download', 'cancel_download', 'download']);
+  expect(vm.presentation.status?.models[0]?.state).toBe("cancelled");
+  await vm.actions.download("qwen3-embedding-0.6b-gguf");
+  expect(vm.presentation.status?.models[0]?.state).toBe("ready");
+  expect(commands.map((command) => (command as { action: string }).action)).toEqual([
+    "download",
+    "cancel_download",
+    "download",
+  ]);
 });
 
-test('current-file download bytes pass through presentation without being replaced by total weights', async () => {
-  const progress = { ...status(), models: status().models.map(model => ({ ...model, state: 'downloading' as const, message: 'Downloading tokenizer.json', receivedBytes: 2_097_152, expectedBytes: 8_388_608 })) };
+test("current-file download bytes pass through presentation without being replaced by total weights", async () => {
+  const progress = {
+    ...status(),
+    models: status().models.map((model) => ({
+      ...model,
+      state: "downloading" as const,
+      message: "Downloading tokenizer.json",
+      receivedBytes: 2_097_152,
+      expectedBytes: 8_388_608,
+    })),
+  };
   const vm = createKnowledgeViewModel({ send: async () => progress });
   await vm.open();
-  expect(vm.presentation.status?.models[0]).toMatchObject({ receivedBytes: 2_097_152, expectedBytes: 8_388_608, runtimeBytes: 1000, runtimeDownloadAvailable: true, weightsBytes: 10, message: 'Downloading tokenizer.json' });
+  expect(vm.presentation.status?.models[0]).toMatchObject({
+    receivedBytes: 2_097_152,
+    expectedBytes: 8_388_608,
+    runtimeBytes: 1000,
+    runtimeDownloadAvailable: true,
+    weightsBytes: 10,
+    message: "Downloading tokenizer.json",
+  });
 });

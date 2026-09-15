@@ -1,13 +1,32 @@
-import { z } from 'zod';
-import {AgentModelSelectionSchema} from '@drawloom/agent';
-import { AgentSessionSignalSchema, AgentApprovalResolutionSchema, AgentInputResolutionSchema, AgentReviewerSchema, DiscoveryEntrySchema, DiscoverySnapshotSchema, DiscoverySelectionSchema } from '@drawloom/agent';
-import { AssetSchema, JsonValueSchema } from '@drawloom/host';
-import { WorkbenchSchema, OperatorSnapshotSchema, OperatorCommandSchema } from '@drawloom/workbench';
-import { ToolResultSchema, ToolElicitationRequestSchema, ToolElicitationResultSchema } from '@drawloom/tools';
-import { RegisteredWorkbenchViewSchema } from '@drawloom/plugins';
-import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { McpUiMessageRequestSchema, McpUiUpdateModelContextRequestSchema } from '@modelcontextprotocol/ext-apps';
-import { MediaPolicySnapshotSchema } from './media-policy-protocol.js';
+import { z } from "zod";
+import { AgentModelSelectionSchema } from "@drawloom/agent";
+import {
+  AgentSessionSignalSchema,
+  AgentApprovalResolutionSchema,
+  AgentInputResolutionSchema,
+  AgentReviewerSchema,
+  DiscoveryEntrySchema,
+  DiscoverySnapshotSchema,
+  DiscoverySelectionSchema,
+} from "@drawloom/agent";
+import { AssetSchema, JsonValueSchema } from "@drawloom/host";
+import {
+  WorkbenchSchema,
+  OperatorSnapshotSchema,
+  OperatorCommandSchema,
+} from "@drawloom/workbench";
+import {
+  ToolResultSchema,
+  ToolElicitationRequestSchema,
+  ToolElicitationResultSchema,
+} from "@drawloom/tools";
+import { RegisteredWorkbenchViewSchema } from "@drawloom/plugins";
+import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  McpUiMessageRequestSchema,
+  McpUiUpdateModelContextRequestSchema,
+} from "@modelcontextprotocol/ext-apps";
+import { MediaPolicySnapshotSchema } from "./media-policy-protocol.js";
 const id = z.string().min(1).max(256);
 export const DesktopCatalogueSchema = z.strictObject({
   entries: z.array(DiscoveryEntrySchema.extend({ revision: z.string().min(1) })),
@@ -17,74 +36,203 @@ export const DesktopCatalogueSchema = z.strictObject({
 });
 export type DesktopCatalogue = z.infer<typeof DesktopCatalogueSchema>;
 export const DiscoveryResourceReadSchema = DiscoverySelectionSchema.extend({ conversationId: id });
-export const DiscoveryAuthenticationSchema = DiscoverySelectionSchema.extend({ conversationId: id });
-export const ToolStartSchema = z.strictObject({ kind: z.literal('started'), invocationId: z.string().min(1), operationId: z.string().min(1).optional(), tool: z.string().min(1) });
-export const DirectoryProjectSchema = z.strictObject({ id, name: z.string().min(1).max(120), directory: z.string().min(1), device: z.string(), inode: z.string() });
+export const DiscoveryAuthenticationSchema = DiscoverySelectionSchema.extend({
+  conversationId: id,
+});
+export const ToolStartSchema = z.strictObject({
+  kind: z.literal("started"),
+  invocationId: z.string().min(1),
+  operationId: z.string().min(1).optional(),
+  tool: z.string().min(1),
+});
+export const DirectoryProjectSchema = z.strictObject({
+  id,
+  name: z.string().min(1).max(120),
+  directory: z.string().min(1),
+  device: z.string(),
+  inode: z.string(),
+});
 export type DirectoryProject = z.infer<typeof DirectoryProjectSchema>;
-export const ConversationSchema = z.strictObject({ id, title: z.string().max(120), manualTitle: z.string().min(1).max(120).optional(), archived: z.boolean().default(false), pinned: z.boolean().optional(), workbenchId: id, projectId: id.optional(), provider: z.enum(['synthetic', 'codex']), reviewer: AgentReviewerSchema.default('human'), modelSelection:AgentModelSelectionSchema.optional() });
+export const ConversationSchema = z.strictObject({
+  id,
+  title: z.string().max(120),
+  manualTitle: z.string().min(1).max(120).optional(),
+  archived: z.boolean().default(false),
+  pinned: z.boolean().optional(),
+  workbenchId: id,
+  projectId: id.optional(),
+  provider: z.enum(["synthetic", "codex"]),
+  reviewer: AgentReviewerSchema.default("human"),
+  modelSelection: AgentModelSelectionSchema.optional(),
+});
 export const DesktopSnapshotSchema = z.strictObject({
-  mediaPolicy: MediaPolicySnapshotSchema.default({revision:'initial',sources:[]}),
-  workspace: z.string(), conversations: z.array(ConversationSchema), workbenches: z.array(WorkbenchSchema),
-  selectedId: z.string(), operator: OperatorSnapshotSchema,
-  projects: z.array(DirectoryProjectSchema.omit({ device: true, inode: true }).extend({ available: z.boolean() })).default([]),
+  mediaPolicy: MediaPolicySnapshotSchema.default({ revision: "initial", sources: [] }),
+  workspace: z.string(),
+  conversations: z.array(ConversationSchema),
+  workbenches: z.array(WorkbenchSchema),
+  selectedId: z.string(),
+  operator: OperatorSnapshotSchema,
+  projects: z
+    .array(
+      DirectoryProjectSchema.omit({ device: true, inode: true }).extend({ available: z.boolean() }),
+    )
+    .default([]),
   selectedProjectId: id.optional(),
-  activity: z.array(ToolResultSchema), signals: z.array(AgentSessionSignalSchema),
+  activity: z.array(ToolResultSchema),
+  signals: z.array(AgentSessionSignalSchema),
   pendingTools: z.array(ToolStartSchema).default([]),
   /** Display-only names for host aliases; never sent as invocation identities. */
-  toolLabels: z.array(z.strictObject({ toolName: id, title: z.string(), origin: z.string() })).default([]),
+  toolLabels: z
+    .array(z.strictObject({ toolName: id, title: z.string(), origin: z.string() }))
+    .default([]),
   elicitations: z.array(ToolElicitationRequestSchema).default([]),
-  activeOperation: id.optional(), archiveBlockedConversationIds: z.array(id).default([]), controls: z.strictObject({ steer: z.boolean(), interrupt: z.boolean(), reviewerModes: z.array(AgentReviewerSchema).default(['human']) }),
-  plugins: z.array(z.strictObject({ id, status: z.enum(['ready', 'unavailable']), summary: z.string() })),
+  activeOperation: id.optional(),
+  archiveBlockedConversationIds: z.array(id).default([]),
+  controls: z.strictObject({
+    steer: z.boolean(),
+    interrupt: z.boolean(),
+    reviewerModes: z.array(AgentReviewerSchema).default(["human"]),
+  }),
+  plugins: z.array(
+    z.strictObject({ id, status: z.enum(["ready", "unavailable"]), summary: z.string() }),
+  ),
   notice: z.string(),
-  activeContext: z.string().default(''),
+  activeContext: z.string().default(""),
   views: z.array(RegisteredWorkbenchViewSchema).default([]),
 });
 export type DesktopSnapshot = z.infer<typeof DesktopSnapshotSchema>;
 export const ConversationSearchItemSchema = z.strictObject({
-  conversationId: id, title: z.string().max(120), projectId: id.optional(), projectName: z.string().max(120).optional(),
-  workbenchId: id, provider: z.enum(['synthetic', 'codex']), archived: z.boolean(), match: z.enum(['title', 'message']),
-  entryId: id.optional(), role: z.enum(['user', 'assistant']).optional(), snippet: z.string().max(240).optional(), position: z.tuple([z.number().int(), z.number().int()]).optional(),
+  conversationId: id,
+  title: z.string().max(120),
+  projectId: id.optional(),
+  projectName: z.string().max(120).optional(),
+  workbenchId: id,
+  provider: z.enum(["synthetic", "codex"]),
+  archived: z.boolean(),
+  match: z.enum(["title", "message"]),
+  entryId: id.optional(),
+  role: z.enum(["user", "assistant"]).optional(),
+  snippet: z.string().max(240).optional(),
+  position: z.tuple([z.number().int(), z.number().int()]).optional(),
 });
 export type ConversationSearchItem = z.infer<typeof ConversationSearchItemSchema>;
-export const ConversationSearchResultSchema = z.strictObject({ items: z.array(ConversationSearchItemSchema).max(25), cursor: id.optional(), hasMore: z.boolean() });
-export const DesktopStateUpdateSchema = z.strictObject({
-  kind: z.enum(['snapshot', 'patch']), token: z.string().min(1),
-  sections: z.record(z.string(), z.unknown()), removed: z.array(z.string()),
+export const ConversationSearchResultSchema = z.strictObject({
+  items: z.array(ConversationSearchItemSchema).max(25),
+  cursor: id.optional(),
+  hasMore: z.boolean(),
 });
-export const DesktopCommandSchema = z.discriminatedUnion('kind', [
-  z.strictObject({kind:z.literal('set_model'),conversationId:id,selection:AgentModelSelectionSchema.optional()}),
-  z.strictObject({ kind: z.literal('add_project'), directory: z.string().min(1).max(4096), name: z.string().min(1).max(120).optional() }),
-  z.strictObject({ kind: z.literal('select_project'), projectId: id }),
-  z.strictObject({ kind: z.literal('assign_project'), projectId: id, conversationId: id }),
-  z.strictObject({ kind: z.literal('create_conversation'), workbenchId: id, provider: z.enum(['synthetic', 'codex']) }),
-  z.strictObject({ kind: z.literal('select_conversation'), conversationId: id }),
-  z.strictObject({ kind: z.literal('rename_conversation'), conversationId: id, title: z.string().trim().min(1).max(120) }),
-  z.strictObject({ kind: z.literal('archive_conversation'), conversationId: id }),
-  z.strictObject({ kind: z.literal('set_conversation_pinned'), conversationId: id, pinned: z.boolean() }),
-  z.strictObject({ kind: z.literal('restore_conversation'), conversationId: id }),
-  z.strictObject({ kind: z.literal('set_reviewer'), conversationId: id, reviewer: AgentReviewerSchema }),
-  z.strictObject({ kind: z.literal('send'), conversationId: id, text: z.string().min(1).max(100000), attachmentKeys: z.array(id).max(16), contextArtifactIds: z.array(id).max(16), conversationContextIds: z.array(id).max(4).default([]), selections: z.array(DiscoverySelectionSchema).max(32).default([]), resourceSelections: z.array(z.strictObject({ entryId: id, resourceId: id })).max(16).default([]) }),
-  z.strictObject({ kind: z.literal('stop'), conversationId: id }),
-  z.strictObject({ kind: z.literal('operator'), conversationId: id, workbenchId: id, command: OperatorCommandSchema }),
-  z.strictObject({ kind: z.literal('approval'), conversationId: id, resolution: AgentApprovalResolutionSchema }),
-  z.strictObject({ kind: z.literal('input'), conversationId: id, resolution: AgentInputResolutionSchema }),
-  z.strictObject({ kind: z.literal('elicitation'), conversationId: id, requestId: id, result: ToolElicitationResultSchema }),
+export const DesktopStateUpdateSchema = z.strictObject({
+  kind: z.enum(["snapshot", "patch"]),
+  token: z.string().min(1),
+  sections: z.record(z.string(), z.unknown()),
+  removed: z.array(z.string()),
+});
+export const DesktopCommandSchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("set_model"),
+    conversationId: id,
+    selection: AgentModelSelectionSchema.optional(),
+  }),
+  z.strictObject({
+    kind: z.literal("add_project"),
+    directory: z.string().min(1).max(4096),
+    name: z.string().min(1).max(120).optional(),
+  }),
+  z.strictObject({ kind: z.literal("select_project"), projectId: id }),
+  z.strictObject({ kind: z.literal("assign_project"), projectId: id, conversationId: id }),
+  z.strictObject({
+    kind: z.literal("create_conversation"),
+    workbenchId: id,
+    provider: z.enum(["synthetic", "codex"]),
+  }),
+  z.strictObject({ kind: z.literal("select_conversation"), conversationId: id }),
+  z.strictObject({
+    kind: z.literal("rename_conversation"),
+    conversationId: id,
+    title: z.string().trim().min(1).max(120),
+  }),
+  z.strictObject({ kind: z.literal("archive_conversation"), conversationId: id }),
+  z.strictObject({
+    kind: z.literal("set_conversation_pinned"),
+    conversationId: id,
+    pinned: z.boolean(),
+  }),
+  z.strictObject({ kind: z.literal("restore_conversation"), conversationId: id }),
+  z.strictObject({
+    kind: z.literal("set_reviewer"),
+    conversationId: id,
+    reviewer: AgentReviewerSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("send"),
+    conversationId: id,
+    text: z.string().min(1).max(100000),
+    attachmentKeys: z.array(id).max(16),
+    contextArtifactIds: z.array(id).max(16),
+    conversationContextIds: z.array(id).max(4).default([]),
+    selections: z.array(DiscoverySelectionSchema).max(32).default([]),
+    resourceSelections: z
+      .array(z.strictObject({ entryId: id, resourceId: id }))
+      .max(16)
+      .default([]),
+  }),
+  z.strictObject({ kind: z.literal("stop"), conversationId: id }),
+  z.strictObject({
+    kind: z.literal("operator"),
+    conversationId: id,
+    workbenchId: id,
+    command: OperatorCommandSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("approval"),
+    conversationId: id,
+    resolution: AgentApprovalResolutionSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("input"),
+    conversationId: id,
+    resolution: AgentInputResolutionSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("elicitation"),
+    conversationId: id,
+    requestId: id,
+    result: ToolElicitationResultSchema,
+  }),
 ]);
 export type DesktopCommand = z.input<typeof DesktopCommandSchema>;
-export const ImportSchema = z.strictObject({ conversationId: id, name: z.string().max(256), mediaType: z.string().min(1).max(128) });
-export const ProjectSchema = z.strictObject({ version: z.literal(1), metadataRevision: z.number().int().nonnegative().default(0), conversations: z.array(ConversationSchema), selectedId: z.string(), assets: z.array(AssetSchema), projects: z.array(DirectoryProjectSchema).default([]), selectedProjectId: id.optional() });
+export const ImportSchema = z.strictObject({
+  conversationId: id,
+  name: z.string().max(256),
+  mediaType: z.string().min(1).max(128),
+});
+export const ProjectSchema = z.strictObject({
+  version: z.literal(1),
+  metadataRevision: z.number().int().nonnegative().default(0),
+  conversations: z.array(ConversationSchema),
+  selectedId: z.string(),
+  assets: z.array(AssetSchema),
+  projects: z.array(DirectoryProjectSchema).default([]),
+  selectedProjectId: id.optional(),
+});
 export const ConfigurationSchema = z.record(z.string(), JsonValueSchema);
 export const ViewTargetSchema = z.strictObject({ conversationId: id, viewId: id });
-export const ResourceReadSchema = z.strictObject({ conversationId: id, entryId: z.string().min(1).max(1024), resourceId: id });
+export const ResourceReadSchema = z.strictObject({
+  conversationId: id,
+  entryId: z.string().min(1).max(1024),
+  resourceId: id,
+});
 export const ResourceOpenSchema = ViewTargetSchema.extend({ uri: z.string().min(1).max(4096) });
-export const DesktopViewRequestSchema = ViewTargetSchema.extend({ request: CallToolRequestSchema.shape.params });
+export const DesktopViewRequestSchema = ViewTargetSchema.extend({
+  request: CallToolRequestSchema.shape.params,
+});
 // Internal authenticated callback envelope; the iframe uses upstream MCP Apps.
 export const DesktopViewInteractionSchema = ViewTargetSchema.extend({
   mountId: id,
   request: z.union([McpUiMessageRequestSchema, McpUiUpdateModelContextRequestSchema]),
 });
 // Internal authenticated parent lifecycle, not an MCP App method or plugin API.
-export const DesktopViewSessionSchema = z.discriminatedUnion('action', [
-  ViewTargetSchema.extend({ action: z.literal('open') }),
-  ViewTargetSchema.extend({ action: z.literal('close'), mountId: id }),
+export const DesktopViewSessionSchema = z.discriminatedUnion("action", [
+  ViewTargetSchema.extend({ action: z.literal("open") }),
+  ViewTargetSchema.extend({ action: z.literal("close"), mountId: id }),
 ]);

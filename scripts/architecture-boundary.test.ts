@@ -20,18 +20,33 @@ for (const [source, vendor, allowed] of [
       const directory = source.slice(0, source.lastIndexOf("/"));
       await mkdir(join(fixture, directory), { recursive: true });
       if (source.startsWith("packages/")) {
-        await writeFile(join(fixture, "packages/evaluation/braintrust-assessment/package.json"),
-          JSON.stringify({ drawloom: { role: "provider", runtime: "node" } }));
+        await writeFile(
+          join(fixture, "packages/evaluation/braintrust-assessment/package.json"),
+          JSON.stringify({ drawloom: { role: "provider", runtime: "node" } }),
+        );
         await mkdir(join(fixture, "packages/example/other"), { recursive: true });
-        await writeFile(join(fixture, "packages/example/other/package.json"),
-          JSON.stringify({ drawloom: { role: "provider", runtime: "node" } }));
+        await writeFile(
+          join(fixture, "packages/example/other/package.json"),
+          JSON.stringify({ drawloom: { role: "provider", runtime: "node" } }),
+        );
       }
       await writeFile(join(fixture, "tsconfig.json"), "{}");
       await writeFile(join(fixture, source), `import ${JSON.stringify(vendor)};`);
-      const result = Bun.spawnSync([join(repository, "node_modules/.bin/depcruise"),
-        "--config", join(repository, ".dependency-cruiser.mjs"), source], { cwd: fixture });
-      expect(result.exitCode, result.stdout.toString() + result.stderr.toString()).toBe(allowed ? 0 : 1);
-    } finally { await rm(fixture, { recursive: true, force: true }); }
+      const result = Bun.spawnSync(
+        [
+          join(repository, "node_modules/.bin/depcruise"),
+          "--config",
+          join(repository, ".dependency-cruiser.mjs"),
+          source,
+        ],
+        { cwd: fixture },
+      );
+      expect(result.exitCode, result.stdout.toString() + result.stderr.toString()).toBe(
+        allowed ? 0 : 1,
+      );
+    } finally {
+      await rm(fixture, { recursive: true, force: true });
+    }
   });
 }
 
@@ -62,9 +77,7 @@ for (const [role, target, forbidden] of [
         );
         await writeFile(
           join(location, "index.ts"),
-          name === "source"
-            ? `import ${JSON.stringify(target)};`
-            : "export const value=1;",
+          name === "source" ? `import ${JSON.stringify(target)};` : "export const value=1;",
         );
       }
       await writeFile(join(fixture, "tsconfig.json"), "{}");
@@ -77,10 +90,9 @@ for (const [role, target, forbidden] of [
         ],
         { cwd: fixture },
       );
-      expect(
-        result.exitCode,
-        result.stdout.toString() + result.stderr.toString(),
-      ).toBe(forbidden ? 1 : 0);
+      expect(result.exitCode, result.stdout.toString() + result.stderr.toString()).toBe(
+        forbidden ? 1 : 0,
+      );
     } finally {
       await rm(fixture, { recursive: true, force: true });
     }
@@ -99,11 +111,7 @@ for (const [label, source, forbidden] of [
   ["absolute outside import", "absolute", true],
   ["aliased outside import", 'import "outside-alias";', true],
   ["symlink outside checkout", 'import "./linked.ts";', true],
-  [
-    "type-only private import",
-    'import type { Patient } from "@repo/clinic";',
-    true,
-  ],
+  ["type-only private import", 'import type { Patient } from "@repo/clinic";', true],
   ["spike import", 'import "./spikes/proof.ts";', true],
 ] as const) {
   test(`architecture boundary: ${label}`, async () => {
@@ -138,25 +146,14 @@ for (const [label, source, forbidden] of [
       for (const name of ["@repo/installed", "public-example"]) {
         const location = join(checkout, "node_modules", name);
         await mkdir(location, { recursive: true });
-        await writeFile(
-          join(location, "package.json"),
-          JSON.stringify({ name, main: "index.js" }),
-        );
-        await writeFile(
-          join(location, "index.js"),
-          "export const example = 1;",
-        );
+        await writeFile(join(location, "package.json"), JSON.stringify({ name, main: "index.js" }));
+        await writeFile(join(location, "index.js"), "export const example = 1;");
       }
       await writeFile(join(checkout, "local.ts"), "export const example = 1;");
-      await writeFile(
-        join(checkout, "spikes/proof.ts"),
-        "export const example = 1;",
-      );
+      await writeFile(join(checkout, "spikes/proof.ts"), "export const example = 1;");
       await writeFile(
         join(checkout, "entry.ts"),
-        source === "absolute"
-          ? `import ${JSON.stringify(join(fixture, "outside.ts"))};`
-          : source,
+        source === "absolute" ? `import ${JSON.stringify(join(fixture, "outside.ts"))};` : source,
       );
       const result = Bun.spawnSync(
         [

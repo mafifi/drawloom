@@ -58,15 +58,29 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 @layer base {
-  * { @apply border-border; }
-  body { @apply bg-background text-foreground font-sans; -webkit-font-smoothing: antialiased; }
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    -webkit-font-smoothing: antialiased;
+  }
 }
 /* One shared density and weight for application chrome, including generated controls. */
 @layer components {
-  [data-slot="sidebar-group-label"] { color: var(--muted-foreground); font-size: var(--type-caption-size); font-weight: var(--weight-normal); }
+  [data-slot="sidebar-group-label"] {
+    color: var(--muted-foreground);
+    font-size: var(--type-caption-size);
+    font-weight: var(--weight-normal);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
   /* Upload-state shimmer uses conditional classes, not upstream's literal .shimmer selector. */
   [data-slot="attachment-title"] {
     animation: none !important;

@@ -1,15 +1,14 @@
 import { agentTasks } from "@drawloom/orchestration";
 import { parse, StepFailure, type TaskContext } from "@drawloom/orchestration";
 import type { createAgentBridge } from "./agent-bridge.js";
-import { LOCAL_EXECUTION_PAUSED } from './signals.js';
+import { LOCAL_EXECUTION_PAUSED } from "./signals.js";
 
 type Bridge = ReturnType<typeof createAgentBridge>;
 const cancellationSignals = new WeakMap<Bridge, WeakSet<AbortSignal>>();
 function certain<T extends { status: string }>(receipt: T): T {
   if (receipt.status === "unknown" || receipt.status === "submitting")
     throw new StepFailure("unknown", "Agent outcome is unresolved");
-  if (receipt.status === "denied")
-    throw new StepFailure("denied", "Agent rejected the operation");
+  if (receipt.status === "denied") throw new StepFailure("denied", "Agent rejected the operation");
   if (receipt.status === "failed" || receipt.status === "interrupted")
     throw new StepFailure("invalid", "Agent operation did not complete");
   return receipt;
@@ -42,7 +41,8 @@ export async function dispatchAgentTask(
   try {
     return await execute();
   } finally {
-    if (context.signal.aborted && context.signal.reason !== LOCAL_EXECUTION_PAUSED) await bridge.requestCancellation();
+    if (context.signal.aborted && context.signal.reason !== LOCAL_EXECUTION_PAUSED)
+      await bridge.requestCancellation();
   }
   async function execute(): Promise<unknown> {
     switch (task) {

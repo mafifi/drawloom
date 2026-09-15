@@ -3,7 +3,9 @@ import { KnownModelManifests } from "@drawloom/local-embeddings";
 import { ContextPreparationRequestSchema } from "@drawloom/context";
 
 /** Private host-to-sidecar boundary. Subject and destination are runtime-owned. */
-export const LocalPreparationSchema = ContextPreparationRequestSchema.extend({ requestId: z.string().uuid() });
+export const LocalPreparationSchema = ContextPreparationRequestSchema.extend({
+  requestId: z.string().uuid(),
+});
 export const LocalPreparationCancellationSchema = z.strictObject({ requestId: z.string().uuid() });
 export const LocalWarmupResultSchema = z.strictObject({ kind: z.enum(["ready", "unavailable"]) });
 
@@ -28,31 +30,72 @@ export const DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION: LocalKnowledgeConfiguration 
   maxAutomaticStartsPerDay: 6,
   maxAutomaticMillisecondsPerDay: 1_800_000,
 });
-export function parseStoredLocalKnowledgeConfiguration(value: unknown): LocalKnowledgeConfiguration {
-  if (value && typeof value === "object" && !Array.isArray(value) && (value as { embeddingModel?: unknown }).embeddingModel === "qwen3-embedding-0.6b-mlx") {
-    return LocalKnowledgeConfigurationSchema.parse({ ...(value as Record<string, unknown>), embeddingModel: "qwen3-embedding-0.6b-gguf" });
+export function parseStoredLocalKnowledgeConfiguration(
+  value: unknown,
+): LocalKnowledgeConfiguration {
+  if (
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    (value as { embeddingModel?: unknown }).embeddingModel === "qwen3-embedding-0.6b-mlx"
+  ) {
+    return LocalKnowledgeConfigurationSchema.parse({
+      ...(value as Record<string, unknown>),
+      embeddingModel: "qwen3-embedding-0.6b-gguf",
+    });
   }
   return LocalKnowledgeConfigurationSchema.parse(value);
 }
-const ModelStateSchema = z.enum(["missing", "installing_runtime", "downloading", "verifying", "cancelled", "ready", "failed"]);
+const ModelStateSchema = z.enum([
+  "missing",
+  "installing_runtime",
+  "downloading",
+  "verifying",
+  "cancelled",
+  "ready",
+  "failed",
+]);
 export const LocalKnowledgeStatusSchema = z.strictObject({
   availability: z.enum(["ready", "unavailable", "failed"]),
   message: z.string().max(1024),
   configuration: LocalKnowledgeConfigurationSchema,
-  models: z.array(z.strictObject({
-    id: z.literal("qwen3-embedding-0.6b-gguf"),
-    title: z.string().max(128), licence: z.string().max(512), source: z.string().max(512),
-    modelDirectory: z.string().max(4096), runtimeDirectory: z.string().max(4096),
-    prerequisites: z.string().max(512), runtime: z.strictObject({ package: z.string(), version: z.string(), licence: z.string() }),
-    weightsBytes: z.number().int().nonnegative(), runtimeBytes: z.number().int().positive(), runtimeDownloadAvailable: z.boolean(),
-    state: ModelStateSchema, receivedBytes: z.number().int().nonnegative().optional(), expectedBytes: z.number().int().nonnegative().optional(), message: z.string().max(512).optional(),
-  })).length(Object.keys(KnownModelManifests).length),
+  models: z
+    .array(
+      z.strictObject({
+        id: z.literal("qwen3-embedding-0.6b-gguf"),
+        title: z.string().max(128),
+        licence: z.string().max(512),
+        source: z.string().max(512),
+        modelDirectory: z.string().max(4096),
+        runtimeDirectory: z.string().max(4096),
+        prerequisites: z.string().max(512),
+        runtime: z.strictObject({ package: z.string(), version: z.string(), licence: z.string() }),
+        weightsBytes: z.number().int().nonnegative(),
+        runtimeBytes: z.number().int().positive(),
+        runtimeDownloadAvailable: z.boolean(),
+        state: ModelStateSchema,
+        receivedBytes: z.number().int().nonnegative().optional(),
+        expectedBytes: z.number().int().nonnegative().optional(),
+        message: z.string().max(512).optional(),
+      }),
+    )
+    .length(Object.keys(KnownModelManifests).length),
   obsoleteRuntimePresent: z.boolean().optional(),
   indexing: z.enum(["unavailable", "pending", "indexing", "ready", "failed"]),
   maintenance: z.strictObject({
-    state: z.enum(["idle", "running", "paused", "unavailable", "uncertain", "failed", "budget_exhausted"]),
-    pendingUpdates: z.number().int().nonnegative(), message: z.string().max(1024),
-    automaticStartsToday: z.number().int().nonnegative(), automaticMillisecondsToday: z.number().int().nonnegative(),
+    state: z.enum([
+      "idle",
+      "running",
+      "paused",
+      "unavailable",
+      "uncertain",
+      "failed",
+      "budget_exhausted",
+    ]),
+    pendingUpdates: z.number().int().nonnegative(),
+    message: z.string().max(1024),
+    automaticStartsToday: z.number().int().nonnegative(),
+    automaticMillisecondsToday: z.number().int().nonnegative(),
   }),
 });
 export type LocalKnowledgeStatus = z.infer<typeof LocalKnowledgeStatusSchema>;

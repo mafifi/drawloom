@@ -4,21 +4,16 @@ import { join, resolve, dirname } from "node:path";
 import { discoverWorkspaceManifests } from "./dependency-policy.ts";
 
 const directory = await mkdtemp(join(tmpdir(), "drawloom-pack-"));
-const packages = await discoverWorkspaceManifests(process.cwd(), [
-  "packages/*/*",
-]);
+const packages = await discoverWorkspaceManifests(process.cwd(), ["packages/*/*"]);
 try {
   for (const workspace of packages) {
-    const archive = join(
-      directory,
-      workspace.manifest.name!.replaceAll("/", "-") + ".tgz",
-    );
-    const packed = Bun.spawnSync(
-      ["bun", "pm", "pack", "--filename", archive, "--quiet"],
-      { cwd: dirname(resolve(workspace.path)), stdout: "pipe", stderr: "pipe" },
-    );
-    if (packed.exitCode !== 0)
-      throw Error(`Package build failed: ${workspace.path}`);
+    const archive = join(directory, workspace.manifest.name!.replaceAll("/", "-") + ".tgz");
+    const packed = Bun.spawnSync(["bun", "pm", "pack", "--filename", archive, "--quiet"], {
+      cwd: dirname(resolve(workspace.path)),
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    if (packed.exitCode !== 0) throw Error(`Package build failed: ${workspace.path}`);
     const listing = Bun.spawnSync(["tar", "-tzf", archive], { stdout: "pipe" })
       .stdout.toString()
       .split("\n");
@@ -38,9 +33,7 @@ try {
         if (!listing.includes("package/" + entry.replace(/^\.\//, "")))
           throw Error(`Missing packed export: ${entry}`);
   }
-  console.log(
-    `Packed export and dependency checks: ${packages.length} packages passed`,
-  );
+  console.log(`Packed export and dependency checks: ${packages.length} packages passed`);
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

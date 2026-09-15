@@ -36,7 +36,7 @@ export function createSyntheticDriver(
         status: "ok",
         value: {
           sessionId: input.sessionId,
-          reviewerModes: Object.freeze(['human'] as const),
+          reviewerModes: Object.freeze(["human"] as const),
           signals() {
             if (attached) throw Error("Signal consumer already attached");
             attached = true;
@@ -69,16 +69,21 @@ export function createSyntheticDriver(
             )
               return reject("invalid_state");
             const operation = p.data;
-            if (operation.modelSelection) return reject('provider_rejected');
-            if (operation.selections?.length) return reject('provider_rejected');
-            if (operation.reviewer === 'delegated') return reject('provider_rejected');
+            if (operation.modelSelection) return reject("provider_rejected");
+            if (operation.selections?.length) return reject("provider_rejected");
+            if (operation.reviewer === "delegated") return reject("provider_rejected");
             active = operation.operationId;
             used.add(active);
             emit({ kind: "operation.started", operationId: active });
             void Promise.resolve()
               .then(() =>
                 respond(
-                  [operation.text, operation.referenceSignal?.aborted ? undefined : operation.references?.text].filter(Boolean).join("\n\n"),
+                  [
+                    operation.text,
+                    operation.referenceSignal?.aborted ? undefined : operation.references?.text,
+                  ]
+                    .filter(Boolean)
+                    .join("\n\n"),
                   [input.context.text, operation.additionalContext?.text]
                     .filter(Boolean)
                     .join("\n"),
@@ -123,8 +128,7 @@ export function createSyntheticDriver(
           },
           async close() {
             if (!closed) {
-              if (active)
-                emit({ kind: "operation.interrupted", operationId: active });
+              if (active) emit({ kind: "operation.interrupted", operationId: active });
               active = undefined;
               closed = true;
               wake?.();

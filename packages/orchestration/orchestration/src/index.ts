@@ -8,8 +8,9 @@ export const TaskExecutionLimitsSchema = z.strictObject({
   startToCloseTimeoutMs: z.number().int().min(1).max(MAX_TASK_TIMEOUT_MS),
 });
 export type TaskExecutionLimits = z.infer<typeof TaskExecutionLimitsSchema>;
-export const DEFAULT_TASK_EXECUTION_LIMITS: Readonly<TaskExecutionLimits> =
-  Object.freeze({ startToCloseTimeoutMs: 30_000 });
+export const DEFAULT_TASK_EXECUTION_LIMITS: Readonly<TaskExecutionLimits> = Object.freeze({
+  startToCloseTimeoutMs: 30_000,
+});
 export interface Definition<I, O> {
   id: string;
   version: string;
@@ -71,9 +72,7 @@ function duplicateIdentity(
 }
 /** Resolve the provider timeout for both current and legacy task declarations. */
 export function taskExecutionLimits(task: Task<unknown, unknown>): TaskExecutionLimits {
-  return TaskExecutionLimitsSchema.parse(
-    task.limits ?? DEFAULT_TASK_EXECUTION_LIMITS,
-  );
+  return TaskExecutionLimitsSchema.parse(task.limits ?? DEFAULT_TASK_EXECUTION_LIMITS);
 }
 /**
  * Validate a trusted portable workflow module without invoking workflow code.
@@ -107,9 +106,7 @@ export function defineWorkflowModule(value: unknown): Registry {
     const input = schema(field(candidate, "input"));
     const output = schema(field(candidate, "output"));
     const suppliedLimits = field(candidate, "limits");
-    const limits = TaskExecutionLimitsSchema.parse(
-      suppliedLimits ?? DEFAULT_TASK_EXECUTION_LIMITS,
-    );
+    const limits = TaskExecutionLimitsSchema.parse(suppliedLimits ?? DEFAULT_TASK_EXECUTION_LIMITS);
     return Object.freeze({
       ...identity,
       input,
@@ -128,9 +125,7 @@ export function defineWorkflowModule(value: unknown): Registry {
 export function parseWorkflowModule(value: unknown): Registry {
   return defineWorkflowModule(value);
 }
-export function registerWorkflow<I, O>(
-  workflow: Workflow<I, O>,
-): RegisteredWorkflow {
+export function registerWorkflow<I, O>(workflow: Workflow<I, O>): RegisteredWorkflow {
   // Providers validate the registered schema before invoking this erased wrapper.
   return {
     ...workflow,
@@ -155,10 +150,7 @@ export type TaskRecovery<O> =
  */
 export interface TaskHandler<I, O> {
   run(input: I, context: TaskContext): O | Promise<O>;
-  recover?(
-    input: I,
-    context: TaskContext,
-  ): TaskRecovery<O> | Promise<TaskRecovery<O>>;
+  recover?(input: I, context: TaskContext): TaskRecovery<O> | Promise<TaskRecovery<O>>;
 }
 export interface RegisteredTaskHandler {
   readonly id: string;
@@ -172,10 +164,7 @@ export interface RegisteredTaskHandler {
 export interface MatchedTaskHandler {
   readonly task: Task<unknown, unknown>;
   run(input: unknown, context: TaskContext): Promise<Json>;
-  recover?(
-    input: unknown,
-    context: TaskContext,
-  ): Promise<TaskRecovery<Json>>;
+  recover?(input: unknown, context: TaskContext): Promise<TaskRecovery<Json>>;
 }
 /** Preserve task input/output inference while erasing only at trusted registration. */
 export function registerTaskHandler<I, O>(
@@ -192,8 +181,7 @@ export function registerTaskHandler<I, O>(
     ...(handler.recover === undefined
       ? {}
       : {
-          recover: (input: unknown, context: TaskContext) =>
-            handler.recover!(input as I, context),
+          recover: (input: unknown, context: TaskContext) => handler.recover!(input as I, context),
         }),
   });
 }
@@ -249,10 +237,7 @@ export function matchTaskHandlers(
           ? {}
           : {
               recover: async (input: unknown, context: TaskContext) =>
-                recoveryResult(
-                  task,
-                  await handler.recover!(parse(task.input, input), context),
-                ),
+                recoveryResult(task, await handler.recover!(parse(task.input, input), context)),
             }),
       });
     }),
@@ -261,12 +246,7 @@ export function matchTaskHandlers(
 export interface WorkflowContext {
   /** Shared limits: at most 100 children per run and 100 simultaneous input waits. */
   readonly runId: string;
-  task<I, O>(
-    step: string,
-    task: Task<I, O>,
-    input: I,
-    retry?: { maxAttempts: number },
-  ): Promise<O>;
+  task<I, O>(step: string, task: Task<I, O>, input: I, retry?: { maxAttempts: number }): Promise<O>;
   child<I, O>(step: string, workflow: Workflow<I, O>, input: I): Promise<O>;
   input<T>(step: string, schema: z.ZodType<T>): Promise<T>;
   sleep(step: string, milliseconds: number): Promise<void>;
@@ -296,11 +276,7 @@ export const RunSnapshotSchema = z.strictObject({
 });
 export type RunSnapshot = z.infer<typeof RunSnapshotSchema>;
 export interface Orchestrator {
-  start<I, O>(
-    identity: string,
-    workflow: Workflow<I, O>,
-    input: I,
-  ): Promise<string>;
+  start<I, O>(identity: string, workflow: Workflow<I, O>, input: I): Promise<string>;
   get(runId: string): Promise<RunSnapshot>;
   getSteps(
     runId: string,
@@ -322,10 +298,7 @@ export async function workflowResult<I, O>(
   options?: { signal?: AbortSignal },
 ): Promise<O> {
   const snapshot = await engine.get(runId);
-  if (
-    snapshot.workflow !== workflow.id ||
-    snapshot.version !== workflow.version
-  )
+  if (snapshot.workflow !== workflow.id || snapshot.version !== workflow.version)
     throw new Error("Workflow identity mismatch");
   return parse(workflow.output, await engine.result(runId, options));
 }

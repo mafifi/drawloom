@@ -26,8 +26,7 @@ test("cancellation after an effect waits for settlement and does not retry", asy
     nextInvocationId: () => "id",
   });
   expect(
-    (await gateway.invoke(gateway.bind("op"), "effect", "x", controller.signal))
-      .outcome,
+    (await gateway.invoke(gateway.bind("op"), "effect", "x", controller.signal)).outcome,
   ).toEqual({ status: "failed", code: "cancelled", execution: "completed" });
   expect(effects).toBe(1);
 });
@@ -62,18 +61,9 @@ test("custom renderer cannot mutate the canonical result and render failures pre
   });
   const binding = g.bind("op");
   expect(
-    (
-      await g.invoke(
-        binding,
-        "render",
-        "original",
-        new AbortController().signal,
-      )
-    ).outcome,
+    (await g.invoke(binding, "render", "original", new AbortController().signal)).outcome,
   ).toEqual({ status: "ok", value: { value: "original" }, text: "shown" });
-  expect(
-    (await g.invoke(binding, "bad", "x", new AbortController().signal)).outcome,
-  ).toEqual({
+  expect((await g.invoke(binding, "bad", "x", new AbortController().signal)).outcome).toEqual({
     status: "failed",
     code: "render_failed",
     execution: "completed",
@@ -142,13 +132,7 @@ test("annotation values supplied at authoring and gateway boundaries are validat
     output: z.string(),
     execute: (value: string) => value,
   };
-  for (const annotations of [
-    null,
-    false,
-    0,
-    { readOnlyHint: "yes" },
-    { unknownHint: true },
-  ]) {
+  for (const annotations of [null, false, 0, { readOnlyHint: "yes" }, { unknownHint: true }]) {
     expect(() =>
       defineTool({
         ...definition,
@@ -159,13 +143,7 @@ test("annotation values supplied at authoring and gateway boundaries are validat
   }
 
   const valid = defineTool(definition);
-  for (const annotations of [
-    null,
-    false,
-    0,
-    { readOnlyHint: "yes" },
-    { unknownHint: true },
-  ]) {
+  for (const annotations of [null, false, 0, { readOnlyHint: "yes" }, { unknownHint: true }]) {
     const manual = { ...valid, annotations } as unknown as ToolDefinition;
     expect(() =>
       createLocalToolGateway({

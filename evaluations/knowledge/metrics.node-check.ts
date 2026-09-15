@@ -5,8 +5,20 @@ import { scoreRetrieval, scoreRetrievalByCategory } from "./metrics.ts";
 test("scoreRetrieval counts exact evidence, complete chains, and irrelevant abstention", () => {
   const report = scoreRetrieval({
     questions: [
-      { id: "id", kind: "identifier", relevant: ["release-retry@r1"], requiredChain: [], abstain: false },
-      { id: "chain", kind: "chain", relevant: ["claim@r1"], requiredChain: ["claim@r1", "source@r1"], abstain: false },
+      {
+        id: "id",
+        kind: "identifier",
+        relevant: ["release-retry@r1"],
+        requiredChain: [],
+        abstain: false,
+      },
+      {
+        id: "chain",
+        kind: "chain",
+        relevant: ["claim@r1"],
+        requiredChain: ["claim@r1", "source@r1"],
+        abstain: false,
+      },
       { id: "none", kind: "irrelevant", relevant: [], requiredChain: [], abstain: true },
     ],
     retrieved: {
@@ -26,7 +38,15 @@ test("scoreRetrieval counts exact evidence, complete chains, and irrelevant abst
 
 test("scoreRetrieval does not credit a stale exact revision as relevant evidence", () => {
   const report = scoreRetrieval({
-    questions: [{ id: "revision", kind: "contradiction", relevant: ["ferry-rule@r2"], requiredChain: ["ferry-rule@r1", "ferry-rule@r2"], abstain: false }],
+    questions: [
+      {
+        id: "revision",
+        kind: "contradiction",
+        relevant: ["ferry-rule@r2"],
+        requiredChain: ["ferry-rule@r1", "ferry-rule@r2"],
+        abstain: false,
+      },
+    ],
     retrieved: { revision: ["ferry-rule@r1"] },
   });
 
@@ -41,8 +61,20 @@ test("scoreRetrieval does not credit a stale exact revision as relevant evidence
 test("scoreRetrievalByCategory keeps each held-out question kind separately auditable", () => {
   const report = scoreRetrievalByCategory({
     questions: [
-      { id: "semantic", kind: "semantic", relevant: ["policy@r1"], requiredChain: [], abstain: false },
-      { id: "identifier", kind: "identifier", relevant: ["ticket@r1"], requiredChain: [], abstain: false },
+      {
+        id: "semantic",
+        kind: "semantic",
+        relevant: ["policy@r1"],
+        requiredChain: [],
+        abstain: false,
+      },
+      {
+        id: "identifier",
+        kind: "identifier",
+        relevant: ["ticket@r1"],
+        requiredChain: [],
+        abstain: false,
+      },
       { id: "irrelevant", kind: "irrelevant", relevant: [], requiredChain: [], abstain: true },
     ],
     retrieved: {

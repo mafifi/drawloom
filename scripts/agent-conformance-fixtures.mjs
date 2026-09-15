@@ -2,10 +2,7 @@
 // Wire-specific test fixtures stay outside the exported contract suite.
 import { z } from "zod";
 import { createSyntheticDriver } from "@drawloom/synthetic-agent";
-import {
-  createCodexDriver,
-  createCodexToolBridge,
-} from "@drawloom/codex-agent";
+import { createCodexDriver, createCodexToolBridge } from "@drawloom/codex-agent";
 import { createLocalToolGateway } from "@drawloom/local-tools";
 import { defineTool } from "@drawloom/tools";
 /** @returns {import('@drawloom/agent/conformance').AgentConformanceFixture} */
@@ -32,8 +29,7 @@ export function syntheticAgentFixture() {
 }
 /** @returns {import('@drawloom/agent/conformance').AgentConformanceFixture} */
 export function codexAgentFixture() {
-  /** @type {(message:import('@drawloom/host').RpcMessage)=>void} */ let receive =
-    () => {};
+  /** @type {(message:import('@drawloom/host').RpcMessage)=>void} */ let receive = () => {};
   let turn = "";
   let turns = 0;
   let context = "";
@@ -45,8 +41,7 @@ export function codexAgentFixture() {
   let sequence = 0;
   let rpcId = 0;
   /** @type {unknown[]} */ const responses = [];
-  /** @type {Map<number,{kind:string,index:number}>} */ const callbacks =
-    new Map();
+  /** @type {Map<number,{kind:string,index:number}>} */ const callbacks = new Map();
   /** @type {Map<string,string>} */ const operations = new Map();
   const gateway = createLocalToolGateway({
     tools: [
@@ -73,7 +68,7 @@ export function codexAgentFixture() {
       if (method === "initialize") return { userAgent: "codex/0.153.4" };
       if (method === "thread/start" || method === "thread/resume") {
         context = String(p.developerInstructions);
-        return { thread: { id: "private-thread" }, approvalsReviewer: 'user' };
+        return { thread: { id: "private-thread" }, approvalsReviewer: "user" };
       }
       if (method === "turn/start") {
         reference = JSON.stringify(p.input);
@@ -81,7 +76,10 @@ export function codexAgentFixture() {
         turn = "private-turn-" + ++turns;
         return { turn: { id: turn } };
       }
-      if (method === "turn/steer") { steering = JSON.stringify(p); reference = JSON.stringify(p.input); }
+      if (method === "turn/steer") {
+        steering = JSON.stringify(p);
+        reference = JSON.stringify(p.input);
+      }
       if (method === "turn/interrupt") interruptions++;
       return {};
     },
@@ -127,8 +125,7 @@ export function codexAgentFixture() {
       operations.set(operation, providerTurn);
       bridge.publish(thread, providerTurn, gateway.bind(operation));
     },
-    onTurnFinished: (thread, providerTurn) =>
-      bridge.retire(thread, providerTurn),
+    onTurnFinished: (thread, providerTurn) => bridge.retire(thread, providerTurn),
   });
   return {
     driver,
@@ -243,9 +240,7 @@ export function codexAgentFixture() {
           .parse(raw);
         return {
           success: !result.isError,
-          ...(result._meta?.operationId
-            ? { operationId: result._meta.operationId }
-            : {}),
+          ...(result._meta?.operationId ? { operationId: result._meta.operationId } : {}),
         };
       },
     },

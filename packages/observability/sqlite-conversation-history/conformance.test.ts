@@ -9,7 +9,9 @@ test("SQLite implements the conversation history contract", async () => {
   expect(provider?.createSqliteConversationHistory).toBeFunction();
   const directory = mkdtempSync(join(tmpdir(), "drawloom-history-conformance-"));
   try {
-    await conversationHistoryConformance(() => provider!.createSqliteConversationHistory(join(directory, "history.db")));
+    await conversationHistoryConformance(() =>
+      provider!.createSqliteConversationHistory(join(directory, "history.db")),
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

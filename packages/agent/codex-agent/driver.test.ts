@@ -6,21 +6,72 @@ import { defineTool } from "@drawloom/tools";
 import { createLocalToolGateway } from "../../tools/local-tools/src/index.js";
 import { z } from "zod";
 import { codexAgentFixture } from "../../../scripts/agent-conformance-fixtures.mjs";
-test('explicit model selection applies to the same native thread and rejects unsupported effort',async()=>{
-  const f=recorded();const opened=await f.driver.openSession({sessionId:'models',context:{text:''},tools:{id:'none',tools:[]}});if(opened.status!=='ok')throw Error();
-  const s=opened.value;s.signals();
-  expect((await s.execute({operationId:'bad',text:'No call',modelSelection:{model:'small-model',effort:'high'}})).status).toBe('rejected');
-  expect(f.requests.filter(r=>r.method==='turn/start')).toHaveLength(0);
-  expect((await s.execute({operationId:'good',text:'One call',modelSelection:{model:'small-model',effort:'low'}})).status).toBe('ok');
-  expect(f.requests.find(r=>r.method==='turn/start')?.params).toMatchObject({threadId:'private-thread',model:'small-model',effort:'low'});
-  expect(f.requests.filter(r=>r.method==='thread/start')).toHaveLength(1);await s.close();
+test("explicit model selection applies to the same native thread and rejects unsupported effort", async () => {
+  const f = recorded();
+  const opened = await f.driver.openSession({
+    sessionId: "models",
+    context: { text: "" },
+    tools: { id: "none", tools: [] },
+  });
+  if (opened.status !== "ok") throw Error();
+  const s = opened.value;
+  s.signals();
+  expect(
+    (
+      await s.execute({
+        operationId: "bad",
+        text: "No call",
+        modelSelection: { model: "small-model", effort: "high" },
+      })
+    ).status,
+  ).toBe("rejected");
+  expect(f.requests.filter((r) => r.method === "turn/start")).toHaveLength(0);
+  expect(
+    (
+      await s.execute({
+        operationId: "good",
+        text: "One call",
+        modelSelection: { model: "small-model", effort: "low" },
+      })
+    ).status,
+  ).toBe("ok");
+  expect(f.requests.find((r) => r.method === "turn/start")?.params).toMatchObject({
+    threadId: "private-thread",
+    model: "small-model",
+    effort: "low",
+  });
+  expect(f.requests.filter((r) => r.method === "thread/start")).toHaveLength(1);
+  await s.close();
 });
-test('Codex bridge preserves standard returned media beside canonical typed output',async()=>{
-  const content=[{type:'resource_link' as const,uri:'reference://sample',name:'Sample'},{type:'image' as const,data:'AA==',mimeType:'image/png'}];
-  const gateway=createLocalToolGateway({tools:[defineTool({name:'rich',description:'Rich output',input:z.string(),output:z.string(),execute:value=>value,renderContent:()=>content})],policy:()=>true,evidence:{record:async()=>{}},nextInvocationId:()=> 'one'});
-  const bridge=createCodexToolBridge(gateway);bridge.publish('t','a',gateway.bind('a'));
-  const result=await bridge.call({callId:'c','x-codex-turn-metadata':{thread_id:'t',turn_id:'a'}},'rich','canonical',new AbortController().signal);
-  expect(result).toMatchObject({content,structuredContent:{value:'canonical'}});
+test("Codex bridge preserves standard returned media beside canonical typed output", async () => {
+  const content = [
+    { type: "resource_link" as const, uri: "reference://sample", name: "Sample" },
+    { type: "image" as const, data: "AA==", mimeType: "image/png" },
+  ];
+  const gateway = createLocalToolGateway({
+    tools: [
+      defineTool({
+        name: "rich",
+        description: "Rich output",
+        input: z.string(),
+        output: z.string(),
+        execute: (value) => value,
+        renderContent: () => content,
+      }),
+    ],
+    policy: () => true,
+    evidence: { record: async () => {} },
+    nextInvocationId: () => "one",
+  });
+  const bridge = createCodexToolBridge(gateway);
+  bridge.publish("t", "a", gateway.bind("a"));
+  const result = await bridge.call(
+    { callId: "c", "x-codex-turn-metadata": { thread_id: "t", turn_id: "a" } },
+    "rich",
+    "canonical",
+    new AbortController().signal,
+  );
+  expect(result).toMatchObject({ content, structuredContent: { value: "canonical" } });
 });
 test("native Other input accepts custom text and presents option descriptions", async () => {
   const f = recorded();
@@ -84,9 +135,9 @@ test("steering targets the active turn and concurrent interrupt waits for provid
     for await (const event of session.signals()) events.push(event);
   })();
   await session.execute({ operationId: "active", text: "work" });
-  expect(
-    await session.steer?.({ operationId: "stale", text: "wrong" }),
-  ).toMatchObject({ status: "rejected" });
+  expect(await session.steer?.({ operationId: "stale", text: "wrong" })).toMatchObject({
+    status: "rejected",
+  });
   expect(
     await session.steer?.({
       operationId: "active",
@@ -94,9 +145,7 @@ test("steering targets the active turn and concurrent interrupt waits for provid
       additionalContext: { text: "fresh" },
     }),
   ).toMatchObject({ status: "ok" });
-  expect(
-    f.requests.find((r) => r.method === "turn/steer")?.params,
-  ).toMatchObject({
+  expect(f.requests.find((r) => r.method === "turn/steer")?.params).toMatchObject({
     expectedTurnId: "private-turn",
     additionalContext: { drawloom: { kind: "application", value: "fresh" } },
   });
@@ -104,9 +153,7 @@ test("steering targets the active turn and concurrent interrupt waits for provid
   const second = session.interrupt?.("active");
   expect(first).toBe(second);
   await first;
-  expect(f.requests.filter((r) => r.method === "turn/interrupt")).toHaveLength(
-    1,
-  );
+  expect(f.requests.filter((r) => r.method === "turn/interrupt")).toHaveLength(1);
   expect(events).toHaveLength(1);
   f.emit({
     method: "turn/completed",
@@ -116,9 +163,7 @@ test("steering targets the active turn and concurrent interrupt waits for provid
     },
   });
   await session.interrupt?.("active");
-  expect(f.requests.filter((r) => r.method === "turn/interrupt")).toHaveLength(
-    1,
-  );
+  expect(f.requests.filter((r) => r.method === "turn/interrupt")).toHaveLength(1);
   await session.close();
   await drain;
   expect(events.at(-1)).toEqual({
@@ -129,54 +174,113 @@ test("steering targets the active turn and concurrent interrupt waits for provid
 
 test("fresh exclusive operation reports the latest cumulative turn usage once", async () => {
   const f = recorded();
-  const opened = await f.driver.openSession({ sessionId: "fresh-usage", context: { text: "" }, tools: { id: "none", tools: [] } });
+  const opened = await f.driver.openSession({
+    sessionId: "fresh-usage",
+    context: { text: "" },
+    tools: { id: "none", tools: [] },
+  });
   if (opened.status !== "ok") throw Error("open");
   const session = opened.value;
   const events: unknown[] = [];
-  const drain = (async () => { for await (const event of session.signals()) events.push(event); })();
+  const drain = (async () => {
+    for await (const event of session.signals()) events.push(event);
+  })();
   await session.execute({ operationId: "usage-operation", text: "work" });
-  const usage = (inputTokens: number, cachedInputTokens: number, outputTokens: number, reasoningOutputTokens: number, totalTokens: number) => ({
-    threadId: "private-thread", turnId: "private-turn",
-    tokenUsage: { total: { inputTokens, cachedInputTokens, cacheWriteInputTokens: 0, outputTokens, reasoningOutputTokens, totalTokens }, last: { inputTokens, cachedInputTokens, cacheWriteInputTokens: 0, outputTokens, reasoningOutputTokens, totalTokens }, modelContextWindow: 200000 },
+  const usage = (
+    inputTokens: number,
+    cachedInputTokens: number,
+    outputTokens: number,
+    reasoningOutputTokens: number,
+    totalTokens: number,
+  ) => ({
+    threadId: "private-thread",
+    turnId: "private-turn",
+    tokenUsage: {
+      total: {
+        inputTokens,
+        cachedInputTokens,
+        cacheWriteInputTokens: 0,
+        outputTokens,
+        reasoningOutputTokens,
+        totalTokens,
+      },
+      last: {
+        inputTokens,
+        cachedInputTokens,
+        cacheWriteInputTokens: 0,
+        outputTokens,
+        reasoningOutputTokens,
+        totalTokens,
+      },
+      modelContextWindow: 200000,
+    },
   });
   f.emit({ method: "thread/tokenUsage/updated", params: usage(100, 40, 20, 5, 120) });
   f.emit({ method: "thread/tokenUsage/updated", params: usage(250, 100, 50, 10, 300) });
   f.emit({ method: "thread/tokenUsage/updated", params: usage(250, 100, 50, 10, 300) });
   await f.complete();
-  await session.close(); await drain;
-  expect(events.find((event) => (event as { kind?: string }).kind === "operation.completed")).toEqual({
-    kind: "operation.completed", operationId: "usage-operation",
-    usage: { inputTokens: 250, cachedInputTokens: 100, outputTokens: 50, reasoningTokens: 10, totalTokens: 300 },
+  await session.close();
+  await drain;
+  expect(
+    events.find((event) => (event as { kind?: string }).kind === "operation.completed"),
+  ).toEqual({
+    kind: "operation.completed",
+    operationId: "usage-operation",
+    usage: {
+      inputTokens: 250,
+      cachedInputTokens: 100,
+      outputTokens: 50,
+      reasoningTokens: 10,
+      totalTokens: 300,
+    },
   });
 });
 
 test("opt-in dedicated fresh session archives only after terminal settlement", async () => {
   const f = recorded({ archiveOnClose: true });
-  const opened = await f.driver.openSession({ sessionId: "managed-judge", context: { text: "" }, tools: { id: "none", tools: [] } });
+  const opened = await f.driver.openSession({
+    sessionId: "managed-judge",
+    context: { text: "" },
+    tools: { id: "none", tools: [] },
+  });
   if (opened.status !== "ok") throw Error("open");
-  const session = opened.value; session.signals();
+  const session = opened.value;
+  session.signals();
   await session.execute({ operationId: "judge", text: "Do not use tools" });
   await f.complete();
   expect(await session.close()).toMatchObject({ status: "ok" });
-  expect(f.requests.filter((request) => request.method === "thread/archive")).toEqual([{ method: "thread/archive", params: { threadId: "private-thread" } }]);
+  expect(f.requests.filter((request) => request.method === "thread/archive")).toEqual([
+    { method: "thread/archive", params: { threadId: "private-thread" } },
+  ]);
 
   const uncertain = recorded({ archiveOnClose: true });
-  const second = await uncertain.driver.openSession({ sessionId: "managed-judge-uncertain", context: { text: "" }, tools: { id: "none", tools: [] } });
+  const second = await uncertain.driver.openSession({
+    sessionId: "managed-judge-uncertain",
+    context: { text: "" },
+    tools: { id: "none", tools: [] },
+  });
   if (second.status !== "ok") throw Error("open");
-  second.value.signals(); await second.value.execute({ operationId: "judge", text: "work" });
+  second.value.signals();
+  await second.value.execute({ operationId: "judge", text: "work" });
   await second.value.close();
   expect(uncertain.requests.some((request) => request.method === "thread/archive")).toBeFalse();
 });
 test("opt-in dedicated fresh session archives after exact native failure or interruption settlement", async () => {
   for (const status of ["failed", "interrupted"] as const) {
     const fixture = recorded({ archiveOnClose: true });
-    const opened = await fixture.driver.openSession({ sessionId: `managed-judge-${status}`, context: { text: "" }, tools: { id: "none", tools: [] } });
+    const opened = await fixture.driver.openSession({
+      sessionId: `managed-judge-${status}`,
+      context: { text: "" },
+      tools: { id: "none", tools: [] },
+    });
     if (opened.status !== "ok") throw Error("open");
     opened.value.signals();
     await opened.value.execute({ operationId: "judge", text: "Do not use tools" });
     await fixture.complete(status);
     expect(await opened.value.close()).toMatchObject({ status: "ok" });
-    expect(fixture.requests.filter((request) => request.method === "thread/archive")).toEqual([{ method: "thread/archive", params: { threadId: "private-thread" } }]);
+    expect(fixture.requests.filter((request) => request.method === "thread/archive")).toEqual([
+      { method: "thread/archive", params: { threadId: "private-thread" } },
+    ]);
   }
 });
 test("provider message ordering and terminal cleanup reject stale interactions", async () => {
@@ -229,12 +333,12 @@ test("provider message ordering and terminal cleanup reject stale interactions",
     },
   });
   await f.complete();
-  expect(
-    await s.resolveApproval({ approvalId: "approval-2", optionId: "option-0" }),
-  ).toMatchObject({ status: "rejected" });
-  expect(
-    await s.respondToInput({ requestId: "input-3", action: "cancel" }),
-  ).toMatchObject({ status: "rejected" });
+  expect(await s.resolveApproval({ approvalId: "approval-2", optionId: "option-0" })).toMatchObject(
+    { status: "rejected" },
+  );
+  expect(await s.respondToInput({ requestId: "input-3", action: "cancel" })).toMatchObject({
+    status: "rejected",
+  });
   await s.close();
   await drain;
   expect(JSON.stringify(events)).not.toContain("private-item");
@@ -248,13 +352,39 @@ test("provider message ordering and terminal cleanup reject stale interactions",
 });
 test("native user completion uses the stable history identity", async () => {
   const f = recorded();
-  const opened = await f.driver.openSession({ sessionId: "user-history", context: { text: "" }, tools: { id: "none", tools: [] } });
+  const opened = await f.driver.openSession({
+    sessionId: "user-history",
+    context: { text: "" },
+    tools: { id: "none", tools: [] },
+  });
   if (opened.status !== "ok") throw Error();
   const iterator = opened.value.signals()[Symbol.asyncIterator]();
-  await opened.value.execute({ operationId: "operation-a", text: "question", attachments: [{ key: "imported", mediaType: "image/png", size: 7 }] });
+  await opened.value.execute({
+    operationId: "operation-a",
+    text: "question",
+    attachments: [{ key: "imported", mediaType: "image/png", size: 7 }],
+  });
   await iterator.next();
-  f.emit({ method: "item/completed", params: { threadId: "private-thread", turnId: "private-turn", item: { id: "native-user", type: "userMessage", content: [{ type: "text", text: "question" }] } } });
-  expect((await iterator.next()).value).toEqual({ kind: "message.completed", operationId: "operation-a", messageId: "message-68e26fb5bcec8902c508c9ee278907db6b7547ad22dbd85ae36f8ab97fe8c24f", role: "user", text: "question", assets: [{ key: "imported", mediaType: "image/png", size: 7 }] });
+  f.emit({
+    method: "item/completed",
+    params: {
+      threadId: "private-thread",
+      turnId: "private-turn",
+      item: {
+        id: "native-user",
+        type: "userMessage",
+        content: [{ type: "text", text: "question" }],
+      },
+    },
+  });
+  expect((await iterator.next()).value).toEqual({
+    kind: "message.completed",
+    operationId: "operation-a",
+    messageId: "message-68e26fb5bcec8902c508c9ee278907db6b7547ad22dbd85ae36f8ab97fe8c24f",
+    role: "user",
+    text: "question",
+    assets: [{ key: "imported", mediaType: "image/png", size: 7 }],
+  });
   await opened.value.close();
 });
 test("Codex rejects malformed negotiation before starting a thread", async () => {
@@ -324,9 +454,19 @@ export function recorded(options: { archiveOnClose?: boolean } = {}) {
     async request(method, params) {
       requests.push({ method, params });
       if (method === "initialize") return { userAgent: "codex/0.153.4" };
-      if (method === 'model/list') return {data:[{model:'small-model',displayName:'Small model',supportedReasoningEfforts:[{reasoningEffort:'low'}]}],nextCursor:null};
+      if (method === "model/list")
+        return {
+          data: [
+            {
+              model: "small-model",
+              displayName: "Small model",
+              supportedReasoningEfforts: [{ reasoningEffort: "low" }],
+            },
+          ],
+          nextCursor: null,
+        };
       if (method === "thread/start" || method === "thread/resume")
-        return { thread: { id: "private-thread" }, approvalsReviewer: 'user' };
+        return { thread: { id: "private-thread" }, approvalsReviewer: "user" };
       if (method === "turn/start") return { turn: { id: "private-turn" } };
       return {};
     },
@@ -346,7 +486,7 @@ export function recorded(options: { archiveOnClose?: boolean } = {}) {
   const values = new Map<string, JsonValue>();
   const driver = createCodexDriver({
     connect: async () => transport,
-    imageInput: async asset => `/confined/${asset.key}`,
+    imageInput: async (asset) => `/confined/${asset.key}`,
     store: {
       async get(k) {
         return values.get(k);
@@ -388,9 +528,14 @@ test("Codex preserves private continuity, fresh context, approval choices and in
   const s = o.value;
   const events: unknown[] = [];
   let receivedInput!: () => void;
-  const inputReady = new Promise<void>(resolve => { receivedInput = resolve; });
+  const inputReady = new Promise<void>((resolve) => {
+    receivedInput = resolve;
+  });
   const drain = (async () => {
-    for await (const e of s.signals()) { events.push(e); if (e.kind === 'input.requested') receivedInput(); }
+    for await (const e of s.signals()) {
+      events.push(e);
+      if (e.kind === "input.requested") receivedInput();
+    }
   })();
   await s.execute({
     operationId: "a",
@@ -428,10 +573,11 @@ test("Codex preserves private continuity, fresh context, approval choices and in
     },
   });
   await inputReady;
-  const parsedEvents = events as import('@drawloom/agent').AgentSessionSignal[];
-  const approval = parsedEvents.find(event => event.kind === 'approval.requested');
-  const elicitation = parsedEvents.find(event => event.kind === 'input.requested');
-  if (approval?.kind !== 'approval.requested' || elicitation?.kind !== 'input.requested') throw Error('Missing interactions');
+  const parsedEvents = events as import("@drawloom/agent").AgentSessionSignal[];
+  const approval = parsedEvents.find((event) => event.kind === "approval.requested");
+  const elicitation = parsedEvents.find((event) => event.kind === "input.requested");
+  if (approval?.kind !== "approval.requested" || elicitation?.kind !== "input.requested")
+    throw Error("Missing interactions");
   expect(
     await s.resolveApproval({ approvalId: approval.request.approvalId, optionId: "option-1" }),
   ).toMatchObject({ status: "ok" });
@@ -472,10 +618,10 @@ test("Codex preserves private continuity, fresh context, approval choices and in
     tools: { id: "none", tools: [] },
   });
   expect(f.requests.some((x) => x.method === "thread/resume")).toBe(true);
-  expect(f.requests.find((x) => x.method === "thread/resume")?.params).toMatchObject({ excludeTurns: true });
-  expect(
-    f.requests.find((x) => x.method === "turn/start")?.params,
-  ).toMatchObject({
+  expect(f.requests.find((x) => x.method === "thread/resume")?.params).toMatchObject({
+    excludeTurns: true,
+  });
+  expect(f.requests.find((x) => x.method === "turn/start")?.params).toMatchObject({
     additionalContext: {
       drawloom: { kind: "application", value: "fresh context" },
     },
@@ -533,12 +679,13 @@ test("Codex origin bridge cannot borrow a later operation binding", async () => 
     callId: "call",
     "x-codex-turn-metadata": { thread_id: "t", turn_id: turn },
   });
-  expect(
-    await bridge.call(meta("a"), "count", "x", new AbortController().signal),
-  ).toMatchObject({ isError: true });
+  expect(await bridge.call(meta("a"), "count", "x", new AbortController().signal)).toMatchObject({
+    isError: true,
+  });
   expect(count).toBe(0);
-  expect(
-    await bridge.call(meta("b"), "count", "x", new AbortController().signal),
-  ).toMatchObject({ isError: false, _meta: { operationId: "b" } });
+  expect(await bridge.call(meta("b"), "count", "x", new AbortController().signal)).toMatchObject({
+    isError: false,
+    _meta: { operationId: "b" },
+  });
   expect(count).toBe(1);
 });

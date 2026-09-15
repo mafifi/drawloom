@@ -1,5 +1,11 @@
-export type NavigationId = 'why' | 'process' | 'decisions' | 'journal' | 'github';
-export type DecisionStageId = 'principles' | 'questions' | 'investigations' | 'decisions' | 'evidence' | 'implementation';
+export type NavigationId = "why" | "process" | "decisions" | "journal" | "github";
+export type DecisionStageId =
+  | "principles"
+  | "questions"
+  | "investigations"
+  | "decisions"
+  | "evidence"
+  | "implementation";
 
 export interface ImagePresentation {
   src: string;
@@ -13,7 +19,7 @@ export interface HeaderPresentation {
   homeLabel: string;
   logo: ImagePresentation;
   navigationLabel: string;
-  navigation: ReadonlyArray<{id: NavigationId; label: string; emphasis?: boolean}>;
+  navigation: ReadonlyArray<{ id: NavigationId; label: string; emphasis?: boolean }>;
 }
 
 export interface HeroPresentation {
@@ -37,7 +43,7 @@ export interface DecisionStagePresentation {
   x: number;
   hitX: number;
   hitWidth: number;
-  textAnchor: 'start' | 'middle' | 'end';
+  textAnchor: "start" | "middle" | "end";
 }
 
 export interface DecisionMapPresentation {
@@ -85,7 +91,7 @@ export interface LandingPageActions {
   skipHref: string;
   homeHref: string;
   navigation: Readonly<Record<NavigationId, string>>;
-  hero: Readonly<{primaryHref: string; secondaryHref: string}>;
+  hero: Readonly<{ primaryHref: string; secondaryHref: string }>;
   decisionStages: Readonly<Record<DecisionStageId, string>>;
   openRepositoryHref: string;
   articleHref: string;

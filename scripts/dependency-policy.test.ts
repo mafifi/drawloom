@@ -51,11 +51,7 @@ const contract = (
 });
 
 describe("validateDependencyPolicy", () => {
-  test.each([
-    "@repo/clinic",
-    "@drawloom-workbenches/marketing",
-    "drawloom-workbenches",
-  ])(
+  test.each(["@repo/clinic", "@drawloom-workbenches/marketing", "drawloom-workbenches"])(
     "rejects known private dependency %s even from the root catalog",
     (dependency) => {
       const violations = validateDependencyPolicy(
@@ -259,9 +255,7 @@ describe("validateDependencyPolicy", () => {
   });
 
   test("rejects divergent versions for publishable packages", () => {
-    const violations = validateDependencyPolicy(root(), [
-      contract({ version: "0.1.0" }),
-    ]);
+    const violations = validateDependencyPolicy(root(), [contract({ version: "0.1.0" })]);
 
     expect(violations).toContainEqual(
       expect.objectContaining({
@@ -330,21 +324,14 @@ describe("discoverWorkspaceManifests", () => {
     const rootDirectory = await mkdtemp(join(tmpdir(), "drawloom-policy-"));
 
     try {
-      const packageDirectory = join(
-        rootDirectory,
-        "packages",
-        "example",
-        "contract",
-      );
+      const packageDirectory = join(rootDirectory, "packages", "example", "contract");
       await mkdir(packageDirectory, { recursive: true });
       await writeFile(
         join(packageDirectory, "package.json"),
         JSON.stringify({ name: "@drawloom/example" }),
       );
 
-      const manifests = await discoverWorkspaceManifests(rootDirectory, [
-        "packages/*/*",
-      ]);
+      const manifests = await discoverWorkspaceManifests(rootDirectory, ["packages/*/*"]);
 
       expect(manifests).toEqual([
         {

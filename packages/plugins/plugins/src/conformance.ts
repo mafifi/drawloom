@@ -1,10 +1,6 @@
 import { z } from "zod";
-export { packageInspectionConformance, type PackageFixture } from './package-conformance.js';
-import {
-  definePlugin,
-  type PluginInstaller,
-  type PluginRegistry,
-} from "./index.js";
+export { packageInspectionConformance, type PackageFixture } from "./package-conformance.js";
+import { definePlugin, type PluginInstaller, type PluginRegistry } from "./index.js";
 export async function pluginConformance(
   factory: (
     installs: readonly PluginInstaller[],
@@ -39,7 +35,14 @@ export async function pluginConformance(
             skills: ["inspect"],
           },
         ],
-        views: [{ id: 'text.view', workbenchId: 'text', title: 'Text view', entrypoint: 'ui://synthetic/text.html' }],
+        views: [
+          {
+            id: "text.view",
+            workbenchId: "text",
+            title: "Text view",
+            entrypoint: "ui://synthetic/text.html",
+          },
+        ],
       };
     },
   });
@@ -73,18 +76,67 @@ export async function pluginConformance(
   const registry = factory([{ plugin, config: { label: "Text" } }], ["agent"]);
   check(registry.skills[0]?.title === "Text", "parsed contribution");
   check(Object.isFrozen(registry.skills), "immutable registry");
-  check(registry.contributions?.some(c => c.kind === 'skill' && c.pluginId === 'synthetic' && c.contributionId === 'inspect'), 'skill ownership retained');
-  check(!JSON.stringify(registry.contributions).includes('Inspect the supplied text'), 'catalogue does not expose instructions');
-  check(registry.views?.[0]?.pluginId === 'synthetic', 'host derives view ownership');
-  check(Object.isFrozen(registry.views), 'immutable views');
-  const intruder = definePlugin({ id: 'intruder', version: '1.0.0', config: z.strictObject({}), contribute: () => ({ views: [{ id: 'intruder.view', workbenchId: 'text', title: 'Other', entrypoint: 'ui://intruder/view.html' }] }) });
+  check(
+    registry.contributions?.some(
+      (c) => c.kind === "skill" && c.pluginId === "synthetic" && c.contributionId === "inspect",
+    ),
+    "skill ownership retained",
+  );
+  check(
+    !JSON.stringify(registry.contributions).includes("Inspect the supplied text"),
+    "catalogue does not expose instructions",
+  );
+  check(registry.views?.[0]?.pluginId === "synthetic", "host derives view ownership");
+  check(Object.isFrozen(registry.views), "immutable views");
+  const intruder = definePlugin({
+    id: "intruder",
+    version: "1.0.0",
+    config: z.strictObject({}),
+    contribute: () => ({
+      views: [
+        {
+          id: "intruder.view",
+          workbenchId: "text",
+          title: "Other",
+          entrypoint: "ui://intruder/view.html",
+        },
+      ],
+    }),
+  });
   failed = false;
-  try { factory([{ plugin, config: { label: 'Text' } }, { plugin: intruder, config: {} }], ['agent']); } catch { failed = true; }
-  check(failed, 'view cannot claim another plugin workbench');
-  const multiple = definePlugin({ id: 'multiple', version: '1.0.0', config: z.strictObject({}), contribute: () => ({ workbenches: [{ id: 'multiple', title: 'Multiple', description: '', tools: [], skills: [] }], views: ['a', 'b'].map(id => ({ id, workbenchId: 'multiple', title: id, entrypoint: `ui://multiple/${id}.html` })) }) });
+  try {
+    factory(
+      [
+        { plugin, config: { label: "Text" } },
+        { plugin: intruder, config: {} },
+      ],
+      ["agent"],
+    );
+  } catch {
+    failed = true;
+  }
+  check(failed, "view cannot claim another plugin workbench");
+  const multiple = definePlugin({
+    id: "multiple",
+    version: "1.0.0",
+    config: z.strictObject({}),
+    contribute: () => ({
+      workbenches: [{ id: "multiple", title: "Multiple", description: "", tools: [], skills: [] }],
+      views: ["a", "b"].map((id) => ({
+        id,
+        workbenchId: "multiple",
+        title: id,
+        entrypoint: `ui://multiple/${id}.html`,
+      })),
+    }),
+  });
   failed = false;
-  try { factory([{ plugin: multiple, config: {} }], []); } catch { failed = true; }
-  check(failed, 'one view per workbench');
+  try {
+    factory([{ plugin: multiple, config: {} }], []);
+  } catch {
+    failed = true;
+  }
+  check(failed, "one view per workbench");
   const duplicate = definePlugin({
     id: "other",
     version: "1.0.0",

@@ -3,9 +3,27 @@
   "version": "0.0.0",
   "type": "module",
   "license": "Apache-2.0",
-  "engines": { "node": ">=22" },
-  "files": ["dist", "src"],
-  "exports": { ".": { "bun": "./src/index.ts", "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "drawloom": { "role": "provider", "runtime": "bun" },
-  "dependencies": { "@drawloom/conversation-history": "workspace:*", "@drawloom/host": "workspace:*", "zod": "catalog:" }
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    ".": {
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "drawloom": {
+    "role": "provider",
+    "runtime": "bun"
+  },
+  "dependencies": {
+    "@drawloom/conversation-history": "workspace:*",
+    "@drawloom/host": "workspace:*",
+    "zod": "catalog:"
+  }
 }

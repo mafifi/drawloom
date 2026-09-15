@@ -25,34 +25,46 @@ export async function finishDisposableCodexThread<T>(
   const bounded = async <V>(operation: Promise<V>): Promise<V> => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      return await Promise.race([operation, new Promise<V>((_, reject) => {
-        timer = setTimeout(() => reject(Error("Disposable thread cleanup timed out")), timeoutMs);
-      })]);
-    } finally { if (timer) clearTimeout(timer); }
+      return await Promise.race([
+        operation,
+        new Promise<V>((_, reject) => {
+          timer = setTimeout(() => reject(Error("Disposable thread cleanup timed out")), timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   };
   try {
     const opening = options.connect();
-    try { rpc = await bounded(opening); }
-    catch (cause) {
-      void opening.then(late => bounded(late.close())).catch(() => undefined);
+    try {
+      rpc = await bounded(opening);
+    } catch (cause) {
+      void opening.then((late) => bounded(late.close())).catch(() => undefined);
       throw cause;
     }
-    await bounded(rpc.request("initialize", {
-      clientInfo: { name: "drawloom-disposable-proof-cleanup", version: "0.0.0" },
-      capabilities: { experimentalApi: true },
-    }));
+    await bounded(
+      rpc.request("initialize", {
+        clientInfo: { name: "drawloom-disposable-proof-cleanup", version: "0.0.0" },
+        capabilities: { experimentalApi: true },
+      }),
+    );
     rpc.notify("initialized");
     await bounded(rpc.request("thread/archive", { threadId }));
   } catch (cause) {
     failure = cause instanceof Error ? cause.message : String(cause);
   } finally {
-    try { if (rpc) await bounded(rpc.close()); }
-    catch (cause) { failure ??= cause instanceof Error ? cause.message : String(cause); }
+    try {
+      if (rpc) await bounded(rpc.close());
+    } catch (cause) {
+      failure ??= cause instanceof Error ? cause.message : String(cause);
+    }
   }
   return {
     primary,
-    cleanup: failure === undefined
-      ? { kind: "archived", threadId }
-      : { kind: "failed", threadId, reason: failure },
+    cleanup:
+      failure === undefined
+        ? { kind: "archived", threadId }
+        : { kind: "failed", threadId, reason: failure },
   };
 }

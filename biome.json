@@ -1,0 +1,64 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**/*.{js,jsx,ts,tsx,mjs,cjs,json,jsonc,css}",
+      "!**/*.svelte",
+      "!**/*.astro",
+      "!**/dist/**",
+      "!**/fixtures/**",
+      "!**/generated/**",
+      "!**/.generated/**",
+      "!**/node_modules/**",
+      "!**/target/**",
+      "!.agents/**",
+      "!.superpowers/**",
+      "!docs/**",
+      "!knowledge/**",
+      "!LICENSES/**",
+      "!spikes/**",
+      "!evaluations/knowledge/corpus.ts",
+      "!evaluations/knowledge/*.json",
+      "!publishing/a-place-to-do-the-work/diagrams/**",
+      "!publishing/site/public/**"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": false
+  },
+  "assist": {
+    "enabled": false
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "html": {
+    "experimentalFullSupportEnabled": false,
+    "formatter": {
+      "enabled": false
+    }
+  }
+}

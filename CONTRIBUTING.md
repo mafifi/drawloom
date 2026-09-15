@@ -149,6 +149,26 @@ and the evidence linked from the relevant ADR. Preserve known limitations when
 reporting results, including the use of Temporal's local development server
 rather than a production deployment.
 
+### Format maintained source
+
+Biome formats the maintained JavaScript, TypeScript, JSON and CSS sources in
+the application, packages, evaluation runners, publishing application and
+repository scripts. Run `bun run format` to update that baseline and
+`bun run check:format` to verify it; the latter also runs in `check:ci`.
+
+The baseline deliberately excludes raw research and historical evidence under
+`docs/`, `knowledge/`, `spikes/` and `LICENSES/`; generated, vendored and fixture
+files; hash-bound evaluation corpora and result JSON; retained publishing diagram
+specifications; public artwork and licence text. Preserve those bytes through
+their owning evidence or generation workflow.
+
+Biome 2.5's full Svelte and Astro support is experimental. Testing against the
+repository's templates changed parsed text nodes and compiler output, including
+under strict whitespace sensitivity, so `.svelte` and `.astro` files are excluded
+in full rather than formatting only their embedded scripts. Continue to use the
+Svelte and Astro compiler checks for those files. Do not add or enable a second
+template formatter without maintainer approval and an equivalent content check.
+
 ## Keep research and documentation useful
 
 Update the documentation affected by your change and keep its links working.

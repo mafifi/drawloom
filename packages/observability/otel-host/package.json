@@ -3,10 +3,24 @@
   "version": "0.0.0",
   "type": "module",
   "license": "Apache-2.0",
-  "engines": { "node": ">=22" },
-  "files": ["dist", "src"],
-  "exports": { ".": { "bun": "./src/index.ts", "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "drawloom": { "role": "composition", "runtime": "node" },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    ".": {
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "drawloom": {
+    "role": "composition",
+    "runtime": "node"
+  },
   "dependencies": {
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/api-logs": "catalog:",

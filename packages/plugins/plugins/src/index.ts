@@ -1,9 +1,9 @@
 import { z } from "zod";
 import type { ToolDefinition } from "@drawloom/tools";
 import type { Workbench } from "@drawloom/workbench";
-export * from './package.js';
-import { PluginRequirementSchema, type PluginRequirement } from './requirements.js';
-export { PluginRequirementSchema, type PluginRequirement } from './requirements.js';
+export * from "./package.js";
+import { PluginRequirementSchema, type PluginRequirement } from "./requirements.js";
+export { PluginRequirementSchema, type PluginRequirement } from "./requirements.js";
 export const SkillSchema = z.strictObject({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -19,7 +19,9 @@ export const WorkbenchViewSchema = z.strictObject({
   entrypoint: z.string().regex(/^ui:\/\/[A-Za-z0-9._/-]+\.html$/),
 });
 export type WorkbenchView = z.infer<typeof WorkbenchViewSchema>;
-export const RegisteredWorkbenchViewSchema = WorkbenchViewSchema.extend({ pluginId: z.string().min(1) });
+export const RegisteredWorkbenchViewSchema = WorkbenchViewSchema.extend({
+  pluginId: z.string().min(1),
+});
 export type RegisteredWorkbenchView = z.infer<typeof RegisteredWorkbenchViewSchema>;
 export type PluginContributions = {
   tools?: readonly ToolDefinition[];
@@ -35,9 +37,12 @@ export type PluginDefinition = {
 };
 export type PluginInstaller = { plugin: PluginDefinition; config: unknown };
 export const RegisteredContributionSchema = z.strictObject({
-  id: z.string().min(1), pluginId: z.string().min(1),
-  kind: z.enum(['skill', 'tool', 'workbench', 'view']),
-  contributionId: z.string().min(1), title: z.string().min(1), description: z.string(),
+  id: z.string().min(1),
+  pluginId: z.string().min(1),
+  kind: z.enum(["skill", "tool", "workbench", "view"]),
+  contributionId: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string(),
 });
 export type RegisteredContribution = z.infer<typeof RegisteredContributionSchema>;
 export type PluginRegistry = {
@@ -61,9 +66,7 @@ export function definePlugin<C extends z.ZodType>(definition: {
     .regex(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/)
     .parse(definition.version);
   const requires = Object.freeze(
-    (definition.requires ?? []).map((r) =>
-      Object.freeze(PluginRequirementSchema.parse(r)),
-    ),
+    (definition.requires ?? []).map((r) => Object.freeze(PluginRequirementSchema.parse(r))),
   );
   return Object.freeze({
     id,

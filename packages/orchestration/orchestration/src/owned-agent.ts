@@ -83,8 +83,7 @@ export const agentTasks = {
 /** Authoring convenience only. Every effect uses a named serializable task. */
 export function ownedAgents(context: WorkflowContext) {
   return {
-    create: (step: string, name: string) =>
-      context.task(step, agentTasks.create, name),
+    create: (step: string, name: string) => context.task(step, agentTasks.create, name),
     submit: (step: string, input: z.infer<typeof agentTasks.submit.input>) =>
       context.task(step, agentTasks.submit, input),
     inspect: (step: string, input: z.infer<typeof operation>) =>
@@ -95,13 +94,9 @@ export function ownedAgents(context: WorkflowContext) {
       context.task(step, agentTasks.steer, input),
     interrupt: (step: string, input: z.infer<typeof operation>) =>
       context.task(step, agentTasks.interrupt, input),
-    resolveApproval: (
-      step: string,
-      input: z.infer<typeof agentTasks.resolveApproval.input>,
-    ) => context.task(step, agentTasks.resolveApproval, input),
-    respondToInput: (
-      step: string,
-      input: z.infer<typeof agentTasks.respondToInput.input>,
-    ) => context.task(step, agentTasks.respondToInput, input),
+    resolveApproval: (step: string, input: z.infer<typeof agentTasks.resolveApproval.input>) =>
+      context.task(step, agentTasks.resolveApproval, input),
+    respondToInput: (step: string, input: z.infer<typeof agentTasks.respondToInput.input>) =>
+      context.task(step, agentTasks.respondToInput, input),
   };
 }

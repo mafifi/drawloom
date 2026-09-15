@@ -8,7 +8,11 @@ const MAX_DEFINITION_BYTES = 4 * 1024 * 1024;
 const MAX_CHECKPOINT_BYTES = 2 * 1024 * 1024;
 const MAX_RESULT_VIEW_BYTES = 8 * 1024 * 1024;
 const encoder = new TextEncoder();
-export const EvaluationIdSchema = z.string().min(1).max(160).regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/);
+export const EvaluationIdSchema = z
+  .string()
+  .min(1)
+  .max(160)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._:/-]*$/);
 const identifier = EvaluationIdSchema;
 const revision = z.string().min(1).max(160);
 const timestamp = z.number().int().safe().nonnegative();
@@ -18,12 +22,17 @@ export const TrialIndexSchema = z.number().int().safe().nonnegative();
 export type TrialIndex = z.infer<typeof TrialIndexSchema>;
 
 function jsonBytes(value: unknown): number {
-  try { return encoder.encode(JSON.stringify(value)).byteLength; }
-  catch { return Number.POSITIVE_INFINITY; }
+  try {
+    return encoder.encode(JSON.stringify(value)).byteLength;
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
 }
 
 function boundedJson(maxBytes: number) {
-  return z.json().refine((value) => jsonBytes(value) <= maxBytes, { message: `JSON value exceeds ${maxBytes} bytes` });
+  return z.json().refine((value) => jsonBytes(value) <= maxBytes, {
+    message: `JSON value exceeds ${maxBytes} bytes`,
+  });
 }
 
 /** Portable JSON value capped at 256 KiB after UTF-8 serialization. */
@@ -42,26 +51,50 @@ export type VersionedReference = z.infer<typeof VersionedReferenceSchema>;
 export const EvidenceReferenceSchema = z.strictObject({
   id: identifier,
   source: z.string().min(1).max(256),
-  uri: z.string().min(1).max(4096).refine((value) => !/^data:/i.test(value), { message: "Embedded data is not an evidence reference" }),
+  uri: z
+    .string()
+    .min(1)
+    .max(4096)
+    .refine((value) => !/^data:/i.test(value), {
+      message: "Embedded data is not an evidence reference",
+    }),
   revision: z.string().min(1).max(256).optional(),
   mediaType: z.string().min(1).max(160).optional(),
-  sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  sha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/)
+    .optional(),
 });
 export type EvidenceReference = z.infer<typeof EvidenceReferenceSchema>;
 
-export const NormalizedUsageSchema = z.strictObject({
-  inputTokens: count.optional(),
-  cachedInputTokens: count.optional(),
-  outputTokens: count.optional(),
-  reasoningTokens: count.optional(),
-  totalTokens: count.optional(),
-  cost: z.strictObject({ amount: z.number().finite().nonnegative(), currency: z.string().regex(/^[A-Z]{3}$/) }).optional(),
-}).superRefine((value, context) => {
-  if (Object.values(value).every((item) => item === undefined)) context.addIssue({ code: "custom", message: "Usage must contain an observed value" });
-  if (value.cachedInputTokens !== undefined && value.inputTokens !== undefined && value.cachedInputTokens > value.inputTokens) {
-    context.addIssue({ code: "custom", message: "Cached input tokens cannot exceed input tokens" });
-  }
-});
+export const NormalizedUsageSchema = z
+  .strictObject({
+    inputTokens: count.optional(),
+    cachedInputTokens: count.optional(),
+    outputTokens: count.optional(),
+    reasoningTokens: count.optional(),
+    totalTokens: count.optional(),
+    cost: z
+      .strictObject({
+        amount: z.number().finite().nonnegative(),
+        currency: z.string().regex(/^[A-Z]{3}$/),
+      })
+      .optional(),
+  })
+  .superRefine((value, context) => {
+    if (Object.values(value).every((item) => item === undefined))
+      context.addIssue({ code: "custom", message: "Usage must contain an observed value" });
+    if (
+      value.cachedInputTokens !== undefined &&
+      value.inputTokens !== undefined &&
+      value.cachedInputTokens > value.inputTokens
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "Cached input tokens cannot exceed input tokens",
+      });
+    }
+  });
 export type NormalizedUsage = z.infer<typeof NormalizedUsageSchema>;
 
 export const EvaluationCaseSchema = z.strictObject({
@@ -95,21 +128,29 @@ const EvaluationDefinitionHeaderBaseSchema = z.strictObject({
   target: TargetDefinitionSchema.optional(),
   scorers: z.array(ScorerDefinitionSchema).min(1).max(32),
 });
-function definitionHeaderIssues(value: z.infer<typeof EvaluationDefinitionHeaderBaseSchema>): Array<{ path: Array<string | number>; message: string }> {
+function definitionHeaderIssues(
+  value: z.infer<typeof EvaluationDefinitionHeaderBaseSchema>,
+): Array<{ path: Array<string | number>; message: string }> {
   const issues: Array<{ path: Array<string | number>; message: string }> = [];
   const scorerKeys = new Set<string>();
   for (const [index, item] of value.scorers.entries()) {
     const key = `${item.id}\u0000${item.revision}`;
-    if (scorerKeys.has(key)) issues.push({ path: ["scorers", index], message: "Scorer identity is duplicated" });
+    if (scorerKeys.has(key))
+      issues.push({ path: ["scorers", index], message: "Scorer identity is duplicated" });
     scorerKeys.add(key);
   }
-  if (value.mode === "assess_existing" && value.target !== undefined) issues.push({ path: ["target"], message: "Existing-work assessment cannot select a target" });
-  if (value.mode === "experiment" && value.target === undefined) issues.push({ path: ["target"], message: "Experiment requires a target" });
+  if (value.mode === "assess_existing" && value.target !== undefined)
+    issues.push({ path: ["target"], message: "Existing-work assessment cannot select a target" });
+  if (value.mode === "experiment" && value.target === undefined)
+    issues.push({ path: ["target"], message: "Experiment requires a target" });
   return issues;
 }
-export const EvaluationDefinitionHeaderSchema = EvaluationDefinitionHeaderBaseSchema.superRefine((value, context) => {
-  for (const issue of definitionHeaderIssues(value)) context.addIssue({ code: "custom", ...issue });
-});
+export const EvaluationDefinitionHeaderSchema = EvaluationDefinitionHeaderBaseSchema.superRefine(
+  (value, context) => {
+    for (const issue of definitionHeaderIssues(value))
+      context.addIssue({ code: "custom", ...issue });
+  },
+);
 export type EvaluationDefinitionHeader = z.infer<typeof EvaluationDefinitionHeaderSchema>;
 
 export const EvaluationDefinitionSchema = EvaluationDefinitionHeaderBaseSchema.extend({
@@ -119,11 +160,22 @@ export const EvaluationDefinitionSchema = EvaluationDefinitionHeaderBaseSchema.e
   const caseKeys = new Set<string>();
   for (const [index, item] of value.cases.entries()) {
     const key = item.id;
-    if (caseKeys.has(key)) context.addIssue({ code: "custom", path: ["cases", index], message: "Case identity is duplicated" });
+    if (caseKeys.has(key))
+      context.addIssue({
+        code: "custom",
+        path: ["cases", index],
+        message: "Case identity is duplicated",
+      });
     caseKeys.add(key);
-    if (value.mode === "assess_existing" && item.suppliedOutput === undefined) context.addIssue({ code: "custom", path: ["cases", index, "suppliedOutput"], message: "Existing-work assessment requires supplied output" });
+    if (value.mode === "assess_existing" && item.suppliedOutput === undefined)
+      context.addIssue({
+        code: "custom",
+        path: ["cases", index, "suppliedOutput"],
+        message: "Existing-work assessment requires supplied output",
+      });
   }
-  if (jsonBytes(value) > MAX_DEFINITION_BYTES) context.addIssue({ code: "custom", message: "Definition exceeds 4 MiB" });
+  if (jsonBytes(value) > MAX_DEFINITION_BYTES)
+    context.addIssue({ code: "custom", message: "Definition exceeds 4 MiB" });
 });
 export type EvaluationDefinition = z.infer<typeof EvaluationDefinitionSchema>;
 
@@ -152,8 +204,16 @@ export type EvaluationStartRequest = z.input<typeof EvaluationStartRequestSchema
 export type MaterializedEvaluationStartRequest = z.output<typeof EvaluationStartRequestSchema>;
 
 export const EvaluationStartResultSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("started"), evaluationRunId: identifier, orchestrationRunId: z.string().min(1).max(512) }),
-  z.strictObject({ kind: z.literal("reconciled"), evaluationRunId: identifier, orchestrationRunId: z.string().min(1).max(512) }),
+  z.strictObject({
+    kind: z.literal("started"),
+    evaluationRunId: identifier,
+    orchestrationRunId: z.string().min(1).max(512),
+  }),
+  z.strictObject({
+    kind: z.literal("reconciled"),
+    evaluationRunId: identifier,
+    orchestrationRunId: z.string().min(1).max(512),
+  }),
   z.strictObject({ kind: z.literal("uncertain"), evaluationRunId: identifier }),
   z.strictObject({ kind: z.literal("unavailable"), reason: z.string().min(1).max(512) }),
 ]);
@@ -162,26 +222,59 @@ export type EvaluationStartResult = z.infer<typeof EvaluationStartResultSchema>;
 /** Host-reported ability to start new evaluation work; saved reads remain independent. */
 export const EvaluationReadinessSchema = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal("ready") }),
-  z.strictObject({ status: z.literal("unavailable"), reason: z.string().min(1).max(512).optional() }),
+  z.strictObject({
+    status: z.literal("unavailable"),
+    reason: z.string().min(1).max(512).optional(),
+  }),
 ]);
 export type EvaluationReadiness = z.infer<typeof EvaluationReadinessSchema>;
 
 export const EvaluationExecutionStatusSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("saved"), evaluationRunId: identifier }),
   z.strictObject({ kind: z.literal("start_uncertain"), evaluationRunId: identifier }),
-  z.strictObject({ kind: z.literal("running"), evaluationRunId: identifier, orchestrationRunId: z.string().min(1).max(512), cancellationRequested: z.boolean() }),
-  z.strictObject({ kind: z.enum(["completed", "failed", "cancelled"]), evaluationRunId: identifier, orchestrationRunId: z.string().min(1).max(512) }),
-  z.strictObject({ kind: z.literal("uncertain"), evaluationRunId: identifier, orchestrationRunId: z.string().min(1).max(512), unresolvedEffects: z.array(z.string().min(1).max(512)).min(1).max(100) }),
-  z.strictObject({ kind: z.literal("unavailable"), evaluationRunId: identifier, reason: z.string().min(1).max(512) }),
+  z.strictObject({
+    kind: z.literal("running"),
+    evaluationRunId: identifier,
+    orchestrationRunId: z.string().min(1).max(512),
+    cancellationRequested: z.boolean(),
+  }),
+  z.strictObject({
+    kind: z.enum(["completed", "failed", "cancelled"]),
+    evaluationRunId: identifier,
+    orchestrationRunId: z.string().min(1).max(512),
+  }),
+  z.strictObject({
+    kind: z.literal("uncertain"),
+    evaluationRunId: identifier,
+    orchestrationRunId: z.string().min(1).max(512),
+    unresolvedEffects: z.array(z.string().min(1).max(512)).min(1).max(100),
+  }),
+  z.strictObject({
+    kind: z.literal("unavailable"),
+    evaluationRunId: identifier,
+    reason: z.string().min(1).max(512),
+  }),
 ]);
 export type EvaluationExecutionStatus = z.infer<typeof EvaluationExecutionStatusSchema>;
 
 export const EvaluationCancelResultSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("requested"), evaluationRunId: identifier, orchestrationRunId: z.string().min(1).max(512) }),
-  z.strictObject({ kind: z.literal("terminal"), evaluationRunId: identifier, orchestrationRunId: z.string().min(1).max(512) }),
+  z.strictObject({
+    kind: z.literal("requested"),
+    evaluationRunId: identifier,
+    orchestrationRunId: z.string().min(1).max(512),
+  }),
+  z.strictObject({
+    kind: z.literal("terminal"),
+    evaluationRunId: identifier,
+    orchestrationRunId: z.string().min(1).max(512),
+  }),
   z.strictObject({ kind: z.literal("not_started"), evaluationRunId: identifier }),
   z.strictObject({ kind: z.literal("uncertain"), evaluationRunId: identifier }),
-  z.strictObject({ kind: z.literal("unavailable"), evaluationRunId: identifier, reason: z.string().min(1).max(512) }),
+  z.strictObject({
+    kind: z.literal("unavailable"),
+    evaluationRunId: identifier,
+    reason: z.string().min(1).max(512),
+  }),
 ]);
 export type EvaluationCancelResult = z.infer<typeof EvaluationCancelResultSchema>;
 
@@ -207,12 +300,23 @@ export const EvaluationErrorDetailSchema = z.strictObject({
 });
 export type EvaluationErrorDetail = z.infer<typeof EvaluationErrorDetailSchema>;
 
-export const InvocationOutcomeSchema = z.enum(["succeeded", "failed", "denied", "cancelled", "timed_out", "uncertain"]);
+export const InvocationOutcomeSchema = z.enum([
+  "succeeded",
+  "failed",
+  "denied",
+  "cancelled",
+  "timed_out",
+  "uncertain",
+]);
 export type InvocationOutcome = z.infer<typeof InvocationOutcomeSchema>;
-export const InvocationModelSchema = z.strictObject({
-  requested: z.string().min(1).max(256).optional(),
-  actual: z.string().min(1).max(256).optional(),
-}).refine((value) => value.requested !== undefined || value.actual !== undefined, { message: "Model observation cannot be empty" });
+export const InvocationModelSchema = z
+  .strictObject({
+    requested: z.string().min(1).max(256).optional(),
+    actual: z.string().min(1).max(256).optional(),
+  })
+  .refine((value) => value.requested !== undefined || value.actual !== undefined, {
+    message: "Model observation cannot be empty",
+  });
 export type InvocationModel = z.infer<typeof InvocationModelSchema>;
 
 const invocationIdentity = {
@@ -251,21 +355,44 @@ export interface EvaluationInvocationContext {
 }
 
 /** Expected material is deliberately absent from target arguments. */
-export interface EvaluationTarget<I extends EvaluationJson = EvaluationJson, O extends EvaluationJson = EvaluationJson> {
+export interface EvaluationTarget<
+  I extends EvaluationJson = EvaluationJson,
+  O extends EvaluationJson = EvaluationJson,
+> {
   readonly id: string;
   readonly revision: string;
   readonly input: z.ZodType<I>;
   readonly output: z.ZodType<O>;
-  invoke(args: { readonly input: I; readonly configuration?: EvaluationJson; readonly references: readonly EvidenceReference[] }, context: EvaluationInvocationContext): Promise<TargetInvocationResult>;
+  invoke(
+    args: {
+      readonly input: I;
+      readonly configuration?: EvaluationJson;
+      readonly references: readonly EvidenceReference[];
+    },
+    context: EvaluationInvocationContext,
+  ): Promise<TargetInvocationResult>;
 }
 
-export interface EvaluationScorer<I extends EvaluationJson = EvaluationJson, O extends EvaluationJson = EvaluationJson, E extends EvaluationJson = EvaluationJson> {
+export interface EvaluationScorer<
+  I extends EvaluationJson = EvaluationJson,
+  O extends EvaluationJson = EvaluationJson,
+  E extends EvaluationJson = EvaluationJson,
+> {
   readonly id: string;
   readonly revision: string;
   readonly input: z.ZodType<I>;
   readonly output: z.ZodType<O>;
   readonly expected?: z.ZodType<E>;
-  score(args: { readonly input: I; readonly output: O; readonly expected?: E; readonly configuration?: EvaluationJson; readonly references: readonly EvidenceReference[] }, context: EvaluationInvocationContext): Promise<ScorerInvocationResult>;
+  score(
+    args: {
+      readonly input: I;
+      readonly output: O;
+      readonly expected?: E;
+      readonly configuration?: EvaluationJson;
+      readonly references: readonly EvidenceReference[];
+    },
+    context: EvaluationInvocationContext,
+  ): Promise<ScorerInvocationResult>;
 }
 
 export interface EvaluationAssessmentProvider {
@@ -278,83 +405,145 @@ export interface EvaluationAssessmentProvider {
   ): Promise<ScorerInvocationResult>;
 }
 
-export const TargetCheckpointSchema = z.strictObject({
-  ...invocationIdentity,
-  target: VersionedReferenceSchema,
-  outcome: InvocationOutcomeSchema,
-  output: EvaluationJsonSchema.optional(),
-  error: EvaluationErrorDetailSchema.optional(),
-  references: z.array(EvidenceReferenceSchema).max(64).default([]),
-  usage: NormalizedUsageSchema.optional(),
-  model: InvocationModelSchema.optional(),
-  startedAtMs: timestamp,
-  completedAtMs: timestamp,
-}).superRefine((value, context) => {
-  if (value.completedAtMs < value.startedAtMs) context.addIssue({ code: "custom", path: ["completedAtMs"], message: "Target completion cannot precede start" });
-  if (jsonBytes(value) > MAX_CHECKPOINT_BYTES) context.addIssue({ code: "custom", message: "Target checkpoint exceeds 2 MiB" });
-});
+export const TargetCheckpointSchema = z
+  .strictObject({
+    ...invocationIdentity,
+    target: VersionedReferenceSchema,
+    outcome: InvocationOutcomeSchema,
+    output: EvaluationJsonSchema.optional(),
+    error: EvaluationErrorDetailSchema.optional(),
+    references: z.array(EvidenceReferenceSchema).max(64).default([]),
+    usage: NormalizedUsageSchema.optional(),
+    model: InvocationModelSchema.optional(),
+    startedAtMs: timestamp,
+    completedAtMs: timestamp,
+  })
+  .superRefine((value, context) => {
+    if (value.completedAtMs < value.startedAtMs)
+      context.addIssue({
+        code: "custom",
+        path: ["completedAtMs"],
+        message: "Target completion cannot precede start",
+      });
+    if (jsonBytes(value) > MAX_CHECKPOINT_BYTES)
+      context.addIssue({ code: "custom", message: "Target checkpoint exceeds 2 MiB" });
+  });
 export type TargetCheckpoint = z.infer<typeof TargetCheckpointSchema>;
 
-export const FindingSchema = z.strictObject({
-  id: identifier,
-  name: z.string().min(1).max(256),
-  outcome: z.enum(["scored", "unscored", "error"]),
-  score: z.number().finite().optional(),
-  explanation: z.string().max(8192).optional(),
-  error: EvaluationErrorDetailSchema.optional(),
-  references: z.array(EvidenceReferenceSchema).max(64).default([]),
-}).superRefine((value, context) => {
-  if (value.outcome === "scored" && value.score === undefined) context.addIssue({ code: "custom", path: ["score"], message: "Scored finding requires a score" });
-  if (value.outcome === "error" && value.error === undefined) context.addIssue({ code: "custom", path: ["error"], message: "Error finding requires error detail" });
-  if (value.outcome !== "scored" && value.score !== undefined) context.addIssue({ code: "custom", path: ["score"], message: "Only scored findings carry a score" });
-});
+export const FindingSchema = z
+  .strictObject({
+    id: identifier,
+    name: z.string().min(1).max(256),
+    outcome: z.enum(["scored", "unscored", "error"]),
+    score: z.number().finite().optional(),
+    explanation: z.string().max(8192).optional(),
+    error: EvaluationErrorDetailSchema.optional(),
+    references: z.array(EvidenceReferenceSchema).max(64).default([]),
+  })
+  .superRefine((value, context) => {
+    if (value.outcome === "scored" && value.score === undefined)
+      context.addIssue({
+        code: "custom",
+        path: ["score"],
+        message: "Scored finding requires a score",
+      });
+    if (value.outcome === "error" && value.error === undefined)
+      context.addIssue({
+        code: "custom",
+        path: ["error"],
+        message: "Error finding requires error detail",
+      });
+    if (value.outcome !== "scored" && value.score !== undefined)
+      context.addIssue({
+        code: "custom",
+        path: ["score"],
+        message: "Only scored findings carry a score",
+      });
+  });
 export type Finding = z.infer<typeof FindingSchema>;
 
-export const ScorerCheckpointSchema = z.strictObject({
-  ...invocationIdentity,
-  scorer: VersionedReferenceSchema,
-  outcome: InvocationOutcomeSchema,
-  findings: z.array(FindingSchema).max(100),
-  usage: NormalizedUsageSchema.optional(),
-  model: InvocationModelSchema.optional(),
-  startedAtMs: timestamp,
-  completedAtMs: timestamp,
-}).superRefine((value, context) => {
-  if (value.completedAtMs < value.startedAtMs) context.addIssue({ code: "custom", path: ["completedAtMs"], message: "Scorer completion cannot precede start" });
-  const ids = new Set<string>();
-  for (const [index, finding] of value.findings.entries()) {
-    if (ids.has(finding.id)) context.addIssue({ code: "custom", path: ["findings", index, "id"], message: "Finding identity is duplicated" });
-    ids.add(finding.id);
-  }
-  if (jsonBytes(value) > MAX_CHECKPOINT_BYTES) context.addIssue({ code: "custom", message: "Scorer checkpoint exceeds 2 MiB" });
-});
+export const ScorerCheckpointSchema = z
+  .strictObject({
+    ...invocationIdentity,
+    scorer: VersionedReferenceSchema,
+    outcome: InvocationOutcomeSchema,
+    findings: z.array(FindingSchema).max(100),
+    usage: NormalizedUsageSchema.optional(),
+    model: InvocationModelSchema.optional(),
+    startedAtMs: timestamp,
+    completedAtMs: timestamp,
+  })
+  .superRefine((value, context) => {
+    if (value.completedAtMs < value.startedAtMs)
+      context.addIssue({
+        code: "custom",
+        path: ["completedAtMs"],
+        message: "Scorer completion cannot precede start",
+      });
+    const ids = new Set<string>();
+    for (const [index, finding] of value.findings.entries()) {
+      if (ids.has(finding.id))
+        context.addIssue({
+          code: "custom",
+          path: ["findings", index, "id"],
+          message: "Finding identity is duplicated",
+        });
+      ids.add(finding.id);
+    }
+    if (jsonBytes(value) > MAX_CHECKPOINT_BYTES)
+      context.addIssue({ code: "custom", message: "Scorer checkpoint exceeds 2 MiB" });
+  });
 export type ScorerCheckpoint = z.infer<typeof ScorerCheckpointSchema>;
 
-export const EvaluationResultRecordSchema = z.strictObject({
-  schemaVersion: z.literal(EVALUATION_SCHEMA_VERSION),
-  id: identifier,
-  runId: identifier,
-  caseId: identifier,
-  caseRevision: revision,
-  trial: TrialIndexSchema,
-  status: z.enum(["completed", "unscored", "failed", "denied", "cancelled", "timed_out", "uncertain"]),
-  targetInvocationId: identifier.optional(),
-  scorerInvocationIds: z.array(identifier).max(32),
-  startedAtMs: timestamp,
-  completedAtMs: timestamp,
-}).superRefine((value, context) => {
-  if (value.completedAtMs < value.startedAtMs) context.addIssue({ code: "custom", path: ["completedAtMs"], message: "Result completion cannot precede start" });
-  const ids = new Set(value.scorerInvocationIds);
-  if (ids.size !== value.scorerInvocationIds.length) context.addIssue({ code: "custom", path: ["scorerInvocationIds"], message: "Scorer checkpoint identity is duplicated" });
-});
+export const EvaluationResultRecordSchema = z
+  .strictObject({
+    schemaVersion: z.literal(EVALUATION_SCHEMA_VERSION),
+    id: identifier,
+    runId: identifier,
+    caseId: identifier,
+    caseRevision: revision,
+    trial: TrialIndexSchema,
+    status: z.enum([
+      "completed",
+      "unscored",
+      "failed",
+      "denied",
+      "cancelled",
+      "timed_out",
+      "uncertain",
+    ]),
+    targetInvocationId: identifier.optional(),
+    scorerInvocationIds: z.array(identifier).max(32),
+    startedAtMs: timestamp,
+    completedAtMs: timestamp,
+  })
+  .superRefine((value, context) => {
+    if (value.completedAtMs < value.startedAtMs)
+      context.addIssue({
+        code: "custom",
+        path: ["completedAtMs"],
+        message: "Result completion cannot precede start",
+      });
+    const ids = new Set(value.scorerInvocationIds);
+    if (ids.size !== value.scorerInvocationIds.length)
+      context.addIssue({
+        code: "custom",
+        path: ["scorerInvocationIds"],
+        message: "Scorer checkpoint identity is duplicated",
+      });
+  });
 export type EvaluationResultRecord = z.infer<typeof EvaluationResultRecordSchema>;
 
-export const EvaluationResultViewSchema = z.strictObject({
-  result: EvaluationResultRecordSchema,
-  target: TargetCheckpointSchema.optional(),
-  scorers: z.array(ScorerCheckpointSchema).max(32),
-  findings: z.array(FindingSchema).max(3200),
-}).refine((value) => jsonBytes(value) <= MAX_RESULT_VIEW_BYTES, { message: "Result view exceeds 8 MiB" });
+export const EvaluationResultViewSchema = z
+  .strictObject({
+    result: EvaluationResultRecordSchema,
+    target: TargetCheckpointSchema.optional(),
+    scorers: z.array(ScorerCheckpointSchema).max(32),
+    findings: z.array(FindingSchema).max(3200),
+  })
+  .refine((value) => jsonBytes(value) <= MAX_RESULT_VIEW_BYTES, {
+    message: "Result view exceeds 8 MiB",
+  });
 export type EvaluationResultView = z.infer<typeof EvaluationResultViewSchema>;
 
 export const EvaluationFeedbackSchema = z.strictObject({
@@ -383,9 +572,13 @@ export const EvaluationPageOptionsSchema = z.strictObject({
 });
 export type EvaluationPageOptions = z.infer<typeof EvaluationPageOptionsSchema>;
 
-export const ResultPageOptionsSchema = EvaluationPageOptionsSchema.extend({ runId: identifier.optional() });
+export const ResultPageOptionsSchema = EvaluationPageOptionsSchema.extend({
+  runId: identifier.optional(),
+});
 export type ResultPageOptions = z.infer<typeof ResultPageOptionsSchema>;
-export const FeedbackPageOptionsSchema = EvaluationPageOptionsSchema.extend({ resultId: identifier.optional() });
+export const FeedbackPageOptionsSchema = EvaluationPageOptionsSchema.extend({
+  resultId: identifier.optional(),
+});
 export type FeedbackPageOptions = z.infer<typeof FeedbackPageOptionsSchema>;
 
 export const DefinitionSummarySchema = z.strictObject({
@@ -400,7 +593,11 @@ export const ResultSummarySchema = EvaluationResultRecordSchema.extend({ finding
 export type ResultSummary = z.infer<typeof ResultSummarySchema>;
 
 function pageSchema<T extends z.ZodType>(item: T) {
-  return z.strictObject({ items: z.array(item).max(200), cursor: z.string().min(1).max(8192).optional(), hasMore: z.boolean() });
+  return z.strictObject({
+    items: z.array(item).max(200),
+    cursor: z.string().min(1).max(8192).optional(),
+    hasMore: z.boolean(),
+  });
 }
 export const DefinitionPageSchema = pageSchema(DefinitionSummarySchema);
 export type DefinitionPage = z.infer<typeof DefinitionPageSchema>;
@@ -417,7 +614,15 @@ export const EvaluationWriteDispositionSchema = z.discriminatedUnion("kind", [
 ]);
 export type EvaluationWriteDisposition = z.infer<typeof EvaluationWriteDispositionSchema>;
 
-export const EvaluationStoreErrorCodeSchema = z.enum(["invalid_input", "invalid_cursor", "conflict", "not_found", "unavailable", "unsupported_version", "closed"]);
+export const EvaluationStoreErrorCodeSchema = z.enum([
+  "invalid_input",
+  "invalid_cursor",
+  "conflict",
+  "not_found",
+  "unavailable",
+  "unsupported_version",
+  "closed",
+]);
 export type EvaluationStoreErrorCode = z.infer<typeof EvaluationStoreErrorCodeSchema>;
 export class EvaluationStoreError extends Error {
   readonly code: EvaluationStoreErrorCode;
@@ -435,7 +640,9 @@ export interface EvaluationResultsReader {
   listDefinitions(options?: EvaluationPageOptions): Promise<DefinitionPage>;
   getRun(runId: string): Promise<EvaluationRun | undefined>;
   getStartAttempt(evaluationRunId: string): Promise<EvaluationStartAttempt | undefined>;
-  getOrchestrationBinding(evaluationRunId: string): Promise<EvaluationOrchestrationBinding | undefined>;
+  getOrchestrationBinding(
+    evaluationRunId: string,
+  ): Promise<EvaluationOrchestrationBinding | undefined>;
   listRuns(options?: EvaluationPageOptions): Promise<RunPage>;
   getTargetCheckpoint(selector: CheckpointSelector): Promise<TargetCheckpoint | undefined>;
   getScorerCheckpoint(selector: CheckpointSelector): Promise<ScorerCheckpoint | undefined>;
@@ -450,7 +657,9 @@ export interface EvaluationStore extends EvaluationResultsReader {
   saveDefinition(definition: EvaluationDefinition): Promise<EvaluationWriteDisposition>;
   saveRun(run: EvaluationRun): Promise<EvaluationWriteDisposition>;
   saveStartAttempt(attempt: EvaluationStartAttempt): Promise<EvaluationWriteDisposition>;
-  saveOrchestrationBinding(binding: EvaluationOrchestrationBinding): Promise<EvaluationWriteDisposition>;
+  saveOrchestrationBinding(
+    binding: EvaluationOrchestrationBinding,
+  ): Promise<EvaluationWriteDisposition>;
   saveTargetCheckpoint(checkpoint: TargetCheckpoint): Promise<EvaluationWriteDisposition>;
   saveScorerCheckpoint(checkpoint: ScorerCheckpoint): Promise<EvaluationWriteDisposition>;
   saveResult(result: EvaluationResultRecord): Promise<EvaluationWriteDisposition>;

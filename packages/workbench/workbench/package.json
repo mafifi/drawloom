@@ -11,7 +11,11 @@
     "src"
   ],
   "exports": {
-    "./conformance": { "bun": "./src/conformance.ts", "types": "./dist/conformance.d.ts", "import": "./dist/conformance.js" },
+    "./conformance": {
+      "bun": "./src/conformance.ts",
+      "types": "./dist/conformance.d.ts",
+      "import": "./dist/conformance.js"
+    },
     ".": {
       "bun": "./src/index.ts",
       "types": "./dist/index.d.ts",

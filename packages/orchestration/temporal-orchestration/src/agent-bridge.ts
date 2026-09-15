@@ -40,24 +40,14 @@ export function createAgentBridge(
   const openings = new Map<string, Promise<string>>();
   const cancellationRequests = new Map<string, Promise<void>>();
   const cancellationEffects = new Set<string>();
-  type Approval = Extract<
-    AgentSessionSignal,
-    { kind: "approval.requested" }
-  >["request"];
-  type Input = Extract<
-    AgentSessionSignal,
-    { kind: "input.requested" }
-  >["request"];
+  type Approval = Extract<AgentSessionSignal, { kind: "approval.requested" }>["request"];
+  type Input = Extract<AgentSessionSignal, { kind: "input.requested" }>["request"];
   const approvals = new Map<string, Map<string, Approval>>();
   const inputs = new Map<string, Map<string, Input>>();
-  const sessions = new Map<
-    string,
-    { session: AgentSession; active?: string; opening: boolean }
-  >();
+  const sessions = new Map<string, { session: AgentSession; active?: string; opening: boolean }>();
   const receipts = new Map<string, Receipt>();
   const waiters = new Map<string, (() => void)[]>();
-  const key = (session: string, operation: string) =>
-    JSON.stringify([owner, session, operation]);
+  const key = (session: string, operation: string) => JSON.stringify([owner, session, operation]);
   const owned = (id: string) => {
     const value = sessions.get(id);
     if (!value) throw new StepFailure("denied", "Not an owned open session");
@@ -78,14 +68,8 @@ export function createAgentBridge(
     for (const wake of waiters.get(id) ?? []) wake();
     waiters.delete(id);
   };
-  const inspect = async (
-    sessionId: string,
-    operationId: string,
-  ): Promise<Receipt> => {
-    if (
-      !sessions.has(sessionId) &&
-      !(await store.get(key(sessionId, "$session")))
-    )
+  const inspect = async (sessionId: string, operationId: string): Promise<Receipt> => {
+    if (!sessions.has(sessionId) && !(await store.get(key(sessionId, "$session"))))
       throw new StepFailure("denied", "Unknown owned session");
     const id = key(sessionId, operationId);
     const current = receipts.get(id);
@@ -93,8 +77,7 @@ export function createAgentBridge(
     const saved = await store.get(id);
     if (!saved) throw new StepFailure("invalid", "Unknown operation");
     const receipt = Receipt.parse(saved);
-    if (["running", "submitting"].includes(receipt.status))
-      receipt.status = "unknown";
+    if (["running", "submitting"].includes(receipt.status)) receipt.status = "unknown";
     receipts.set(id, receipt);
     return { ...receipt };
   };
@@ -103,22 +86,14 @@ export function createAgentBridge(
       const existing = openings.get(name);
       if (existing) return existing;
       const opening = Promise.resolve().then(async () => {
-        const sessionId = JSON.stringify([
-          owner,
-          z.string().min(1).parse(name),
-        ]);
+        const sessionId = JSON.stringify([owner, z.string().min(1).parse(name)]);
         if (sessions.has(sessionId)) return sessionId;
         const marker = await store.get(key(sessionId, "$session"));
         if (marker)
-          throw new StepFailure(
-            "unknown",
-            "Session already opened; AgentDriver cannot reattach",
-          );
+          throw new StepFailure("unknown", "Session already opened; AgentDriver cannot reattach");
         // Write intent first: failed/lost opens must never cause blind resubmission.
         await store.set(key(sessionId, "$session"), { status: "opening" });
-        const session = unwrap(
-          await driver.openSession({ ...authority, sessionId }),
-        );
+        const session = unwrap(await driver.openSession({ ...authority, sessionId }));
         const state = { session, opening: false } as {
           session: AgentSession;
           active?: string;
@@ -130,17 +105,12 @@ export function createAgentBridge(
         void (async () => {
           for await (const signal of session.signals()) {
             if (signal.kind === "approval.requested")
-              approvals
-                .get(sessionId)!
-                .set(signal.request.approvalId, signal.request);
+              approvals.get(sessionId)!.set(signal.request.approvalId, signal.request);
             if (signal.kind === "approval.resolved")
               approvals.get(sessionId)!.delete(signal.approvalId);
             if (signal.kind === "input.requested")
-              inputs
-                .get(sessionId)!
-                .set(signal.request.requestId, signal.request);
-            if (signal.kind === "input.resolved")
-              inputs.get(sessionId)!.delete(signal.requestId);
+              inputs.get(sessionId)!.set(signal.request.requestId, signal.request);
+            if (signal.kind === "input.resolved") inputs.get(sessionId)!.delete(signal.requestId);
             if (!("operationId" in signal)) continue;
             const id = key(sessionId, signal.operationId),
               receipt = receipts.get(id);
@@ -172,11 +142,8 @@ export function createAgentBridge(
     async submit(sessionId: string, input: AgentOperationInput) {
       const state = owned(sessionId),
         id = key(sessionId, input.operationId),
-        fingerprint = createHash("sha256")
-          .update(canonical(input))
-          .digest("hex");
-      if (state.opening)
-        throw new StepFailure("invalid", "Concurrent submission");
+        fingerprint = createHash("sha256").update(canonical(input)).digest("hex");
+      if (state.opening) throw new StepFailure("invalid", "Concurrent submission");
       state.opening = true;
       try {
         const previous = receipts.get(id) ?? (await store.get(id));
@@ -186,8 +153,7 @@ export function createAgentBridge(
             throw new StepFailure("invalid", "Conflicting operation");
           return inspect(sessionId, input.operationId);
         }
-        if (state.active)
-          throw new StepFailure("invalid", "Concurrent submission");
+        if (state.active) throw new StepFailure("invalid", "Concurrent submission");
         const receipt: Receipt = {
           sessionId,
           operationId: input.operationId,
@@ -199,17 +165,14 @@ export function createAgentBridge(
         try {
           unwrap(await state.session.execute(input));
           const latest = receipts.get(id)!;
-          if (latest.status === "submitting")
-            await save({ ...latest, status: "running" });
+          if (latest.status === "submitting") await save({ ...latest, status: "running" });
         } catch (error) {
           const latest = receipts.get(id)!;
           if (latest.status === "submitting" || latest.status === "running")
             await save({
               ...latest,
               status:
-                error instanceof StepFailure && error.code === "denied"
-                  ? "denied"
-                  : "unknown",
+                error instanceof StepFailure && error.code === "denied" ? "denied" : "unknown",
             });
           if (receipts.get(id)!.status === "denied") delete state.active;
         }
@@ -235,21 +198,18 @@ export function createAgentBridge(
           const list = waiters.get(id) ?? [];
           list.push(resolve);
           waiters.set(id, list);
-          if (!["running", "submitting"].includes(receipts.get(id)!.status))
-            resolve();
+          if (!["running", "submitting"].includes(receipts.get(id)!.status)) resolve();
         });
       }
     },
     async steer(sessionId: string, input: AgentOperationInput) {
       const session = owned(sessionId).session;
-      if (!session.steer)
-        throw new StepFailure("invalid", "Unsupported steering");
+      if (!session.steer) throw new StepFailure("invalid", "Unsupported steering");
       unwrap(await session.steer(input));
     },
     async interrupt(sessionId: string, operationId: string) {
       const session = owned(sessionId).session;
-      if (!session.interrupt)
-        throw new StepFailure("invalid", "Unsupported interruption");
+      if (!session.interrupt) throw new StepFailure("invalid", "Unsupported interruption");
       unwrap(await session.interrupt(operationId));
     },
     async resolveApproval(sessionId: string, input: AgentApprovalResolution) {
@@ -267,8 +227,7 @@ export function createAgentBridge(
         [...sessions.values()].map((state) => {
           const existing = cancellationRequests.get(state.session.sessionId);
           if (existing) return existing;
-          if (state.active)
-            cancellationEffects.add(key(state.session.sessionId, state.active));
+          if (state.active) cancellationEffects.add(key(state.session.sessionId, state.active));
           const request = (async () => {
             try {
               if (state.session.interrupt && state.active)

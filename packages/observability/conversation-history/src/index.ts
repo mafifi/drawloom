@@ -15,14 +15,22 @@ export const HistoryEntrySchema = z.strictObject({
   text: z.string(),
   assets: z.array(AssetSchema),
   resources: z.array(ResourceReferenceSchema).optional(),
-  selections: z.array(z.strictObject({ id: nonEmptyId, title: z.string(), source: nonEmptyId })).optional(),
+  selections: z
+    .array(z.strictObject({ id: nonEmptyId, title: z.string(), source: nonEmptyId }))
+    .optional(),
   preparation: ContextPreparationSummarySchema.optional(),
   operationId: nonEmptyId.optional(),
   state: z.enum(["partial", "complete", "interrupted"]),
 });
 export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
 
-export const HistorySyncStateSchema = z.enum(["idle", "syncing", "unavailable", "error", "unsupported"]);
+export const HistorySyncStateSchema = z.enum([
+  "idle",
+  "syncing",
+  "unavailable",
+  "error",
+  "unsupported",
+]);
 export type HistorySyncState = z.infer<typeof HistorySyncStateSchema>;
 export const ConversationHistoryStatusSchema = z.strictObject({
   revision,
@@ -32,9 +40,15 @@ export const ConversationHistoryStatusSchema = z.strictObject({
 });
 export type ConversationHistoryStatus = z.infer<typeof ConversationHistoryStatusSchema>;
 
-export const HistoryPageOptionsSchema = z.strictObject({ before: z.string().min(1).optional(), limit: z.number().int().min(1).max(200).optional() });
+export const HistoryPageOptionsSchema = z.strictObject({
+  before: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(200).optional(),
+});
 export type HistoryPageOptions = z.infer<typeof HistoryPageOptionsSchema>;
-export const HistoryChangeOptionsSchema = z.strictObject({ after: z.string().min(1).optional(), limit: z.number().int().min(1).max(200).optional() });
+export const HistoryChangeOptionsSchema = z.strictObject({
+  after: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(200).optional(),
+});
 export type HistoryChangeOptions = z.infer<typeof HistoryChangeOptionsSchema>;
 export const HistoryPageSchema = z.strictObject({
   entries: z.array(HistoryEntrySchema),
@@ -60,18 +74,52 @@ export const HistorySearchOptionsSchema = z.strictObject({
 });
 export type HistorySearchOptions = z.infer<typeof HistorySearchOptionsSchema>;
 export const HistorySearchResultSchema = z.strictObject({
-  items: z.array(z.strictObject({ conversationId: nonEmptyId, entryId: nonEmptyId, role: z.enum(['user', 'assistant']), snippet: z.string().max(240), position: HistoryPositionSchema })),
-  cursor: z.string().min(1).optional(), hasMore: z.boolean(),
+  items: z.array(
+    z.strictObject({
+      conversationId: nonEmptyId,
+      entryId: nonEmptyId,
+      role: z.enum(["user", "assistant"]),
+      snippet: z.string().max(240),
+      position: HistoryPositionSchema,
+    }),
+  ),
+  cursor: z.string().min(1).optional(),
+  hasMore: z.boolean(),
 });
 export type HistorySearchResult = z.infer<typeof HistorySearchResultSchema>;
-export const HistoryAroundOptionsSchema = z.strictObject({ entryId: nonEmptyId, before: z.number().int().min(0).max(199).optional(), after: z.number().int().min(0).max(199).optional() }).refine(value => (value.before ?? 25) + (value.after ?? 25) <= 199, 'An around window is limited to 200 entries');
+export const HistoryAroundOptionsSchema = z
+  .strictObject({
+    entryId: nonEmptyId,
+    before: z.number().int().min(0).max(199).optional(),
+    after: z.number().int().min(0).max(199).optional(),
+  })
+  .refine(
+    (value) => (value.before ?? 25) + (value.after ?? 25) <= 199,
+    "An around window is limited to 200 entries",
+  );
 export type HistoryAroundOptions = z.infer<typeof HistoryAroundOptionsSchema>;
-export const HistoryAroundResultSchema = z.strictObject({ entries: z.array(HistoryEntrySchema).max(200), anchorIndex: z.number().int().nonnegative(), olderCursor: z.string().min(1).optional(), hasOlder: z.boolean(), hasNewer: z.boolean(), changeCursor: z.string().min(1), status: ConversationHistoryStatusSchema });
+export const HistoryAroundResultSchema = z.strictObject({
+  entries: z.array(HistoryEntrySchema).max(200),
+  anchorIndex: z.number().int().nonnegative(),
+  olderCursor: z.string().min(1).optional(),
+  hasOlder: z.boolean(),
+  hasNewer: z.boolean(),
+  changeCursor: z.string().min(1),
+  status: ConversationHistoryStatusSchema,
+});
 export type HistoryAroundResult = z.infer<typeof HistoryAroundResultSchema>;
 
-export const HistoryCheckpointUpdateSchema = z.strictObject({ namespace: nonEmptyId, key: nonEmptyId, value: z.json() });
+export const HistoryCheckpointUpdateSchema = z.strictObject({
+  namespace: nonEmptyId,
+  key: nonEmptyId,
+  value: z.json(),
+});
 export type HistoryCheckpointUpdate = z.infer<typeof HistoryCheckpointUpdateSchema>;
-export const HistorySyncUpdateSchema = z.strictObject({ sync: HistorySyncStateSchema, hasOlder: z.boolean().optional(), message: z.string().max(512).optional() });
+export const HistorySyncUpdateSchema = z.strictObject({
+  sync: HistorySyncStateSchema,
+  hasOlder: z.boolean().optional(),
+  message: z.string().max(512).optional(),
+});
 export type HistorySyncUpdate = z.infer<typeof HistorySyncUpdateSchema>;
 export const HistoryCommitInputSchema = z.strictObject({
   expectedRevision: revision,
@@ -81,7 +129,13 @@ export const HistoryCommitInputSchema = z.strictObject({
 });
 export type HistoryCommitInput = z.infer<typeof HistoryCommitInputSchema>;
 
-export const HistoryStoreErrorCodeSchema = z.enum(["invalid_input", "invalid_cursor", "conflict", "unavailable", "unsupported_version"]);
+export const HistoryStoreErrorCodeSchema = z.enum([
+  "invalid_input",
+  "invalid_cursor",
+  "conflict",
+  "unavailable",
+  "unsupported_version",
+]);
 export type HistoryStoreErrorCode = z.infer<typeof HistoryStoreErrorCodeSchema>;
 export class HistoryStoreError extends Error {
   readonly code: HistoryStoreErrorCode;
@@ -120,10 +174,17 @@ export type HistoryReadBatch = z.infer<typeof HistoryReadBatchSchema>;
 /** Separate from execution signals: the host commits each bounded batch atomically. */
 export interface ConversationHistoryReader {
   readonly namespace: string;
-  read(context: HistoryReadContext, options: { direction: 'latest' | 'older'; limit: number }): Promise<HistoryReadBatch>;
+  read(
+    context: HistoryReadContext,
+    options: { direction: "latest" | "older"; limit: number },
+  ): Promise<HistoryReadBatch>;
 }
 export class HistoryReadError extends Error {
-  constructor(readonly status: 'unsupported' | 'unavailable' | 'error', message: string) {
-    super(message.slice(0, 512)); this.name = 'HistoryReadError';
+  constructor(
+    readonly status: "unsupported" | "unavailable" | "error",
+    message: string,
+  ) {
+    super(message.slice(0, 512));
+    this.name = "HistoryReadError";
   }
 }

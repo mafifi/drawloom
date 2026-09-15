@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { ContentBlockSchema, ElicitRequestFormParamsSchema, ElicitResultSchema, type ContentBlock } from "@modelcontextprotocol/sdk/types.js";
+import {
+  ContentBlockSchema,
+  ElicitRequestFormParamsSchema,
+  ElicitResultSchema,
+  type ContentBlock,
+} from "@modelcontextprotocol/sdk/types.js";
 import { JsonValueSchema, type JsonValue } from "@drawloom/host";
 /** Standard MCP content only; canonical output and invocation authority are unchanged. */
 export const ToolContentSchema = z.array(ContentBlockSchema);
@@ -38,11 +43,16 @@ export const ToolElicitationRequestSchema = z.strictObject({
   operationId: z.string().min(1),
   params: ElicitRequestFormParamsSchema,
 });
-export const ToolElicitationResultSchema = ElicitResultSchema.extend({ content: ElicitResultSchema.shape.content.optional() });
+export const ToolElicitationResultSchema = ElicitResultSchema.extend({
+  content: ElicitResultSchema.shape.content.optional(),
+});
 export type ToolElicitationRequest = z.infer<typeof ToolElicitationRequestSchema>;
 export type ToolElicitationResult = z.infer<typeof ToolElicitationResultSchema>;
 /** Human interaction only. Cancellation invalidates this exact request identity. */
-export type ToolElicitationHandler = (request: ToolElicitationRequest, signal: AbortSignal) => Promise<ToolElicitationResult>;
+export type ToolElicitationHandler = (
+  request: ToolElicitationRequest,
+  signal: AbortSignal,
+) => Promise<ToolElicitationResult>;
 export type ToolDefinition = {
   readonly name: string;
   readonly description: string;
@@ -55,19 +65,13 @@ export type ToolDefinition = {
   render(value: JsonValue): string;
   renderContent?(value: JsonValue): ToolContent;
 };
-export function defineTool<
-  I extends z.ZodType,
-  O extends z.ZodType,
->(definition: {
+export function defineTool<I extends z.ZodType, O extends z.ZodType>(definition: {
   name: string;
   description: string;
   annotations?: ToolAnnotations;
   input: I;
   output: O;
-  execute: (
-    input: z.output<I>,
-    context: ToolContext,
-  ) => z.input<O> | Promise<z.input<O>>;
+  execute: (input: z.output<I>, context: ToolContext) => z.input<O> | Promise<z.input<O>>;
   render?: (value: z.output<O>) => string;
   renderContent?: (value: z.output<O>) => ToolContent;
 }): ToolDefinition {
@@ -83,25 +87,23 @@ export function defineTool<
     description: z.string().parse(definition.description),
     ...(definition.annotations !== undefined
       ? {
-          annotations: Object.freeze(
-            ToolAnnotationsSchema.parse(definition.annotations),
-          ),
+          annotations: Object.freeze(ToolAnnotationsSchema.parse(definition.annotations)),
         }
       : {}),
     inputSchema,
     outputSchema,
-    parseInput: (value: unknown) =>
-      definition.input.parse(JsonValueSchema.parse(value)),
-    parseOutput: (value: unknown) =>
-      JsonValueSchema.parse(definition.output.parse(value)),
+    parseInput: (value: unknown) => definition.input.parse(JsonValueSchema.parse(value)),
+    parseOutput: (value: unknown) => JsonValueSchema.parse(definition.output.parse(value)),
     execute: async (value: unknown, context: ToolContext) =>
       definition.execute(value as z.output<I>, context),
-    ...(definition.renderContent ? { renderContent: (value: JsonValue) =>
-      ToolContentSchema.parse(definition.renderContent!(value as z.output<O>)) } : {}),
+    ...(definition.renderContent
+      ? {
+          renderContent: (value: JsonValue) =>
+            ToolContentSchema.parse(definition.renderContent!(value as z.output<O>)),
+        }
+      : {}),
     render: (value: JsonValue) =>
-      definition.render
-        ? definition.render(value as z.output<O>)
-        : JSON.stringify(value),
+      definition.render ? definition.render(value as z.output<O>) : JSON.stringify(value),
   });
 }
 export const ToolResultSchema = z.strictObject({

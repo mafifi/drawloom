@@ -6,10 +6,7 @@ for (const [tool, message] of [
   ["render-copy", "renderer cannot alter canonical value"],
   ["render-failure", "render failure preserves settlement"],
   ["handler-failure", "handler failure preserves uncertainty"],
-  [
-    "cancel-after-entry",
-    "cancellation after entry cannot retry or claim rollback",
-  ],
+  ["cancel-after-entry", "cancellation after entry cannot retry or claim rollback"],
 ] as const) {
   test(`shared suite rejects broken ${tool} behavior`, async () => {
     await expect(

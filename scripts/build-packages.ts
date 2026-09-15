@@ -14,9 +14,11 @@ for (const group of await readdir("packages", { withFileTypes: true })) {
   })) {
     if (!entry.isDirectory()) continue;
     const directory = join("packages", group.name, entry.name);
-    const manifest = JSON.parse(
-      await readFile(join(directory, "package.json"), "utf8"),
-    ) as { name: string; dependencies?: Record<string, string>; scripts?: { build?: string } };
+    const manifest = JSON.parse(await readFile(join(directory, "package.json"), "utf8")) as {
+      name: string;
+      dependencies?: Record<string, string>;
+      scripts?: { build?: string };
+    };
     packages.push({
       directory,
       name: manifest.name,
@@ -30,22 +32,14 @@ while (built.size < packages.length) {
   const ready = packages.filter(
     (p) =>
       !built.has(p.name) &&
-      Object.keys(p.dependencies).every(
-        (d) => !d.startsWith("@drawloom/") || built.has(d),
-      ),
+      Object.keys(p.dependencies).every((d) => !d.startsWith("@drawloom/") || built.has(d)),
   );
-  if (!ready.length)
-    throw Error("Package dependency cycle or missing dependency");
+  if (!ready.length) throw Error("Package dependency cycle or missing dependency");
   for (const p of ready) {
     const result = Bun.spawn(
-      p.build ? ["bun", "run", "--cwd", p.directory, "build"] : [
-        "bun",
-        "x",
-        "--no-install",
-        "tsc",
-        "-p",
-        join(p.directory, "tsconfig.json"),
-      ],
+      p.build
+        ? ["bun", "run", "--cwd", p.directory, "build"]
+        : ["bun", "x", "--no-install", "tsc", "-p", join(p.directory, "tsconfig.json")],
       { stdout: "inherit", stderr: "inherit" },
     );
     if ((await result.exited) !== 0) process.exit(1);

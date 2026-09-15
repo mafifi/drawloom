@@ -1,11 +1,11 @@
-import type { JsonStore, AssetLibrary } from '@drawloom/host';
-import type { PluginContributions } from '@drawloom/plugins';
-import type { OperatorController } from '@drawloom/workbench';
-import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import type { ToolGateway } from '@drawloom/tools';
-import { z } from 'zod';
-import type { Orchestrator, RegisteredTaskHandler } from '@drawloom/orchestration';
-import type { EvaluationComposer } from '@drawloom/evaluation';
+import type { JsonStore, AssetLibrary } from "@drawloom/host";
+import type { PluginContributions } from "@drawloom/plugins";
+import type { OperatorController } from "@drawloom/workbench";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import type { ToolGateway } from "@drawloom/tools";
+import { z } from "zod";
+import type { Orchestrator, RegisteredTaskHandler } from "@drawloom/orchestration";
+import type { EvaluationComposer } from "@drawloom/evaluation";
 export interface DesktopCompositionContext {
   /** Namespaced persistence; the host owns its project/navigation records. */
   readonly store: JsonStore;
@@ -14,7 +14,7 @@ export interface DesktopCompositionContext {
 }
 
 export const OrchestrationReadinessSchema = z.strictObject({
-  status: z.enum(['ready', 'configuration_required', 'unavailable']),
+  status: z.enum(["ready", "configuration_required", "unavailable"]),
   code: z.string().min(1).max(128).optional(),
   message: z.string().min(1).max(512).optional(),
 });
@@ -31,8 +31,12 @@ export interface PluginBackendCapabilities {
   readonly orchestrationReadiness?: () => Promise<OrchestrationReadiness>;
 }
 export type PluginBackendDependency =
-  | { readonly kind: 'tool' | 'skill'; readonly id: string; readonly available: boolean }
-  | { readonly kind: 'capability'; readonly id: 'orchestration' | 'evaluation'; readonly available: boolean };
+  | { readonly kind: "tool" | "skill"; readonly id: string; readonly available: boolean }
+  | {
+      readonly kind: "capability";
+      readonly id: "orchestration" | "evaluation";
+      readonly available: boolean;
+    };
 export interface PluginBackendContext {
   /** Fixed for this activation. Desktop hosts always supply it; headless proofs may omit it. */
   readonly project?: { readonly id: string; readonly directory: string };

@@ -7,9 +7,15 @@ interface Manifest {
 }
 /** Edges that can enter a product installation, including installed peers. */
 export function runtimeDependencies(manifest: Manifest): { name: string; optional: boolean }[] {
-  return Object.keys({ ...manifest.dependencies, ...manifest.optionalDependencies, ...manifest.peerDependencies }).map(name => ({
+  return Object.keys({
+    ...manifest.dependencies,
+    ...manifest.optionalDependencies,
+    ...manifest.peerDependencies,
+  }).map((name) => ({
     name,
-    optional: name in (manifest.optionalDependencies ?? {}) ||
-      (!(name in (manifest.dependencies ?? {})) && manifest.peerDependenciesMeta?.[name]?.optional === true),
+    optional:
+      name in (manifest.optionalDependencies ?? {}) ||
+      (!(name in (manifest.dependencies ?? {})) &&
+        manifest.peerDependenciesMeta?.[name]?.optional === true),
   }));
 }

@@ -3,7 +3,9 @@ import { assessLicense, isReviewedMpl, selectedLicense } from "./license-policy.
 
 test("the Linux CI sqlite-vec binary uses the explicitly reviewed MIT alternative", () => {
   expect(selectedLicense("sqlite-vec-linux-x64@0.1.9")).toBe("MIT");
-  expect(assessLicense("MIT OR Apache", selectedLicense("sqlite-vec-linux-x64@0.1.9")).kind).toBe("allowed");
+  expect(assessLicense("MIT OR Apache", selectedLicense("sqlite-vec-linux-x64@0.1.9")).kind).toBe(
+    "allowed",
+  );
   expect(selectedLicense("sqlite-vec-linux-x64@0.2.0")).toBeUndefined();
   expect(selectedLicense("unreviewed@0.1.9")).toBeUndefined();
 });
@@ -18,7 +20,12 @@ test("MPL admission binds locked platform versions to the reviewed licence text"
 });
 
 test("product rejects copyleft including exceptions rather than relying on linking", () => {
-  for (const license of ["GPL-3.0-only", "LGPL-3.0-or-later", "GPL-3.0-or-later WITH GCC-exception-3.1", "MIT AND GPL-3.0-only"]) {
+  for (const license of [
+    "GPL-3.0-only",
+    "LGPL-3.0-or-later",
+    "GPL-3.0-or-later WITH GCC-exception-3.1",
+    "MIT AND GPL-3.0-only",
+  ]) {
     expect(assessLicense(license).kind).toBe("blocked");
   }
 });
@@ -36,7 +43,14 @@ test("a dual licence needs an explicit permissible selection", () => {
   expect(assessLicense("GPL-2.0-only", "MIT").kind).not.toBe("allowed");
 });
 test("unknown terms and malformed expressions fail closed", () => {
-  for (const license of [null, "", "SEE LICENSE IN LICENSE", "Apache", "MIT AND", "(MIT OR GPL-2.0-only)"]) {
+  for (const license of [
+    null,
+    "",
+    "SEE LICENSE IN LICENSE",
+    "Apache",
+    "MIT AND",
+    "(MIT OR GPL-2.0-only)",
+  ]) {
     expect(assessLicense(license).kind).not.toBe("allowed");
   }
 });

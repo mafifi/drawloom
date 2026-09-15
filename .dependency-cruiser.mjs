@@ -1,15 +1,10 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 
 const { privatePackagePattern } = JSON.parse(
-  readFileSync(
-    new URL("./scripts/public-boundary-policy.json", import.meta.url),
-    "utf8",
-  ),
+  readFileSync(new URL("./scripts/public-boundary-policy.json", import.meta.url), "utf8"),
 );
 const privatePackagePath = privatePackagePattern.slice(1);
-const packages = (
-  existsSync("packages") ? readdirSync("packages", { withFileTypes: true }) : []
-)
+const packages = (existsSync("packages") ? readdirSync("packages", { withFileTypes: true }) : [])
   .filter((entry) => entry.isDirectory())
   .flatMap((group) =>
     readdirSync(`packages/${group.name}`, { withFileTypes: true })
@@ -59,8 +54,7 @@ export default {
     {
       name: "no-private-product-imports",
       severity: "error",
-      comment:
-        "Public Drawloom must not import private product or plugin packages.",
+      comment: "Public Drawloom must not import private product or plugin packages.",
       from: {},
       to: {
         path: `(?:^|/)node_modules/${privatePackagePath}|${privatePackagePattern}`,
@@ -69,8 +63,7 @@ export default {
     {
       name: "no-source-outside-checkout",
       severity: "error",
-      comment:
-        "Source imports must not reach into sibling or absolute-path checkouts.",
+      comment: "Source imports must not reach into sibling or absolute-path checkouts.",
       from: {},
       to: { path: "^(?:\\.\\./|/|[A-Za-z]:[/\\\\])" },
     },
@@ -90,9 +83,13 @@ export default {
     {
       name: "evaluation-proof-portable-consumers",
       severity: "error",
-      comment: "ADR 0025 candidate schemas and consumer fixtures must not import vendor SDKs or host APIs.",
+      comment:
+        "ADR 0025 candidate schemas and consumer fixtures must not import vendor SDKs or host APIs.",
       from: { path: "^spikes/adr-0025-evaluation/(?:contract|fixtures)\\.ts$" },
-      to: { pathNot: "^(?:spikes/adr-0025-evaluation/(?:contract|fixtures)\\.ts$|node_modules/zod/|zod$)" },
+      to: {
+        pathNot:
+          "^(?:spikes/adr-0025-evaluation/(?:contract|fixtures)\\.ts$|node_modules/zod/|zod$)",
+      },
     },
     {
       name: "evaluation-promptfoo-stays-in-proof",
@@ -104,15 +101,19 @@ export default {
     {
       name: "evaluation-assessment-vendors-stay-in-provider",
       severity: "error",
-      comment: "ADR 0025 confines Braintrust and Autoevals to the selected assessment provider and retained comparison.",
-      from: { pathNot: "^(?:spikes/adr-0025-evaluation/|packages/evaluation/braintrust-assessment/)" },
-      to: { path: "^(?:node_modules/(?:braintrust|autoevals)(?:/|$)|(?:braintrust|autoevals)(?:/|$))" },
+      comment:
+        "ADR 0025 confines Braintrust and Autoevals to the selected assessment provider and retained comparison.",
+      from: {
+        pathNot: "^(?:spikes/adr-0025-evaluation/|packages/evaluation/braintrust-assessment/)",
+      },
+      to: {
+        path: "^(?:node_modules/(?:braintrust|autoevals)(?:/|$)|(?:braintrust|autoevals)(?:/|$))",
+      },
     },
     {
       name: "no-import-from-spikes",
       severity: "error",
-      comment:
-        "Retained spike code is evidence, not a supported implementation surface.",
+      comment: "Retained spike code is evidence, not a supported implementation surface.",
       from: {
         pathNot: "^spikes/",
       },

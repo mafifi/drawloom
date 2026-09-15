@@ -19,25 +19,47 @@ export async function toolConformance(
   };
   let richCalls = 0;
   const rich = defineTool({
-    name: "document.read", description: "Read a document", input: z.object({}),
+    name: "document.read",
+    description: "Read a document",
+    input: z.object({}),
     output: z.object({ text: z.string() }),
-    execute: () => { richCalls++; return { text: "A public example" }; },
-    renderContent: value => [
+    execute: () => {
+      richCalls++;
+      return { text: "A public example" };
+    },
+    renderContent: (value) => [
       { type: "text", text: value.text },
       { type: "resource_link", uri: "document://example", name: "Example", mimeType: "text/plain" },
-      { type: "resource", resource: { uri: "document://example", mimeType: "text/plain", text: value.text } },
+      {
+        type: "resource",
+        resource: { uri: "document://example", mimeType: "text/plain", text: value.text },
+      },
       { type: "image", mimeType: "image/png", data: "AQ==" },
       { type: "audio", mimeType: "audio/wav", data: "Ag==" },
     ],
   });
-  const richGateway = factory({ tools: [rich], policy: () => true,
-    evidence: { record: async () => {} }, nextInvocationId: () => "rich-1" });
+  const richGateway = factory({
+    tools: [rich],
+    policy: () => true,
+    evidence: { record: async () => {} },
+    nextInvocationId: () => "rich-1",
+  });
   check(richCalls === 0, "catalogue discovery does not execute rich tools");
-  const richResult = await richGateway.invoke(richGateway.bind("rich-op"), rich.name, {}, new AbortController().signal);
-  check(richResult.outcome.status === "ok" && richResult.outcome.content?.length === 5,
-    "standard content survives the validated gateway result");
-  check(richResult.outcome.status === "ok" && JSON.stringify(richResult.outcome.value) === '{"text":"A public example"}',
-    "rich presentation keeps canonical output");
+  const richResult = await richGateway.invoke(
+    richGateway.bind("rich-op"),
+    rich.name,
+    {},
+    new AbortController().signal,
+  );
+  check(
+    richResult.outcome.status === "ok" && richResult.outcome.content?.length === 5,
+    "standard content survives the validated gateway result",
+  );
+  check(
+    richResult.outcome.status === "ok" &&
+      JSON.stringify(richResult.outcome.value) === '{"text":"A public example"}',
+    "rich presentation keeps canonical output",
+  );
   let count = 0;
   let allowed = true;
   let mode = "normal";
@@ -80,119 +102,58 @@ export async function toolConformance(
   );
   const binding = gateway.bind("operation-a");
   const signal = new AbortController().signal;
-  const ok = await gateway.invoke(
-    binding,
-    "text.count",
-    { text: "hello" },
-    signal,
-  );
+  const ok = await gateway.invoke(binding, "text.count", { text: "hello" }, signal);
   check(
-    ok.outcome.status === "ok" &&
-      JSON.stringify(ok.outcome.value) === '{"count":5}',
+    ok.outcome.status === "ok" && JSON.stringify(ok.outcome.value) === '{"count":5}',
     "canonical result",
   );
   check(count === 1, "one dispatch");
-  const invalid = await gateway.invoke(
-    binding,
-    "text.count",
-    { text: 7 },
-    signal,
-  );
+  const invalid = await gateway.invoke(binding, "text.count", { text: 7 }, signal);
   check(
-    invalid.outcome.status === "failed" &&
-      invalid.outcome.code === "invalid_input" &&
-      count === 1,
+    invalid.outcome.status === "failed" && invalid.outcome.code === "invalid_input" && count === 1,
     "invalid input dispatch",
   );
   allowed = false;
-  const denied = await gateway.invoke(
-    binding,
-    "text.count",
-    { text: "a" },
-    signal,
-  );
+  const denied = await gateway.invoke(binding, "text.count", { text: "a" }, signal);
   check(
-    denied.outcome.status === "failed" &&
-      denied.outcome.code === "denied" &&
-      count === 1,
+    denied.outcome.status === "failed" && denied.outcome.code === "denied" && count === 1,
     "read-only hint does not grant a denied invocation",
   );
   allowed = true;
   mode = "start_fail";
-  const start = await gateway.invoke(
-    binding,
-    "text.count",
-    { text: "a" },
-    signal,
-  );
-  check(
-    start.evidence === "start_failed" && count === 1,
-    "unacknowledged dispatch",
-  );
+  const start = await gateway.invoke(binding, "text.count", { text: "a" }, signal);
+  check(start.evidence === "start_failed" && count === 1, "unacknowledged dispatch");
   mode = "outcome_fail";
-  const end = await gateway.invoke(
-    binding,
-    "text.count",
-    { text: "a" },
-    signal,
-  );
+  const end = await gateway.invoke(binding, "text.count", { text: "a" }, signal);
   check(
-    end.evidence === "outcome_failed" &&
-      end.outcome.status === "ok" &&
-      count === 2,
+    end.evidence === "outcome_failed" && end.outcome.status === "ok" && count === 2,
     "outcome knowledge",
   );
   mode = "revoke";
-  const revoked = await gateway.invoke(
-    binding,
-    "text.count",
-    { text: "a" },
-    signal,
-  );
+  const revoked = await gateway.invoke(binding, "text.count", { text: "a" }, signal);
   check(
-    revoked.outcome.status === "failed" &&
-      revoked.outcome.code === "denied" &&
-      count === 2,
+    revoked.outcome.status === "failed" && revoked.outcome.code === "denied" && count === 2,
     "read-only hint does not preserve a revoked grant",
   );
   mode = "normal";
   const other = gateway.bind("operation-b");
-  const old = await gateway.invoke(
-    binding,
-    "text.count",
-    { text: "a" },
-    signal,
-  );
+  const old = await gateway.invoke(binding, "text.count", { text: "a" }, signal);
   check(
-    old.outcome.status === "failed" &&
-      old.operationId === "operation-a" &&
-      count === 2,
+    old.outcome.status === "failed" && old.operationId === "operation-a" && count === 2,
     "origin retargeted",
   );
   const abort = new AbortController();
   abort.abort();
-  const cancelled = await gateway.invoke(
-    other,
-    "text.count",
-    { text: "a" },
-    abort.signal,
-  );
+  const cancelled = await gateway.invoke(other, "text.count", { text: "a" }, abort.signal);
   check(
     cancelled.outcome.status === "failed" &&
       cancelled.outcome.execution === "not_started" &&
       count === 2,
     "preabort dispatch",
   );
-  const forged = await gateway.invoke(
-    {} as typeof binding,
-    "text.count",
-    { text: "a" },
-    signal,
-  );
+  const forged = await gateway.invoke({} as typeof binding, "text.count", { text: "a" }, signal);
   check(
-    forged.outcome.status === "failed" &&
-      forged.outcome.code === "denied" &&
-      count === 2,
+    forged.outcome.status === "failed" && forged.outcome.code === "denied" && count === 2,
     "forged binding",
   );
 
@@ -256,10 +217,7 @@ export async function toolConformance(
       output: z.string(),
       execute: (_text, { signal }) => {
         effects++;
-        check(
-          signal === cancellation.signal,
-          "handler receives cancellation signal",
-        );
+        check(signal === cancellation.signal, "handler receives cancellation signal");
         entered?.();
         return new Promise<string>((resolve) => {
           finish = resolve;
@@ -275,12 +233,7 @@ export async function toolConformance(
     nextInvocationId: () => `extra-${++invocation}`,
   });
   const authority = extra.bind("effects");
-  const output = await extra.invoke(
-    authority,
-    "invalid-output",
-    "text",
-    signal,
-  );
+  const output = await extra.invoke(authority, "invalid-output", "text", signal);
   check(
     output.outcome.status === "failed" &&
       output.outcome.code === "invalid_output" &&
@@ -288,24 +241,14 @@ export async function toolConformance(
       effects === 1,
     "invalid output preserves one settled execution",
   );
-  const render = await extra.invoke(
-    authority,
-    "render-copy",
-    "original",
-    signal,
-  );
+  const render = await extra.invoke(authority, "render-copy", "original", signal);
   check(
     render.outcome.status === "ok" &&
       JSON.stringify(render.outcome.value) === '{"text":"original"}' &&
       render.outcome.text === "presentation",
     "renderer cannot alter canonical value",
   );
-  const renderFailure = await extra.invoke(
-    authority,
-    "render-failure",
-    "text",
-    signal,
-  );
+  const renderFailure = await extra.invoke(authority, "render-failure", "text", signal);
   check(
     renderFailure.outcome.status === "failed" &&
       renderFailure.outcome.code === "render_failed" &&
@@ -313,12 +256,7 @@ export async function toolConformance(
       effects === 2,
     "render failure preserves settlement",
   );
-  const handlerFailure = await extra.invoke(
-    authority,
-    "handler-failure",
-    "text",
-    signal,
-  );
+  const handlerFailure = await extra.invoke(authority, "handler-failure", "text", signal);
   check(
     handlerFailure.outcome.status === "failed" &&
       handlerFailure.outcome.code === "handler_failed" &&

@@ -1,11 +1,6 @@
 import type { RegisteredWorkbenchView } from "@drawloom/plugins";
 import type { ToolResult } from "@drawloom/tools";
-import type {
-  OperatorCommand,
-  Artifact,
-  Candidate,
-  Review,
-} from "@drawloom/workbench";
+import type { OperatorCommand, Artifact, Candidate, Review } from "@drawloom/workbench";
 import type { DesktopSnapshot, DesktopCommand } from "./protocol.js";
 import type { DesktopViewModel } from "./view-model.svelte.js";
 
@@ -80,9 +75,7 @@ export function detailsPanePresentation(
     candidates: vm.candidates,
     comparableCandidates: vm.comparableCandidates,
     workspaceResource: vm.workspaceResource,
-    pluginView: vm.state?.views.find(
-      (view) => view.workbenchId === vm.conversation?.workbenchId,
-    ),
+    pluginView: vm.state?.views.find((view) => view.workbenchId === vm.conversation?.workbenchId),
     conversationId: vm.state?.selectedId ?? "",
     provider: vm.conversation?.provider,
     mediaRevision: vm.state?.mediaPolicy.revision ?? "",

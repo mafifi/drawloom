@@ -11,11 +11,13 @@ plugin({
   name: "stateful-button-server-components",
   setup(build) {
     build.onLoad({ filter: /\.svelte$/ }, async ({ path }) => ({
-      contents: compile(await readFile(path, "utf8"), { filename: path, generate: "server" }).js.code,
+      contents: compile(await readFile(path, "utf8"), { filename: path, generate: "server" }).js
+        .code,
       loader: "js",
     }));
     build.onLoad({ filter: /\.svelte\.js$/ }, async ({ path }) => ({
-      contents: compileModule(await readFile(path, "utf8"), { filename: path, generate: "server" }).js.code,
+      contents: compileModule(await readFile(path, "utf8"), { filename: path, generate: "server" })
+        .js.code,
       loader: "js",
     }));
   },
@@ -31,7 +33,12 @@ const markup = (props = {}) => render(StatefulButton, { props: { children, ...pr
 
 describe("StatefulButton controlled presentation", () => {
   test("keeps ordinary button content and attributes while idle", () => {
-    const html = markup({ type: "submit", name: "intent", value: "save", "aria-label": "Save settings" });
+    const html = markup({
+      type: "submit",
+      name: "intent",
+      value: "save",
+      "aria-label": "Save settings",
+    });
     expect(html).toContain('type="submit"');
     expect(html).toContain('name="intent"');
     expect(html).toContain('value="save"');
@@ -52,7 +59,13 @@ describe("StatefulButton controlled presentation", () => {
   });
 
   test("keeps icon-only pending labels visually hidden", () => {
-    const html = markup({ pending: true, pendingLabel: "Sending", iconOnly: true, size: "icon", "aria-label": "Send" });
+    const html = markup({
+      pending: true,
+      pendingLabel: "Sending",
+      iconOnly: true,
+      size: "icon",
+      "aria-label": "Send",
+    });
     expect(html).toContain('aria-label="Sending"');
     expect(html).toContain('class="sr-only">Sending</span>');
     expect(html).toContain("size-8");

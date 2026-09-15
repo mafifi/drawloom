@@ -1,54 +1,51 @@
-import { expect, test } from 'bun:test';
-import { createCodexDriver } from './src/index.js';
-import { createSyntheticDriver } from '../synthetic-agent/src/index.js';
-import type { RpcMessage, RpcTransport } from '@drawloom/host';
-import { agentDiscoveryConformance } from '../agent/src/conformance.js';
+import { expect, test } from "bun:test";
+import { createCodexDriver } from "./src/index.js";
+import { createSyntheticDriver } from "../synthetic-agent/src/index.js";
+import type { RpcMessage, RpcTransport } from "@drawloom/host";
+import { agentDiscoveryConformance } from "../agent/src/conformance.js";
 
-function fixture(
-  experimentalPluginDiscovery = false,
-  imageInput?: () => Promise<string>,
-) {
+function fixture(experimentalPluginDiscovery = false, imageInput?: () => Promise<string>) {
   const calls: { method: string; params: unknown }[] = [];
   let notify = (_message: RpcMessage) => {};
   const responses: Record<string, unknown> = {
-    initialize: { userAgent: 'codex/0.153.4' },
-    'thread/start': {
-      thread: { id: 'native-thread' },
-      approvalsReviewer: 'user',
+    initialize: { userAgent: "codex/0.153.4" },
+    "thread/start": {
+      thread: { id: "native-thread" },
+      approvalsReviewer: "user",
     },
-    'thread/memoryMode/set': {},
-    'skills/list': {
+    "thread/memoryMode/set": {},
+    "skills/list": {
       data: [
         {
-          cwd: '/synthetic',
+          cwd: "/synthetic",
           skills: [
             {
-              name: 'inspect',
-              description: 'Inspect text',
-              path: '/synthetic/SKILL.md',
-              scope: 'repo',
+              name: "inspect",
+              description: "Inspect text",
+              path: "/synthetic/SKILL.md",
+              scope: "repo",
               enabled: true,
               pluginId: null,
             },
             {
-              name: 'inspect',
-              description: 'Other origin',
-              path: '/other/SKILL.md',
-              scope: 'user',
+              name: "inspect",
+              description: "Other origin",
+              path: "/other/SKILL.md",
+              scope: "user",
               enabled: true,
-              pluginId: 'other',
+              pluginId: "other",
             },
           ],
           errors: [],
         },
       ],
     },
-    'app/list': {
+    "app/list": {
       data: [
         {
-          id: 'demo',
-          name: 'Demo',
-          description: 'Demo app',
+          id: "demo",
+          name: "Demo",
+          description: "Demo app",
           logoUrl: null,
           logoUrlDark: null,
           iconAssets: null,
@@ -65,40 +62,40 @@ function fixture(
       ],
       nextCursor: null,
     },
-    'mcpServerStatus/list': {
+    "mcpServerStatus/list": {
       data: [
         {
-          name: 'demo',
+          name: "demo",
           runtimeStatus: null,
           pluginId: null,
           serverInfo: null,
           tools: {
             inspect: {
-              name: 'inspect',
-              description: 'Inspect tool',
-              inputSchema: { type: 'object' },
+              name: "inspect",
+              description: "Inspect tool",
+              inputSchema: { type: "object" },
             },
           },
           resources: [],
           resourceTemplates: [],
-          authStatus: 'unsupported',
+          authStatus: "unsupported",
         },
       ],
       nextCursor: null,
     },
-    'plugin/list': {
+    "plugin/list": {
       marketplaces: [],
       marketplaceLoadErrors: [],
       featuredPluginIds: [],
     },
-    'turn/start': { turn: { id: 'native-turn' } },
+    "turn/start": { turn: { id: "native-turn" } },
   };
   const transport: RpcTransport = {
     async request(method, params) {
       calls.push({ method, params });
       const value = responses[method];
       if (value instanceof Error) throw value;
-      if (typeof value === 'function') return value(params);
+      if (typeof value === "function") return value(params);
       return value;
     },
     notify() {},
@@ -128,218 +125,205 @@ function fixture(
   };
 }
 const input = {
-  sessionId: 'discovery',
-  context: { text: '' },
-  tools: { id: 'none', tools: [] },
+  sessionId: "discovery",
+  context: { text: "" },
+  tools: { id: "none", tools: [] },
 };
-test('slow apps do not hide settled skills or tools and concurrent refresh joins the request', async () => {
+test("slow apps do not hide settled skills or tools and concurrent refresh joins the request", async () => {
   const f = fixture();
-  const apps = f.responses['app/list'];
+  const apps = f.responses["app/list"];
   let release = (_value: unknown) => {};
-  f.responses['app/list'] = () =>
+  f.responses["app/list"] = () =>
     new Promise((resolve) => {
       release = resolve;
     });
   const opened = await f.driver.openSession(input);
-  if (opened.status !== 'ok') throw Error();
+  if (opened.status !== "ok") throw Error();
   const s = opened.value;
   try {
     const initial = await Promise.race([
       s.discovery!.list({ wait: false }),
       new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(Error('Ready categories blocked by apps')),
-          200,
-        ),
+        setTimeout(() => reject(Error("Ready categories blocked by apps")), 200),
       ),
     ]);
-    expect(initial.status).toBe('ok');
+    expect(initial.status).toBe("ok");
     let ready = initial;
     for (let i = 0; i < 50; i++) {
       ready = await s.discovery!.list({ wait: false });
       if (
-        ready.status === 'ok' &&
+        ready.status === "ok" &&
         ready.value.categories
-          .filter((c) => c.kind === 'skill' || c.kind === 'tool')
-          .every((c) => c.status === 'available')
+          .filter((c) => c.kind === "skill" || c.kind === "tool")
+          .every((c) => c.status === "available")
       )
         break;
       await new Promise((resolve) => setTimeout(resolve, 1));
     }
-    if (ready.status !== 'ok') throw Error();
-    expect(
-      ready.value.entries.filter((e) => e.name === 'inspect'),
-    ).toHaveLength(3);
-    expect(ready.value.categories.find((c) => c.kind === 'app')?.status).toBe(
-      'loading',
-    );
+    if (ready.status !== "ok") throw Error();
+    expect(ready.value.entries.filter((e) => e.name === "inspect")).toHaveLength(3);
+    expect(ready.value.categories.find((c) => c.kind === "app")?.status).toBe("loading");
     await s.discovery!.list({ refresh: true, wait: false });
-    expect(f.calls.filter((c) => c.method === 'app/list')).toHaveLength(1);
+    expect(f.calls.filter((c) => c.method === "app/list")).toHaveLength(1);
     release(apps);
     const settled = await s.discovery!.list();
-    if (settled.status !== 'ok') throw Error();
+    if (settled.status !== "ok") throw Error();
     expect(settled.value.revision).toBe(ready.value.revision);
-    expect(settled.value.entries.some((e) => e.name === 'Demo')).toBe(true);
+    expect(settled.value.entries.some((e) => e.name === "Demo")).toBe(true);
   } finally {
     release(apps);
     await s.close();
   }
 });
-test('native app pages are on demand, opaque, coalesced and cannot cross sessions', async () => {
+test("native app pages are on demand, opaque, coalesced and cannot cross sessions", async () => {
   const f = fixture();
   let page = 0;
   const app = {
-    id: 'first',
-    name: 'First',
+    id: "first",
+    name: "First",
     description: null,
     isAccessible: true,
     isEnabled: true,
   };
-  f.responses['app/list'] = (params: { cursor: string | null }) => {
+  f.responses["app/list"] = (params: { cursor: string | null }) => {
     page++;
-    expect(params.cursor).toBe(page === 1 ? null : 'native-secret-cursor');
+    expect(params.cursor).toBe(page === 1 ? null : "native-secret-cursor");
     return {
-      data: [{ ...app, id: page === 1 ? 'first' : 'second' }],
-      nextCursor: page === 1 ? 'native-secret-cursor' : null,
+      data: [{ ...app, id: page === 1 ? "first" : "second" }],
+      nextCursor: page === 1 ? "native-secret-cursor" : null,
     };
   };
   const opened = await f.driver.openSession(input);
-  if (opened.status !== 'ok') throw Error();
+  if (opened.status !== "ok") throw Error();
   const s = opened.value;
   try {
     const first = await s.discovery!.list();
-    if (first.status !== 'ok') throw Error();
+    if (first.status !== "ok") throw Error();
     expect(page).toBe(1);
-    expect(first.value.entries.filter((e) => e.kind === 'app')).toHaveLength(1);
+    expect(first.value.entries.filter((e) => e.kind === "app")).toHaveLength(1);
     expect(first.value.nextCursor).toBeDefined();
-    expect(JSON.stringify(first)).not.toContain('native-secret-cursor');
+    expect(JSON.stringify(first)).not.toContain("native-secret-cursor");
     await s.discovery!.list();
     expect(page).toBe(1);
     const [second, duplicate] = await Promise.all([
       s.discovery!.list({ cursor: first.value.nextCursor! }),
       s.discovery!.list({ cursor: first.value.nextCursor! }),
     ]);
-    if (second.status !== 'ok' || duplicate.status !== 'ok') throw Error();
+    if (second.status !== "ok" || duplicate.status !== "ok") throw Error();
     expect(page).toBe(2);
     expect(second.value.revision).toBe(first.value.revision);
-    expect(second.value.entries.filter((e) => e.kind === 'app')).toHaveLength(
-      2,
-    );
+    expect(second.value.entries.filter((e) => e.kind === "app")).toHaveLength(2);
     expect(second.value.nextCursor).toBeUndefined();
-    expect(await s.discovery!.list({ cursor: 'invented' })).toMatchObject({
-      status: 'rejected',
+    expect(await s.discovery!.list({ cursor: "invented" })).toMatchObject({
+      status: "rejected",
     });
     s.discovery!.invalidate();
-    expect(
-      await s.discovery!.list({ cursor: first.value.nextCursor! }),
-    ).toMatchObject({ status: 'rejected' });
+    expect(await s.discovery!.list({ cursor: first.value.nextCursor! })).toMatchObject({
+      status: "rejected",
+    });
     expect(page).toBe(2);
   } finally {
     await s.close();
   }
 });
-test('MCP startup notifications refresh only tools without duplicating slow app discovery', async () => {
+test("MCP startup notifications refresh only tools without duplicating slow app discovery", async () => {
   const f = fixture(),
-    apps = f.responses['app/list'];
+    apps = f.responses["app/list"];
   let release = (_value: unknown) => {};
-  f.responses['app/list'] = () =>
+  f.responses["app/list"] = () =>
     new Promise((resolve) => {
       release = resolve;
     });
   const opened = await f.driver.openSession(input);
-  if (opened.status !== 'ok') throw Error();
+  if (opened.status !== "ok") throw Error();
   const s = opened.value;
   try {
     await s.discovery!.list({ wait: false });
     await new Promise((resolve) => setTimeout(resolve, 10));
-    f.notify({ method: 'mcpServer/startupStatus/updated', params: {} });
+    f.notify({ method: "mcpServer/startupStatus/updated", params: {} });
     const page = await s.discovery!.list({ wait: false });
-    if (page.status !== 'ok') throw Error();
-    expect(page.value.entries.some((e) => e.kind === 'skill')).toBe(true);
-    expect(f.calls.filter((c) => c.method === 'app/list')).toHaveLength(1);
+    if (page.status !== "ok") throw Error();
+    expect(page.value.entries.some((e) => e.kind === "skill")).toBe(true);
+    expect(f.calls.filter((c) => c.method === "app/list")).toHaveLength(1);
     release(apps);
-    expect((await s.discovery!.list()).status).toBe('ok');
-    expect(f.calls.filter((c) => c.method === 'app/list')).toHaveLength(1);
+    expect((await s.discovery!.list()).status).toBe("ok");
+    expect(f.calls.filter((c) => c.method === "app/list")).toHaveLength(1);
   } finally {
     release(apps);
     await s.close();
   }
 });
-test('shared discovery conformance: Codex', () =>
-  agentDiscoveryConformance(fixture().driver));
-test('shared discovery conformance: unsupported synthetic', () =>
-  agentDiscoveryConformance(createSyntheticDriver(() => '')));
-test('native MCP sign-in stays with Codex and rejects stale or invented selections', async () => {
+test("shared discovery conformance: Codex", () => agentDiscoveryConformance(fixture().driver));
+test("shared discovery conformance: unsupported synthetic", () =>
+  agentDiscoveryConformance(createSyntheticDriver(() => "")));
+test("native MCP sign-in stays with Codex and rejects stale or invented selections", async () => {
   const f = fixture();
-  f.responses['mcpServerStatus/list'] = {
+  f.responses["mcpServerStatus/list"] = {
     data: [
       {
-        name: 'private-native',
+        name: "private-native",
         pluginId: null,
         tools: {},
         resources: [],
-        authStatus: 'notLoggedIn',
+        authStatus: "notLoggedIn",
       },
     ],
     nextCursor: null,
   };
-  f.responses['mcpServer/oauth/login'] = {
-    authorizationUrl: 'https://login.example.test/authorize?state=native',
+  f.responses["mcpServer/oauth/login"] = {
+    authorizationUrl: "https://login.example.test/authorize?state=native",
   };
   const opened = await f.driver.openSession(input);
-  if (opened.status !== 'ok') throw Error();
+  if (opened.status !== "ok") throw Error();
   try {
     const discovery = opened.value.discovery!;
     const page = await discovery.list();
-    if (page.status !== 'ok') throw Error();
-    const entry = page.value.entries.find((e) => e.kind === 'integration');
+    if (page.status !== "ok") throw Error();
+    const entry = page.value.entries.find((e) => e.kind === "integration");
     expect(entry).toBeDefined();
-    expect(entry?.authenticationOwner).toBe('provider');
+    expect(entry?.authenticationOwner).toBe("provider");
     const selection = { id: entry!.id, revision: page.value.revision };
     expect(await discovery.authenticate!(selection)).toMatchObject({
-      status: 'ok',
+      status: "ok",
     });
-    expect(
-      f.calls.find((c) => c.method === 'mcpServer/oauth/login')?.params,
-    ).toEqual({ name: 'private-native', threadId: 'native-thread' });
+    expect(f.calls.find((c) => c.method === "mcpServer/oauth/login")?.params).toEqual({
+      name: "private-native",
+      threadId: "native-thread",
+    });
     discovery.invalidate();
     expect(await discovery.authenticate!(selection)).toMatchObject({
-      status: 'rejected',
+      status: "rejected",
     });
-    expect(
-      f.calls.filter((c) => c.method === 'mcpServer/oauth/login'),
-    ).toHaveLength(1);
-    expect(f.calls.some((c) => c.method === 'turn/start')).toBe(false);
+    expect(f.calls.filter((c) => c.method === "mcpServer/oauth/login")).toHaveLength(1);
+    expect(f.calls.some((c) => c.method === "turn/start")).toBe(false);
   } finally {
     await opened.value.close();
   }
 });
-test('native resource reads use the originating server and reject invented identities without a call', async () => {
+test("native resource reads use the originating server and reject invented identities without a call", async () => {
   const f = fixture();
-  f.responses['mcpServerStatus/list'] = {
+  f.responses["mcpServerStatus/list"] = {
     data: [
       {
-        name: 'docs',
+        name: "docs",
         pluginId: null,
         tools: {},
-        resources: [
-          { uri: 'doc://guide', name: 'Guide', mimeType: 'text/plain' },
-        ],
+        resources: [{ uri: "doc://guide", name: "Guide", mimeType: "text/plain" }],
       },
     ],
     nextCursor: null,
   };
-  f.responses['mcpServer/resource/read'] = {
-    contents: [{ uri: 'doc://guide', text: 'A guide', mimeType: 'text/plain' }],
+  f.responses["mcpServer/resource/read"] = {
+    contents: [{ uri: "doc://guide", text: "A guide", mimeType: "text/plain" }],
     originCallId: null,
   };
   const opened = await f.driver.openSession(input);
-  if (opened.status !== 'ok') throw Error();
+  if (opened.status !== "ok") throw Error();
   const session = opened.value;
   try {
     const found = await session.discovery!.list();
-    if (found.status !== 'ok') throw Error();
-    const resource = found.value.entries.find((e) => e.kind === 'resource');
+    if (found.status !== "ok") throw Error();
+    const resource = found.value.entries.find((e) => e.kind === "resource");
     expect(resource).toBeDefined();
     expect(
       await session.discovery!.readResource!({
@@ -347,182 +331,166 @@ test('native resource reads use the originating server and reject invented ident
         revision: found.value.revision,
       }),
     ).toMatchObject({
-      status: 'ok',
-      value: [{ type: 'resource', resource: { text: 'A guide' } }],
+      status: "ok",
+      value: [{ type: "resource", resource: { text: "A guide" } }],
     });
-    expect(
-      f.calls.find((c) => c.method === 'mcpServer/resource/read')?.params,
-    ).toEqual({
-      threadId: 'native-thread',
-      server: 'docs',
-      uri: 'doc://guide',
+    expect(f.calls.find((c) => c.method === "mcpServer/resource/read")?.params).toEqual({
+      threadId: "native-thread",
+      server: "docs",
+      uri: "doc://guide",
     });
     expect(
       await session.discovery!.readResource!({
-        id: 'file:///secret',
+        id: "file:///secret",
         revision: found.value.revision,
       }),
-    ).toMatchObject({ status: 'rejected' });
-    expect(
-      f.calls.filter((c) => c.method === 'mcpServer/resource/read'),
-    ).toHaveLength(1);
+    ).toMatchObject({ status: "rejected" });
+    expect(f.calls.filter((c) => c.method === "mcpServer/resource/read")).toHaveLength(1);
   } finally {
     await session.close();
   }
 });
-test('origin-qualified identities stay stable across refresh and new sessions', async () => {
+test("origin-qualified identities stay stable across refresh and new sessions", async () => {
   const identities: string[][] = [];
   for (let n = 0; n < 2; n++) {
     const f = fixture(),
       opened = await f.driver.openSession(input);
-    if (opened.status !== 'ok') throw Error();
+    if (opened.status !== "ok") throw Error();
     for (const refresh of [false, true]) {
       const found = await opened.value.discovery!.list({ refresh });
-      if (found.status !== 'ok') throw Error();
+      if (found.status !== "ok") throw Error();
       identities.push(found.value.entries.map((e) => e.id));
     }
     await opened.value.close();
   }
   for (const ids of identities) expect(ids).toEqual(identities[0]!);
 });
-test('identical app refresh notifications do not perpetually invalidate discovery', async () => {
+test("identical app refresh notifications do not perpetually invalidate discovery", async () => {
   const f = fixture(),
-    apps = f.responses['app/list'];
-  f.responses['app/list'] = () => {
-    f.notify({ method: 'app/list/updated', params: apps });
+    apps = f.responses["app/list"];
+  f.responses["app/list"] = () => {
+    f.notify({ method: "app/list/updated", params: apps });
     return apps;
   };
   const opened = await f.driver.openSession(input);
-  if (opened.status !== 'ok') throw Error();
+  if (opened.status !== "ok") throw Error();
   try {
     const first = await opened.value.discovery!.list();
-    expect(first.status).toBe('ok');
-    expect((await opened.value.discovery!.list({ refresh: true })).status).toBe(
-      'ok',
-    );
-    expect(
-      f.calls.filter((c) => c.method === 'app/list').length,
-    ).toBeLessThanOrEqual(3);
-    expect(f.calls.some((c) => c.method === 'turn/start')).toBe(false);
+    expect(first.status).toBe("ok");
+    expect((await opened.value.discovery!.list({ refresh: true })).status).toBe("ok");
+    expect(f.calls.filter((c) => c.method === "app/list").length).toBeLessThanOrEqual(3);
+    expect(f.calls.some((c) => c.method === "turn/start")).toBe(false);
   } finally {
     await opened.value.close();
   }
 });
-test('discovery caches metadata, preserves equal names and resolves only opaque selected identities', async () => {
+test("discovery caches metadata, preserves equal names and resolves only opaque selected identities", async () => {
   const f = fixture();
   const opened = await f.driver.openSession(input);
-  if (opened.status !== 'ok') throw Error();
+  if (opened.status !== "ok") throw Error();
   const s = opened.value;
   expect(s.discovery).toBeDefined();
   if (!s.discovery) return;
   const found = await s.discovery.list();
-  if (found.status !== 'ok') throw Error();
-  expect(found.value.entries.filter((e) => e.name === 'inspect')).toHaveLength(
-    3,
-  );
+  if (found.status !== "ok") throw Error();
+  expect(found.value.entries.filter((e) => e.name === "inspect")).toHaveLength(3);
   expect(new Set(found.value.entries.map((e) => e.id)).size).toBe(4);
-  expect(JSON.stringify(found.value)).not.toContain('/synthetic');
-  expect(found.value.entries.find((e) => e.kind === 'tool')).toMatchObject({
-    availability: 'unverified',
+  expect(JSON.stringify(found.value)).not.toContain("/synthetic");
+  expect(found.value.entries.find((e) => e.kind === "tool")).toMatchObject({
+    availability: "unverified",
     selectable: false,
   });
   await s.discovery.list();
-  expect(f.calls.filter((c) => c.method === 'skills/list')).toHaveLength(1);
-  expect(
-    f.calls.some(
-      (c) => c.method === 'plugin/list' || c.method === 'turn/start',
-    ),
-  ).toBe(false);
+  expect(f.calls.filter((c) => c.method === "skills/list")).toHaveLength(1);
+  expect(f.calls.some((c) => c.method === "plugin/list" || c.method === "turn/start")).toBe(false);
   s.signals();
   const selections = found.value.entries
-    .filter((e) => e.kind === 'skill' || e.kind === 'app')
+    .filter((e) => e.kind === "skill" || e.kind === "app")
     .slice(0, 3)
     .map((e) => ({ id: e.id, revision: found.value.revision }));
-  expect(
-    await s.execute({ operationId: 'go', text: 'Use selected', selections }),
-  ).toMatchObject({ status: 'ok' });
-  expect(f.calls.find((c) => c.method === 'turn/start')?.params).toMatchObject({
+  expect(await s.execute({ operationId: "go", text: "Use selected", selections })).toMatchObject({
+    status: "ok",
+  });
+  expect(f.calls.find((c) => c.method === "turn/start")?.params).toMatchObject({
     input: [
-      { type: 'text', text: 'Use selected' },
-      { type: 'skill', name: 'inspect', path: '/synthetic/SKILL.md' },
-      { type: 'skill', name: 'inspect', path: '/other/SKILL.md' },
-      { type: 'mention', name: 'Demo', path: 'app://demo' },
+      { type: "text", text: "Use selected" },
+      { type: "skill", name: "inspect", path: "/synthetic/SKILL.md" },
+      { type: "skill", name: "inspect", path: "/other/SKILL.md" },
+      { type: "mention", name: "Demo", path: "app://demo" },
     ],
   });
   await s.close();
 });
-test('upstream invalidation rejects stale selections before executing and refresh isolates failures', async () => {
+test("upstream invalidation rejects stale selections before executing and refresh isolates failures", async () => {
   const f = fixture(true);
   const opened = await f.driver.openSession(input);
-  if (opened.status !== 'ok') throw Error();
+  if (opened.status !== "ok") throw Error();
   const s = opened.value;
   expect(s.discovery).toBeDefined();
   if (!s.discovery) return;
   const first = await s.discovery.list();
-  if (first.status !== 'ok') throw Error();
-  f.notify({ method: 'skills/changed', params: {} });
+  if (first.status !== "ok") throw Error();
+  f.notify({ method: "skills/changed", params: {} });
   s.signals();
   expect(
     await s.execute({
-      operationId: 'stale',
-      text: '',
-      selections: [
-        { id: first.value.entries[0]!.id, revision: first.value.revision },
-      ],
+      operationId: "stale",
+      text: "",
+      selections: [{ id: first.value.entries[0]!.id, revision: first.value.revision }],
     }),
-  ).toMatchObject({ status: 'rejected' });
-  f.responses['app/list'] = new Error('secret path /private');
-  f.notify({ method: 'app/list/updated', params: {} });
+  ).toMatchObject({ status: "rejected" });
+  f.responses["app/list"] = new Error("secret path /private");
+  f.notify({ method: "app/list/updated", params: {} });
   const next = await s.discovery.list();
-  if (next.status !== 'ok') throw Error();
+  if (next.status !== "ok") throw Error();
   expect(next.value.revision).not.toBe(first.value.revision);
-  expect(next.value.categories.find((c) => c.kind === 'app')).toMatchObject({
-    status: 'error',
+  expect(next.value.categories.find((c) => c.kind === "app")).toMatchObject({
+    status: "error",
   });
-  expect(next.value.entries.some((e) => e.kind === 'skill')).toBe(true);
-  expect(JSON.stringify(next)).not.toContain('/private');
-  expect(f.calls.some((c) => c.method === 'plugin/list')).toBe(true);
-  expect(f.calls.some((c) => c.method === 'turn/start')).toBe(false);
+  expect(next.value.entries.some((e) => e.kind === "skill")).toBe(true);
+  expect(JSON.stringify(next)).not.toContain("/private");
+  expect(f.calls.some((c) => c.method === "plugin/list")).toBe(true);
+  expect(f.calls.some((c) => c.method === "turn/start")).toBe(false);
   await s.close();
 });
-test('unsupported provider rejects selections without invoking responder', async () => {
+test("unsupported provider rejects selections without invoking responder", async () => {
   let ran = false;
   const opened = await createSyntheticDriver(() => {
     ran = true;
-    return '';
+    return "";
   }).openSession(input);
-  if (opened.status !== 'ok') throw Error();
+  if (opened.status !== "ok") throw Error();
   const s = opened.value;
   s.signals();
   expect(
     await s.execute({
-      operationId: 'no',
-      text: '',
-      selections: [{ id: 'invented', revision: 'old' }],
+      operationId: "no",
+      text: "",
+      selections: [{ id: "invented", revision: "old" }],
     }),
-  ).toMatchObject({ status: 'rejected' });
+  ).toMatchObject({ status: "rejected" });
   expect(ran).toBe(false);
   await s.close();
 });
-test('experimental installed plugin selections use native mentions without leaking marketplace paths', async () => {
+test("experimental installed plugin selections use native mentions without leaking marketplace paths", async () => {
   const f = fixture(true);
-  f.responses['plugin/list'] = {
+  f.responses["plugin/list"] = {
     marketplaces: [
       {
-        name: 'public',
-        path: '/private/marketplace.json',
+        name: "public",
+        path: "/private/marketplace.json",
         interface: null,
         plugins: [
           {
-            id: 'demo@public',
-            name: 'Demo plugin',
+            id: "demo@public",
+            name: "Demo plugin",
             installed: true,
             enabled: true,
-            availability: 'AVAILABLE',
+            availability: "AVAILABLE",
             interface: {
               displayName: null,
               shortDescription: null,
-              longDescription: 'Public plugin',
+              longDescription: "Public plugin",
             },
           },
         ],
@@ -532,46 +500,44 @@ test('experimental installed plugin selections use native mentions without leaki
     featuredPluginIds: [],
   };
   const opened = await f.driver.openSession(input);
-  if (opened.status !== 'ok') throw Error();
+  if (opened.status !== "ok") throw Error();
   const s = opened.value;
   const result = await s.discovery!.list();
-  if (result.status !== 'ok') throw Error();
-  const selected = result.value.entries.find((e) => e.kind === 'plugin');
+  if (result.status !== "ok") throw Error();
+  const selected = result.value.entries.find((e) => e.kind === "plugin");
   expect(selected?.selectable).toBe(true);
   if (!selected) throw Error();
-  expect(JSON.stringify(result)).not.toContain('/private');
+  expect(JSON.stringify(result)).not.toContain("/private");
   s.signals();
   expect(
     await s.execute({
-      operationId: 'plugin',
-      text: '',
+      operationId: "plugin",
+      text: "",
       selections: [{ id: selected.id, revision: result.value.revision }],
     }),
-  ).toMatchObject({ status: 'ok' });
-  expect(f.calls.find((c) => c.method === 'turn/start')?.params).toMatchObject({
+  ).toMatchObject({ status: "ok" });
+  expect(f.calls.find((c) => c.method === "turn/start")?.params).toMatchObject({
     input: [
-      { type: 'text' },
-      { type: 'mention', name: 'Demo plugin', path: 'plugin://demo@public' },
+      { type: "text" },
+      { type: "mention", name: "Demo plugin", path: "plugin://demo@public" },
     ],
   });
   await s.close();
 });
-test('pagination cycle fails one category and stale in-flight discovery cannot republish', async () => {
+test("pagination cycle fails one category and stale in-flight discovery cannot republish", async () => {
   const f = fixture();
-  f.responses['app/list'] = { data: [], nextCursor: 'repeat' };
+  f.responses["app/list"] = { data: [], nextCursor: "repeat" };
   const opened = await f.driver.openSession(input);
-  if (opened.status !== 'ok') throw Error();
+  if (opened.status !== "ok") throw Error();
   const s = opened.value;
   const first = await s.discovery!.list();
-  if (first.status !== 'ok') throw Error();
+  if (first.status !== "ok") throw Error();
   const result = await s.discovery!.list({ cursor: first.value.nextCursor! });
-  if (result.status !== 'ok') throw Error();
-  expect(result.value.categories.find((c) => c.kind === 'app')?.status).toBe(
-    'error',
-  );
-  expect(f.calls.filter((c) => c.method === 'app/list')).toHaveLength(2);
+  if (result.status !== "ok") throw Error();
+  expect(result.value.categories.find((c) => c.kind === "app")?.status).toBe("error");
+  expect(f.calls.filter((c) => c.method === "app/list")).toHaveLength(2);
   let release: (value: unknown) => void = () => {};
-  f.responses['skills/list'] = () =>
+  f.responses["skills/list"] = () =>
     new Promise((resolve) => {
       release = resolve;
     });
@@ -579,26 +545,24 @@ test('pagination cycle fails one category and stale in-flight discovery cannot r
   await Promise.resolve();
   s.discovery!.invalidate();
   release({ data: [] });
-  expect(await old).toMatchObject({ status: 'rejected' });
+  expect(await old).toMatchObject({ status: "rejected" });
   await s.close();
-  expect(await s.discovery!.list()).toMatchObject({ status: 'rejected' });
+  expect(await s.discovery!.list()).toMatchObject({ status: "rejected" });
 });
-test('unknown native discovery method is honestly unsupported without exposing provider errors', async () => {
+test("unknown native discovery method is honestly unsupported without exposing provider errors", async () => {
   const f = fixture();
-  f.responses['app/list'] = Object.assign(new Error('secret'), {
+  f.responses["app/list"] = Object.assign(new Error("secret"), {
     code: -32601,
   });
   const opened = await f.driver.openSession(input);
-  if (opened.status !== 'ok') throw Error();
+  if (opened.status !== "ok") throw Error();
   const s = opened.value;
   const result = await s.discovery!.list();
-  if (result.status !== 'ok') throw Error();
-  expect(result.value.categories.find((c) => c.kind === 'app')?.status).toBe(
-    'unsupported',
-  );
+  if (result.status !== "ok") throw Error();
+  expect(result.value.categories.find((c) => c.kind === "app")?.status).toBe("unsupported");
   await s.close();
 });
-for (const method of ['execute', 'steer'] as const)
+for (const method of ["execute", "steer"] as const)
   test(`${method} rejects selections invalidated during image preparation before dispatch`, async () => {
     let ready = () => {};
     const preparing = new Promise<void>((resolve) => {
@@ -613,41 +577,37 @@ for (const method of ['execute', 'steer'] as const)
       return image;
     });
     const opened = await f.driver.openSession(input);
-    if (opened.status !== 'ok') throw Error();
+    if (opened.status !== "ok") throw Error();
     const session = opened.value;
     session.signals();
     const catalogue = await session.discovery!.list();
-    if (catalogue.status !== 'ok') throw Error();
-    if (method === 'steer')
-      expect(
-        await session.execute({ operationId: 'operation', text: 'Begin' }),
-      ).toMatchObject({ status: 'ok' });
+    if (catalogue.status !== "ok") throw Error();
+    if (method === "steer")
+      expect(await session.execute({ operationId: "operation", text: "Begin" })).toMatchObject({
+        status: "ok",
+      });
     const operation = {
-      operationId: 'operation',
-      text: 'Use selection',
+      operationId: "operation",
+      text: "Use selection",
       selections: [
         {
           id: catalogue.value.entries[0]!.id,
           revision: catalogue.value.revision,
         },
       ],
-      attachments: [{ key: 'test-image', mediaType: 'image/png', size: 1 }],
+      attachments: [{ key: "test-image", mediaType: "image/png", size: 1 }],
     };
-    const pending =
-      method === 'execute'
-        ? session.execute(operation)
-        : session.steer!(operation);
+    const pending = method === "execute" ? session.execute(operation) : session.steer!(operation);
     await preparing;
     session.discovery!.invalidate();
-    release('/synthetic/image.png');
+    release("/synthetic/image.png");
     expect(await pending).toMatchObject({
-      status: 'rejected',
-      failure: { code: 'invalid_state' },
+      status: "rejected",
+      failure: { code: "invalid_state" },
     });
     expect(
       f.calls.filter(
-        (call) =>
-          call.method === (method === 'execute' ? 'turn/start' : 'turn/steer'),
+        (call) => call.method === (method === "execute" ? "turn/start" : "turn/steer"),
       ),
     ).toHaveLength(0);
     await session.close();

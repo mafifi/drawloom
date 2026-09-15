@@ -14,9 +14,17 @@ export interface RetrievalMetrics {
 }
 
 export type RetrievalQuestionCategory = RetrievalMetricQuestion["kind"];
-export type RetrievalCategoryMetrics = Readonly<Record<RetrievalQuestionCategory, RetrievalMetrics>>;
+export type RetrievalCategoryMetrics = Readonly<
+  Record<RetrievalQuestionCategory, RetrievalMetrics>
+>;
 
-const categories = ["semantic", "identifier", "chain", "contradiction", "irrelevant"] as const satisfies readonly RetrievalQuestionCategory[];
+const categories = [
+  "semantic",
+  "identifier",
+  "chain",
+  "contradiction",
+  "irrelevant",
+] as const satisfies readonly RetrievalQuestionCategory[];
 
 /** Scores exact corpus references; expected answers are intentionally not inputs. */
 export function scoreRetrieval(input: {
@@ -47,10 +55,16 @@ export function scoreRetrieval(input: {
       chains++;
       if (question.requiredChain.every((ref) => actual.has(ref))) completeChains++;
     }
-    if (question.abstain) { abstentions++; if (records.length === 0) correctAbstentions++; }
+    if (question.abstain) {
+      abstentions++;
+      if (records.length === 0) correctAbstentions++;
+    }
   }
   return {
-    relevantEvidence: { precision: ratio(relevantReturned, returned), recall: ratio(relevantReturned, relevantExpected) },
+    relevantEvidence: {
+      precision: ratio(relevantReturned, returned),
+      recall: ratio(relevantReturned, relevantExpected),
+    },
     exactIdentifierRecall: ratio(identifierReturned, identifierExpected),
     chainCompleteness: ratio(completeChains, chains),
     irrelevantAbstention: ratio(correctAbstentions, abstentions),
@@ -62,10 +76,17 @@ export function scoreRetrievalByCategory(input: {
   readonly questions: readonly RetrievalMetricQuestion[];
   readonly retrieved: Readonly<Record<string, readonly string[]>>;
 }): RetrievalCategoryMetrics {
-  return Object.fromEntries(categories.map((category) => [category, scoreRetrieval({
-    questions: input.questions.filter((question) => question.kind === category),
-    retrieved: input.retrieved,
-  })])) as RetrievalCategoryMetrics;
+  return Object.fromEntries(
+    categories.map((category) => [
+      category,
+      scoreRetrieval({
+        questions: input.questions.filter((question) => question.kind === category),
+        retrieved: input.retrieved,
+      }),
+    ]),
+  ) as RetrievalCategoryMetrics;
 }
 
-function ratio(numerator: number, denominator: number): number { return denominator === 0 ? 1 : numerator / denominator; }
+function ratio(numerator: number, denominator: number): number {
+  return denominator === 0 ? 1 : numerator / denominator;
+}

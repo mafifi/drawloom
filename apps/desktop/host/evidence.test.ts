@@ -4,7 +4,7 @@ import type { JsonValue, JsonStore } from "@drawloom/host";
 import { defineTool } from "@drawloom/tools";
 import { createLocalToolGateway } from "@drawloom/local-tools";
 import { createDesktopEvidence } from "./evidence.js";
-import { createTestDesktopApplication as createDesktopApplication } from './test-project.fixture.js';
+import { createTestDesktopApplication as createDesktopApplication } from "./test-project.fixture.js";
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
@@ -15,10 +15,7 @@ test("application snapshot restores outstanding invocation without opening an ag
   const first = await createDesktopApplication(root),
     id = (await first.snapshot()).selectedId;
   await first.close();
-  const sink = await createDesktopEvidence(
-    createNodeJsonStore(join(root, "state")),
-    id,
-  );
+  const sink = await createDesktopEvidence(createNodeJsonStore(join(root, "state")), id);
   await sink.record({
     kind: "started",
     invocationId: "unfinished",
@@ -140,12 +137,7 @@ test("overlapping desktop evidence retains every identity and unfinished starts 
   });
   await Promise.all(
     Array.from({ length: 8 }, (_, n) =>
-      gateway.invoke(
-        gateway.bind("operation-" + n),
-        f.tool.name,
-        {},
-        new AbortController().signal,
-      ),
+      gateway.invoke(gateway.bind("operation-" + n), f.tool.name, {}, new AbortController().signal),
     ),
   );
   await sink.record({

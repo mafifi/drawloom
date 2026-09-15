@@ -3,14 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "..");
-const skillPath = resolve(
-  root,
-  ".agents/skills/microinteraction-design/SKILL.md",
-);
-const casesPath = resolve(
-  root,
-  ".agents/skills/microinteraction-design/evals/trigger-cases.json",
-);
+const skillPath = resolve(root, ".agents/skills/microinteraction-design/SKILL.md");
+const casesPath = resolve(root, ".agents/skills/microinteraction-design/evals/trigger-cases.json");
 const cataloguePath = resolve(
   root,
   ".agents/skills/microinteraction-design/references/pattern-catalogue.md",
@@ -35,9 +29,7 @@ describe("microinteraction design skill discovery", () => {
   test("routes interactive design work through the repository skill", () => {
     const agentGuide = read(resolve(root, "AGENTS.md"));
 
-    expect(agentGuide).toContain(
-      ".agents/skills/microinteraction-design/SKILL.md",
-    );
+    expect(agentGuide).toContain(".agents/skills/microinteraction-design/SKILL.md");
     expect(agentGuide).toMatch(
       /before (?:designing|changing)[\s\S]{0,240}interactive[\s\S]{0,240}use/i,
     );
@@ -50,9 +42,7 @@ describe("microinteraction design skill discovery", () => {
 
     expect(frontmatter).toContain("name: microinteraction-design");
     expect(frontmatter).toMatch(/description:\s*>?-?\s*\n?\s*Use when/i);
-    expect(frontmatter).toMatch(
-      /interaction states|feedback|motion|animation|transition/i,
-    );
+    expect(frontmatter).toMatch(/interaction states|feedback|motion|animation|transition/i);
     expect(frontmatter).toMatch(/design|refin|audit/i);
   });
 
@@ -63,18 +53,12 @@ describe("microinteraction design skill discovery", () => {
     expect(evaluation.schemaVersion).toBe(1);
     expect(evaluation.skill).toBe("microinteraction-design");
 
-    const positives = evaluation.cases.filter(
-      ({ expected }) => expected === "trigger",
-    );
-    const negatives = evaluation.cases.filter(
-      ({ expected }) => expected === "skip",
-    );
+    const positives = evaluation.cases.filter(({ expected }) => expected === "trigger");
+    const negatives = evaluation.cases.filter(({ expected }) => expected === "skip");
 
     expect(positives.length).toBeGreaterThanOrEqual(6);
     expect(negatives.length).toBeGreaterThanOrEqual(4);
-    expect(new Set(evaluation.cases.map(({ id }) => id)).size).toBe(
-      evaluation.cases.length,
-    );
+    expect(new Set(evaluation.cases.map(({ id }) => id)).size).toBe(evaluation.cases.length);
 
     for (const scenario of positives) {
       expect(scenario.requiredBehaviors).toContain("select-skill");

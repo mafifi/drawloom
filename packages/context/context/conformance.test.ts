@@ -1,5 +1,8 @@
 import { test } from "bun:test";
-import { contextPreparationConformance, createDeterministicContextPreparer } from "./src/conformance.js";
+import {
+  contextPreparationConformance,
+  createDeterministicContextPreparer,
+} from "./src/conformance.js";
 
 test("deterministic context preparer satisfies shared conformance", async () => {
   await contextPreparationConformance({

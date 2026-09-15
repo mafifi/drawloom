@@ -8,8 +8,7 @@ import {
   CandidateSchema,
   ReviewSchema,
 } from "../../workbench/workbench/src/index.js";
-test("shared startup plugin conformance", () =>
-  pluginConformance(createPluginRegistry));
+test("shared startup plugin conformance", () => pluginConformance(createPluginRegistry));
 test("tool and workbench dependencies fail closed", () => {
   const plugin = definePlugin({
     id: "x",

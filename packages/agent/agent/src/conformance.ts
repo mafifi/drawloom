@@ -30,9 +30,7 @@ export type AgentConformanceFixture = {
     exposure: ToolExposure;
     advertised(): ToolExposure;
     allow(value: boolean): void;
-    invoke(
-      operationId: string,
-    ): Promise<{ success: boolean; operationId?: string }>;
+    invoke(operationId: string): Promise<{ success: boolean; operationId?: string }>;
     effects(): number;
   };
 };
@@ -41,24 +39,75 @@ function check(condition: unknown, message: string): asserts condition {
 }
 /** Optional discovery never silently accepts unknown selections, on any provider. */
 export async function agentDiscoveryConformance(driver: AgentDriver): Promise<void> {
-  const opened=await driver.openSession({sessionId:'discovery-conformance',context:{text:''},tools:{id:'none',tools:[]}});
-  check(opened.status==='ok','discovery session opens');
-  const session=opened.value;session.signals();
+  const opened = await driver.openSession({
+    sessionId: "discovery-conformance",
+    context: { text: "" },
+    tools: { id: "none", tools: [] },
+  });
+  check(opened.status === "ok", "discovery session opens");
+  const session = opened.value;
+  session.signals();
   try {
-    check((await session.execute({operationId:'unknown-model',text:'',modelSelection:{model:'drawloom-nonexistent-model'}})).status==='rejected','unknown or unsupported model is rejected before execution');
-    check((await session.execute({operationId:'unknown-selection',text:'',selections:[{id:'unknown',revision:'unknown'}]})).status==='rejected','unsupported or unknown selection rejected');
-    check((await session.execute({operationId:'forged-selection',text:'',selections:[{id:'unknown',revision:'unknown',path:'/untrusted/SKILL.md'}]} as unknown as Parameters<AgentSession['execute']>[0])).status==='rejected','selection cannot supply native path');
-    if(session.discovery) {
-      const first=await session.discovery.list();check(first.status==='ok','discovery reports category status');
+    check(
+      (
+        await session.execute({
+          operationId: "unknown-model",
+          text: "",
+          modelSelection: { model: "drawloom-nonexistent-model" },
+        })
+      ).status === "rejected",
+      "unknown or unsupported model is rejected before execution",
+    );
+    check(
+      (
+        await session.execute({
+          operationId: "unknown-selection",
+          text: "",
+          selections: [{ id: "unknown", revision: "unknown" }],
+        })
+      ).status === "rejected",
+      "unsupported or unknown selection rejected",
+    );
+    check(
+      (
+        await session.execute({
+          operationId: "forged-selection",
+          text: "",
+          selections: [{ id: "unknown", revision: "unknown", path: "/untrusted/SKILL.md" }],
+        } as unknown as Parameters<AgentSession["execute"]>[0])
+      ).status === "rejected",
+      "selection cannot supply native path",
+    );
+    if (session.discovery) {
+      const first = await session.discovery.list();
+      check(first.status === "ok", "discovery reports category status");
       DiscoverySnapshotSchema.parse(first.value);
-      const second=await session.discovery.list();check(second.status==='ok'&&second.value.revision===first.value.revision,'discovery caches revision');
-      const snapshot=await session.discovery.list({wait:false});check(snapshot.status==='ok'&&snapshot.value.revision===first.value.revision,'nonblocking cached discovery preserves selection revision');
-      check((await session.discovery.list({cursor:'unissued-cursor'})).status==='rejected','unissued continuation is rejected');
+      const second = await session.discovery.list();
+      check(
+        second.status === "ok" && second.value.revision === first.value.revision,
+        "discovery caches revision",
+      );
+      const snapshot = await session.discovery.list({ wait: false });
+      check(
+        snapshot.status === "ok" && snapshot.value.revision === first.value.revision,
+        "nonblocking cached discovery preserves selection revision",
+      );
+      check(
+        (await session.discovery.list({ cursor: "unissued-cursor" })).status === "rejected",
+        "unissued continuation is rejected",
+      );
       session.discovery.invalidate();
-      const fresh=await session.discovery.list();check(fresh.status==='ok'&&fresh.value.revision!==first.value.revision,'invalidation produces new revision');
+      const fresh = await session.discovery.list();
+      check(
+        fresh.status === "ok" && fresh.value.revision !== first.value.revision,
+        "invalidation produces new revision",
+      );
     }
-  } finally {await session.close();}
-  if(session.discovery)check((await session.discovery.list()).status==='rejected','closed discovery rejected');
+  } finally {
+    await session.close();
+  }
+  if (session.discovery)
+    check((await session.discovery.list()).status === "rejected", "closed discovery rejected");
 }
 function observer(session: AgentSession) {
   const stream = session.signals();
@@ -70,10 +119,7 @@ function observer(session: AgentSession) {
   } catch {
     rejected = true;
   }
-  check(
-    rejected || sameIterator,
-    "second iteration must not create another waiter",
-  );
+  check(rejected || sameIterator, "second iteration must not create another waiter");
   rejected = false;
   try {
     session.signals();
@@ -107,30 +153,19 @@ async function interactions(
 ) {
   if (!fixture.interactions) return;
   await fixture.interactions.request();
-  const pending = await Promise.all([
-    read.next(),
-    read.next(),
-    read.next(),
-    read.next(),
-  ]);
+  const pending = await Promise.all([read.next(), read.next(), read.next(), read.next()]);
   const approvals = pending.filter((e) => e.kind === "approval.requested");
   const inputs = pending.filter((e) => e.kind === "input.requested");
+  check(approvals.length === 2 && inputs.length === 2, "multiple independent interactions");
   check(
-    approvals.length === 2 && inputs.length === 2,
-    "multiple independent interactions",
-  );
-  check(
-    [...approvals, ...inputs].every(
-      (event) => event.request.operationId === "a",
-    ),
+    [...approvals, ...inputs].every((event) => event.request.operationId === "a"),
     "interactions remain attached to their originating operation",
   );
   const first = approvals[0]!.request;
   const second = approvals[1]!.request;
   check(first.approvalId !== second.approvalId, "unique approval IDs");
   check(
-    JSON.stringify(second.options.map((o) => o.label)) ===
-      '["decline","acceptForSession"]',
+    JSON.stringify(second.options.map((o) => o.label)) === '["decline","acceptForSession"]',
     "lossless advertised choices",
   );
   check(
@@ -186,8 +221,7 @@ async function interactions(
   const inputFirst = inputs[0]!.request;
   const inputSecond = inputs[1]!.request;
   check(
-    inputFirst.requestId !== inputSecond.requestId &&
-      inputSecond.responseSchema !== undefined,
+    inputFirst.requestId !== inputSecond.requestId && inputSecond.responseSchema !== undefined,
     "input identity and schema",
   );
   check(
@@ -211,9 +245,9 @@ async function interactions(
     "second input resolution",
   );
   check(
-    ((event) =>
-      event.kind === "input.resolved" &&
-      event.requestId === inputSecond.requestId)(await read.next()),
+    ((event) => event.kind === "input.resolved" && event.requestId === inputSecond.requestId)(
+      await read.next(),
+    ),
     "input resolution signal",
   );
   check(
@@ -226,9 +260,9 @@ async function interactions(
     "input cancellation",
   );
   check(
-    ((event) =>
-      event.kind === "input.resolved" &&
-      event.requestId === inputFirst.requestId)(await read.next()),
+    ((event) => event.kind === "input.resolved" && event.requestId === inputFirst.requestId)(
+      await read.next(),
+    ),
     "input cancellation signal",
   );
   check(
@@ -255,12 +289,7 @@ async function interactions(
     check(!denied.success, "input and approval must not grant tool authority");
   }
   await fixture.interactions.request();
-  const stale = await Promise.all([
-    read.next(),
-    read.next(),
-    read.next(),
-    read.next(),
-  ]);
+  const stale = await Promise.all([read.next(), read.next(), read.next(), read.next()]);
   return stale;
 }
 export async function agentConformance(
@@ -268,9 +297,7 @@ export async function agentConformance(
 ): Promise<void> {
   const fixture = await factory();
   await agentDiscoveryConformance(fixture.driver);
-  const exposure = structuredClone(
-    fixture.tools?.exposure ?? { id: "empty", tools: [] },
-  );
+  const exposure = structuredClone(fixture.tools?.exposure ?? { id: "empty", tools: [] });
   const initialExposure = JSON.stringify(exposure);
   const opened = await fixture.driver.openSession({
     sessionId: "session-a",
@@ -281,35 +308,46 @@ export async function agentConformance(
   const session = opened.value;
   try {
     check(
-      (await session.execute({ operationId: "unobserved", text: "x" }))
-        .status === "rejected",
+      (await session.execute({ operationId: "unobserved", text: "x" })).status === "rejected",
       "execution without observer",
     );
     const read = observer(session);
-    check(Array.isArray(session.reviewerModes) && session.reviewerModes.includes('human'), 'explicit human reviewer support');
-    if (!session.reviewerModes.includes('delegated')) {
-      check((await session.execute({ operationId: 'unsupported-review', text: 'work', reviewer: 'delegated' })).status === 'rejected', 'unsupported reviewer must not silently downgrade');
+    check(
+      Array.isArray(session.reviewerModes) && session.reviewerModes.includes("human"),
+      "explicit human reviewer support",
+    );
+    if (!session.reviewerModes.includes("delegated")) {
+      check(
+        (
+          await session.execute({
+            operationId: "unsupported-review",
+            text: "work",
+            reviewer: "delegated",
+          })
+        ).status === "rejected",
+        "unsupported reviewer must not silently downgrade",
+      );
     }
     const firstSignal = read.next();
     const accepting = session.execute({
       operationId: "a",
       text: "hello",
       additionalContext: { text: "fresh sentinel" },
-      references: { kind: "ready", text: "untrusted reference sentinel", bytes: 28, references: [] },
+      references: {
+        kind: "ready",
+        text: "untrusted reference sentinel",
+        bytes: 28,
+        references: [],
+      },
     });
     check(
-      (await session.execute({ operationId: "overlap", text: "x" })).status ===
-        "rejected",
+      (await session.execute({ operationId: "overlap", text: "x" })).status === "rejected",
       "overlap while starting",
     );
     check((await accepting).status === "ok", "acceptance");
+    check((await firstSignal).kind === "operation.started", "waiting consumer receives started");
     check(
-      (await firstSignal).kind === "operation.started",
-      "waiting consumer receives started",
-    );
-    check(
-      (await session.execute({ operationId: "other", text: "x" })).status ===
-        "rejected",
+      (await session.execute({ operationId: "other", text: "x" })).status === "rejected",
       "overlap while active",
     );
     check(
@@ -317,11 +355,14 @@ export async function agentConformance(
         fixture.contextText().includes("fresh sentinel"),
       "session and fresh context consumption",
     );
-    check(fixture.referenceText().includes("untrusted reference sentinel") && !fixture.contextText().includes("untrusted reference sentinel"), "references reach user content without promotion into application context");
+    check(
+      fixture.referenceText().includes("untrusted reference sentinel") &&
+        !fixture.contextText().includes("untrusted reference sentinel"),
+      "references reach user content without promotion into application context",
+    );
     if (session.steer) {
       check(
-        (await session.steer({ operationId: "stale", text: "x" })).status ===
-          "rejected",
+        (await session.steer({ operationId: "stale", text: "x" })).status === "rejected",
         "steer rejects stale target",
       );
       check(fixture.controls, "exposed controls require their fixture");
@@ -331,7 +372,12 @@ export async function agentConformance(
             operationId: "a",
             text: "steering sentinel",
             additionalContext: { text: "steering context" },
-            references: { kind: "ready", text: "untrusted steering reference", bytes: 28, references: [] },
+            references: {
+              kind: "ready",
+              text: "untrusted steering reference",
+              bytes: 28,
+              references: [],
+            },
           })
         ).status === "ok",
         "steer accepted",
@@ -341,7 +387,10 @@ export async function agentConformance(
           fixture.controls.steeringText().includes("steering context"),
         "steering text and context consumption",
       );
-      check(fixture.referenceText().includes("untrusted steering reference"), "steering includes fresh user references");
+      check(
+        fixture.referenceText().includes("untrusted steering reference"),
+        "steering includes fresh user references",
+      );
     }
     if (fixture.tools) {
       exposure.tools.length = 0;
@@ -352,15 +401,12 @@ export async function agentConformance(
       fixture.tools.allow(true);
       const call = await fixture.tools.invoke("a");
       check(
-        call.success &&
-          call.operationId === "a" &&
-          fixture.tools.effects() === 1,
+        call.success && call.operationId === "a" && fixture.tools.effects() === 1,
         "tool call bound to originating operation",
       );
       fixture.tools.allow(false);
       check(
-        !(await fixture.tools.invoke("a")).success &&
-          fixture.tools.effects() === 1,
+        !(await fixture.tools.invoke("a")).success && fixture.tools.effects() === 1,
         "live authority revocation",
       );
     }
@@ -372,10 +418,7 @@ export async function agentConformance(
     } while (!terminal.kind.startsWith("operation."));
     check(terminal.kind === "operation.completed", "completion after messages");
     const completed = read.events.filter((e) => e.kind === "message.completed");
-    check(
-      completed.length === 1 && completed[0]!.text === "hello",
-      "complete message snapshot",
-    );
+    check(completed.length === 1 && completed[0]!.text === "hello", "complete message snapshot");
     const deltas = read.events.filter((e) => e.kind === "message.delta");
     if (deltas.length)
       check(
@@ -413,14 +456,10 @@ export async function agentConformance(
     if (fixture.tools) {
       fixture.tools.allow(true);
       check(
-        (await session.execute({ operationId: "b", text: "hello" })).status ===
-          "ok",
+        (await session.execute({ operationId: "b", text: "hello" })).status === "ok",
         "next operation",
       );
-      check(
-        (await read.next()).kind === "operation.started",
-        "next operation started",
-      );
+      check((await read.next()).kind === "operation.started", "next operation started");
       const delayed = await fixture.tools.invoke("a");
       check(
         !delayed.success && fixture.tools.effects() === 1,
@@ -428,9 +467,7 @@ export async function agentConformance(
       );
       const current = await fixture.tools.invoke("b");
       check(
-        current.success &&
-          current.operationId === "b" &&
-          fixture.tools.effects() === 2,
+        current.success && current.operationId === "b" && fixture.tools.effects() === 2,
         "new operation has only its own authority",
       );
       check(
@@ -447,10 +484,8 @@ export async function agentConformance(
     await session.close();
     await read.drain();
     check(
-      read.events.filter(
-        (e) =>
-          e.kind.startsWith("operation.") && e.kind !== "operation.started",
-      ).length === (fixture.tools ? 2 : 1),
+      read.events.filter((e) => e.kind.startsWith("operation.") && e.kind !== "operation.started")
+        .length === (fixture.tools ? 2 : 1),
       "exact terminal count and no replay",
     );
     check(
@@ -463,8 +498,8 @@ export async function agentConformance(
       "stale approval",
     );
     check(
-      (await session.respondToInput({ requestId: "stale", action: "cancel" }))
-        .status === "rejected",
+      (await session.respondToInput({ requestId: "stale", action: "cancel" })).status ===
+        "rejected",
       "stale input",
     );
     check(
@@ -492,10 +527,7 @@ export async function agentConformance(
     await read.next();
     if (s.interrupt) {
       check(second.controls, "interrupt requires its fixture");
-      check(
-        (await s.interrupt("stale")).status === "rejected",
-        "interrupt rejects stale target",
-      );
+      check((await s.interrupt("stale")).status === "rejected", "interrupt rejects stale target");
       const first = s.interrupt("active");
       const concurrent = s.interrupt("active");
       check(
@@ -505,24 +537,18 @@ export async function agentConformance(
         "concurrent interruption shares provider command",
       );
       check(
-        (await s.execute({ operationId: "premature", text: "x" })).status ===
-          "rejected",
+        (await s.execute({ operationId: "premature", text: "x" })).status === "rejected",
         "interrupt submission does not finish operation",
       );
       await second.controls.confirmInterruption();
+      check((await read.next()).kind === "operation.interrupted", "provider confirms interruption");
       check(
-        (await read.next()).kind === "operation.interrupted",
-        "provider confirms interruption",
-      );
-      check(
-        (await s.interrupt("active")).status === "ok" &&
-          second.controls.interruptCount() === 1,
+        (await s.interrupt("active")).status === "ok" && second.controls.interruptCount() === 1,
         "confirmed interruption is idempotent",
       );
       if (s.steer)
         check(
-          (await s.steer({ operationId: "active", text: "stale" })).status ===
-            "rejected",
+          (await s.steer({ operationId: "active", text: "stale" })).status === "rejected",
           "terminal steer rejected",
         );
       await s.execute({ operationId: "close-active", text: "work" });
@@ -532,20 +558,12 @@ export async function agentConformance(
     if (second.interactions) {
       await second.interactions.request();
       pendingAtClose.push(
-        ...(await Promise.all([
-          read.next(),
-          read.next(),
-          read.next(),
-          read.next(),
-        ])),
+        ...(await Promise.all([read.next(), read.next(), read.next(), read.next()])),
       );
     }
     const waiting = read.next();
     await s.close();
-    check(
-      (await waiting).kind === "operation.interrupted",
-      "pending reader sees close terminal",
-    );
+    check((await waiting).kind === "operation.interrupted", "pending reader sees close terminal");
     await read.drain();
     for (const event of pendingAtClose) {
       if (event.kind === "approval.requested")

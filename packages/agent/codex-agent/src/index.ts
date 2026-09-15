@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { createReferenceDisplay, currentReferenceInput } from "./reference-display.js";
-import { readCodexModels, permitsModel } from './models.js';
-export { readCodexModels, permitsModel } from './models.js';
-import { createCodexDiscovery } from './discovery.js';
+import { readCodexModels, permitsModel } from "./models.js";
+export { readCodexModels, permitsModel } from "./models.js";
+import { createCodexDiscovery } from "./discovery.js";
 import { createCodexHistoryReader, nativeMessageId, type CaptureToolContent } from "./history.js";
 import {
   AgentSessionOpenInputSchema,
@@ -20,7 +20,7 @@ import {
 } from "@drawloom/agent";
 import type { JsonStore, RpcTransport, JsonValue } from "@drawloom/host";
 import type { ToolExposure, ToolGateway, ToolBinding } from "@drawloom/tools";
-import { ToolContentSchema, type ToolContent } from '@drawloom/tools';
+import { ToolContentSchema, type ToolContent } from "@drawloom/tools";
 export type CodexDriverOptions = {
   /** Host-validated fixed project directory. Existing native continuity must match. */
   workingDirectory?: string;
@@ -28,7 +28,12 @@ export type CodexDriverOptions = {
   onToolContent?: CaptureToolContent;
   /** Observed native result only, not execution completion or history replay.
    * Consumers must verify their own exact invocation and payload correlation. */
-  onToolResultDelivered?: (value: { operationId: string; server: string; tool: string; result: unknown }) => void;
+  onToolResultDelivered?: (value: {
+    operationId: string;
+    server: string;
+    tool: string;
+    result: unknown;
+  }) => void;
   /** Native compaction or uncertain processing invalidates execution-local reuse. */
   onContextInvalidated?: (operationId: string) => void;
   /** Read-only experimental plugin/list; disabled by default. */
@@ -40,11 +45,7 @@ export type CodexDriverOptions = {
   connect: () => Promise<RpcTransport>;
   store: JsonStore;
   projection?: (exposure: ToolExposure) => JsonValue;
-  onTurnAccepted?: (
-    threadId: string,
-    turnId: string,
-    operationId: string,
-  ) => void;
+  onTurnAccepted?: (threadId: string, turnId: string, operationId: string) => void;
   onTurnFinished?: (threadId: string, turnId: string) => void;
   /** Dedicated managed sessions only: archive a fresh thread after an exact native terminal turn signal. */
   archiveOnClose?: boolean;
@@ -53,18 +54,21 @@ const record = z.record(z.string(), z.unknown());
 const identifier = z.string().min(1);
 const tokenCount = z.number().int().safe().nonnegative();
 const tokenUsageBreakdown = z.object({
-  inputTokens: tokenCount.optional(), cachedInputTokens: tokenCount.optional(),
-  outputTokens: tokenCount.optional(), reasoningOutputTokens: tokenCount.optional(),
-  totalTokens: tokenCount.optional(), cacheWriteInputTokens: tokenCount.optional(),
+  inputTokens: tokenCount.optional(),
+  cachedInputTokens: tokenCount.optional(),
+  outputTokens: tokenCount.optional(),
+  reasoningOutputTokens: tokenCount.optional(),
+  totalTokens: tokenCount.optional(),
+  cacheWriteInputTokens: tokenCount.optional(),
 });
-const tokenUsageNotification = z.object({ total: tokenUsageBreakdown, last: tokenUsageBreakdown.optional(), modelContextWindow: tokenCount.optional() });
+const tokenUsageNotification = z.object({
+  total: tokenUsageBreakdown,
+  last: tokenUsageBreakdown.optional(),
+  modelContextWindow: tokenCount.optional(),
+});
 const reject = (
-  code:
-    | "invalid_state"
-    | "invalid_interaction"
-    | "provider_unavailable"
-    | "provider_rejected",
-  message = code.replaceAll('_', ' '),
+  code: "invalid_state" | "invalid_interaction" | "provider_unavailable" | "provider_rejected",
+  message = code.replaceAll("_", " "),
 ): AgentResult<never> => ({
   status: "rejected",
   failure: { code, message },
@@ -79,8 +83,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
       if (!parsed.success) return reject("invalid_state");
       const input = parsed.data;
       if (sessions.has(input.sessionId)) return reject("invalid_state");
-      if (input.tools.tools.length && !options.projection)
-        return reject("provider_rejected");
+      if (input.tools.tools.length && !options.projection) return reject("provider_rejected");
       sessions.add(input.sessionId);
       let transport: RpcTransport | undefined;
       try {
@@ -94,24 +97,43 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         // The native MCP-review discriminator and automatic-review wire mapping
         // are verified from 0.153.4. Unknown/older versions must not claim parity.
         const version = /^[^/]+\/(\d+)\.(\d+)\.(\d+)/.exec(userAgent);
-        const nativeReview = Boolean(version && (Number(version[1]) > 0 || Number(version[2]) > 153 || (Number(version[2]) === 153 && Number(version[3]) >= 4)));
+        const nativeReview = Boolean(
+          version &&
+            (Number(version[1]) > 0 ||
+              Number(version[2]) > 153 ||
+              (Number(version[2]) === 153 && Number(version[3]) >= 4)),
+        );
         if (input.tools.tools.length && !nativeReview) {
-          await rpc.close(); sessions.delete(input.sessionId);
-          return reject('provider_rejected', 'Native MCP review is unavailable in this Codex version. No tools were dispatched.');
+          await rpc.close();
+          sessions.delete(input.sessionId);
+          return reject(
+            "provider_rejected",
+            "Native MCP review is unavailable in this Codex version. No tools were dispatched.",
+          );
         }
         rpc.notify("initialized");
         const saved = await options.store.get("codex:" + input.sessionId);
         const previous =
           saved === undefined
             ? undefined
-            : z.strictObject({ threadId: identifier, materialized: z.boolean().optional() }).parse(saved);
+            : z
+                .strictObject({ threadId: identifier, materialized: z.boolean().optional() })
+                .parse(saved);
         const resume = previous && previous.materialized !== false;
         if (resume && options.workingDirectory) {
-          const metadata = z.object({thread:z.object({cwd:z.string()})}).parse(
-            await rpc.request('thread/read',{threadId:previous.threadId,includeTurns:false}));
-          if(metadata.thread.cwd !== options.workingDirectory) {
-            await rpc.close();sessions.delete(input.sessionId);
-            return reject('provider_rejected','This native conversation belongs to a different project directory.');
+          const metadata = z.object({ thread: z.object({ cwd: z.string() }) }).parse(
+            await rpc.request("thread/read", {
+              threadId: previous.threadId,
+              includeTurns: false,
+            }),
+          );
+          if (metadata.thread.cwd !== options.workingDirectory) {
+            await rpc.close();
+            sessions.delete(input.sessionId);
+            return reject(
+              "provider_rejected",
+              "This native conversation belongs to a different project directory.",
+            );
           }
         }
         const config = {
@@ -121,30 +143,35 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           "features.memories": false,
           ...(nativeReview ? { "features.tool_call_mcp_elicitation": true } : {}),
         };
-        const opened = await rpc.request(
-          resume ? "thread/resume" : "thread/start",
-          {
-            ...(resume
-              ? { threadId: previous.threadId, excludeTurns: true }
-              : { ephemeral: false }),
-            approvalPolicy: "on-request",
-            ...(options.workingDirectory ? { cwd: options.workingDirectory } : {}),
-            ...(nativeReview ? { approvalsReviewer: 'user' } : {}),
-            sandbox: "read-only",
-            developerInstructions: input.context.text,
-            config,
-          },
-        );
-        const threadId = z
-          .object({ thread: z.object({ id: identifier }) })
-          .parse(opened).thread.id;
-        if(options.workingDirectory && z.object({thread:z.object({cwd:z.string()})}).parse(opened).thread.cwd !== options.workingDirectory) {
-          await rpc.close();sessions.delete(input.sessionId);
-          return reject('provider_rejected','Codex did not confirm the selected project directory.');
+        const opened = await rpc.request(resume ? "thread/resume" : "thread/start", {
+          ...(resume ? { threadId: previous.threadId, excludeTurns: true } : { ephemeral: false }),
+          approvalPolicy: "on-request",
+          ...(options.workingDirectory ? { cwd: options.workingDirectory } : {}),
+          ...(nativeReview ? { approvalsReviewer: "user" } : {}),
+          sandbox: "read-only",
+          developerInstructions: input.context.text,
+          config,
+        });
+        const threadId = z.object({ thread: z.object({ id: identifier }) }).parse(opened).thread.id;
+        if (
+          options.workingDirectory &&
+          z.object({ thread: z.object({ cwd: z.string() }) }).parse(opened).thread.cwd !==
+            options.workingDirectory
+        ) {
+          await rpc.close();
+          sessions.delete(input.sessionId);
+          return reject(
+            "provider_rejected",
+            "Codex did not confirm the selected project directory.",
+          );
         }
-        if (nativeReview && record.parse(opened).approvalsReviewer !== 'user') {
-          await rpc.close(); sessions.delete(input.sessionId);
-          return reject('provider_rejected', 'Codex did not confirm the requested native reviewer. No operation was started.');
+        if (nativeReview && record.parse(opened).approvalsReviewer !== "user") {
+          await rpc.close();
+          sessions.delete(input.sessionId);
+          return reject(
+            "provider_rejected",
+            "Codex did not confirm the requested native reviewer. No operation was started.",
+          );
         }
         await rpc.request("thread/memoryMode/set", {
           threadId,
@@ -153,17 +180,32 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         let materialized = Boolean(resume);
         await options.store.set("codex:" + input.sessionId, { threadId, materialized });
         const operationKey = "codex-operations:" + input.sessionId;
-        const operations = z.record(z.string(), z.string()).parse(await options.store.get(operationKey) ?? {});
+        const operations = z
+          .record(z.string(), z.string())
+          .parse((await options.store.get(operationKey)) ?? {});
         const display = createReferenceDisplay(options.store, threadId);
         const userAssets = new Map<string, import("@drawloom/host").Asset[][]>();
         const mediaPending = new Set<Promise<void>>();
         let closed = false,
           attached = false,
           starting = false;
-        const catalog = createCodexDiscovery(rpc, threadId, () => closed, options.experimentalPluginDiscovery, options.store);
-        const captureToolContent: CaptureToolContent | undefined = options.onToolContent ? async result => options.onToolContent!({
-          ...result, resourceSelections: await catalog.rememberReturnedResources(result.source, result.content),
-        }) : undefined;
+        const catalog = createCodexDiscovery(
+          rpc,
+          threadId,
+          () => closed,
+          options.experimentalPluginDiscovery,
+          options.store,
+        );
+        const captureToolContent: CaptureToolContent | undefined = options.onToolContent
+          ? async (result) =>
+              options.onToolContent!({
+                ...result,
+                resourceSelections: await catalog.rememberReturnedResources(
+                  result.source,
+                  result.content,
+                ),
+              })
+          : undefined;
         let active: { operationId: string; turnId: string } | undefined;
         let usageEligible = !resume;
         let latestUsage: AgentOperationUsage | undefined;
@@ -172,7 +214,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         let transportClosed = false;
         let sequence = 0;
         const interactionScope = crypto.randomUUID();
-        let activeReviewer: AgentReviewer = 'human';
+        let activeReviewer: AgentReviewer = "human";
         let interrupting = false;
         let wake: (() => void) | undefined;
         const queue: AgentSessionSignal[] = [];
@@ -200,10 +242,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           wake = undefined;
         };
         const finish = (
-          kind:
-            | "operation.completed"
-            | "operation.interrupted"
-            | "operation.failed",
+          kind: "operation.completed" | "operation.interrupted" | "operation.failed",
           code:
             | "provider_unavailable"
             | "provider_rejected"
@@ -281,31 +320,35 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               options.onContextInvalidated?.(active.operationId);
               return;
             }
-            if (message.method === 'serverRequest/resolved') {
-              for (const [approvalId, pending] of approvals) if (pending.rpcId === params.requestId) {
-                approvals.delete(approvalId);
-                emit({ kind: 'approval.resolved', approvalId });
-              }
-              for (const [requestId, pending] of inputs) if (pending.rpcId === params.requestId) {
-                inputs.delete(requestId);
-                emit({ kind: 'input.resolved', requestId });
-              }
+            if (message.method === "serverRequest/resolved") {
+              for (const [approvalId, pending] of approvals)
+                if (pending.rpcId === params.requestId) {
+                  approvals.delete(approvalId);
+                  emit({ kind: "approval.resolved", approvalId });
+                }
+              for (const [requestId, pending] of inputs)
+                if (pending.rpcId === params.requestId) {
+                  inputs.delete(requestId);
+                  emit({ kind: "input.resolved", requestId });
+                }
               return;
             }
-            const turn =
-              params.turn === undefined ? undefined : record.parse(params.turn);
+            const turn = params.turn === undefined ? undefined : record.parse(params.turn);
             if ((params.turnId ?? turn?.id) !== active.turnId) {
               if (message.method === "thread/tokenUsage/updated") usageEligible = false;
               return;
             }
             const operationId = active.operationId;
-            if ((message.method === "item/started" || message.method === "item/completed") && record.safeParse(params.item).data?.type === "contextCompaction") {
+            if (
+              (message.method === "item/started" || message.method === "item/completed") &&
+              record.safeParse(params.item).data?.type === "contextCompaction"
+            ) {
               options.onContextInvalidated?.(operationId);
               return;
             }
             if (message.id !== undefined) {
               if (interrupting) return;
-              if (interactionRequests.has(message.id)) throw Error('Duplicate native request');
+              if (interactionRequests.has(message.id)) throw Error("Duplicate native request");
               interactionRequests.add(message.id);
               if (
                 message.method === "item/commandExecution/requestApproval" ||
@@ -331,8 +374,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                     label:
                       typeof decision === "string"
                         ? decision
-                        : (Object.keys(record.parse(decision))[0] ??
-                          "Provider option"),
+                        : (Object.keys(record.parse(decision))[0] ?? "Provider option"),
                   };
                 });
                 const approvalId = `${interactionScope}:approval-${++sequence}`;
@@ -353,25 +395,41 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               }
               if (message.method === "mcpServer/elicitation/request") {
                 const meta = params._meta === undefined ? {} : record.parse(params._meta);
-                if (meta.codex_approval_kind === 'mcp_tool_call') {
-                  if (!nativeReview || params.mode !== 'form') throw Error('Unsupported native approval');
+                if (meta.codex_approval_kind === "mcp_tool_call") {
+                  if (!nativeReview || params.mode !== "form")
+                    throw Error("Unsupported native approval");
                   const approvalId = `${interactionScope}:approval-${++sequence}`;
                   const choices = new Map<string, unknown>([
-                    ['approve', { action: 'accept' }], ['deny', { action: 'decline' }], ['cancel', { action: 'cancel' }],
+                    ["approve", { action: "accept" }],
+                    ["deny", { action: "decline" }],
+                    ["cancel", { action: "cancel" }],
                   ]);
                   approvals.set(approvalId, { rpcId: message.id, choices });
                   const details = meta.tool_params_display ?? meta.tool_params;
-                  emit({ kind: 'approval.requested', request: {
-                    approvalId, operationId,
-                    summary: z.string().parse(params.message).slice(0, 4096),
-                    ...(details === undefined ? {} : { details: (typeof details === 'string' ? details : JSON.stringify(z.json().parse(details), null, 2)).slice(0, 16384) }),
-                    options: [{ optionId: 'approve', label: 'Approve once' }, { optionId: 'deny', label: 'Deny' }, { optionId: 'cancel', label: 'Cancel' }],
-                  } });
+                  emit({
+                    kind: "approval.requested",
+                    request: {
+                      approvalId,
+                      operationId,
+                      summary: z.string().parse(params.message).slice(0, 4096),
+                      ...(details === undefined
+                        ? {}
+                        : {
+                            details: (typeof details === "string"
+                              ? details
+                              : JSON.stringify(z.json().parse(details), null, 2)
+                            ).slice(0, 16384),
+                          }),
+                      options: [
+                        { optionId: "approve", label: "Approve once" },
+                        { optionId: "deny", label: "Deny" },
+                        { optionId: "cancel", label: "Cancel" },
+                      ],
+                    },
+                  });
                   return;
                 }
-                const responseSchema = z
-                  .record(z.string(), z.json())
-                  .parse(params.requestedSchema);
+                const responseSchema = z.record(z.string(), z.json()).parse(params.requestedSchema);
                 const schema = z.fromJSONSchema(responseSchema);
                 const requestId = `${interactionScope}:input-${++sequence}`;
                 inputs.set(requestId, {
@@ -419,12 +477,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                     answers: z
                       .array(
                         question.options?.length && !question.isOther
-                          ? z.enum(
-                              question.options.map((o) => o.label) as [
-                                string,
-                                ...string[],
-                              ],
-                            )
+                          ? z.enum(question.options.map((o) => o.label) as [string, ...string[]])
                           : z.string(),
                       )
                       .min(1),
@@ -451,9 +504,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                             (option) =>
                               `${option.label}${option.description ? `: ${option.description}` : ""}`,
                           ),
-                          ...(q.isOther
-                            ? ["Other: enter a custom answer."]
-                            : []),
+                          ...(q.isOther ? ["Other: enter a custom answer."] : []),
                         ].join("\n"),
                       )
                       .join("\n")
@@ -467,15 +518,42 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               finish("operation.failed", "invalid_provider_response");
               return;
             }
-            if (message.method === 'item/autoApprovalReview/started' || message.method === 'item/autoApprovalReview/completed') {
+            if (
+              message.method === "item/autoApprovalReview/started" ||
+              message.method === "item/autoApprovalReview/completed"
+            ) {
               // Background/provider diagnostics cannot change the review mode chosen for this turn.
-              if (activeReviewer !== 'delegated') return;
-              const review = z.object({ status: z.enum(['inProgress', 'approved', 'denied', 'timedOut', 'aborted']), rationale: z.string().nullable().optional() }).parse(params.review);
-              if ((message.method.endsWith('/started')) !== (review.status === 'inProgress')) throw Error('Invalid native review phase');
+              if (activeReviewer !== "delegated") return;
+              const review = z
+                .object({
+                  status: z.enum(["inProgress", "approved", "denied", "timedOut", "aborted"]),
+                  rationale: z.string().nullable().optional(),
+                })
+                .parse(params.review);
+              if (message.method.endsWith("/started") !== (review.status === "inProgress"))
+                throw Error("Invalid native review phase");
               const action = record.parse(params.action);
-              const status = { inProgress: 'in progress', approved: 'approved', denied: 'denied', timedOut: 'timed out', aborted: 'cancelled' }[review.status];
-              const tool = action.type === 'mcpToolCall' ? z.string().parse(action.toolName).slice(0, 256) : 'provider action';
-              emit({ kind: 'provider.observation', operationId, name: 'approval-review', summary: `Automatic review ${status}: ${tool}${review.rationale ? `. ${review.rationale}` : ''}`.slice(0, 4096) });
+              const status = {
+                inProgress: "in progress",
+                approved: "approved",
+                denied: "denied",
+                timedOut: "timed out",
+                aborted: "cancelled",
+              }[review.status];
+              const tool =
+                action.type === "mcpToolCall"
+                  ? z.string().parse(action.toolName).slice(0, 256)
+                  : "provider action";
+              emit({
+                kind: "provider.observation",
+                operationId,
+                name: "approval-review",
+                summary:
+                  `Automatic review ${status}: ${tool}${review.rationale ? `. ${review.rationale}` : ""}`.slice(
+                    0,
+                    4096,
+                  ),
+              });
               return;
             }
             if (message.method === "item/agentMessage/delta") {
@@ -491,29 +569,70 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             }
             if (message.method === "item/completed") {
               const item = record.parse(params.item);
-              if (item.type === "mcpToolCall" && item.status === "completed" && typeof item.server === "string" && typeof item.tool === "string") {
-                options.onToolResultDelivered?.({ operationId, server: item.server, tool: item.tool, result: item.result });
+              if (
+                item.type === "mcpToolCall" &&
+                item.status === "completed" &&
+                typeof item.server === "string" &&
+                typeof item.tool === "string"
+              ) {
+                options.onToolResultDelivered?.({
+                  operationId,
+                  server: item.server,
+                  tool: item.tool,
+                  result: item.result,
+                });
               }
-              if (item.type === 'mcpToolCall' && item.status === 'completed' && captureToolContent) {
+              if (
+                item.type === "mcpToolCall" &&
+                item.status === "completed" &&
+                captureToolContent
+              ) {
                 const native = identifier.parse(item.id);
                 if (completedMessages.has(native)) return;
                 const result = record.safeParse(item.result);
-                const content = result.success ? ToolContentSchema.safeParse(result.data.content) : undefined;
+                const content = result.success
+                  ? ToolContentSchema.safeParse(result.data.content)
+                  : undefined;
                 if (!content?.success) return;
                 completedMessages.add(native);
-                const pending = captureToolContent({ id: `${operationId}:${await messageId(native)}`, operationId,
-                  source: typeof item.server === 'string' ? item.server.slice(0, 256) : 'native', content: content.data })
-                  .then(() => {}, () => { completedMessages.delete(native); /* History can retry capture, never execution. */ });
+                const pending = captureToolContent({
+                  id: `${operationId}:${await messageId(native)}`,
+                  operationId,
+                  source: typeof item.server === "string" ? item.server.slice(0, 256) : "native",
+                  content: content.data,
+                }).then(
+                  () => {},
+                  () => {
+                    completedMessages.delete(
+                      native,
+                    ); /* History can retry capture, never execution. */
+                  },
+                );
                 mediaPending.add(pending);
                 void pending.finally(() => mediaPending.delete(pending));
-              } else if (item.type === "imageGeneration" && item.status === "completed" && options.captureImage) {
+              } else if (
+                item.type === "imageGeneration" &&
+                item.status === "completed" &&
+                options.captureImage
+              ) {
                 const native = identifier.parse(item.id);
                 if (completedMessages.has(native)) return;
                 completedMessages.add(native);
                 const result = z.string().parse(item.result);
-                const pending = options.captureImage(result).then(async asset => {
-                  if (!closed && active?.operationId === operationId) emit({ kind: "artifact.available", operationId, messageId: await messageId(native), asset });
-                }).catch(() => { /* Media capture is history/display work, not provider execution. */ });
+                const pending = options
+                  .captureImage(result)
+                  .then(async (asset) => {
+                    if (!closed && active?.operationId === operationId)
+                      emit({
+                        kind: "artifact.available",
+                        operationId,
+                        messageId: await messageId(native),
+                        asset,
+                      });
+                  })
+                  .catch(() => {
+                    /* Media capture is history/display work, not provider execution. */
+                  });
                 mediaPending.add(pending);
                 void pending.finally(() => mediaPending.delete(pending));
               } else if (item.type === "agentMessage") {
@@ -544,13 +663,15 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                   operationId,
                   messageId: await messageId(native),
                   role: "user",
-                  ...await display.recover(content.filter(value => value.type === "text").map(value => z.string().parse(value.text)).join("\n")),
+                  ...(await display.recover(
+                    content
+                      .filter((value) => value.type === "text")
+                      .map((value) => z.string().parse(value.text))
+                      .join("\n"),
+                  )),
                   ...(assets.length ? { assets } : {}),
                 });
-              } else if (
-                item.type === "collabAgentToolCall" ||
-                item.type === "subAgentActivity"
-              )
+              } else if (item.type === "collabAgentToolCall" || item.type === "subAgentActivity")
                 emit({
                   kind: "provider.observation",
                   operationId,
@@ -567,15 +688,24 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                   const total = parsed.data.total;
                   const candidate = AgentOperationUsageSchema.safeParse({
                     ...(total.inputTokens === undefined ? {} : { inputTokens: total.inputTokens }),
-                    ...(total.cachedInputTokens === undefined ? {} : { cachedInputTokens: total.cachedInputTokens }),
-                    ...(total.outputTokens === undefined ? {} : { outputTokens: total.outputTokens }),
-                    ...(total.reasoningOutputTokens === undefined ? {} : { reasoningTokens: total.reasoningOutputTokens }),
+                    ...(total.cachedInputTokens === undefined
+                      ? {}
+                      : { cachedInputTokens: total.cachedInputTokens }),
+                    ...(total.outputTokens === undefined
+                      ? {}
+                      : { outputTokens: total.outputTokens }),
+                    ...(total.reasoningOutputTokens === undefined
+                      ? {}
+                      : { reasoningTokens: total.reasoningOutputTokens }),
                     ...(total.totalTokens === undefined ? {} : { totalTokens: total.totalTokens }),
                   });
-                  const monotone = candidate.success && (!latestUsage || Object.entries(latestUsage).every(([name, value]) => {
-                    const next = candidate.data[name as keyof AgentOperationUsage];
-                    return typeof value === "number" && next !== undefined && next >= value;
-                  }));
+                  const monotone =
+                    candidate.success &&
+                    (!latestUsage ||
+                      Object.entries(latestUsage).every(([name, value]) => {
+                        const next = candidate.data[name as keyof AgentOperationUsage];
+                        return typeof value === "number" && next !== undefined && next >= value;
+                      }));
                   if (!monotone) usageEligible = false;
                   else latestUsage = candidate.data;
                 }
@@ -598,18 +728,19 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               return;
             }
             if (message.method === "turn/completed") {
-              const status = z
-                .enum(["completed", "interrupted", "failed"])
-                .parse(turn?.status);
-              const complete = () => { if (active?.operationId !== operationId) return; finish(
-                status === "completed"
-                  ? "operation.completed"
-                  : status === "interrupted"
-                    ? "operation.interrupted"
-                    : "operation.failed",
-                "provider_rejected",
-                true,
-              ); };
+              const status = z.enum(["completed", "interrupted", "failed"]).parse(turn?.status);
+              const complete = () => {
+                if (active?.operationId !== operationId) return;
+                finish(
+                  status === "completed"
+                    ? "operation.completed"
+                    : status === "interrupted"
+                      ? "operation.interrupted"
+                      : "operation.failed",
+                  "provider_rejected",
+                  true,
+                );
+              };
               if (mediaPending.size) void Promise.all([...mediaPending]).then(complete);
               else complete();
             }
@@ -619,17 +750,35 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         };
         let receiveChain = Promise.resolve();
         const receive = (message: import("@drawloom/host").RpcMessage) => {
-          if (['skills/changed', 'app/list/updated', 'mcpServer/startupStatus/updated', 'mcpServer/oauthLogin/completed', 'thread/settings/updated'].includes(message.method)) catalog.upstreamChanged(message.method, message.params);
+          if (
+            [
+              "skills/changed",
+              "app/list/updated",
+              "mcpServer/startupStatus/updated",
+              "mcpServer/oauthLogin/completed",
+              "thread/settings/updated",
+            ].includes(message.method)
+          )
+            catalog.upstreamChanged(message.method, message.params);
           receiveChain = receiveChain.then(() => processMessage(message));
         };
         const unsubscribe = rpc.subscribe(receive, fail);
-        const nativeHistory = createCodexHistoryReader((method, params) => rpc.request(method, params), threadId, operations, options.captureImage, captureToolContent, display.recover);
+        const nativeHistory = createCodexHistoryReader(
+          (method, params) => rpc.request(method, params),
+          threadId,
+          operations,
+          options.captureImage,
+          captureToolContent,
+          display.recover,
+        );
         return {
           status: "ok",
           value: {
             sessionId: input.sessionId,
             discovery: catalog.discovery,
-            reviewerModes: Object.freeze<AgentReviewer[]>(nativeReview ? ['human', 'delegated'] : ['human']),
+            reviewerModes: Object.freeze<AgentReviewer[]>(
+              nativeReview ? ["human", "delegated"] : ["human"],
+            ),
             history: {
               namespace: nativeHistory.namespace,
               async read(context, readOptions) {
@@ -669,27 +818,61 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               )
                 return reject("invalid_state");
               const operation = p.data;
-              if (operation.reviewer === 'delegated' && !nativeReview) return reject('provider_rejected', 'Native delegated review is unavailable in this Codex version.');
-              if (operation.attachments?.length && !options.imageInput) return reject("provider_rejected");
+              if (operation.reviewer === "delegated" && !nativeReview)
+                return reject(
+                  "provider_rejected",
+                  "Native delegated review is unavailable in this Codex version.",
+                );
+              if (operation.attachments?.length && !options.imageInput)
+                return reject("provider_rejected");
               starting = true;
               try {
-                if(operation.modelSelection && !permitsModel(await readCodexModels(rpc),operation.modelSelection)) return reject('provider_rejected','Selected model or reasoning is unavailable.');
-                const images = await Promise.all((operation.attachments ?? []).map(async asset => ({ type: "localImage", path: await options.imageInput!(asset) })));
+                if (
+                  operation.modelSelection &&
+                  !permitsModel(await readCodexModels(rpc), operation.modelSelection)
+                )
+                  return reject("provider_rejected", "Selected model or reasoning is unavailable.");
+                const images = await Promise.all(
+                  (operation.attachments ?? []).map(async (asset) => ({
+                    type: "localImage",
+                    path: await options.imageInput!(asset),
+                  })),
+                );
                 const selected = catalog.resolve(operation.selections ?? []);
-                if (closed || !selected) return reject('invalid_state', 'Discovery changed or the selection is unavailable. Refresh and select again.');
+                if (closed || !selected)
+                  return reject(
+                    "invalid_state",
+                    "Discovery changed or the selection is unavailable. Refresh and select again.",
+                  );
                 const initialDelivery = currentReferenceInput(operation);
                 let sentText = await display.input(initialDelivery);
                 // Once dispatch may occur, preserve the native identity even if
                 // its response is lost. Never replace an uncertain submission.
-                await options.store.set("codex:" + input.sessionId, { threadId, materialized: true });
+                await options.store.set("codex:" + input.sessionId, {
+                  threadId,
+                  materialized: true,
+                });
                 materialized = true;
-                if (initialDelivery.references && operation.referenceSignal?.aborted) sentText = await display.input(currentReferenceInput(operation));
+                if (initialDelivery.references && operation.referenceSignal?.aborted)
+                  sentText = await display.input(currentReferenceInput(operation));
                 if (closed) return reject("provider_unavailable");
                 used.add(operation.operationId);
                 const result = await rpc.request("turn/start", {
                   threadId,
-                  ...(operation.modelSelection ? { model:operation.modelSelection.model, ...(operation.modelSelection.effort?{effort:operation.modelSelection.effort}:{}) } : {}),
-                  ...(nativeReview ? { approvalsReviewer: operation.reviewer === 'delegated' ? 'auto_review' : 'user' } : {}),
+                  ...(operation.modelSelection
+                    ? {
+                        model: operation.modelSelection.model,
+                        ...(operation.modelSelection.effort
+                          ? { effort: operation.modelSelection.effort }
+                          : {}),
+                      }
+                    : {}),
+                  ...(nativeReview
+                    ? {
+                        approvalsReviewer:
+                          operation.reviewer === "delegated" ? "auto_review" : "user",
+                      }
+                    : {}),
                   input: [
                     { type: "text", text: sentText, text_elements: [] },
                     ...selected,
@@ -706,12 +889,11 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                       }
                     : {}),
                 });
-                const turnId = z
-                  .object({ turn: z.object({ id: identifier }) })
-                  .parse(result).turn.id;
+                const turnId = z.object({ turn: z.object({ id: identifier }) }).parse(result)
+                  .turn.id;
                 if (closed) return reject("provider_unavailable");
                 active = { operationId: operation.operationId, turnId };
-                activeReviewer = operation.reviewer ?? 'human';
+                activeReviewer = operation.reviewer ?? "human";
                 interrupting = false;
                 operations[turnId] = operation.operationId;
                 userAssets.set(turnId, [[...(operation.attachments ?? [])]]);
@@ -720,11 +902,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                   operationId: operation.operationId,
                 });
                 try {
-                  options.onTurnAccepted?.(
-                    threadId,
-                    turnId,
-                    operation.operationId,
-                  );
+                  options.onTurnAccepted?.(threadId, turnId, operation.operationId);
                   await options.store.set(operationKey, operations);
                   materialized = true;
                   await options.store.set("codex:" + input.sessionId, { threadId, materialized });
@@ -746,26 +924,34 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             },
             async steer(rawSteering) {
               const p = AgentOperationInputSchema.safeParse(rawSteering);
-              if (p.success && p.data.modelSelection) return reject('invalid_state', 'Model selection applies to a new turn only.');
-              if (
-                !p.success ||
-                closed ||
-                !active ||
-                p.data.operationId !== active.operationId
-              )
+              if (p.success && p.data.modelSelection)
+                return reject("invalid_state", "Model selection applies to a new turn only.");
+              if (!p.success || closed || !active || p.data.operationId !== active.operationId)
                 return reject("invalid_state");
-              if (p.data.reviewer !== undefined && p.data.reviewer !== activeReviewer) return reject('invalid_state');
+              if (p.data.reviewer !== undefined && p.data.reviewer !== activeReviewer)
+                return reject("invalid_state");
               const target = active;
               let queued = false;
               try {
-                if (p.data.attachments?.length && !options.imageInput) return reject("provider_rejected");
-                const images = await Promise.all((p.data.attachments ?? []).map(async asset => ({ type: "localImage", path: await options.imageInput!(asset) })));
+                if (p.data.attachments?.length && !options.imageInput)
+                  return reject("provider_rejected");
+                const images = await Promise.all(
+                  (p.data.attachments ?? []).map(async (asset) => ({
+                    type: "localImage",
+                    path: await options.imageInput!(asset),
+                  })),
+                );
                 const selected = catalog.resolve(p.data.selections ?? []);
-                if (closed || active !== target || !selected) return reject('invalid_state', 'Discovery changed or the selection is unavailable. Refresh and select again.');
+                if (closed || active !== target || !selected)
+                  return reject(
+                    "invalid_state",
+                    "Discovery changed or the selection is unavailable. Refresh and select again.",
+                  );
                 const initialDelivery = currentReferenceInput(p.data);
                 let sentText = await display.input(initialDelivery);
-                if (initialDelivery.references && p.data.referenceSignal?.aborted) sentText = await display.input(currentReferenceInput(p.data));
-                if (closed || active !== target) return reject('invalid_state');
+                if (initialDelivery.references && p.data.referenceSignal?.aborted)
+                  sentText = await display.input(currentReferenceInput(p.data));
+                if (closed || active !== target) return reject("invalid_state");
                 const queuedAssets = [...(p.data.attachments ?? [])];
                 userAssets.get(target.turnId)?.push(queuedAssets);
                 queued = true;
@@ -800,9 +986,10 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               if (closed || !active || active.operationId !== operationId)
                 return Promise.resolve(reject("invalid_state"));
               interrupting = true;
-              for (const approvalId of approvals.keys()) emit({ kind: 'approval.resolved', approvalId });
+              for (const approvalId of approvals.keys())
+                emit({ kind: "approval.resolved", approvalId });
               approvals.clear();
-              for (const requestId of inputs.keys()) emit({ kind: 'input.resolved', requestId });
+              for (const requestId of inputs.keys()) emit({ kind: "input.resolved", requestId });
               inputs.clear();
               const promise = rpc
                 .request("turn/interrupt", { threadId, turnId: active.turnId })
@@ -821,10 +1008,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 return reject("invalid_interaction");
               approvals.delete(p.data.approvalId);
               try {
-                rpc.respond(
-                  pending.rpcId,
-                  pending.choices.get(p.data.optionId),
-                );
+                rpc.respond(pending.rpcId, pending.choices.get(p.data.optionId));
                 emit({ kind: "approval.resolved", ...p.data });
                 return ok();
               } catch {
@@ -838,8 +1022,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               const pending = inputs.get(p.data.requestId);
               if (
                 !pending ||
-                (p.data.action === "submit" &&
-                  !pending.schema.safeParse(p.data.value).success)
+                (p.data.action === "submit" && !pending.schema.safeParse(p.data.value).success)
               )
                 return reject("invalid_interaction");
               inputs.delete(p.data.requestId);
@@ -870,8 +1053,12 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 }
               }
               if (!transportClosed) {
-                try { await rpc.close(); transportClosed = true; }
-                catch { return reject("provider_unavailable"); }
+                try {
+                  await rpc.close();
+                  transportClosed = true;
+                } catch {
+                  return reject("provider_unavailable");
+                }
               }
               return ok();
             },
@@ -888,12 +1075,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
 export function createCodexToolBridge(gateway: ToolGateway): {
   publish(threadId: string, turnId: string, binding: ToolBinding): void;
   retire(threadId: string, turnId: string): void;
-  call(
-    metadata: unknown,
-    name: string,
-    args: unknown,
-    signal: AbortSignal,
-  ): Promise<unknown>;
+  call(metadata: unknown, name: string, args: unknown, signal: AbortSignal): Promise<unknown>;
 } {
   const origins = new Map<string, ToolBinding>();
   const retired = new Set<string>();
@@ -923,12 +1105,8 @@ export function createCodexToolBridge(gateway: ToolGateway): {
           }),
         })
         .safeParse(metadata);
-      const origin = parsed.success
-        ? parsed.data["x-codex-turn-metadata"]
-        : undefined;
-      const binding = origin
-        ? origins.get(key(origin.thread_id, origin.turn_id))
-        : undefined;
+      const origin = parsed.success ? parsed.data["x-codex-turn-metadata"] : undefined;
+      const binding = origin ? origins.get(key(origin.thread_id, origin.turn_id)) : undefined;
       if (!binding)
         return {
           isError: true,
@@ -936,17 +1114,16 @@ export function createCodexToolBridge(gateway: ToolGateway): {
         };
       const result = await gateway.invoke(binding, name, args, signal);
       return {
-        isError:
-          result.outcome.status !== "ok" || result.evidence !== "recorded",
-        content: result.outcome.status === 'ok' && result.outcome.content ? result.outcome.content : [
-          {
-            type: "text",
-            text:
-              result.outcome.status === "ok"
-                ? result.outcome.text
-                : result.outcome.code,
-          },
-        ],
+        isError: result.outcome.status !== "ok" || result.evidence !== "recorded",
+        content:
+          result.outcome.status === "ok" && result.outcome.content
+            ? result.outcome.content
+            : [
+                {
+                  type: "text",
+                  text: result.outcome.status === "ok" ? result.outcome.text : result.outcome.code,
+                },
+              ],
         ...(result.outcome.status === "ok"
           ? { structuredContent: { value: result.outcome.value } }
           : {}),
@@ -954,9 +1131,7 @@ export function createCodexToolBridge(gateway: ToolGateway): {
           invocationId: result.invocationId,
           operationId: result.operationId,
           evidence: result.evidence,
-          ...(result.outcome.status === "failed"
-            ? { execution: result.outcome.execution }
-            : {}),
+          ...(result.outcome.status === "failed" ? { execution: result.outcome.execution } : {}),
         },
       };
     },
