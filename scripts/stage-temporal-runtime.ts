@@ -25,12 +25,13 @@ const contained = (root: string, path: string) => {
   return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 };
 const temporalBridgeTriple = () => {
-  const triple = {
+  const triples: Readonly<Record<string, string | undefined>> = {
     "darwin:arm64": "aarch64-apple-darwin",
     "darwin:x64": "x86_64-apple-darwin",
     "linux:arm64": "aarch64-unknown-linux-gnu",
     "linux:x64": "x86_64-unknown-linux-gnu",
-  }[`${process.platform}:${process.arch}`];
+  };
+  const triple = triples[`${process.platform}:${process.arch}`];
   if (!triple)
     throw Error(`Unsupported Temporal bridge platform: ${process.platform}/${process.arch}`);
   return triple;

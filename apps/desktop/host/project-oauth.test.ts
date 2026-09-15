@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { addTestProject, createTestDesktopApplication } from "./test-project.fixture.js";
-import { retireCreatedRuntimes } from "./application.js";
+import { retireCreatedRuntimes } from "./project-plugin-runtimes.js";
 
 function packageServer() {
   return Bun.serve({

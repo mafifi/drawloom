@@ -9,6 +9,26 @@ Read this guide when integrating a workbench or changing how the desktop uses a
 capability. For setup, start with the [desktop README](../../apps/desktop/README.md).
 For the interfaces themselves, use the [foundation guide](../reference/foundation-api.md).
 
+## Where to read the host code
+
+Start with [application.ts](../../apps/desktop/host/application.ts) to see how the
+desktop chooses implementations and handles commands. Follow these smaller
+modules when you want to understand a particular responsibility:
+
+- [Conversation resources](../../apps/desktop/host/conversation-resources.ts)
+  coordinates history writes, captured tool results and recovery after a failed
+  write. Recovery uses retained evidence; it does not rerun the tool.
+- [Project plugin runtimes](../../apps/desktop/host/project-plugin-runtimes.ts)
+  keeps one runtime per project, shares concurrent startup, and retires created
+  runtimes. The application still selects and assembles their implementations.
+- [Project tool access](../../apps/desktop/host/project-tool-gateway.ts)
+  checks which conversation owns a foreground tool operation, its project and
+  workbench grants, and where its evidence is recorded. Workflow authority
+  remains separate.
+
+Each module has a neighbouring test file. Application-level tests check that
+these responsibilities still work together across navigation, restart and shutdown.
+
 ## Follow the project, not the selected screen
 
 Each conversation has a fixed project identity and working directory. Switching

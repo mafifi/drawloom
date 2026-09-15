@@ -33,9 +33,7 @@ import {
   type HistoryChangeOptions,
   type HistoryAroundOptions,
 } from "@drawloom/conversation-history";
-import { createHistoryCoordinator } from "./history-coordinator.js";
 import { bindProjectDirectory, verifyProjectDirectory } from "./projects.js";
-import { createResourceRecovery } from "./resource-recovery.js";
 import {
   createNodeJsonStore,
   createNodeAssetStore,
@@ -80,10 +78,8 @@ import {
   nativeRpcMessageByteLimit,
 } from "./assets.js";
 import { textPlugin, mcpReviewConfiguration } from "./composition.js";
-import { createDesktopEvidence } from "./evidence.js";
 import type { ConnectedMcpApp } from "./mcp-app.js";
 import { createViewContext } from "./view-context.js";
-import { createResourceContent } from "./resource-content.js";
 import { createMediaPolicy, remoteMediaUrl } from "./media-policy.js";
 import {
   observed,
@@ -113,6 +109,9 @@ import {
 } from "./evaluation-composition.js";
 import { createOrchestrationComposition } from "./orchestration-composition.js";
 import { createKnowledgeComposition } from "./knowledge-composition.js";
+import { createProjectPluginRuntimes } from "./project-plugin-runtimes.js";
+import { createConversationResources } from "./conversation-resources.js";
+import { createProjectToolGatewayAccess } from "./project-tool-gateway.js";
 
 type Live = {
   session: AgentSession;
@@ -120,18 +119,6 @@ type Live = {
   active?: string;
   close: () => Promise<void>;
 };
-export async function retireCreatedRuntimes<T>(
-  runtimes: ReadonlyMap<string, Promise<T>>,
-  retire: (runtime: T) => Promise<void>,
-) {
-  const retired = new Map<string, Promise<T>>();
-  while (true) {
-    const created = [...runtimes].filter(([key, runtime]) => retired.get(key) !== runtime);
-    if (!created.length) return;
-    await Promise.all(created.map(async ([, runtime]) => retire(await runtime)));
-    for (const [key, runtime] of created) retired.set(key, runtime);
-  }
-}
 export async function createDesktopApplication(
   root: string,
   options: {
@@ -173,15 +160,6 @@ export async function createDesktopApplication(
   const mediaOrigins = z.array(ResourceOriginSchema).parse(options.mediaOrigins ?? []);
   await mkdir(root, { recursive: true, mode: 0o700 });
   const history = createSqliteConversationHistory(join(root, "history.sqlite"));
-  const writers = new Map<string, ReturnType<typeof createHistoryCoordinator>>();
-  function writer(id: string) {
-    let found = writers.get(id);
-    if (!found) {
-      found = createHistoryCoordinator(history, id);
-      writers.set(id, found);
-    }
-    return found;
-  }
   const store = createNodeJsonStore(join(root, "state"));
   const mediaPolicy = await createMediaPolicy(store, mediaOrigins);
   const assets = observedAssets(createDesktopAssets(join(root, "assets")));
@@ -217,56 +195,6 @@ export async function createDesktopApplication(
   const pumps = new Set<Promise<void>>();
   const viewContext = createViewContext();
   let viewMount: { conversationId: string; viewId: string; mountId: string } | undefined;
-  const evidence = new Map<string, Promise<Awaited<ReturnType<typeof createDesktopEvidence>>>>();
-  function evidenceFor(id: string) {
-    let value = evidence.get(id);
-    if (!value) {
-      value = createDesktopEvidence(store, id);
-      evidence.set(id, value);
-    }
-    return value;
-  }
-  const recoveries = new Map<string, Promise<ReturnType<typeof createResourceRecovery>>>();
-  function recoveryFor(id: string) {
-    let recovery = recoveries.get(id);
-    if (!recovery) {
-      recovery = evidenceFor(id).then((sink) =>
-        createResourceRecovery(sink.activity(), async (result) => {
-          if (result.outcome.status !== "ok" || !result.outcome.content) return;
-          const tool = sink.toolFor(result.invocationId);
-          const { packages } = await runtimeForConversation(id);
-          const source = tool ? (packages.toolSources.get(tool) ?? "drawloom") : "drawloom";
-          await resourceCollector(id).capture({
-            id: "tool-resource:" + result.invocationId,
-            source,
-            readable: () => packages.canReadSource(source),
-            ...(result.operationId ? { operationId: result.operationId } : {}),
-            content: result.outcome.content,
-          });
-        }),
-      );
-      recoveries.set(id, recovery);
-    }
-    return recovery;
-  }
-  async function recoverResources(id: string) {
-    try {
-      await (await recoveryFor(id)).recover();
-      return true;
-    } catch {
-      writer(id).reportStorageFailure();
-      return false;
-    }
-  }
-  async function synchronizeHistory(
-    id: string,
-    reader: AgentSession["history"],
-    direction: "latest" | "older" = "latest",
-  ) {
-    // Missing rich results must be recovered before native coverage can advance
-    // or reconciliation can clear the storage warning.
-    if (await recoverResources(id)) await writer(id).synchronize(reader, direction);
-  }
   const opening = new Map<string, Promise<Live>>();
   let notice =
     "Conversation display is saved locally. Provider transcripts and execution remain with the provider.";
@@ -278,27 +206,24 @@ export async function createDesktopApplication(
     return next;
   };
   await persist();
-  function resourceCollector(conversationId: string) {
-    return createResourceContent({
-      assets: {
-        ...assets,
-        put: async (bytes, mediaType) => {
-          const asset = await assets.put(bytes, mediaType);
-          if (!project.assets.some((a) => a.key === asset.key)) project.assets.push(asset);
-          await persist();
-          return asset;
-        },
-      },
-      knownAsset: (key) => project.assets.find((a) => a.key === key),
-      declaredMedia: (source, content) => mediaPolicy.capture(source, content),
-      existing: (id) => history.get(conversationId, id),
-      save: async (entry) => {
-        await writer(conversationId).write(entry);
-        if (!(await history.get(conversationId, entry.id)))
-          throw Error("Resource capture could not be persisted");
-      },
-    });
-  }
+  const conversationResources = createConversationResources({
+    history,
+    evidenceStore: store,
+    assets,
+    projectAssets: project.assets,
+    persist,
+    mediaPolicy,
+    packagesForConversation: async (conversationId) =>
+      (await runtimeForConversation(conversationId)).packages,
+  });
+  const {
+    writer,
+    evidenceFor,
+    collector: resourceCollector,
+    recoveryFor,
+    recover: recoverResources,
+    synchronize: synchronizeHistory,
+  } = conversationResources;
   const compositionContext = {
     store: {
       get: (key: string) => store.get(key),
@@ -362,7 +287,6 @@ export async function createDesktopApplication(
     );
     return Boolean(state?.active || pendingSignal || elicitation.pending(conversationId).length);
   }
-  const runtimes = new Map<string, Promise<Awaited<ReturnType<typeof createRuntime>>>>();
   const workflowAuthority = createWorkflowAuthority();
   const createTemporalManager =
     options.orchestration?.manager ??
@@ -400,39 +324,25 @@ export async function createDesktopApplication(
         ? { runtimeEntrypoint: options.knowledge.runtimeEntrypoint }
         : {}),
     });
-  function runtimeFor(binding?: DirectoryProject) {
-    const key = binding?.id ?? "legacy";
-    let runtime = runtimes.get(key);
-    if (!runtime) {
-      runtime = createRuntime(binding);
-      runtimes.set(key, runtime);
-    }
-    const current = runtime;
-    return current.then(async (value) => {
-      if (
-        !binding ||
-        value.activated ||
-        !(await verifyProjectDirectory(binding, root).then(
-          () => true,
-          () => false,
-        ))
-      )
-        return value;
-      // An offline display placeholder has never activated installed code.
-      // Activate it once the original directory returns, not by replacing an
-      // already-running project. Concurrent callers share the same startup.
-      const latest = runtimes.get(key)!;
-      if (latest !== current) return latest;
-      const starting = value.packages.close().then(() => createRuntime(binding));
-      runtimes.set(key, starting);
-      return starting;
-    });
-  }
+  const projectRuntimes = createProjectPluginRuntimes({
+    available: (binding) =>
+      verifyProjectDirectory(binding, root).then(
+        () => true,
+        () => false,
+      ),
+    create: createRuntime,
+    replace: (runtime) => runtime.packages.close(),
+    close: async (runtime) => {
+      await Promise.all([...runtime.mcpApps.values()].map((app) => app.close()));
+      await runtime.packages.close();
+    },
+  });
+  const runtimeFor = projectRuntimes.forProject;
   function selectedRuntime() {
     return runtimeFor(project.projects.find((p) => p.id === project.selectedProjectId));
   }
   async function disconnectPackageRuntimes(installationId: string, serverName: string) {
-    await retireCreatedRuntimes(runtimes, (runtime) =>
+    await projectRuntimes.retire((runtime) =>
       runtime.packages.disconnect(installationId, serverName),
     );
   }
@@ -448,7 +358,7 @@ export async function createDesktopApplication(
     await verifyProjectDirectory(binding, root);
     return binding;
   }
-  async function createRuntime(binding?: DirectoryProject) {
+  async function createRuntime(binding: DirectoryProject | undefined, available: boolean) {
     const runtimeRoot = binding ? join(root, "projects", binding.id) : root;
     const runtimeStore = binding ? createNodeJsonStore(join(runtimeRoot, "state")) : store;
     const text = await createTextController(runtimeStore);
@@ -474,17 +384,11 @@ export async function createDesktopApplication(
     );
     const workflowScopes = new Map<string, ReturnType<typeof createWorkflowToolScope>>();
     async function ready() {
-      const pending = binding && runtimes.get(binding.id);
+      const pending = binding && projectRuntimes.pending(binding.id);
       if (!pending) throw Error("Project runtime unavailable");
       await pending;
     }
     // Installing remains global. Only connections and working state are scoped.
-    const available = binding
-      ? await verifyProjectDirectory(binding, root).then(
-          () => true,
-          () => false,
-        )
-      : false;
     const packages = await loadInstalledPackages({
       root: runtimeRoot,
       installations: available ? installations.startup : [],
@@ -554,6 +458,25 @@ export async function createDesktopApplication(
           },
         });
         workflowScopes.set(installation.id, workflow);
+        const foreground = createProjectToolGatewayAccess({
+          projectId: binding?.id ?? "",
+          workbenchIds,
+          grants,
+          ownerForOperation: (operationId) => {
+            const conversation = project.conversations.find(
+              (candidate) => live.get(candidate.id)?.active === operationId,
+            );
+            return conversation
+              ? {
+                  conversationId: conversation.id,
+                  ...(conversation.projectId ? { projectId: conversation.projectId } : {}),
+                  workbenchId: conversation.workbenchId,
+                }
+              : undefined;
+          },
+          evidenceFor,
+          recoveryFor,
+        });
         return workflow.wrap(
           observedToolGateway(
             createLocalToolGateway({
@@ -561,37 +484,15 @@ export async function createDesktopApplication(
               nextInvocationId: () => crypto.randomUUID(),
               policy: (operationId, name) => {
                 if (workflowAuthority.current()) return workflow.allowed(operationId, name);
-                const owner = project.conversations.find(
-                  (c) => live.get(c.id)?.active === operationId,
-                );
-                return Boolean(
-                  owner &&
-                    owner.projectId === binding?.id &&
-                    workbenchIds.includes(owner.workbenchId) &&
-                    grants.get(owner.workbenchId)?.has(name),
-                );
+                return foreground.allowed(operationId, name);
               },
               evidence: {
                 record: async (record) => {
-                  const operationId =
-                    record.kind === "started" ? record.operationId : record.result.operationId;
                   if (workflowAuthority.current()) {
                     await workflow.record(record);
                     return;
                   }
-                  const owner = project.conversations.find(
-                    (c) => live.get(c.id)?.active === operationId,
-                  );
-                  if (
-                    !operationId ||
-                    !owner ||
-                    owner.projectId !== binding?.id ||
-                    !workbenchIds.includes(owner.workbenchId)
-                  )
-                    throw Error("No active operation owns this tool invocation");
-                  await (await evidenceFor(owner.id)).record(record);
-                  if (record.kind === "finished")
-                    await (await recoveryFor(owner.id)).record(record.result);
+                  await foreground.record(record);
                 },
               },
             }),
@@ -2465,16 +2366,10 @@ export async function createDesktopApplication(
       await Promise.allSettled([...opening.values()]);
       await Promise.all([...live.values()].map((s) => s.close()));
       await Promise.all([...pumps]);
-      await Promise.all(
-        [...runtimes.values()].map(async (pending) => {
-          const runtime = await pending;
-          await Promise.all([...runtime.mcpApps.values()].map((app) => app.close()));
-          await runtime.packages.close();
-        }),
-      );
-      await Promise.all([...writers.values()].map((w) => w.close()));
+      await projectRuntimes.close();
+      await conversationResources.drainWriters();
       await projectWrites;
-      await history.close();
+      await conversationResources.closeHistory();
     },
   };
   return instrumentApplication(application);

@@ -1,115 +1,145 @@
 # Pre-publication architecture audit
 
-Audited at `4afd8fb`. Closed out at `48eceb3`.
+Audited at `4afd8fb`. Tracked through `48eceb3` and `16ad5e0`.
 
-Findings are kept as written at the time of the audit. Each carries a closeout
-note saying what resolved it, or that it remains open. Three of seven are closed.
+Findings keep their original text. Each carries a status line naming the commit
+that closed it, or what remains. **Five of nine closed, one partly closed,
+three open — one of which needs a maintainer decision before release.**
 
-Verified by running the checks, not by reading the claims: `depcruise` across
-2,124 modules, the full Bun suite, `check:licenses`, `check-ui-policy`,
-`check-dependency-policy`, a relative-link check across 227 markdown files, and a
-credential pattern scan over all tracked non-binary files. At closeout,
-`bun run check:ci` was re-run independently (exit code 0), and the commit, ADR
-status, CI lane, admission floor and calibration fixture were each checked in the
-committed tree rather than taken from the verification record.
+Verified by running the checks, not by reading the claims. At each closeout the
+commit, statuses and artifacts were checked in the committed tree rather than
+taken from a verification record.
 
 Not covered: runtime behaviour of the desktop app, the private workbench
 repository, Rust sources under `src-tauri`, and the retained spikes beyond their
 boundary rules.
 
+## Status at `16ad5e0`
+
+| ID | Finding | Severity | Status |
+| --- | --- | --- | --- |
+| F7 | LGPL components in the distributed host runtime | High | **Open — decision required** |
+| F8 | Licence inventory cannot see compiled-in runtimes | Medium | **Open** |
+| F4 | Composition root resisted decomposition | Medium | Open |
+| F1b | Domain vocabulary is not in the code | Medium | Partly closed |
+| F6 | Loose ends from the documentation rewrite | Low | Mostly closed — two items |
+| F1 | Half the memory-to-context chain was missing | High | Closed at `48eceb3` |
+| F2 | Safeguards proved only by tests CI never ran | High | Closed at `48eceb3` |
+| F3 | No formatter, no linter, no style guidance | Medium | Closed at `16ad5e0` |
+| F5 | Ownership inversion the boundary rules cannot catch | Low | Closed at `16ad5e0` |
+
 ## Open findings
 
-These are the items a follow-up should act on. F3 is the only one that becomes
-more expensive with time.
+### F7 — LGPL components in the distributed host runtime (High, decision required)
 
-### F3 — No formatter, no linter, and no style guidance (Medium, open)
+`apps/desktop/package.json` builds the shipped sidecar with:
 
-There is no Prettier, ESLint, Biome or dprint configuration anywhere in the repo,
-and `CONTRIBUTING.md` does not mention formatting, linting or style once.
-`.editorconfig` sets indentation and little else.
+```
+bun build --compile host/main.ts --outfile src-tauri/binaries/drawloom-host
+```
 
-Lines over 120 characters in tracked product source at audit time:
+`--compile` embeds the Bun runtime in a binary the desktop application
+distributes. ADR 0026 excludes LGPL for components Drawloom distributes or
+installs, so this is a release blocker rather than a policy question about Bun as
+a development tool.
 
-| Lines | File |
+The governing sentence is already in ADR 0026:
+
+> "This applies to components Drawloom distributes or installs, not to every
+> external service or application a user independently authorizes."
+
+`bun run desktop:start` against a user-installed Bun sits on the permitted side of
+that line. `--compile` moved the runtime across it. The blocker is a packaging
+consequence, not a dependency choice, and is reversible by packaging.
+
+**Scope of the alternative.** Only two files in non-test product source depend on
+a Bun API, both for the same reason:
+
+| File | Import |
 | --- | --- |
-| 205 | `packages/knowledge/sqlite-knowledge/src/index.ts` |
-| 143 | `apps/desktop/src/lib/view-model.svelte.ts` |
-| 128 | `packages/evaluation/sqlite-evaluation/src/index.ts` |
-| 126 | `apps/desktop/host/application.ts` |
+| `packages/evaluation/sqlite-evaluation/src/index.ts:1` | `bun:sqlite` |
+| `packages/observability/sqlite-conversation-history/src/index.ts:1` | `bun:sqlite` |
 
-The effect is visible inside single files. `application.ts` holds
-`options.evaluation?.model!==undefined?create():evaluationAssessment??=create();`
-a few lines from code set with normal spacing. "Match the surrounding style" is
-not actionable advice when the surrounding style varies within a function.
+Three packages declare `runtime: "bun"`; everything else is `portable` or
+`node`, and `test:node` already proves the portable set runs under Node.
 
-**Repair.** Adopt one formatter, commit the reformat as a single mechanical
-change, and add `check:format` to `check:ci`.
+**Recommendation: keep LGPL excluded and move the host runtime.** ADR 0026
+already refused a GPL-with-exception case at much higher cost — the MLX embedding
+implementation was replaced rather than take the allowance. Admitting LGPL into
+the host runtime, the one component every user executes, after refusing it for an
+optional accelerator would be inconsistent and would weaken Principle 5 where it
+carries the most weight. A narrow allowance is also not a one-time review:
+relinking rights for a statically embedded runtime imply a standing packaging
+obligation on every release, against a one-time substitution of two imports.
 
-**Closeout at 48eceb3: still open, and more expensive.** The learning-journey
-delivery added 109 changed files and several thousand lines of new source, all
-matched by hand. Every commit made before this lands enlarges the eventual
-reformat.
+The compliance determination belongs to the maintainer, with counsel if wanted.
+This entry records the architectural cost of each option, not a legal opinion.
+
+**Verify before committing to Node:**
+
+- `node:sqlite` maturity on the pinned version. It is experimental on Node 22;
+  CI pins 22 in one lane and 24.20.0 in another. `better-sqlite3` (MIT) is the
+  fallback, at the cost of a native module.
+- Extension loading for `sqlite-vec`. Hybrid retrieval loads it as an extension;
+  Node 24 exposes `loadExtension` behind `allowExtension`. Confirm against the
+  real index path before migrating.
+
+**Related inventory items, each resolvable without an exception:**
+
+- `r-efi` is `MIT OR Apache-2.0 OR LGPL-2.1-or-later`. ADR 0026 already permits
+  selecting the permissive alternative from a dual licence; record the selection
+  as was done for Linux `sqlite-vec`.
+- `javascriptcore-rs` and `javascriptcore-rs-sys` are MIT, and macOS 14 uses the
+  system WKWebView rather than a distributed WebKit.
+- `@img/sharp-libvips-darwin-arm64` is LGPL-3.0-or-later but appears to reach the
+  tree through Astro build tooling. Confirm explicitly that it does not leak into
+  a product artifact — ADR 0026 requires that check for development tools.
+
+### F8 — The licence inventory cannot see compiled-in runtimes (Medium, open)
+
+`check:licenses` scans npm and Rust package metadata. The runtime that
+`bun build --compile` embeds is not an npm package, so it never enters the scan.
+The inventory holds only `@types/bun` and `bun-types`, which are type packages.
+
+The gate therefore reported **0 blockers across 1,778 npm and 431 Rust
+dependencies** while the artifact shipped an unreviewed embedded runtime. This is
+the same shape as F2: a check that passes because it is not looking.
+
+Switching to Node does not close this. Node embeds V8, OpenSSL, zlib, c-ares and
+llhttp, none of which the npm scanner sees either. **Any compiled-in runtime
+needs its own inventory step**, and it should exist before release qualification
+finishes regardless of how F7 is decided.
+
+**Repair.** Add a release inventory step covering the bundled runtime's own
+components, and record it where `check:licenses` results are reported so the
+0-blockers line cannot be read as covering more than it does.
 
 ### F4 — The composition root resisted decomposition (Medium, open)
 
 `createDesktopApplication` in `apps/desktop/host/application.ts` was a single
 function of roughly 1,280 lines — 46 top-level bindings and 44 inner closures —
 inside a 1,383-line file. Every neighbour in `apps/desktop/host/` is a 130–330
-line module with its own test file: `knowledge-host`, `orchestration-host`,
-`plugin-packages`, `plugin-oauth`, `history-coordinator`, `telemetry`.
+line module with its own test file.
 
-The repository walkthrough sets the right test for this: "File size alone is not
-a defect; look for repeated rules or two components trying to own the same fact."
-The function is where lazy assessment construction, media policy, project state,
+The repository walkthrough sets the right test: "File size alone is not a defect;
+look for repeated rules or two components trying to own the same fact." The
+function is where lazy assessment construction, media policy, project state,
 history writers, knowledge, orchestration and evaluation wiring all meet.
 
 **Repair.** A seam pass, not a rewrite. The knowledge, orchestration, evaluation
 and plugin blocks each have a sibling module they could join.
 
-**Closeout at 48eceb3: still open, and larger — 1,383 to 1,497 lines.** Every new
-module the delivery introduced (`knowledge-activity`, `knowledge-capture`,
-`knowledge-preparation`) is separately tested, so the pattern held everywhere
-except the composition root itself.
+**Status at `16ad5e0`: open.** The file is now 2,481 lines, but that is not a
+like-for-like comparison — `b517ddf` reformatted maintained source with Biome,
+expanding previously dense lines. The substantive position is unchanged:
+`createDesktopApplication` is still the only top-level function in the file.
+`21f43e2` did extract `evaluation-composition.ts`, so the direction is right.
 
-### F5 — One ownership inversion the boundary rules cannot catch (Low, open)
-
-`packages/orchestration/temporal-orchestration/src/index.ts:11` imports
-`OrchestrationReadiness` from `@drawloom/desktop-host`. It is a type-only import,
-so there is no runtime coupling, and dependency-cruiser permits it —
-`desktop-host` is declared a contract, and provider to contract is legal. But the
-orchestration capability's readiness vocabulary is defined by the desktop layer,
-which is the inverse of Principle 10.
-
-This is the only instance found across 6,462 dependencies, which says the model
-is working.
-
-**Repair.** Move the schema into `@drawloom/orchestration` and re-export it from
-`desktop-host`.
-
-**Closeout at 48eceb3: still open.**
-
-### F6 — Loose ends from the documentation rewrite (Low, open)
-
-- `docs/adr/0011-supported-foundation-and-startup-plugins.md` is still
-  **Proposed** while `packages/plugins/startup-plugins` ships.
-- ADRs 0024–0026 use `- Status:`; 0001–0023 use `- **Status:**`.
-- Broken link: `knowledge/evidence/adr-0019-observability.md` points at
-  `apps/desktop/host/discovery-deadline.ts`, which no longer exists.
-- `README.md` links `apps/` but not `apps/desktop/README.md`, where the run
-  instructions live. That file is the best onboarding document in the repository
-  — data directory separation, the one-use sign-in URL, and the explicit promise
-  that Drawloom will not silently substitute a simulated response when Codex is
-  unavailable. A first-time visitor reaches it only by guessing.
-- `.gitignore` has both `docs/reference/generated/` and the redundant
-  `docs/reference/generated/repository-atlas/`.
-
-**Closeout at 48eceb3: still open.**
-
-### F1b — Domain vocabulary is not in the code (Medium, partly resolved)
+### F1b — Domain vocabulary is not in the code (Medium, partly closed)
 
 Drawloom's domain language — fibres, threads, spools, nightloom — is how the
 memory-into-knowledge design would explain itself to a reader. Occurrences in
-`packages/` and `apps/`, excluding build output:
+`packages/` and `apps/`, excluding build output, at audit time:
 
 | Term | Count |
 | --- | --- |
@@ -119,15 +149,50 @@ memory-into-knowledge design would explain itself to a reader. Occurrences in
 | `spool` | 0 |
 | `distil` / `distill` | 0 — the word ARCHITECTURE uses for the step Nightloom performs |
 
-**Closeout at 48eceb3: closed in part.** ADR 0027 states the boundary and
+**Status: partly closed at `48eceb3`.** ADR 0027 states the boundary and
 `packages/knowledge/local-knowledge-runtime/RETRIEVAL.md` records the admission
 policy, so the deliberate design is no longer invisible. Fibres, threads and
 spools remain unwritten. The `thread` collision with Codex sessions is still
 unsettled, and settling it stays cheaper now than after those packages exist.
 
+### F6 — Loose ends from the documentation rewrite (Low, two items remain)
+
+**Remaining:**
+
+- `docs/adr/0011-supported-foundation-and-startup-plugins.md` is still
+  **Proposed** while `packages/plugins/startup-plugins` ships.
+- ADRs 0024–0027 use `- Status:`; 0001–0023 use `- **Status:**`.
+
+**Closed:** the broken link in `knowledge/evidence/adr-0019-observability.md`
+(the full tree now passes a relative-link check with zero failures), the missing
+`README.md` link to `apps/desktop/README.md`, and the redundant `.gitignore`
+entry for `docs/reference/generated/repository-atlas/`.
+
 ## Closed findings
 
-### F1 — Half the memory-to-context chain was missing (High, resolved)
+### F3 — No formatter, no linter, no style guidance (Medium, closed at `16ad5e0`)
+
+There was no Prettier, ESLint, Biome or dprint configuration anywhere in the
+repo, and `CONTRIBUTING.md` did not mention formatting, linting or style once.
+Dense and normally spaced code sat within single functions, so "match the
+surrounding style" was not actionable advice.
+
+**Closed at `16ad5e0`.** `b517ddf` adopted Biome and reformatted maintained
+source as a single mechanical change — the shape recommended, landed before
+outside contributions existed to rebase. `biome.json` is committed, `format` and
+`check:format` scripts exist, and **`check:format` runs first in `check:ci`**, so
+it is enforced rather than available.
+
+### F5 — Ownership inversion the boundary rules cannot catch (Low, closed at `16ad5e0`)
+
+`temporal-orchestration` imported `OrchestrationReadiness` from
+`@drawloom/desktop-host` — type-only, and legal under the role model, but the
+orchestration capability's readiness vocabulary was defined by the desktop layer.
+
+**Closed at `16ad5e0`** by `21f43e2`, "clarify orchestration ownership and
+desktop composition". The import is gone.
+
+### F1 — Half the memory-to-context chain was missing (High, closed at `48eceb3`)
 
 At `4afd8fb`, `@drawloom/context` was imported by exactly one file —
 `packages/agent/agent/src/index.ts`, as a schema field on a send request. Nothing
@@ -138,7 +203,7 @@ anywhere. What shipped was agent-pull retrieval through a static
 The first half of the chain was implemented and well proven: Nightloom's durable
 `pending` → `assess-batch` → `release` → `publish` pipeline.
 
-**Closed at 48eceb3, ADR 0027 Accepted.**
+**Closed at `48eceb3`, ADR 0027 Accepted.**
 
 - `@drawloom/knowledge-context` implements a `ContextPreparer` contract, bounded
   to 8 references and 12 KiB, with `knowledge.disclose` rechecked before
@@ -148,8 +213,7 @@ The first half of the chain was implemented and well proven: Nightloom's durable
 - Reference material rides the user-content path. The provider check found Codex
   0.153.4 declares an `untrusted` kind but proved only the wire shape, not the
   model-side treatment; the ADR records the schema SHA-256 and the reproduction
-  command. Choosing the unproven-but-flattering channel would have been the
-  easier ADR.
+  command. Choosing the unproven-but-flattering channel would have been easier.
 - Native history is protected by durable payload correlation in
   `packages/agent/codex-agent/src/reference-display.ts` rather than marker
   stripping, so a user who types the marker keeps their own words.
@@ -160,32 +224,32 @@ The first half of the chain was implemented and well proven: Nightloom's durable
   preregistered rather than fitted to the frozen corpus, with the recall cost
   published rather than absorbed.
 
-### F2 — Safeguards proved only by tests CI never ran (High, resolved)
+### F2 — Safeguards proved only by tests CI never ran (High, closed at `48eceb3`)
 
 At `4afd8fb`, CI ran `check:ci` and nothing else. `test:temporal` was invoked by
 no workflow, and every orchestration recovery test was doubly gated. The sole
 executable proof of the stated safeguard "uncertainty is not a retry instruction"
 was one skipped test.
 
-**Closed at 48eceb3.** A `learning-integration` job installs a pinned Temporal
-CLI v1.3.0 verified by SHA-256, runs `test:temporal` and the new
-`test:temporal:learning`, and `publish` now requires it —
-`needs: [check, learning-integration]`. The safeguard is gated, not merely tested
-somewhere.
+**Closed at `48eceb3`.** A `learning-integration` job installs a pinned Temporal
+CLI v1.3.0 verified by SHA-256, runs `test:temporal` and `test:temporal:learning`,
+and `publish` now requires it — `needs: [check, learning-integration]`. The
+safeguard is gated, not merely tested somewhere.
 
-Embedding conformance also reached an enforced lane: the shared suite now runs
+Embedding conformance also reached an enforced lane: the shared suite runs
 against the real adapter, real SQLite index and real authorization inside
 `check:ci`, with only the GGUF worker variant left opt-in. Its first run failed
 and exposed a defect in the shared fixture itself.
 
 ## What held up
 
-Verified by running the checks.
+Verified by running the checks. These look like redundancies and are
+load-bearing; do not simplify them without reading the tests that pin them.
 
-- **Boundaries are machine-derived.** The dependency rules are generated from
-  each package's own `drawloom.role` field, not a hand-kept list, so a new
-  package is governed the moment it declares a role. Zero violations across 2,124
-  modules and 6,462 dependencies.
+- **Boundaries are machine-derived.** Dependency rules are generated from each
+  package's own `drawloom.role` field, not a hand-kept list, so a new package is
+  governed the moment it declares a role. Zero violations across 2,124 modules
+  and 6,462 dependencies.
 - **Replaceability is demonstrated.** `agentConformance` runs against both the
   synthetic driver and the Codex fixture under Node. Tools, knowledge, plugins,
   host, conversation history and evaluation each run their contract's shared
@@ -195,20 +259,18 @@ Verified by running the checks.
   revoked mid-flight. Denial is checked before `unknown_tool`, so an unauthorized
   caller cannot probe which tools exist. A failed evidence write fails the call
   closed. The conformance suite mandates this by revoking the binding during the
-  `started` write and asserting denial, making it a contract promise rather than
-  an implementation detail.
+  `started` write and asserting denial.
 - **Knowledge authorization is standards-shaped.** AuthZen request shape rather
-  than a bespoke policy language. Fail-closed by documented default.
-  "Authorization precedes existence, duplicate and conflict checks" — the same
-  existence-oracle discipline as the tool path, arrived at independently.
+  than a bespoke policy language, fail-closed by documented default, and
+  "authorization precedes existence, duplicate and conflict checks" — the same
+  existence-oracle discipline as the tool path, reached independently.
 - **Nightloom is durable, not scripted.** Four Temporal tasks with assessment
-  receipts, daily budgets and serial dispatch. The tests go at the hard cases:
+  receipts, daily budgets and serial dispatch, tested at the hard cases:
   uncertain assessment reconciled without double submission, a conflicting
   receipt writer unable to promote an unpersisted model outcome, evidence
   references refused outside their bounded package.
 - **Publication hygiene is clean.** No tracked build output, `node_modules`,
-  `dist` or `target`. No secrets in 1,710 tracked files. Licence gate passes with
-  zero blockers over 1,778 npm and 431 Rust dependencies.
+  `dist` or `target`. No secrets in tracked files.
 
 ## Limits the delivery states rather than hides
 
@@ -223,49 +285,4 @@ Carried here so a follow-up does not rediscover them as findings:
 - The 0.52 floor is a policy for the current Qwen3-Embedding-0.6B Q8_0 GGUF
   model, not a portable score contract. A replacement model requires independent
   calibration.
-
----
-
-## Follow-up closeout appended on 15 September 2026
-
-This section was added by Codex during the pre-publication cleanup. The text
-above it was already present in the user-owned audit; Task 3 edits were limited
-to appending this closeout. No independent pre-edit checksum was saved, so this
-statement is not byte-for-byte verification. This follow-up does not claim
-authorship of those historical audit results.
-
-- **F3 is resolved.** Biome 2.5.13 is pinned through the root catalog.
-  `check:format` is part of `check:ci`, and the maintained-source and deliberate
-  exclusion boundaries are documented in `CONTRIBUTING.md`. Svelte and Astro
-  remain excluded because the recorded experiment did not prove content
-  equivalence; their compiler checks remain in place.
-- **F4 received the requested bounded seam pass.** Evaluation, orchestration and
-  knowledge composition now have named sibling modules with focused tests.
-  `createDesktopApplication` remains the composition root, so this is not a
-  claim that it has become small or that further decomposition is required for
-  publication.
-- **F5 is resolved.** `OrchestrationReadinessSchema` is owned by
-  `@drawloom/orchestration`; `@drawloom/desktop-host` re-exports the same schema
-  object for compatibility, and the Temporal provider no longer depends on the
-  desktop contract.
-- **F6 is resolved without changing historical ADR status.** ADR 0011 remains
-  Proposed because it expressly reserves broader foundation review and
-  maintainer acceptance. Accepted ADR 0013 owns the plugin decisions; package
-  presence and partial implementation do not satisfy ADR 0011's reservation.
-  The observability deadline now links to the immutable source at commit
-  `4351a83`, the root README links directly to desktop setup, and the redundant
-  generated-directory ignore was removed. Historical ADR formatting was left
-  intact.
-- **F1b is not an accepted missing feature.** No accepted contract requires
-  fibres or spools, and ADR 0022's experimental vocabulary does not establish a
-  product naming requirement. The supported public names remain Knowledge,
-  Nightloom and the existing provider RPC identities. Introducing new domain
-  types or aliases is outside this cleanup.
-
-The original licence sentence under “What held up” is also narrower than it
-reads. `check:licenses` gates installed JavaScript product-candidate dependencies
-and requires the current llama.cpp runtime and GGUF model authorities to be
-routed to separate release review. Its inventory includes Rust and other
-categories, but native artifacts, optional platforms, development-only terms,
-notices, source obligations and release packaging still require that review. A
-zero-blocker JavaScript result does not clear those release obligations.
+- Release qualification is not finished. F7 and F8 are open against it.
