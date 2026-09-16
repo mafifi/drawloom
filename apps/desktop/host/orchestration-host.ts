@@ -63,6 +63,7 @@ export function createOrchestrationHost(options: {
   const manager = () => (pending ??= options.manager());
   const entries = new Map<string, Entry>();
   const changes = new Map<string, Promise<unknown>>();
+  const restorations = new Set<Promise<unknown>>();
   const restartRequired = new Set<string>();
   let closed = false;
   let closing: Promise<void> | undefined;
@@ -74,8 +75,11 @@ export function createOrchestrationHost(options: {
     );
     return next;
   }
-  function requireCurrent(installationId: string) {
+  function requireOpen() {
     if (closed) throw new WorkflowControlError("Local workflows are stopped");
+  }
+  function requireCurrent(installationId: string) {
+    requireOpen();
     if (restartRequired.has(installationId))
       throw new WorkflowControlError(
         "Plugin configuration changed; restart Drawloom before starting workflows.",
@@ -212,29 +216,38 @@ export function createOrchestrationHost(options: {
         }),
       );
     },
-    async restore() {
-      if (!(await persisted())) return;
-      // Persisted owners include projects not selected in the UI. No user
-      // conversation is opened and no model is called to resume local tasks.
-      let owners;
-      try {
-        owners = await (await manager()).listOwners();
-      } catch (error) {
-        return unavailable(error);
-      }
-      for (const projectId of new Set(owners.map((owner) => owner.projectId))) {
+    restore() {
+      if (closed) return Promise.reject(new WorkflowControlError("Local workflows are stopped"));
+      const restoration = (async () => {
+        if (!(await persisted())) return;
+        requireOpen();
+        // Persisted owners include projects not selected in the UI. No user
+        // conversation is opened and no model is called to resume local tasks.
+        let owners;
         try {
-          await options.ensureProject(projectId);
-        } catch {
-          /* Keep unavailable owners visible below. */
+          owners = await (await manager()).listOwners();
+        } catch (error) {
+          return unavailable(error);
         }
-        for (const owner of owners.filter((owner) => owner.projectId === projectId))
-          if (!entries.has(key(projectId, owner.installationId)))
-            entries.set(key(projectId, owner.installationId), {
-              title: owner.installationId,
-              readiness: projectUnavailable,
-            });
-      }
+        requireOpen();
+        for (const projectId of new Set(owners.map((owner) => owner.projectId))) {
+          try {
+            await options.ensureProject(projectId);
+          } catch {
+            /* Keep unavailable owners visible below. */
+          }
+          requireOpen();
+          for (const owner of owners.filter((owner) => owner.projectId === projectId))
+            if (!entries.has(key(projectId, owner.installationId)))
+              entries.set(key(projectId, owner.installationId), {
+                title: owner.installationId,
+                readiness: projectUnavailable,
+              });
+        }
+      })();
+      restorations.add(restoration);
+      void restoration.finally(() => restorations.delete(restoration)).catch(() => {});
+      return restoration;
     },
     guardInstallation,
     changeInstallation<T>(
@@ -254,8 +267,7 @@ export function createOrchestrationHost(options: {
       closed = true;
       return (closing ??= (async () => {
         await Promise.all(changes.values());
-        const instance = await pending?.catch(() => undefined);
-        await instance?.close();
+        await Promise.allSettled(restorations);
       })());
     },
   };

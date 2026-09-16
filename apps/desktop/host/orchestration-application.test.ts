@@ -236,7 +236,8 @@ test("desktop attaches installed task handlers, restores both projects and enfor
       }),
     ).rejects.toThrow("unfinished workflows");
     await app.close();
-    expect(events.indexOf("manager-close")).toBeLessThan(events.indexOf("registration-close"));
+    expect(events.filter((event) => event === "manager-close")).toHaveLength(1);
+    expect(events.lastIndexOf("registration-close")).toBeLessThan(events.indexOf("manager-close"));
     handlers.clear();
     const reopened = await createDesktopApplication(root, {
       orchestration: { manager: async () => manager },

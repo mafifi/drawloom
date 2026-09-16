@@ -1,4 +1,7 @@
 import { randomBytes, timingSafeEqual, createHash } from "node:crypto";
+import { DesktopClosedError } from "./application-lifecycle.js";
+import { cleanup } from "./cleanup.js";
+import { queueDesktopRequest } from "./request-queue.js";
 import { desktopModels } from "./models.js";
 import { extname, resolve, sep } from "node:path";
 import { lstat, realpath } from "node:fs/promises";
@@ -35,6 +38,11 @@ export function serveDesktop(
   let bootstrap = true;
   let commandQueue: Promise<unknown> = Promise.resolve();
   let stateQueue: Promise<unknown> = Promise.resolve();
+  let stopped = false;
+  const lifetime = new AbortController();
+  let closing: Promise<void> | undefined;
+  const queued = <T>(work: () => T | Promise<T>) =>
+    queueDesktopRequest(commandQueue, () => !stopped, work);
   const stateFeed = createStateFeed();
   const workflows = createOrchestrationHttp(app);
   let viewFiles:
@@ -91,6 +99,7 @@ export function serveDesktop(
     port,
     maxRequestBodySize: browserImportByteLimit,
     async fetch(request): Promise<Response> {
+      if (stopped) return json({ error: "Desktop is closing" }, 503);
       const url = new URL(request.url);
       const origin = `http://127.0.0.1:${server.port}`;
       const cookieName = `drawloom_${server.port}`;
@@ -213,9 +222,9 @@ export function serveDesktop(
             // Cancellation must not queue behind the download it interrupts.
             if (["status", "search", "evidence", "export"].includes(command.action))
               return json(await app.knowledgeCommand(command, operation));
-            const next = commandQueue
-              .then(() => app.knowledgeCommand(command, operation))
-              .finally(() => settleAdmission?.());
+            const next = queued(() => app.knowledgeCommand(command, operation)).finally(() =>
+              settleAdmission?.(),
+            );
             commandQueue = next.catch(() => {});
             return json(await next);
           }
@@ -225,7 +234,9 @@ export function serveDesktop(
                 { error: "Native folder selection is unavailable. Enter a local path instead." },
                 501,
               );
-            const next = commandQueue.then(() => options.pickDirectory!(request.signal));
+            const next = queued(() =>
+              options.pickDirectory!(AbortSignal.any([request.signal, lifetime.signal])),
+            );
             commandQueue = next.catch(() => {});
             const directory = await next;
             return json(directory ? { directory } : {});
@@ -234,7 +245,7 @@ export function serveDesktop(
             return json(await app.installedPackages());
           if (url.pathname === "/api/packages" && request.method === "POST") {
             const raw: unknown = await request.json();
-            const next = commandQueue.then(() => app.packageAction(raw));
+            const next = queued(() => app.packageAction(raw));
             commandQueue = next.catch(() => {});
             return json(await next);
           }
@@ -264,15 +275,13 @@ export function serveDesktop(
           }
           if (url.pathname === "/api/discovery/resource/read" && request.method === "POST") {
             const input = DiscoveryResourceReadSchema.parse(await request.json());
-            const next = commandQueue.then(() =>
-              app.readDiscoveredResource(input.conversationId, input),
-            );
+            const next = queued(() => app.readDiscoveredResource(input.conversationId, input));
             commandQueue = next.catch(() => {});
             return json(await next);
           }
           if (url.pathname === "/api/resource/read" && request.method === "POST") {
             const input = ResourceReadSchema.parse(await request.json());
-            const next = commandQueue.then(() =>
+            const next = queued(() =>
               app.readResource(input.conversationId, input.entryId, input.resourceId),
             );
             commandQueue = next.catch(() => {});
@@ -289,16 +298,20 @@ export function serveDesktop(
           }
           if (url.pathname === "/api/resource/open" && request.method === "POST") {
             const input = ResourceOpenSchema.parse(await request.json());
-            const next = commandQueue.then(() =>
+            const next = queued(() =>
               app.openListedResource(input.conversationId, input.viewId, input.uri),
             );
             commandQueue = next.catch(() => {});
             return json(await next);
           }
           if (url.pathname === "/api/state" && request.method === "GET") {
-            const next = stateQueue.then(async () =>
-              stateFeed.read(await app.snapshot(), url.searchParams.get("since") ?? undefined),
-            );
+            const next = stateQueue.then(async () => {
+              if (stopped) throw new DesktopClosedError("closing");
+              return stateFeed.read(
+                await app.snapshot(),
+                url.searchParams.get("since") ?? undefined,
+              );
+            });
             stateQueue = next.catch(() => {});
             const update = await next;
             return update ? json(update) : new Response(null, { status: 204, headers: secure });
@@ -366,20 +379,20 @@ export function serveDesktop(
           }
           if (url.pathname === "/api/view-session" && request.method === "POST") {
             const raw: unknown = await request.json();
-            const next = commandQueue.then(() => app.viewSession(raw));
+            const next = queued(() => app.viewSession(raw));
             commandQueue = next.catch(() => {});
             return json(await next);
           }
           if (url.pathname === "/api/view-request" && request.method === "POST") {
             const raw: unknown = await request.json();
             // Validate captured parent routing at dispatch time, in the same queue as navigation.
-            const next = commandQueue.then(() => app.viewRequest(raw));
+            const next = queued(() => app.viewRequest(raw));
             commandQueue = next.catch(() => {});
             return json(await next);
           }
           if (url.pathname === "/api/view-interaction" && request.method === "POST") {
             const raw: unknown = await request.json();
-            const next = commandQueue.then(() => app.viewInteraction(raw));
+            const next = queued(() => app.viewInteraction(raw));
             commandQueue = next.catch(() => {});
             return json(await next);
           }
@@ -442,9 +455,7 @@ export function serveDesktop(
             if (raw.kind === "stop" || (raw.kind === "approval_surface" && raw.action === "stop"))
               return json(await app.command(raw));
             const settleAdmission = await app.admitCommand(raw);
-            const next = commandQueue
-              .then(() => app.command(raw))
-              .finally(() => settleAdmission?.());
+            const next = queued(() => app.command(raw)).finally(() => settleAdmission?.());
             commandQueue = next.catch(() => {});
             return json(await next);
           }
@@ -548,6 +559,7 @@ export function serveDesktop(
           }
           return new Response(request.method === "HEAD" ? null : file, { headers: secure });
         } catch (error) {
+          if (error instanceof DesktopClosedError) return json({ error: error.message }, 503);
           if (error instanceof WorkflowControlError) return json({ error: error.message }, 400);
           if (error instanceof ProjectDirectoryError) return json({ error: error.message }, 400);
           if (error instanceof HistoryStoreError)
@@ -606,9 +618,17 @@ export function serveDesktop(
   return {
     url: `http://127.0.0.1:${server.port}/bootstrap?token=${token}`,
     origin: `http://127.0.0.1:${server.port}`,
-    async close() {
-      server.stop(true);
-      await app.close();
+    close() {
+      stopped = true;
+      lifetime.abort();
+      return (closing ??= (async () => {
+        const stoppedServer = server.stop(false);
+        await cleanup([
+          () => app.close(),
+          () => Promise.allSettled([commandQueue, stateQueue]),
+          () => stoppedServer,
+        ]);
+      })());
     },
   };
 }

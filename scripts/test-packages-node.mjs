@@ -1,9 +1,15 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import "./test-authorization-node.mjs";
+import {
+  assertCompleteNodeCheckInventory,
+  discoverNodeChecks,
+  environmentForNodeCheckLane,
+  nodeCheckLanes,
+} from "./node-test-lanes.mjs";
 import {
   HistoryEntrySchema,
   HistoryPageOptionsSchema,
@@ -61,18 +67,13 @@ await hostConformance(async () => {
 console.log(
   "Node shared conformance: tools, synthetic agent, Codex agent, plugins, host passed; portable history schema/export smoke passed (SQLite remains Bun-only)",
 );
-for (const file of [
-  "packages/knowledge/sqlite-knowledge/sqlite-knowledge.node-check.ts",
-  "packages/knowledge/local-embeddings/llama-worker.node-check.mjs",
-  "packages/knowledge/local-knowledge-runtime/runtime.node-check.ts",
-  "packages/knowledge/local-knowledge-runtime/semantic.node-check.ts",
-  "packages/knowledge/local-knowledge-runtime/embedding-conformance.node-check.ts",
-  "evaluations/knowledge/candidate-runtime.node-check.ts",
-  "evaluations/knowledge/evaluation-shutdown.node-check.ts",
-  "evaluations/knowledge/runner.node-check.ts",
-  "evaluations/knowledge/scale-run.node-check.ts",
-]) {
-  const checked = spawnSync(process.execPath, ["--test", file], { stdio: "inherit" });
+const repository = resolve(import.meta.dirname, "..");
+assertCompleteNodeCheckInventory(await discoverNodeChecks(repository), nodeCheckLanes);
+for (const file of nodeCheckLanes.ci) {
+  const checked = spawnSync(process.execPath, ["--test", file], {
+    stdio: "inherit",
+    env: environmentForNodeCheckLane(process.env, "ci"),
+  });
   if (checked.error) throw checked.error;
   assert.equal(checked.status, 0, `Node knowledge check failed: ${file}`);
 }

@@ -47,6 +47,9 @@ export function createAgentBridge(
   const sessions = new Map<string, { session: AgentSession; active?: string; opening: boolean }>();
   const receipts = new Map<string, Receipt>();
   const waiters = new Map<string, (() => void)[]>();
+  const closeFailures: unknown[] = [];
+  let closed = false;
+  let closing: Promise<void> | undefined;
   const key = (session: string, operation: string) => JSON.stringify([owner, session, operation]);
   const owned = (id: string) => {
     const value = sessions.get(id);
@@ -83,6 +86,7 @@ export function createAgentBridge(
   };
   return {
     create(name: string): Promise<string> {
+      if (closed) return Promise.reject(new StepFailure("invalid", "Agent bridge is closed"));
       const existing = openings.get(name);
       if (existing) return existing;
       const opening = Promise.resolve().then(async () => {
@@ -94,6 +98,14 @@ export function createAgentBridge(
         // Write intent first: failed/lost opens must never cause blind resubmission.
         await store.set(key(sessionId, "$session"), { status: "opening" });
         const session = unwrap(await driver.openSession({ ...authority, sessionId }));
+        if (closed) {
+          try {
+            unwrap(await session.close());
+          } catch (error) {
+            closeFailures.push(error);
+          }
+          throw new StepFailure("invalid", "Agent bridge is closed");
+        }
         const state = { session, opening: false } as {
           session: AgentSession;
           active?: string;
@@ -218,8 +230,18 @@ export function createAgentBridge(
     async respondToInput(sessionId: string, input: AgentInputResolution) {
       unwrap(await owned(sessionId).session.respondToInput(input));
     },
-    async close() {
-      await Promise.all([...sessions.values()].map((s) => s.session.close()));
+    close() {
+      closed = true;
+      return (closing ??= (async () => {
+        await Promise.allSettled(openings.values());
+        const outcomes = await Promise.allSettled(
+          [...sessions.values()].map(async ({ session }) => unwrap(await session.close())),
+        );
+        for (const outcome of outcomes)
+          if (outcome.status === "rejected") closeFailures.push(outcome.reason);
+        if (closeFailures.length)
+          throw new AggregateError(closeFailures, "One or more agent sessions failed to close");
+      })());
     },
     /** A request/connection close is not confirmation that external effects stopped. */
     async requestCancellation() {

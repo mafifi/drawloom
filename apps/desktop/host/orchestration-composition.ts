@@ -9,7 +9,12 @@ export function createOrchestrationComposition(options: {
   ensureProject: (projectId: string) => Promise<void>;
 }) {
   let createdManager: Promise<Manager> | undefined;
-  const manager = () => (createdManager ??= options.createManager());
+  let closingManager: Promise<void> | undefined;
+  let closed = false;
+  const manager = () =>
+    closed
+      ? Promise.reject<Manager>(new Error("Local workflows are stopped"))
+      : (createdManager ??= options.createManager());
   return {
     manager,
     host: createOrchestrationHost({
@@ -17,8 +22,11 @@ export function createOrchestrationComposition(options: {
       manager,
       ensureProject: options.ensureProject,
     }),
-    async closeManager() {
-      await (await createdManager?.catch(() => undefined))?.close();
+    closeManager() {
+      closed = true;
+      return (closingManager ??= (async () => {
+        await (await createdManager?.catch(() => undefined))?.close();
+      })());
     },
   };
 }

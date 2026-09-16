@@ -181,7 +181,7 @@ test("ordinary startup is lazy; saved owners restore unopened projects and prote
     await expect(host.guardInstallation("i")).rejects.toThrow("unfinished workflows");
     await host.guardInstallation("other");
     await Promise.all([host.close(), host.close()]);
-    expect(closed).toBe(1);
+    expect(closed).toBe(0);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -341,6 +341,67 @@ test("failed manager restoration reports readiness instead of disabling ordinary
     });
   } finally {
     await host.close().catch(() => {});
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("close drains an admitted restore and prevents late owner publication", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-workflow-restore-close-"));
+  await mkdir(join(root, "orchestration"));
+  let release!: () => void;
+  let entered!: () => void;
+  const requested = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const manager: ReturnType<typeof createLocalTemporalManager> = {
+    prepare: async () => {
+      throw Error("not used");
+    },
+    prepareHost: async () => {
+      throw Error("not used");
+    },
+    listHostOwners: async () => [],
+    listOwners: async () => {
+      entered();
+      await held;
+      return [
+        {
+          projectId: "late",
+          installationId: "owner",
+          packageDirectory: root,
+          entrypoint: "./org.drawloom/workflow.mjs",
+          bundleFingerprint: "hash",
+          owner: "late-owner",
+        },
+      ];
+    },
+    hasUnfinishedInstallation: async () => false,
+    close: async () => {},
+  };
+  const host = createOrchestrationHost({
+    dataDirectory: root,
+    manager: async () => manager,
+    ensureProject: async () => {},
+  });
+  try {
+    const restore = host.restore();
+    await requested;
+    const closing = host.close();
+    let closed = false;
+    void closing.then(() => {
+      closed = true;
+    });
+    await Promise.resolve();
+    expect(closed).toBe(false);
+    release();
+    await expect(restore).rejects.toThrow("stopped");
+    await closing;
+    expect(await host.owners("late")).toEqual([]);
+  } finally {
+    release();
     await rm(root, { recursive: true, force: true });
   }
 });

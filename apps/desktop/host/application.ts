@@ -1,12 +1,19 @@
 import { basename, join } from "node:path";
 import { cleanup } from "./cleanup.js";
+import { createSessionSignalReader } from "./session-signals.js";
+import { createApplicationLifecycle, guardDesktopApplication } from "./application-lifecycle.js";
+import {
+  createDesktopSessions,
+  closeAgentSession,
+  type DesktopSession as Live,
+} from "./desktop-sessions.js";
 import { mkdir } from "node:fs/promises";
 import { z } from "zod";
 import { createInstallationStore } from "./plugin-installations.js";
 import { createWorkflowAuthority } from "./workflow-authority.js";
 import { createWorkflowToolScope } from "./workflow-tools.js";
 import { createDesktopAuthorization } from "./authorization.js";
-import type { Authorizer } from "@drawloom/authorization";
+import type { Authorizer, AuthorizationEvaluationOptions } from "@drawloom/authorization";
 import type { ContextAssembler } from "@drawloom/context/assembly";
 import { createDefaultContextAssembler } from "@drawloom/default-context";
 import { createDesktopContextAssembly } from "./context-assembly.js";
@@ -52,7 +59,7 @@ import {
 import { createCodexDriver, createCodexToolBridge } from "@drawloom/codex-agent";
 import { createSyntheticDriver } from "@drawloom/synthetic-agent";
 import { desktopModels } from "./models.js";
-import { conversationContext } from "./conversation-context.js";
+import { resolveTurnMaterial } from "./turn-preparation.js";
 import { permitsModel } from "@drawloom/codex-agent";
 import { createLocalToolGateway } from "@drawloom/local-tools";
 import { createPluginRegistry } from "@drawloom/startup-plugins";
@@ -127,12 +134,6 @@ import { createProjectPluginRuntimes } from "./project-plugin-runtimes.js";
 import { createConversationResources } from "./conversation-resources.js";
 import { createProjectToolGatewayAccess } from "./project-tool-gateway.js";
 
-type Live = {
-  session: AgentSession;
-  signals: DesktopSnapshot["signals"];
-  active?: string;
-  close: () => Promise<void>;
-};
 export async function createDesktopApplication(
   root: string,
   options: {
@@ -172,7 +173,8 @@ export async function createDesktopApplication(
 ) {
   const authorization = createDesktopAuthorization(options.authorizer);
   const assemblyLifetime = new AbortController();
-  let closing: Promise<void> | undefined;
+  const lifecycle = createApplicationLifecycle();
+  let schedulingStopped: Promise<void> | undefined;
   const contextAssembly = createDesktopContextAssembly(
     options.contextAssembler ?? createDefaultContextAssembler(),
     assemblyLifetime.signal,
@@ -202,7 +204,7 @@ export async function createDesktopApplication(
     },
   );
   if (project.selectedId === "pending") project.selectedId = project.conversations[0]?.id ?? "";
-  const live = new Map<string, Live>();
+  const live = createDesktopSessions();
   const approvals = createApprovalPresentationHost({
     // The default surface reads the host snapshot; presenting does not resolve it.
     presenter: options.approvalPresenter ?? { present() {} },
@@ -251,10 +253,8 @@ export async function createDesktopApplication(
     cursor: z.string().min(1).optional(),
     limit: z.number().int().min(1).max(100).default(50),
   });
-  const pumps = new Set<Promise<void>>();
   const viewContext = createViewContext();
   let viewMount: { conversationId: string; viewId: string; mountId: string } | undefined;
-  const opening = new Map<string, Promise<Live>>();
   let notice =
     "Conversation display is saved locally. Provider transcripts and execution remain with the provider.";
   let projectWrites: Promise<unknown> = Promise.resolve();
@@ -733,16 +733,17 @@ export async function createDesktopApplication(
   }
   async function connect(conversationId: string): Promise<Live> {
     const binding = await requireProject(conversationId);
-    const existing = live.get(conversationId);
-    if (existing) return existing;
-    const pending = opening.get(conversationId);
-    if (pending) return pending;
-    const start = (async () => {
+    const state = await live.connect(conversationId, async (own) => {
       const conversation = project.conversations.find((c) => c.id === conversationId);
       if (!conversation) throw Error("Conversation unavailable");
       const runtime = await runtimeForConversation(conversationId);
       const { registry, controllers, packageToolIds, knowledgeToolIds, grants, text } = runtime;
-      knowledge.warmup();
+      void lifecycle
+        .run(() => {
+          lifecycle.assertRunning();
+          return knowledge.warmup();
+        })
+        .catch(() => {});
       const workbench = registry.workbenches.find((w) => w.id === conversation.workbenchId);
       if (!workbench || !controllers.has(workbench.id))
         throw Error("Workbench controller unavailable");
@@ -751,7 +752,6 @@ export async function createDesktopApplication(
           "Synthetic mode is available only in Text studio. Choose Codex for this workbench.",
         );
       await refreshGrants(workbench.id, runtime);
-      const messages = new Map<string, Omit<HistoryEntry, "position">>();
       const signals: DesktopSnapshot["signals"] = [];
       const historyWriter = writer(conversationId);
       const operationBindings = new Map<string, ToolBinding>();
@@ -819,6 +819,7 @@ export async function createDesktopApplication(
               invoke: (metadata, name, args, signal) => bridge.call(metadata, name, args, signal),
             })
           : undefined;
+      if (mcp) own(() => mcp.close());
       const driver =
         conversation.provider === "synthetic"
           ? createSyntheticDriver(async (input) => {
@@ -934,21 +935,13 @@ export async function createDesktopApplication(
             });
       // Tokens belong to isolated provider configuration, never model context.
       const result = await observed("host.connect", {}, async () => {
-        let context;
-        try {
-          context = await contextAssembly.session({
-            instructions: [],
-            skills: registry.skills
-              .filter((s) => workbench.skills.includes(s.id))
-              .map((s) => ({ text: s.instructions, sources: [s.id] })),
-            guidance: [
-              { text: KNOWLEDGE_RETRIEVAL_GUIDANCE, sources: ["host:knowledge-guidance"] },
-            ],
-          });
-        } catch (error) {
-          await mcp?.close();
-          throw error;
-        }
+        const context = await contextAssembly.session({
+          instructions: [],
+          skills: registry.skills
+            .filter((s) => workbench.skills.includes(s.id))
+            .map((s) => ({ text: s.instructions, sources: [s.id] })),
+          guidance: [{ text: KNOWLEDGE_RETRIEVAL_GUIDANCE, sources: ["host:knowledge-guidance"] }],
+        });
         const result = await driver.openSession({
           sessionId: conversationId,
           context,
@@ -961,10 +954,10 @@ export async function createDesktopApplication(
         return result;
       });
       if (result.status !== "ok") {
-        await mcp?.close();
         throw Error(result.failure.message);
       }
       const session = result.value;
+      own(() => closeAgentSession(session));
       const state: Live = {
         session,
         signals,
@@ -977,106 +970,25 @@ export async function createDesktopApplication(
             gateway.revoke(binding);
             authorization.invalidate(operationId);
           }
-          await cleanup([() => session.close(), () => mcp?.close()]);
         },
       };
-      live.set(conversationId, state);
-      const pump = (async () => {
-        for await (const signal of session.signals()) {
-          operationTelemetry.signal(signal);
-          if (signal.kind === "message.delta" || signal.kind === "message.completed") {
-            const key = signal.operationId + ":" + signal.messageId;
-            let message = messages.get(key);
-            if (!message) {
-              message = {
-                id: key,
-                role:
-                  signal.kind === "message.completed" ? (signal.role ?? "assistant") : "assistant",
-                text: "",
-                assets: signal.kind === "message.completed" ? (signal.assets ?? []) : [],
-                operationId: signal.operationId,
-                state: "partial",
-              };
-              messages.set(key, message);
-            }
-            message.text =
-              signal.kind === "message.delta" ? message.text + signal.delta : signal.text;
-            message.state = signal.kind === "message.completed" ? "complete" : "partial";
-            if (signal.kind === "message.completed" && signal.assets)
-              message.assets = signal.assets;
-            if (signal.kind === "message.completed" && signal.preparation)
-              message.preparation = signal.preparation;
-            if (signal.kind === "message.completed" && signal.role === "user") {
-              const pending = submissions.get(signal.operationId);
-              const index =
-                pending?.findIndex((value) => value.displayId === signal.displayId) ?? -1;
-              const submission = index >= 0 ? pending?.splice(index, 1)[0] : undefined;
-              if (submission) {
-                const { displayId: _, ...visible } = submission;
-                Object.assign(message, visible);
-              }
-            }
-            await historyWriter.write({ ...message });
-            if (message.state === "complete") messages.delete(key);
-          } else if (signal.kind === "artifact.available") {
-            try {
-              if (!project.assets.some((a) => a.key === signal.asset.key)) {
-                project.assets.push(signal.asset);
-                await persist();
-              }
-              await historyWriter.writeAsset(
-                signal.messageId
-                  ? signal.operationId + ":" + signal.messageId
-                  : crypto.randomUUID(),
-                signal.operationId,
-                signal.asset,
-              );
-            } catch {
-              historyWriter.reportStorageFailure();
-            }
-            try {
-              await controllers.get(workbench.id)?.observeArtifact?.({
-                operationId: signal.operationId,
-                asset: signal.asset,
-              });
-            } catch {
-              notice =
-                "The provider returned an asset, but workbench intake could not be saved. No execution was retried.";
-            }
-          } else {
-            signals.push(signal);
-            if (signal.kind === "operation.started" && !state.active)
-              state.active = signal.operationId;
-            if (signal.kind === "approval.requested")
-              approvals.admit({ conversationId, request: signal.request });
-            else if (signal.kind === "approval.resolved")
-              approvals.invalidate(conversationId, signal.approvalId, true);
-            if (
-              ["operation.completed", "operation.failed", "operation.interrupted"].includes(
-                signal.kind,
-              )
-            ) {
-              if ("operationId" in signal && state.active === signal.operationId) {
-                approvals.invalidate(conversationId);
-                delete state.active;
-              }
-              for (const message of messages.values())
-                await historyWriter.write({ ...message, state: "interrupted" });
-              messages.clear();
-              await historyWriter.flush();
-              if (session.history) await synchronizeHistory(conversationId, session.history);
-            }
-          }
-        }
-      })().catch(async () => {
-        delete state.active;
-        notice = "Session connection failed. Restart the host to reconnect.";
-        await state.close();
-        live.delete(conversationId);
-        await historyWriter.unavailable();
+      // Start the reader only after connect publishes this session.
+      const reader = createSessionSignalReader({
+        conversationId,
+        state,
+        historyWriter,
+        submissions,
+        approvals,
+        operationTelemetry,
+        project,
+        persist,
+        controller: () => controllers.get(workbench.id),
+        synchronizeHistory,
+        notice: (message) => {
+          notice = message;
+        },
       });
-      pumps.add(pump);
-      void pump.finally(() => pumps.delete(pump));
+      readers.set(state, () => live.watch(conversationId, state, reader.read, reader.unavailable));
       // Direct synthetic tool invocation is explicit local composition, not a second agent loop.
       syntheticInvoke.set(conversationId, async (operation, input) => {
         const binding = gateway.bind(operation);
@@ -1096,16 +1008,19 @@ export async function createDesktopApplication(
         }
       });
       if (conversation.provider === "codex")
-        void synchronizeHistory(conversationId, session.history);
+        void lifecycle
+          .run(() => synchronizeHistory(conversationId, session.history))
+          .catch(() => historyWriter.reportStorageFailure());
       return state;
-    })();
-    opening.set(conversationId, start);
-    try {
-      return await start;
-    } finally {
-      opening.delete(conversationId);
+    });
+    const read = readers.get(state);
+    if (read) {
+      readers.delete(state);
+      void read();
     }
+    return state;
   }
+  const readers = new WeakMap<Live, () => Promise<void>>();
   const syntheticInvoke = new Map<string, (operation: string, input: string) => Promise<void>>();
   const unavailable = {
     artifacts: [],
@@ -1120,6 +1035,14 @@ export async function createDesktopApplication(
     symbol,
     { conversationId: string; workbenchId: string; toolName: string }
   >();
+  const learningOperation = (
+    operation?: AuthorizationEvaluationOptions,
+  ): AuthorizationEvaluationOptions => ({
+    signal: operation
+      ? AbortSignal.any([assemblyLifetime.signal, operation.signal])
+      : assemblyLifetime.signal,
+    remainingMs: operation?.remainingMs ?? (() => Number.MAX_SAFE_INTEGER),
+  });
   const application = {
     installations,
     workflowOwners: orchestration.owners,
@@ -1130,8 +1053,10 @@ export async function createDesktopApplication(
     workflowRuns: orchestration.list,
     workflowSteps: orchestration.steps,
     workflowCommand: orchestration.command,
-    knowledgeCommand: knowledge.command,
-    localLearningSetupCommand: localLearningSetup.command,
+    knowledgeCommand: (raw: unknown, operation?: AuthorizationEvaluationOptions) =>
+      knowledge.command(raw, learningOperation(operation)),
+    localLearningSetupCommand: (raw: unknown, operation?: AuthorizationEvaluationOptions) =>
+      localLearningSetup.command(raw, learningOperation(operation)),
     admitKnowledgeCommand(raw: unknown) {
       const command = LearningCommandSchema.parse(raw);
       if (command.action === "preferences") {
@@ -1905,14 +1830,20 @@ export async function createDesktopApplication(
       );
       void nightloom?.initialize().catch(() => undefined);
       nightloom?.startScheduling();
-      void knowledge.pollSource().catch(() => undefined);
+      void lifecycle.run(() => knowledge.pollSource()).catch(() => undefined);
       const c = project.conversations.find((c) => c.id === project.selectedId);
       if (c?.provider === "codex" && c.projectId) {
-        void connect(c.id).catch(async () => {
-          await writer(c.id).unavailable();
-          notice =
-            "Codex unavailable. Check installation and sign-in, then restart the host. Synthetic mode is a separate choice.";
-        });
+        void lifecycle
+          .run(async () => {
+            try {
+              await connect(c.id);
+            } catch {
+              notice =
+                "Codex unavailable. Check installation and sign-in, then restart the host. Synthetic mode is a separate choice.";
+              await writer(c.id).unavailable();
+            }
+          })
+          .catch(() => {});
       }
     },
     async command(raw: unknown) {
@@ -2228,90 +2159,25 @@ export async function createDesktopApplication(
           const catalogue = command.selections.length
             ? await this.discover(conversation.id)
             : undefined;
-          const selected = [...new Map(command.selections.map((s) => [s.id, s])).values()].map(
-            (selection) => {
-              const entry = catalogue?.entries.find(
-                (e) => e.id === selection.id && e.revision === selection.revision,
-              );
-              if (!entry || !entry.selectable || entry.availability !== "available")
-                throw Error("Selection unavailable. Refresh the catalogue and select it again.");
-              return entry;
-            },
-          );
-          const selectedInstructions = selected
-            .filter((e) => e.origin === "drawloom")
-            .flatMap((e) => {
-              const contribution = registry.contributions.find(
-                (c) => c.id === e.id && c.kind === "skill",
-              );
-              if (
-                !contribution ||
-                registry.workbenches
-                  .find((w) => w.id === conversation.workbenchId)!
-                  .skills.includes(contribution.contributionId)
-              )
-                return [];
-              return registry.skills
-                .filter((s) => s.id === contribution.contributionId)
-                .map((s) => s.instructions);
-            });
-          const attachments = command.attachmentKeys.map((key) => {
-            const a = project.assets.find((a) => a.key === key);
-            if (!a) throw Error("Attachment unavailable");
-            return a;
+          const material = await resolveTurnMaterial({
+            command,
+            conversation,
+            project,
+            registry,
+            operator,
+            history,
+            assets,
+            viewContext,
+            catalogue,
           });
-          const context = command.contextArtifactIds.map((id) => {
-            const a = operator.artifacts.find((a) => a.id === id);
-            if (!a || a.content.kind !== "text")
-              throw Error("Only text documents can be attached as context");
-            return a.content.text;
-          });
-          const selectedResources: NonNullable<HistoryEntry["resources"]> = [];
-          context.push(
-            ...(await conversationContext(
-              history,
-              project.conversations,
-              conversation.id,
-              command.conversationContextIds,
-            )),
-          );
-          for (const selection of command.resourceSelections) {
-            const entry = await history.get(conversation.id, selection.entryId);
-            const resource = entry?.resources?.find((r) => r.id === selection.resourceId);
-            if (
-              !resource?.asset ||
-              !["text/plain", "text/markdown"].includes(resource.asset.mediaType)
-            )
-              throw Error("Only ready text resources can be selected as context");
-            const bytes = await assets.read(resource.asset.key);
-            if (bytes.length > 100_000) throw Error("Selected context is too large");
-            context.push(new TextDecoder().decode(bytes));
-            selectedResources.push(resource);
-          }
-          const imageAttachments: Asset[] = [];
-          for (const attachment of attachments) {
-            if (["text/plain", "text/markdown"].includes(attachment.mediaType)) {
-              const bytes = await assets.read(attachment.key);
-              if (bytes.length > 100_000) throw Error("Selected context is too large");
-              context.push(new TextDecoder().decode(bytes));
-            } else if (attachment.mediaType.startsWith("image/")) imageAttachments.push(attachment);
-            else
-              throw Error(
-                "This file is viewable, but is not supported as direct model input. Use a suitable tool instead.",
-              );
-          }
-          // User-selected documents stay untrusted user content, never developer instructions.
-          if (conversation.provider === "synthetic" && imageAttachments.length)
-            throw Error(
-              "Synthetic mode accepts text. Attachments remain available as artifacts; choose Codex to send images.",
-            );
-          if (
-            context.reduce((size, text) => size + text.length, 0) +
-              command.text.length +
-              viewContext.forConversation(conversation.id).length >
-            200_000
-          )
-            throw Error("Selected context is too large");
+          const {
+            selected,
+            selectedInstructions,
+            attachments,
+            context,
+            selectedResources,
+            imageAttachments,
+          } = material;
           const input = {
             operationId: op,
             originalDisplayText: command.text,
@@ -2361,40 +2227,17 @@ export async function createDesktopApplication(
           let prepared: Awaited<ReturnType<typeof knowledge.prepare>>;
           let assembled: Awaited<ReturnType<typeof contextAssembly.turn>>;
           for (;;) {
-            prepared = await knowledge.prepare(
-              {
-                request: command.text,
-                binding: { executionId: op, conversationId: conversation.id },
-                budget: {
-                  maxRecords: 8,
-                  maxBytes: Math.max(
-                    1,
-                    Math.min(
-                      12288,
-                      200_000 - input.text.length - selectedInstructions.join("\n").length - 512,
-                    ),
-                  ),
-                },
-              },
+            prepared = await material.prepareKnowledge(
+              knowledge,
+              op,
+              input.text,
               preparationAllowed,
             );
             // No wire submission has occurred. A completed steering target needs
             // a fresh operation and freshly scoped preparation, never a retry of
             // the already completed identity.
             if (refreshCompletedTarget()) continue;
-            assembled = await contextAssembly.turn({
-              request: command.text,
-              instructions: selectedInstructions.map((text) => ({ text })),
-              references: [
-                ...context.map((text, index) => ({ text, source: `selected:${index + 1}` })),
-                ...(viewContext.forConversation(conversation.id)
-                  ? [{ text: viewContext.forConversation(conversation.id), source: "active-view" }]
-                  : []),
-              ],
-              attachments: imageAttachments,
-              selections: input.selections,
-              ...(prepared.references ? { automaticKnowledge: prepared.references } : {}),
-            });
+            assembled = await material.assemble(contextAssembly, prepared);
             // Assembly is replaceable asynchronous work too. Its references must
             // be prepared again if the steering operation finished while it waited.
             if (!refreshCompletedTarget()) break;
@@ -2419,6 +2262,7 @@ export async function createDesktopApplication(
                   ...(prepared.references ? { references: prepared.references } : {}),
                 }
               : { ...input, preparation: { kind: "cancelled" as const, references: [] } };
+          lifecycle.assertRunning();
           const starting = !state.active;
           const submitted = {
             displayId: input.displayId,
@@ -2538,26 +2382,34 @@ export async function createDesktopApplication(
       return asset;
     },
     close() {
-      return (closing ??= cleanup([
-        () => approvals.close(),
-        () => assemblyLifetime.abort(),
-        () => authorization.shutdown(),
-        () => nightloom?.stopScheduling(),
-        () => nightloom?.close(),
-        () => orchestration.close(),
-        // Nightloom can be the only consumer that opened the shared manager.
-        () => orchestrationComposition.closeManager(),
-        () => knowledge.close(),
-        () => operationTelemetry.close(),
-        () => Promise.allSettled([...opening.values()]),
-        () => cleanup([...live.values()].map((session) => () => session.close())),
-        () => cleanup([...pumps].map((pump) => () => pump)),
-        () => projectRuntimes.close(),
-        () => conversationResources.drainWriters(),
-        () => projectWrites,
-        () => conversationResources.closeHistory(),
-      ]));
+      return lifecycle.close(
+        () => {
+          live.stopAdmission();
+          projectRuntimes.stopAdmission();
+          assemblyLifetime.abort();
+          knowledge.invalidatePreparation();
+          authorization.shutdown();
+          schedulingStopped = nightloom?.stopScheduling();
+          void schedulingStopped?.catch(() => {});
+        },
+        () =>
+          cleanup([
+            () => approvals.close(),
+            () => schedulingStopped,
+            () => nightloom?.close(),
+            () => orchestration.close(),
+            () => live.close(),
+            () => projectRuntimes.close(),
+            // All consumers release their registrations before their shared manager.
+            () => orchestrationComposition.closeManager(),
+            () => knowledge.close(),
+            () => operationTelemetry.close(),
+            () => conversationResources.drainWriters(),
+            () => projectWrites,
+            () => conversationResources.closeHistory(),
+          ]),
+      );
     },
   };
-  return instrumentApplication(application);
+  return instrumentApplication(guardDesktopApplication(application, lifecycle));
 }

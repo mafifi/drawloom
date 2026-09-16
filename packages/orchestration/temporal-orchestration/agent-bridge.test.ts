@@ -9,6 +9,99 @@ import { createReceiptDispatcher } from "./src/receipts.js";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import type { AgentDriver, AgentSession } from "@drawloom/agent";
+
+const quietSession = (sessionId: string, close: AgentSession["close"]): AgentSession => ({
+  sessionId,
+  reviewerModes: ["human"],
+  execute: async () => ({ status: "ok", value: { operationId: "unused" } }),
+  resolveApproval: async () => ({ status: "ok", value: undefined }),
+  respondToInput: async () => ({ status: "ok", value: undefined }),
+  close,
+  signals: async function* () {},
+});
+
+test("bridge close checks every session result, continues peers, and memoizes failures", async () => {
+  const data = new Map<string, Json>();
+  const closed: string[] = [];
+  const driver: AgentDriver = {
+    driverId: "close-test",
+    async openSession(input) {
+      return {
+        status: "ok",
+        value: quietSession(input.sessionId, async () => {
+          closed.push(input.sessionId);
+          return input.sessionId.endsWith('bad"]')
+            ? {
+                status: "rejected",
+                failure: { code: "provider_unavailable", message: "close unavailable" },
+              }
+            : { status: "ok", value: undefined };
+        }),
+      };
+    },
+  };
+  const bridge = createAgentBridge(
+    "owner",
+    driver,
+    {
+      get: async (key) => data.get(key),
+      set: async (key, value) => void data.set(key, value),
+    },
+    { context: { text: "" }, tools: { id: "none", tools: [] } },
+  );
+  await bridge.create("bad");
+  await bridge.create("good");
+  const first = bridge.close();
+  const second = bridge.close();
+  await expect(first).rejects.toBeInstanceOf(AggregateError);
+  await expect(second).rejects.toBeInstanceOf(AggregateError);
+  await expect(bridge.close()).rejects.toBeInstanceOf(AggregateError);
+  expect(closed).toHaveLength(2);
+  expect(closed.some((id) => id.endsWith('good"]'))).toBe(true);
+});
+
+test("bridge close waits for pending startup, closes it, and prevents late publication", async () => {
+  const data = new Map<string, Json>();
+  let finishOpen!: (session: AgentSession) => void;
+  let closes = 0;
+  const opened = new Promise<AgentSession>((resolve) => {
+    finishOpen = resolve;
+  });
+  const bridge = createAgentBridge(
+    "owner",
+    {
+      driverId: "pending-test",
+      async openSession() {
+        return { status: "ok", value: await opened };
+      },
+    },
+    {
+      get: async (key) => data.get(key),
+      set: async (key, value) => void data.set(key, value),
+    },
+    { context: { text: "" }, tools: { id: "none", tools: [] } },
+  );
+  const creating = bridge.create("pending");
+  await Promise.resolve();
+  const closing = bridge.close();
+  let settled = false;
+  void closing.finally(() => {
+    settled = true;
+  });
+  await Promise.resolve();
+  expect(settled).toBe(false);
+  finishOpen(
+    quietSession('["owner","pending"]', async () => {
+      closes++;
+      return { status: "ok", value: undefined };
+    }),
+  );
+  await expect(creating).rejects.toThrow("closed");
+  await closing;
+  expect(closes).toBe(1);
+  await expect(bridge.create("later")).rejects.toThrow("closed");
+});
 
 test("local shutdown is not native cancellation; explicit run cancellation still reaches owned agents", async () => {
   for (const explicit of [false, true]) {

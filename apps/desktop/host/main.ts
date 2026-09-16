@@ -6,6 +6,7 @@ import { selectDataDirectory } from "./data-directory.js";
 import { initializeObservability } from "@drawloom/otel-host";
 import { createTelemetryRelay } from "./telemetry-relay.js";
 import { pickMacProjectDirectory } from "./folder-picker.js";
+import { createProcessShutdown } from "./process-shutdown.js";
 async function main() {
   const selectedMode = process.env.DRAWLOOM_TELEMETRY ?? "disabled";
   if (!["disabled", "recording", "export"].includes(selectedMode))
@@ -67,16 +68,23 @@ async function main() {
     process.platform === "darwin" ? { pickDirectory: pickMacProjectDirectory } : {},
   );
   console.log(server.url);
-  let stopping: Promise<void> | undefined;
-  const stop = () => (stopping ??= server.close().finally(() => telemetry.shutdown()));
+  const stop = createProcessShutdown({
+    closeApplication: () => server.close(),
+    shutdownTelemetry: () => telemetry.shutdown(),
+    reportFailure: () => {
+      console.error(
+        "Drawloom could not shut down cleanly. Some local work may need recovery; no automatic retry occurred.",
+      );
+    },
+  });
   for (const signal of ["SIGTERM", "SIGINT"] as const)
     process.once(signal, () => {
-      void stop().finally(() => process.exit(0));
+      void stop().then((code) => process.exit(code));
     });
   if (process.env.DRAWLOOM_MANAGED === "1") {
     process.stdin.resume();
     process.stdin.once("end", () => {
-      void stop().finally(() => process.exit(0));
+      void stop().then((code) => process.exit(code));
     });
   }
 }

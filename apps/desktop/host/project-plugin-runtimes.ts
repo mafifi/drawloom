@@ -1,4 +1,5 @@
 import type { DirectoryProject } from "../src/lib/protocol.js";
+import { DesktopClosedError } from "./application-lifecycle.js";
 
 export async function retireCreatedRuntimes<T>(
   runtimes: ReadonlyMap<string, Promise<T>>,
@@ -27,6 +28,8 @@ export function createProjectPluginRuntimes<T extends { activated: boolean }>(op
   close: (runtime: T) => Promise<void>;
 }) {
   const runtimes = new Map<string, Promise<T>>();
+  let stopped = false;
+  let closing: Promise<void> | undefined;
 
   async function construct(binding?: DirectoryProject) {
     const activated = binding ? await options.available(binding) : false;
@@ -34,6 +37,7 @@ export function createProjectPluginRuntimes<T extends { activated: boolean }>(op
   }
 
   function forProject(binding?: DirectoryProject): Promise<T> {
+    if (stopped) return Promise.reject(new DesktopClosedError("closing"));
     const key = binding?.id ?? "legacy";
     let runtime = runtimes.get(key);
     if (!runtime) {
@@ -42,19 +46,35 @@ export function createProjectPluginRuntimes<T extends { activated: boolean }>(op
     }
     const current = runtime;
     return current.then(async (value) => {
-      if (!binding || value.activated || !(await options.available(binding))) return value;
+      if (stopped) throw new DesktopClosedError("closing");
+      if (!binding || value.activated) return value;
+      const available = await options.available(binding);
+      if (stopped) throw new DesktopClosedError("closing");
+      if (!available) return value;
       const latest = runtimes.get(key)!;
-      if (latest !== current) return latest;
+      if (latest !== current) {
+        const active = await latest;
+        if (stopped) throw new DesktopClosedError("closing");
+        return active;
+      }
       const starting = options.replace(value).then(() => construct(binding));
       runtimes.set(key, starting);
-      return starting;
+      const active = await starting;
+      if (stopped) throw new DesktopClosedError("closing");
+      return active;
     });
   }
 
   return {
     forProject,
+    stopAdmission() {
+      stopped = true;
+    },
     pending: (projectId: string) => runtimes.get(projectId),
     retire: (retire: (runtime: T) => Promise<void>) => retireCreatedRuntimes(runtimes, retire),
-    close: () => retireCreatedRuntimes(runtimes, options.close),
+    close: () => {
+      stopped = true;
+      return (closing ??= retireCreatedRuntimes(runtimes, options.close));
+    },
   };
 }

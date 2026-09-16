@@ -15,6 +15,19 @@ Start with [application.ts](../../apps/desktop/host/application.ts) to see how t
 desktop chooses implementations and handles commands. Follow these smaller
 modules when you want to understand a particular responsibility:
 
+- [Application lifecycle](../../apps/desktop/host/application-lifecycle.ts)
+  stops new requests when shutdown begins and waits for admitted work before
+  releasing its dependencies. The HTTP server also rejects commands still waiting
+  in its queue.
+- [Desktop sessions](../../apps/desktop/host/desktop-sessions.ts)
+  owns pending connections, live sessions and background readers. Concurrent
+  connections share startup; failed or interrupted startup releases resources
+  already acquired. [Session signals](../../apps/desktop/host/session-signals.ts)
+  turns provider events into display history, approval state and artifact intake.
+- [Turn preparation](../../apps/desktop/host/turn-preparation.ts)
+  resolves selected skills, references and attachments and prepares context.
+  The application retains execution identities, permission rechecks and the
+  decision to send a new turn or steer an existing one.
 - [Conversation resources](../../apps/desktop/host/conversation-resources.ts)
   coordinates history writes, captured tool results and recovery after a failed
   write. Recovery uses retained evidence; it does not rerun the tool.
@@ -28,6 +41,23 @@ modules when you want to understand a particular responsibility:
 
 Each module has a neighbouring test file. Application-level tests check that
 these responsibilities still work together across navigation, restart and shutdown.
+
+## Starting and stopping safely
+
+Shutdown first stops new work and cancels supported preparation and local setup.
+Already admitted work must settle before its dependencies close. Closing the
+application more than once joins the same shutdown; it does not repeat cleanup.
+
+Each resource has one closing owner. In particular, orchestration composition
+closes the shared manager after its consumers release it. Session and project
+startup cannot publish a new connection after their owner has stopped.
+
+A failed close does not prevent the remaining cleanup steps from running. The
+host reports the combined failures, including failure results returned by an
+agent, rather than claiming successful shutdown. The process still attempts to
+flush telemetry and exits unsuccessfully if cleanup fails. Closing a connection
+is not evidence that an external action was cancelled, and never authorizes a
+retry.
 
 ## Follow the project, not the selected screen
 
