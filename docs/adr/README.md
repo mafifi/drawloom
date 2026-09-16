@@ -1,20 +1,18 @@
 # Architecture decision records
 
-- [ADR 0028: Replace learning, context and decisions without replacing the desktop](0028-replaceable-learning-context-and-decisions.md)
-  is Accepted. Its implementation separates trusted provider setup from
-  shared presentation, consent and enforcement; the [verification record](../plans/0028-verification.md)
-  lists executed checks and their limits.
+An architecture decision record (ADR) explains a decision that constrains future
+implementation: what forced it, what we chose, what we rejected, what we
+verified and what it costs.
 
-- [ADR 0027: Bring retained learning into everyday conversations](0027-complete-learning-journey.md)
-  is Accepted. It connects opt-in capture, curation and bounded recall in the
-  desktop, partially superseding ADR 0024's tools-only context choice. Its
-  evidence records tested behavior, retrieval costs and model-quality limits.
+Read an ADR when you need to know **why** the code is shaped the way it is.
+[ARCHITECTURE.md](../../ARCHITECTURE.md) groups these decisions by capability
+and is the better starting point if you do not yet know which one you need.
 
-- [ADR 0026: Permissive dependencies and local GGUF embeddings](0026-permissive-dependencies-and-local-gguf-embeddings.md)
-  is Accepted; it partially supersedes ADR 0024's runtime/installation
-  choice, not its wider knowledge architecture.
+## Writing one
 
-ADRs record decisions that constrain future implementation.
+Start from [the template](0000-template.md). It defines the six sections every
+record uses and explains the conventions, including how to record status and
+supersession.
 
 Files use four-digit sequence numbers and kebab-case titles:
 
@@ -22,95 +20,114 @@ Files use four-digit sequence numbers and kebab-case titles:
 0001-repository-foundations.md
 ```
 
-Statuses are `Proposed`, `Accepted`, `Deprecated`, or `Superseded`. An accepted
+Statuses are `Proposed`, `Accepted`, `Deprecated` or `Superseded`. An accepted
 ADR is not rewritten to reflect a later decision; a new ADR supersedes it and
-links back.
+links back. Editorial revision that preserves every claim is permitted and is
+identified as such — see [`docs/AGENTS.md`](../AGENTS.md).
 
-## Latest decision
+## The records
 
-- [ADR 0025: Evaluation boundaries and a comparative proof](0025-evaluation-boundaries-and-comparative-proof.md)
-  is Accepted for the demonstrated interfaces and supported implementation
-  direction. Evaluation composes with orchestration for durable execution and
-  uses local Braintrust/Autoevals assessment within steps. Implementation is in
-  progress; delivery and wider judgement quality remain separate from acceptance.
+Newest first. A decision remains binding until an ADR supersedes it.
 
-- [ADR 0024: Local knowledge, memory and evidence-based retrieval](0024-local-knowledge-memory-and-retrieval.md)
-  is Accepted. Local storage, hybrid retrieval and maintenance are implemented;
-  broader retrieval value and remaining verification follow-ups are explicit,
-  not claims established by the synthetic evaluation.
+### Learning, context and access
 
-- [ADR 0023: Knowledge and memory authorization boundaries](0023-knowledge-memory-authorization-boundaries.md)
-  is Accepted for replaceable authorization and trusted attribute enforcement,
-  using AuthZEN's decision shape. Classification and entitlement rules remain
-  implementation-owned; the retained Cedar/Casbin experiment is not production
-  enforcement. Broader OSS implementation follows in ADR 0024.
+- **[0028: Replace learning, context and decisions without replacing the desktop](0028-replaceable-learning-context-and-decisions.md)** —
+  Accepted. Separates trusted provider setup from shared presentation, consent
+  and enforcement, so a developer can replace an implementation and keep the
+  ordinary desktop experience. The
+  [verification record](../plans/0028-verification.md) lists executed checks and
+  their limits.
+- **[0027: Bring retained learning into everyday conversations](0027-complete-learning-journey.md)** —
+  Accepted; context composition partially superseded by ADR 0028. Connects
+  opt-in capture, curation and bounded recall, partially superseding ADR 0024's
+  tools-only context choice.
+- **[0026: Permissive dependencies and local GGUF embeddings](0026-permissive-dependencies-and-local-gguf-embeddings.md)** —
+  Accepted. Records the dependency-licensing policy and the embedding
+  replacement it required. Partially supersedes ADR 0024's runtime and
+  installation choice, not its wider knowledge architecture.
+- **[0024: Local knowledge, memory and evidence-based retrieval](0024-local-knowledge-memory-and-retrieval.md)** —
+  Accepted; partially superseded by ADR 0026, ADR 0027 and ADR 0028. Local
+  storage, hybrid retrieval and maintenance.
+- **[0023: Keep knowledge and memory authorization replaceable](0023-knowledge-memory-authorization-boundaries.md)** —
+  Accepted. Replaceable authorization and trusted attribute enforcement, using
+  AuthZEN's decision shape. Classification and entitlement rules stay
+  implementation-owned.
+- **[0022: Explore knowledge, memory and context through a bounded experiment](0022-knowledge-memory-context-experiment.md)** —
+  Accepted for the demonstrated capture, maintenance, source-update and
+  fresh-agent retrieval boundaries. Establishes no supported data model,
+  capability API or production memory.
 
-- [ADR 0022: Knowledge, memory and context experiment](0022-knowledge-memory-context-experiment.md)
-  is Accepted for the demonstrated capture, maintenance, source-update and
-  fresh-agent retrieval boundaries. It records weaknesses and future acceptance
-  work; it establishes no supported data model, capability API or production memory.
+### Evaluation and orchestration
 
-- [ADR 0021: Local Temporal orchestration](0021-local-temporal-orchestration.md)
-  is Accepted. It adds an installed workflow
-  entrypoint, local Temporal provider and deterministic video-workbench integration.
-  Local recovery and parallel media execution are verified; production-server
-  guarantees and automatic replay of uncertain effects remain excluded.
+- **[0025: Evaluation boundaries and a comparative proof](0025-evaluation-boundaries-and-comparative-proof.md)** —
+  Accepted. Evaluation composes with orchestration for durable execution and
+  uses local Braintrust and Autoevals assessment within steps.
+- **[0021: Local Temporal orchestration](0021-local-temporal-orchestration.md)** —
+  Accepted. Installed workflow entrypoint and local Temporal provider. Local
+  recovery is verified; production-server guarantees are excluded.
+- **[0017: Orchestration interfaces](0017-orchestration-interfaces.md)** —
+  Accepted. Typed workflow, run and agent boundaries, demonstrated by a retained
+  local Temporal proof.
 
-- [ADR 0020: Directory-backed projects and efficient file delivery](0020-directory-backed-projects-and-file-delivery.md)
-  is Accepted. Directory-backed projects, project-scoped activation, streamed file
-  delivery and shared media origins are implemented and verified. Remote storage
-  and cross-machine synchronization remain excluded.
+### Plugins, projects and the desktop
 
-- [ADR 0019: Useful observability through traces, logs and metrics](0019-useful-observability.md)
-  is Accepted. Opt-in instrumentation, measured overhead and local diagnostic
-  evidence establish the approach; discovery performance remains a separate fix.
+- **[0020: Directory-backed projects and efficient file delivery](0020-directory-backed-projects-and-file-delivery.md)** —
+  Accepted. Directory-backed projects, project-scoped activation and streamed
+  file delivery. Remote storage and cross-machine synchronisation are excluded.
+- **[0019: Useful observability through traces, logs and metrics](0019-useful-observability.md)** —
+  Accepted. Opt-in instrumentation with measured overhead and content-free
+  diagnostics.
+- **[0018: Standard plugin loading and runtime extensions](0018-plugin-standards-and-runtime-extensions.md)** —
+  Accepted. Standard package loading plus a bounded backend extension.
+- **[0016: Discoverable plugins, skills, tools and resources](0016-discoverable-contributions-and-resources.md)** —
+  Accepted. Registered contributions, native selections, attachments and
+  standard tool resources.
+- **[0015: Keep working material with its owner and approve AI tool invocations](0015-working-material-ownership-and-edit-approval.md)** —
+  Accepted. Plugin-owned editing and preservation, with native
+  invocation-scoped AI review;
+  [evidence and limitations](../reference/adr-0015-native-edit-review.md)
+  distinguish live from simulated checks.
+- **[0014: Persistent, paginated conversation history](0014-persistent-paginated-conversation-history.md)** —
+  Accepted. Display history stored separately from the agent's native
+  transcript. Its
+  [verification evidence](../reference/conversation-history-evidence.md) records
+  the conformance, recovery, browser and measurement checks.
+- **[0013: Define plugin contributions, dependencies and host integration](0013-plugin-boundaries-and-host-integration.md)** —
+  Accepted. Tools, skills, workbenches and UI share one plugin ownership model.
+- **[0012: Share UI components and guide their correct use](0012-shared-ui-components-and-guidance.md)** —
+  Accepted. Shared controls and stateful feedback have one public owner.
+- **[0011: Implement the foundation and trusted startup plugins](0011-supported-foundation-and-startup-plugins.md)** —
+  **Proposed.** Implementation is authorised; acceptance awaits implementation
+  review and maintainer approval. Use ADR 0018 for the accepted package-loading
+  decision.
 
-- [ADR 0018: Plugin standards and Drawloom runtime extensions](0018-plugin-standards-and-runtime-extensions.md)
-  is Accepted. Standard package loading and the bounded backend extension are
-  implemented and proven with the migrated consumer. Native discovery latency
-  remains a logging/instrumentation follow-up, not a resolved performance claim.
+### Publishing
 
-- [ADR 0017: Orchestration interfaces](0017-orchestration-interfaces.md) is
-  Accepted. Typed workflow/run/agent boundaries are demonstrated by a retained
-  local Temporal proof; no supported package or production backend is selected.
+- **[0010: Automatically deploy approved journal content](0010-automatically-deploy-approved-journal-content.md)** —
+  Accepted. Relevant pushes to `main` deploy the journal; drafts stay excluded.
+- **[0009: Keep visual publishing sources in the repository](0009-repository-backed-visual-publishing.md)** —
+  Accepted. ADR 0010 amends its manual-only trigger.
 
-- [ADR 0016: Discoverable plugins, skills, tools and resources](0016-discoverable-contributions-and-resources.md)
-  is Accepted. Registered contributions, native selections, attachments and
-  standard tool resources are implemented; see its linked verification record.
+### Foundations
 
-- [ADR 0015: Keep working material with its owner and approve AI tool invocations](0015-working-material-ownership-and-edit-approval.md)
-  is Accepted. It records lightweight provider files, plugin-owned editing and
-  preservation, optional previews and native invocation-scoped AI review. The
-  existing video plugin proved direct Save and Codex editing; [evidence and
-  limitations](../reference/adr-0015-native-edit-review.md) distinguish live and
-  simulated checks. ADR 0014's history guarantees are unchanged.
-
-- [ADR 0014: Persistent, paginated conversation history](0014-persistent-paginated-conversation-history.md)
-  is Accepted. The contract, local SQLite
-  provider, incremental native ingestion and paginated desktop are delivered
-  together; [verification evidence](../reference/conversation-history-evidence.md)
-  records the conformance, recovery, browser and measurement checks.
-
-- [ADR 0013: Define plugin contributions, dependencies and host integration](0013-plugin-boundaries-and-host-integration.md)
-  is Accepted. Tools, skills, workbenches and UI share one plugin ownership model;
-  the private video plugin proves standard MCP Apps and current-conversation
-  assistance in the public host. Richer boundaries require a future ADR.
-
-- [ADR 0012: Share UI components and guide their correct use](0012-shared-ui-components-and-guidance.md)
-  is Accepted. Shared controls, stateful feedback and helpful checks have one
-  public owner.
-
-- [ADR 0011: Implement the foundation and trusted startup plugins](0011-supported-foundation-and-startup-plugins.md)
-  is Proposed, with implementation authorised and review pending.
-
-- [ADR 0010: Automatically deploy approved journal content](0010-automatically-deploy-approved-journal-content.md)
-  is Accepted. Relevant pushes to `main` deploy the journal; draft content stays excluded.
-
-- [ADR 0009: Keep visual publishing sources in the repository](0009-repository-backed-visual-publishing.md)
-  is Accepted, with a retained static article and Remotion publishing proof.
-  ADR 0010 amends its manual-only trigger after the author approved journal publication.
-
-- [ADR 0008: Define tool execution and exposure](0008-tool-execution-and-exposure.md)
-  is Accepted. Its working contract,
-  deterministic conformance, and focused Codex MCP integration proof are recorded
-  in the linked evidence; no supported implementation is introduced.
+- **[0008: Define tool execution and exposure](0008-tool-execution-and-exposure.md)** —
+  Accepted. Invocation, grants and execution evidence.
+- **[0007: Define provider-neutral agent execution](0007-provider-neutral-agent-execution.md)** —
+  Accepted. The shared agent interface and the Codex integration, keeping native
+  session management with Codex.
+- **[0006: Adopt evidence-led architecture principles](0006-evidence-led-architecture-principles.md)** —
+  Accepted. Records the original five principles behind
+  [ARCHITECTURE.md](../../ARCHITECTURE.md).
+- **[0005: Partition the agent platform into explicit capabilities](0005-partition-agent-platform-capabilities.md)** —
+  Accepted. The historical capability map; not a list of implemented contracts.
+- **[0004: Standardise capability contracts and conformance](0004-standardise-capability-contracts.md)** —
+  Accepted. Behaviour before implementation, Zod validation at the edges, and
+  one shared conformance suite per contract.
+- **[0003: Adopt TypeScript, Bun, and portable packages](0003-typescript-bun-and-portable-packages.md)** —
+  Accepted. TypeScript and ESM, Bun for repository tooling, explicit interfaces
+  for host-specific code.
+- **[0002: License the public core under Apache-2.0](0002-open-core-licensing.md)** —
+  Accepted. Proprietary products stay in separate repositories; contributions
+  use the Developer Certificate of Origin.
+- **[0001: Establish repository foundations](0001-repository-foundations.md)** —
+  Accepted. One authoritative home for each kind of information.

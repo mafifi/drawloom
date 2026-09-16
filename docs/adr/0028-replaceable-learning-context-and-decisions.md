@@ -6,7 +6,7 @@
 - **Decision owners:** Drawloom maintainers
 - **Implementation:** Implemented and verified ([results](../plans/0028-verification.md))
 
-## Why this change
+## Context
 
 Developers should be able to replace a capability through trusted startup setup
 without rebuilding Drawloom's screens or losing the checks around it. Before this
@@ -22,7 +22,9 @@ and partially supersedes the local composition choices in
 remain unchanged. SQLite authority, evidence relationships, independent access
 checks, local inference and the supported learning journey remain the default.
 
-## Learning is one subsystem
+## Decision
+
+### Learning is one subsystem
 
 Memory and knowledge share the existing records, intake, retrieval, assessment,
 maintenance and embedding contracts. There is no second memory store. A learning
@@ -42,7 +44,7 @@ Providers are chosen by trusted code at startup. Replacement requires restart an
 does not transfer stored data automatically. Existing databases, indexes, bindings
 and installations are preserved.
 
-## Remember what the user permitted
+### Remember what the user permitted
 
 The host owns versioned consent records, separately from feature preferences.
 Each grant records its purpose, data categories, destinations and processing
@@ -58,7 +60,7 @@ Migration records its provenance without inventing an original grant date.
 Unestablished scope requires confirmation; it does not justify deleting data.
 Disabling processing stops new activity, not past disclosures.
 
-## Assemble context through an explicit interface
+### Assemble context through an explicit interface
 
 A session assembler handles admitted instructions, skills and host guidance.
 A turn assembler handles the request, explicit selections, attachments and optional
@@ -76,7 +78,7 @@ cancellation remains distinct. Ordinary denial excludes a record, whereas inabil
 to decide is unavailability. Mandatory assembly failures prevent submission;
 optional knowledge failures continue with an honest limitation.
 
-## Separate deciding from enforcing
+### Separate deciding from enforcing
 
 The [retained authorization research](../reference/authorization-survey/README.md)
 distinguishes policy administration, trusted facts, decisions and enforcement.
@@ -118,7 +120,7 @@ unchanged grant set does not invalidate concurrent work. Finishing one workflow
 task expires that task's lease, not every other task in the same run. Explicit
 run revocation still invalidates pending decisions for that run.
 
-## Bound authorization work
+### Bound authorization work
 
 A host-owned scheduler has separate FIFO pools: foreground permits 12 active and
 24 waiting decisions; background permits four active and eight waiting decisions.
@@ -139,7 +141,7 @@ reject unsolicited, duplicate or stale messages. Disconnect and shutdown settle
 pending requests. Long assessment timeouts do not extend policy deadlines. No
 network listener or worker-loaded policy modules are introduced.
 
-## Replace approval presentation, not its authority
+### Replace approval presentation, not its authority
 
 Reuse native agent approval requests and option identities. The host and adapter
 remain authoritative; presentation only displays requests and forwards actions.
@@ -153,7 +155,18 @@ cancellation, completion, expiration or connection loss invalidates a request.
 Stale, duplicate and cross-conversation responses are rejected. Native review,
 MCP elicitation, ordinary input and business acceptance remain different things.
 
-## Verification and limits
+## Alternatives considered
+
+**Cedar or another external policy engine as a supported implementation.**
+Rejected for this delivery. The default local implementation and a contrasting
+deterministic implementation exercise the same conformance suite; that proves
+replaceability, not compatibility with external engines. Historical Cedar
+findings remain historical.
+
+**Automatic migration between learning providers.** Excluded. Replacement
+requires an application restart and preserves existing data in place.
+
+## Evidence
 
 The [implementation plan](../plans/0028-replaceable-capabilities.md) tracks delivery.
 Proof requires separately built public consumers, real desktop/worker paths,
@@ -161,6 +174,8 @@ shared conformance, consent migration and data preservation, races, mixed-load
 scheduling, recovery and accessible presentation. Run final repository, dependency,
 licence and UI gates, plus Temporal recovery. Report newly executed checks separately
 from retained evidence and unrun model-backed acceptance.
+
+## Consequences
 
 Sandbox replacement, new operating-system support, remote policy services,
 dynamically installed providers and automatic migration between learning providers

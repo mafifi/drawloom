@@ -1,5 +1,8 @@
 # Drawloom publishing site
 
+This is the reference for anyone building or maintaining the Drawloom
+publishing site — the journal and the Synaptic Shuttle landing page.
+
 Production uses `https://drawloom.org/`, with root-relative assets and navigation.
 The build emits `/schemas/1.0.0/plugin-extension.schema.json` directly from the
 plugin contract, alongside `/oauth/client.json`. Loading plugins uses local

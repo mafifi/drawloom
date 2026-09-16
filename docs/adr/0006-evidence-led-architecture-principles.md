@@ -124,35 +124,6 @@ canonical CI gate. Undecided visual tokens are explicitly omitted rather than
 invented for compliance. The format permits CSS colour forms including OKLCH,
 but this ADR does not select a colour notation or palette.
 
-## Implementation
-
-- The five principles, decision test, foundation non-goals, and naming guidance
-  are recorded in `ARCHITECTURE.md`.
-- Repository maps and agent guidance point architectural questions to
-  `ARCHITECTURE.md` and visual design questions to `DESIGN.md`.
-- `DESIGN.md` is a minimal conforming visual design-system document whose
-  undecided sections are explicit.
-- `@google/design.md` is versioned in the root Bun catalog and consumed through
-  a root `catalog:` development dependency.
-- `check:design` runs `designmd lint DESIGN.md` and is part of `check:ci`.
-- The existing Proposed agent-execution decision is renumbered from ADR 0006 to
-  ADR 0007 without changing its decision content.
-
-## Consequences
-
-- Architectural reviews have an explicit reason to reject speculative
-  complexity even when it increases generality or type precision.
-- Type safety and provider neutrality remain important, but must be tied to
-  concrete semantics and evidence.
-- Free-tier and local accessibility become architecture constraints rather than
-  future user-interface concerns.
-- Decisions may remain provider-private or reversible for longer, reducing
-  premature public API commitments.
-- Architecture and visual design have distinct authoritative documents.
-- The canonical gate gains one external lint tool and its installation cost.
-- Existing and future ADRs should state why material complexity earns its place;
-  they need not repeat the six-question test verbatim.
-
 ## Alternatives considered
 
 ### Maximise type safety and abstraction
@@ -181,3 +152,32 @@ ignore whenever a locally attractive abstraction is proposed.
 The design.md CLI supports more than linting, but Drawloom has no selected
 visual tokens or downstream design artifacts to compare or export. Adding those
 gates now would violate proportional efficiency.
+
+## Evidence
+
+- The five principles, decision test, foundation non-goals, and naming guidance
+  are recorded in `ARCHITECTURE.md`.
+- Repository maps and agent guidance point architectural questions to
+  `ARCHITECTURE.md` and visual design questions to `DESIGN.md`.
+- `DESIGN.md` is a minimal conforming visual design-system document whose
+  undecided sections are explicit.
+- `@google/design.md` is versioned in the root Bun catalog and consumed through
+  a root `catalog:` development dependency.
+- `check:design` runs `designmd lint DESIGN.md` and is part of `check:ci`.
+- The existing Proposed agent-execution decision is renumbered from ADR 0006 to
+  ADR 0007 without changing its decision content.
+
+## Consequences
+
+- Architectural reviews have an explicit reason to reject speculative
+  complexity even when it increases generality or type precision.
+- Type safety and provider neutrality remain important, but must be tied to
+  concrete semantics and evidence.
+- Free-tier and local accessibility become architecture constraints rather than
+  future user-interface concerns.
+- Decisions may remain provider-private or reversible for longer, reducing
+  premature public API commitments.
+- Architecture and visual design have distinct authoritative documents.
+- The canonical gate gains one external lint tool and its installation cost.
+- Existing and future ADRs should state why material complexity earns its place;
+  they need not repeat the six-question test verbatim.

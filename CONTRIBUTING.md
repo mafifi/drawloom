@@ -169,6 +169,21 @@ in full rather than formatting only their embedded scripts. Continue to use the
 Svelte and Astro compiler checks for those files. Do not add or enable a second
 template formatter without maintainer approval and an equivalent content check.
 
+### Check documentation structure and links
+
+`bun run check:docs` verifies that every architecture decision record uses the
+house format from [the ADR template](docs/adr/0000-template.md) — Context,
+Decision, Alternatives considered, Evidence, Consequences, with a recognised
+status — and that every relative Markdown link in the repository resolves,
+including its heading anchor. It runs in `check:ci`.
+
+The check deliberately says nothing about prose. Line lengths and formatting
+conventions measure Markdown source layout, not whether a reader understands the
+document. Editorial quality stays with review.
+
+Renaming a heading can break an incoming link from another document. The anchor
+check exists to catch that.
+
 ## Keep research and documentation useful
 
 Update the documentation affected by your change and keep its links working.

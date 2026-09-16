@@ -83,22 +83,6 @@ Codex Security and Claude Design can illustrate convergence in product shape,
 not prove undocumented backend architecture. Codex App Server and Claude Agent
 SDK are distinct integration offerings, not interchangeable APIs.
 
-## Complexity and costs
-
-The current need is one readable article and one reusable explanatory animation.
-Static HTML plus rendered video avoids a runtime service, CMS, database, custom
-player, universal publishing schema and cloud rendering bill. Astro adds one
-build tool; Remotion adds React and a Chromium/rendering toolchain. Their value
-must be demonstrated by a real build, shared video/still source, playback and a
-live deployment. Hosting and rendering are replaceable without moving editorial
-sources or affecting Drawloom contracts.
-
-GitHub Pages has bandwidth/storage limits, and video rendering consumes local
-CPU, disk and time. This proof is not a promise of free unlimited video hosting.
-Remotion's applicable licence must be checked before organisational production
-use. Longer video distribution can move to YouTube or another host without
-changing the article's ownership model.
-
 ## Alternatives considered
 
 - **SvelteKit for everything:** consistent with product UI, but unnecessary for
@@ -115,7 +99,7 @@ changing the article's ownership model.
 - **A universal article/video/slides content engine:** premature abstraction;
   share composition assets and facts, not an invented publishing framework.
 
-## Acceptance evidence
+## Evidence
 
 The retained spike must demonstrate reproducible frozen installation, strict
 source checking, a real rendered MP4 and still, project-base-path-safe HTML,
@@ -127,6 +111,22 @@ records the successful local and deployed proof and its limitations. The
 maintainer accepted this ADR after reviewing that evidence. Acceptance does not
 promote the spike into a supported application or approve the sample as an
 editorial publication.
+
+## Consequences
+
+The current need is one readable article and one reusable explanatory animation.
+Static HTML plus rendered video avoids a runtime service, CMS, database, custom
+player, universal publishing schema and cloud rendering bill. Astro adds one
+build tool; Remotion adds React and a Chromium/rendering toolchain. Their value
+must be demonstrated by a real build, shared video/still source, playback and a
+live deployment. Hosting and rendering are replaceable without moving editorial
+sources or affecting Drawloom contracts.
+
+GitHub Pages has bandwidth/storage limits, and video rendering consumes local
+CPU, disk and time. This proof is not a promise of free unlimited video hosting.
+Remotion's applicable licence must be checked before organisational production
+use. Longer video distribution can move to YouTube or another host without
+changing the article's ownership model.
 
 ## References
 

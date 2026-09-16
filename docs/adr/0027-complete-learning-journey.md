@@ -1,12 +1,12 @@
 # ADR 0027: Bring retained learning into everyday conversations
 
-- Status: Accepted; context composition partially superseded by ADR 0028
-- Date: 2026-09-15
-- Accepted: 2026-09-15
+- **Status:** Accepted; context composition partially superseded by ADR 0028
+- **Date:** 2026-09-15
+- **Accepted:** 2026-09-15
 - Partial replacement: Accepted [ADR 0028](0028-replaceable-learning-context-and-decisions.md) makes context assembly and learning implementations replaceable while retaining the bounded preparation and disclosure safeguards below. Original decision text and evidence remain unchanged.
 - Partially supersedes: [ADR 0024](0024-local-knowledge-memory-and-retrieval.md), specifically tools-only context preparation.
 
-## Purpose
+## Context
 
 Drawloom should help an agent benefit from earlier work without requiring the
 user to remember which knowledge record to request. Implement capture, curation
@@ -16,7 +16,9 @@ SQLite remains the record of knowledge. Nightloom continues to coordinate
 assessment and publication. Context preparation selects useful records for a
 request; it neither creates another store nor grants access to tools or data.
 
-## Provider check before implementation
+## Decision
+
+### Provider check before implementation
 
 On 2026-09-15, the installed `codex-cli 0.153.4` generated experimental JSON
 schemas for both `turn/start` and `turn/steer`. `AdditionalContextKind` lists
@@ -42,8 +44,6 @@ The native history reader joins user text parts. Therefore fallback delivery
 must preserve the original submitted text through durable correlation, including
 restart and steering; generic marker stripping is not acceptable. Host-provided
 references must not subsequently appear as words the user typed.
-
-## Decisions
 
 - Prepare bounded knowledge references before normal submission and steering,
   using the current request and verified identity/binding. Limit references to
@@ -95,7 +95,7 @@ references must not subsequently appear as words the user typed.
 - Disabling automatic disclosure stops new additions; it does not erase native
   turns already sent. Model-backed acceptance is qualified as Apple Silicon/Metal.
 
-## Reference comparison
+## Alternatives considered
 
 The retained [DeepSeek survey](../reference/knowledge-memory-survey/deepseek.md)
 separates context admission from retention and native compaction. The retained
@@ -105,18 +105,7 @@ is not a bounded query-dependent selection strategy. Drawloom adopts explicit
 composition while retaining its own authorization and size-limited retrieval.
 These are source-inspected references, not fresh upstream runtime tests.
 
-## Closing ADR 0022's weaknesses
-
-| Earlier weakness | Product treatment and acceptance |
-| --- | --- |
-| Repeated maintenance reads | Deduplicate exact revisions per request; measure evidence bytes. Retain necessary fresh-assessor inputs rather than unsafe cross-assessment caching. |
-| Broad lexical retrieval | Exercise frozen relevant, irrelevant and paraphrased cases with and without the installed GGUF model; assess resulting answers as well as hits. |
-| Input friction and arbitrary limits | Preserve bounded responses, explicit reference-only oversize behaviour and actionable failures; cover revision races and non-ASCII sizes. |
-| Uncalibrated domain judgement | Preserve contrary, withdrawn and source-revision cases. No universal confidence or domain reliability claim. |
-| Disposable storage/intake | Use supported SQLite, source intake and Nightloom; enforce restart and interrupted-work tests in a separate Temporal CI lane. |
-| Limited safety/provider evidence | Test denied disclosure and hostile bodies in both assessment and foreground reading. Scripted checks do not establish universal prompt-injection resistance. |
-
-## Acceptance status
+## Evidence
 
 The supported implementation and the relevance boundary above are accepted.
 The first bounded live run
@@ -143,3 +132,17 @@ Silicon; it remains opt-in in CI. Public runtime archive publication is separate
 from this acceptance and from a working text-search installation.
 New checks are recorded in the [evidence record](../../knowledge/evidence/adr-0027-learning-journey.md),
 separately from retained historical investigations.
+
+## Consequences
+
+This decision closes the weaknesses ADR 0022 recorded as future implementation
+work. Each row names the earlier weakness and how the product now treats it.
+
+| Earlier weakness | Product treatment and acceptance |
+| --- | --- |
+| Repeated maintenance reads | Deduplicate exact revisions per request; measure evidence bytes. Retain necessary fresh-assessor inputs rather than unsafe cross-assessment caching. |
+| Broad lexical retrieval | Exercise frozen relevant, irrelevant and paraphrased cases with and without the installed GGUF model; assess resulting answers as well as hits. |
+| Input friction and arbitrary limits | Preserve bounded responses, explicit reference-only oversize behaviour and actionable failures; cover revision races and non-ASCII sizes. |
+| Uncalibrated domain judgement | Preserve contrary, withdrawn and source-revision cases. No universal confidence or domain reliability claim. |
+| Disposable storage/intake | Use supported SQLite, source intake and Nightloom; enforce restart and interrupted-work tests in a separate Temporal CI lane. |
+| Limited safety/provider evidence | Test denied disclosure and hostile bodies in both assessment and foreground reading. Scripted checks do not establish universal prompt-injection resistance. |

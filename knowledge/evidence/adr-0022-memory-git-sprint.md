@@ -203,6 +203,35 @@ disposable proof code. There is no shipped workbench feature, background Git
 watcher, domain engine, production persistence or enterprise access control.
 At the sprint checkpoint ADR 0022 remained Proposed and changes were uncommitted.
 The maintainer accepted the demonstrated boundaries on 2026-09-12; the
-[ADR's follow-up section](../../docs/adr/0022-knowledge-memory-context-experiment.md#weaknesses-and-future-implementation-work)
+[ADR's follow-up section](../../docs/adr/0022-knowledge-memory-context-experiment.md#consequences)
 records remaining work without changing these observations or claiming production
 readiness.
+
+## Historical extract from ADR 0022
+
+Moved from the decision record on 2026-09-16 during an editorial revision.
+Original wording, dates and qualifications are unchanged; this is the record of
+the sprint, not a new finding.
+
+### Combined Git, judgement and retrieval sprint
+
+The maintainer approved one connected experiment using this public repository.
+A standard MCP Git plugin owns read-only committed-file collection and its own
+delivery checkpoint. It supplies bounded evidence batches; the proof acknowledges
+them only after source intake succeeds. No supported memory capability or plugin
+extension is added. Git collection ignores uncommitted files, runs no hooks or
+tests, and modifies no source repository state. Controlled changes happen only
+in a disposable repository containing selected public committed files.
+
+Code-domain instructions distinguish implementation, test assertions, observed
+test results, ADR intent and commit-message claims. No invented confidence scores
+or policy engine. Assess a bounded mixture of relevant and unrelated files; fresh
+agents ask natural questions. Exercise query-based bounded retrieval and
+per-operation evidence deduplication without embeddings. Maintenance may still
+read the complete small notebook; this is not a scalable-index claim.
+
+Verify an implementation change is collected, related claims become questionable
+and are reassessed, a later answer changes, and an unrelated change does not
+invalidate unrelated claims. The sprint required review around an hour with
+changes uncommitted and the ADR Proposed. Its results and limits are recorded
+in the [combined Git sprint evidence](../../knowledge/evidence/adr-0022-memory-git-sprint.md).

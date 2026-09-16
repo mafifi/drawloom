@@ -80,7 +80,7 @@ agent calls are reconciled when evidence permits; otherwise report uncertainty
 without re-submitting. An uncaught terminal branch failure requests cancellation
 of unfinished owned siblings, preserving completed results and unresolved effects.
 
-## Principles and reference comparison
+## Alternatives considered
 
 Apply [architecture principles](../../ARCHITECTURE.md#decision-principles),
 particularly useful typing, replaceable boundaries, proportional efficiency,
@@ -102,7 +102,7 @@ motivates the need; an unrelated synthetic workflow challenges product coupling.
 - Codex integration reuses Drawloom's accepted adapter and agent contracts. No
   claim is made that Codex itself offers the same portable workflow interface.
 
-## Proof and acceptance
+## Evidence
 
 The [implementation plan](../plans/0017-orchestration-proof.md) governs a retained
 spike under `spikes/adr-0017-orchestration/`. Candidate signatures and ownership
@@ -123,7 +123,7 @@ and service restarts; bridge-process loss is not proved as transparent recovery.
 Stop for a new decision if a Temporal type must enter plugin authoring, a new
 workflow language is required, or accepted authority/plugin boundaries change.
 
-## Consequences and exclusions
+## Consequences
 
 Plugins can share coordination infrastructure without sharing business policy.
 The interface adds replay and lifecycle obligations which must be explicit to

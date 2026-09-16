@@ -121,7 +121,7 @@ A frame may navigate itself and disclose data through a URL; CPU use is not
 bounded. Exact enforcement and cleanup limits live in the
 [desktop host boundary](../design/desktop-host.md#provisional-plugin-view-hosting).
 
-## Reference comparison and alternatives
+## Alternatives considered
 
 The authoritative escalation rule is
 [reference-led changes and approval](../../CONTRIBUTING.md#reference-led-changes-and-approval).
@@ -150,7 +150,7 @@ smallest standard-only alternative, authority and maintenance cost. Obtain an
 explicit decision before implementation and record changed boundaries in a
 future ADR. No first-party extension has been approved by this decision.
 
-## Proof and acceptance
+## Evidence
 
 Accepted after the maintainer-authorised proof on 2026-09-09:
 
@@ -175,7 +175,7 @@ verification remain follow-up work. Those deferred interfaces are not silently
 approved. Measure startup, interaction latency, memory and realistic project
 size before optimising; no performance conclusion is claimed here.
 
-## Consequences and related decisions
+## Consequences
 
 Specialist plugins can own rich interfaces without product-specific core types.
 They incur a separate UI build and a message boundary. High-frequency visual

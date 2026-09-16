@@ -6,7 +6,7 @@
 - **Decision owners:** Drawloom maintainers
 - **Related:** ADRs 0005–0008, 0013–0018
 
-## Purpose
+## Context
 
 Observability should reduce the time and guesswork needed to explain system
 behaviour. Instrumentation earns its place by answering a diagnostic question,
@@ -32,7 +32,7 @@ exports nothing. Standard SDK queueing/batching is bounded;
 shutdown has an outer deadline. Export errors must not affect business outcomes,
 retry tools or weaken evidence persistence. Lost records are reported separately.
 
-## Initial span ownership
+### Initial span ownership
 
 | Owner | Operations | Diagnostic question |
 | --- | --- | --- |
@@ -50,7 +50,7 @@ high-cardinality metric labels. Do not span every function, delta or rerender.
 Denied/cancelled outcomes are distinct from unexpected errors. Approval waiting
 is not active execution. Disconnected/uncertain outcomes are not invented success.
 
-## Propagation and trust
+### Propagation and trust
 
 Use W3C context across the authenticated UI HTTP connection. Carry standard MCP
 request metadata only where the installed protocol supports it; no tool argument
@@ -67,7 +67,7 @@ and arbitrary exception messages. Public UI ingestion is authenticated and
 bounded; no exporter secrets enter browser configuration. Export only to the
 explicitly configured local endpoint in this experiment. No global capture.
 
-## Reference comparison and experiment
+## Alternatives considered
 
 [OpenTelemetry](https://opentelemetry.io/docs/languages/js/) supplies standard
 instrumentation APIs and exporters; Bun and browser context behavior must be
@@ -96,7 +96,7 @@ and missing useful spans, then record a targeted follow-up. Report actual effort
 and limits, not broad productivity claims. Both canonical gates and independent
 review are required before presenting acceptance evidence.
 
-## Implemented experiment and refinements
+## Evidence
 
 The supported composition package is `@drawloom/otel-host`. It configures the
 standard SDK, filters exportable fields and bounds shutdown; it is not a new
@@ -130,7 +130,7 @@ headers, not render completion; separate visible-result checks are labelled as s
 Host SDK queue loss and relay rejection are measurable; browser SDK queue loss
 before relay delivery remains unknown. No claim of end-to-end lossless capture.
 
-## Acceptance and follow-up
+## Consequences
 
 The experiment is implemented and accepted following review of diagnostic value,
 small-operation overhead and disclosure of unobserved boundaries.

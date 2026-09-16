@@ -143,3 +143,39 @@ bounded challenge is failed/interrupted maintenance plus untrusted source
 instructions: can evidence remain useful without promoting unsupported claims
 or treating retrieved instructions as authority? Do not expand retrieval
 infrastructure merely because this small test passed.
+
+## Historical extract from ADR 0022
+
+Moved from the decision record on 2026-09-16 during an editorial revision.
+Original wording, dates and qualifications are unchanged; this is the record of
+the sprint, not a new finding.
+
+### Third bounded sprint: natural contribution and indexed recall
+
+Use the existing provisional note-writing tool for foreground contribution;
+recording a note does not promote it to established truth. A normally worded
+diagnostic task does not explicitly request a memory write. Generic harness
+instructions encourage preserving useful evidence-linked lessons, while the
+existing host capture point still records the diagnostic result automatically.
+
+Compare fresh-agent recall with and without a small injected topic/title index.
+Use opaque topic identities and remove the old example topic from tool metadata.
+The index contains no outcomes, conclusions or source bodies. Include competing
+notes, a paraphrased task and an unrelated non-visual task. Reader prompts name
+neither memory tools nor topic IDs. Keep retrieval as exact lookup behind the
+tool initially: the model routes from index metadata to a bounded read.
+
+Record selected topics, result counts, note writes and saved actions/answers.
+Separate not attempting retrieval, retrieving the wrong/empty material, and
+misusing relevant evidence. Index-assisted success is not proof that unsupported
+free-text queries, semantic search, autonomous knowledge discovery or large
+catalogues work. No embeddings, vector database, new data model or hook framework
+is introduced. Stop after a bounded observed result for review.
+
+The [third sprint evidence](../../knowledge/evidence/adr-0022-memory-natural-sprint.md)
+records foreground contribution without an explicit user memory request. An
+unindexed fresh agent tried seven unsuccessful lookups; the identical indexed
+task retrieved the correct note and saved a supported choice. A paraphrase and
+non-visual task also retrieved relevant evidence. Four hand-labelled topics and
+one run demonstrate a small context-routing intervention, not scalable retrieval
+or automatic catalogue maintenance. No notebook field or public API changed.

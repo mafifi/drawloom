@@ -135,7 +135,27 @@ unless the capability requires the observed semantic.
 first to the agent-execution capability. Its working contract design preserves
 the detailed interface exploration that informed these boundaries.
 
-## Implementation
+## Alternatives considered
+
+**One agent-platform contract.** Would reduce initial wiring but would couple
+memory, context, tools, sandboxing, policy, orchestration, and observability to
+one implementation lifecycle, making independent replacement largely nominal.
+
+**Letting the first provider establish the boundaries.** Starting from a
+provider protocol is fast for one integration but promotes its thread, tool,
+approval, and event model into every consumer. Provider concepts remain adapter
+implementation details instead.
+
+**Putting every exact interface in this ADR.** Preserves design discussion in
+one place but makes the architectural map depend on low-level contract evolution
+and provider evidence. Exact schemas and interfaces instead live with the
+capability they specify.
+
+**Creating every package immediately.** Pre-creating the complete capability
+graph would imply semantics that have not yet been decided. Packages are created
+only with an accepted capability ADR and its cohesive implementation.
+
+## Evidence
 
 The repository architecture map records the capability partition and
 dependency direction. Documentation distinguishes durable ADRs from detailed
@@ -159,29 +179,3 @@ implementation.
 - Some deployments will contain several capabilities in one process while
   preserving their logical and testable boundaries.
 - No new capability package is authorized by this ADR alone.
-
-## Alternatives considered
-
-### Define one agent-platform contract
-
-A single contract would reduce initial wiring but would couple memory,
-context, tools, sandboxing, policy, orchestration, and observability to one
-implementation lifecycle and make independent replacement largely nominal.
-
-### Let the first provider establish the boundaries
-
-Starting from a provider protocol is fast for one integration but promotes its
-thread, tool, approval, and event model into every consumer. Provider concepts
-remain adapter implementation details instead.
-
-### Put every exact interface in this ADR
-
-This preserves design discussion in one place but makes the architectural map
-depend on low-level contract evolution and provider evidence. Exact schemas and
-interfaces instead live with the capability they specify.
-
-### Create every package immediately
-
-Pre-creating the complete capability graph would imply semantics that have not
-yet been decided. Packages are created only with an accepted capability ADR and
-its cohesive implementation.

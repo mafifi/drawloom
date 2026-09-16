@@ -27,7 +27,7 @@ Apply [architecture principles](../../ARCHITECTURE.md#decision-principles):
 proportional efficiency, proven boundaries, safe defaults and familiar user
 control. This is supported implementation work, not a new throwaway demonstration.
 
-## Agreed direction
+## Decision
 
 ### File ownership remains unchanged
 
@@ -144,7 +144,7 @@ additional iframe permissions remain unsupported. Self-contained compiled
 Svelte HTML keeps its existing inline-script allowance. See the official
 [CSP conventions](https://apps.extensions.modelcontextprotocol.io/api/documents/csp-and-cors.html).
 
-## Project-scoped activation — maintainer approved
+### Amendment: project-scoped activation, maintainer approved
 
 The implementation plan explicitly required maintainer review if project
 isolation needed a new backend activation lifecycle. Initial source inspection,
@@ -185,7 +185,7 @@ validated directory returns. A live runtime is never retargeted or replaced by
 normal navigation. Existing-operation controls remain usable if its directory
 subsequently disappears.
 
-## Reference comparison
+## Alternatives considered
 
 The [survey](../reference/harness-workbench-survey/README.md) records DeepSeek
 `b2e3b2a` and Open Design `81044a03`; the local reference revisions remain those
@@ -194,7 +194,7 @@ from workspace-scoped file presentation; Open Design separates mutable working
 files from product-selected historical evidence. These support efficient reads
 without automatic import, not a universal Drawloom storage framework.
 
-[ADR 0018](0018-plugin-standards-and-runtime-extensions.md#reference-comparison-and-deliberate-differences)
+[ADR 0018](0018-plugin-standards-and-runtime-extensions.md#alternatives-considered)
 records the deliberate backend extension and OpenAI/Rosalind comparison.
 Neither Rosalind's first-party integration nor DeepSeek's scoped composition
 establishes compatibility with the proposed Drawloom project activation contract.
@@ -208,7 +208,7 @@ Apps. Rosalind's inspected resource metadata declares empty resource domains;
 it does not prove a shared domain policy. Drawloom's central source list and
 explicit UI reopen are approved differences required by the chosen isolated UI.
 
-## Verification and acceptance
+## Evidence
 
 Write failing tests for each implementation slice and share conformance across
 the supported providers. Cover two-project isolation; unavailable directories;
@@ -222,8 +222,12 @@ Measure bytes read/transferred, latency, cancellation and peak memory using
 existing observability; verify actual browser behaviour in light/dark and narrow
 layouts. Run canonical checks, shared conformance and UI-policy guards.
 
-Accepted after maintainer review of the implementation and evidence. Acceptance
-covers the demonstrated boundaries, not remote storage, live-provider validation
-or a packaged desktop release. Actual checks and limitations remain in the linked
-evidence. Legacy workbench state is retained in its original storage; no
-automatic copying of a global controller into every assigned project occurs.
+Accepted after maintainer review of the implementation and evidence. Actual
+checks and limitations remain in the linked evidence.
+
+## Consequences
+
+Acceptance covers the demonstrated boundaries, not remote storage,
+live-provider validation or a packaged desktop release. Legacy workbench state
+is retained in its original storage; no automatic copying of a global controller
+into every assigned project occurs.

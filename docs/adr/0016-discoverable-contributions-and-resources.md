@@ -74,6 +74,8 @@ acceptance remain distinct. Preserve native human/delegated review and independe
 Drawloom grants. No install/uninstall, marketplace management, global configuration
 writes, hot replacement, general manual tool console or alternate reviewer.
 
+## Alternatives considered
+
 ### Principles and reference comparison
 
 [Architecture principles](../../ARCHITECTURE.md#decision-principles) govern this
@@ -90,14 +92,7 @@ user control (8), and empowerment through platform integration (9).
 - The operator worktree's composer combines skills, sources and files with native
   inputs. Its private source is reference only, not public fixture material.
 
-This decision replaces the earlier blanket ambient-integration exclusion goal
-in the adapter design with user-authorised native integration and explicit
-availability/review coverage. It does not weaken invocation authority, permit
-configuration changes, or claim every listed native tool is callable. ADR 0008's
-canonical value remains authoritative; richer standard content extends its
-presentation rather than replacing typed execution. Historical ADRs remain intact.
-
-## Acceptance
+## Evidence
 
 Implementation details and measured observations live in the
 [API and evidence reference](../reference/discovery-and-resources.md).
@@ -119,3 +114,12 @@ Experimental native plugin discovery remains off by default.
 If this requires a departure from the agreed standards or provider boundaries,
 stop with concrete evidence for a maintainer decision. No paid generation, model
 downloads, production data or publication are part of this proof.
+
+## Consequences
+
+This decision replaces the earlier blanket ambient-integration exclusion goal
+in the adapter design with user-authorised native integration and explicit
+availability/review coverage. It does not weaken invocation authority, permit
+configuration changes, or claim every listed native tool is callable. ADR 0008's
+canonical value remains authoritative; richer standard content extends its
+presentation rather than replacing typed execution. Historical ADRs remain intact.

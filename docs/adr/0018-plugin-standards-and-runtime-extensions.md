@@ -9,30 +9,7 @@
 - **Decision owners:** Drawloom maintainers
 - **Related:** ADRs 0008, 0012–0017
 
-## Decision and acceptance boundary
-
-Accepted by the maintainer on 2026-09-10 after implementation and the migrated
-consumer proof. The
-[evidence record](../../knowledge/evidence/adr-0018-plugin-standards.md) distinguishes
-public checks, live consumer observations, controlled transports and known limits.
-
-Implement [Agent Plugins 1.0.0](https://agent-plugins.org/specification) as the
-package format for standard skills and MCP servers. Add a small, optional,
-trusted backend extension for Drawloom workbenches. Keep every browser UI on
-standard MCP Apps.
-
-Acceptance covers the demonstrated standard loading and bounded backend extension,
-not production readiness or resolution of the native discovery latency.
-The [delivery plan](../plans/adr-0018-implementation.md) and
-[evidence record](../../knowledge/evidence/adr-0018-plugin-standards.md) distinguish
-working slices, retained experiments, outstanding verification and limitations.
-Do not infer completion from the presence of a loader or a passing demonstration.
-
-Public contracts, loading, authentication and shared UI belong in Drawloom.
-Proprietary tools, skills, recipes, compiled Svelte application and integration
-scenarios remain in the private workbench repository.
-
-## Why
+## Context
 
 Ordinary plugin authors should not need Drawloom factories, controllers or
 private metadata merely to contribute skills or MCP tools. A package following
@@ -49,7 +26,7 @@ operation, proportional complexity, proven interfaces, safety, familiar
 interaction and user empowerment. Installation must empower the user without
 silently weakening execution permission or review.
 
-## Standard package path
+### Standard package path
 
 The supported metadata contract lives in
 [@drawloom/plugins](../../packages/plugins/plugins/src/package.ts).
@@ -117,7 +94,7 @@ media cache. A returned URI is a source-bound reference, not authority for an
 arbitrary filesystem or network read. Reopening a package or conversation must
 not recapture settled historical media.
 
-## Authentication is owned by the connection host
+### Authentication is owned by the connection host
 
 Drawloom-owned HTTP connections use the MCP SDK's
 [authorization facilities](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization).
@@ -152,7 +129,7 @@ It declares a public client and loopback callback path `/oauth/callback`.
 The actual host callback uses its bound loopback port. Publication authorization
 covers this metadata only, not journal edits or private material.
 
-## Minimal Drawloom extension
+### Minimal Drawloom extension
 
 Agent Plugins permits client-namespaced metadata. Drawloom interprets only
 version 1 of `org.drawloom`. Other clients can ignore it and continue
@@ -216,7 +193,30 @@ supported API, not malicious code. There is no browser-side capability injection
 new Drawloom wire protocol, proprietary service marketplace or dynamic dependency
 injection framework.
 
-## Reference comparison and deliberate differences
+## Decision
+
+Accepted by the maintainer on 2026-09-10 after implementation and the migrated
+consumer proof. The
+[evidence record](../../knowledge/evidence/adr-0018-plugin-standards.md) distinguishes
+public checks, live consumer observations, controlled transports and known limits.
+
+Implement [Agent Plugins 1.0.0](https://agent-plugins.org/specification) as the
+package format for standard skills and MCP servers. Add a small, optional,
+trusted backend extension for Drawloom workbenches. Keep every browser UI on
+standard MCP Apps.
+
+Acceptance covers the demonstrated standard loading and bounded backend extension,
+not production readiness or resolution of the native discovery latency.
+The [delivery plan](../plans/adr-0018-implementation.md) and
+[evidence record](../../knowledge/evidence/adr-0018-plugin-standards.md) distinguish
+working slices, retained experiments, outstanding verification and limitations.
+Do not infer completion from the presence of a loader or a passing demonstration.
+
+Public contracts, loading, authentication and shared UI belong in Drawloom.
+Proprietary tools, skills, recipes, compiled Svelte application and integration
+scenarios remain in the private workbench repository.
+
+## Alternatives considered
 
 | Reference | What is reused | What it does not establish |
 | --- | --- | --- |
@@ -236,7 +236,7 @@ Rejected alternatives: factory-only ordinary plugins; a universal capability
 provider marketplace; proprietary browser APIs; replacing the existing video
 implementation with a separate demonstration; promoting Temporal into the desktop.
 
-## Migration and required evidence
+## Evidence
 
 Migrate the private editorial pack, media, narration, brand and Veo to standard
 packages. The treatment workbench adds the approved backend extension and keeps
@@ -281,7 +281,7 @@ follow-up does not select a telemetry backend, add capability interfaces or
 authorise exporting user content. Acceptance here does not treat the timeout
 as a completed performance fix.
 
-## Effect on accepted decisions
+## Consequences
 
 ### Maintainer decision: standalone paid-generation consent
 

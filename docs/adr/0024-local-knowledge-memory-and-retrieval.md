@@ -1,8 +1,8 @@
 # ADR 0024: Local knowledge, memory and evidence-based retrieval
 
-- Status: Accepted; partially superseded by ADR 0026, ADR 0027 and ADR 0028
-- Date: 2026-09-12
-- Accepted: 2026-09-12
+- **Status:** Accepted; partially superseded by ADR 0026, ADR 0027 and ADR 0028
+- **Date:** 2026-09-12
+- **Accepted:** 2026-09-12
 - Further partial replacement: Accepted [ADR 0028](0028-replaceable-learning-context-and-decisions.md) separates the shared learning service from local installation and composition, retaining this local implementation as the default. Original decision text and evidence remain unchanged.
 - Partial replacements: Accepted [ADR 0026](0026-permissive-dependencies-and-local-gguf-embeddings.md) replaces the embedding runtime and installation choice. Accepted [ADR 0027](0027-complete-learning-journey.md) replaces tools-only context preparation with consented, bounded knowledge references and completes the supported capture-to-recall path. The other decisions remain in force; the original text below is retained.
 
@@ -101,7 +101,7 @@ unsupported selection is explicit. Defaults are five minutes per assessment, six
 automatic starts and thirty automatic minutes per day. They bound use, not exact
 tokens or spend. Exhausted limits require an explicit manual override.
 
-## Integration and exclusions
+### Integration and exclusions
 
 The existing host exposes knowledge tools and safe attributable observations,
 excluding arbitrary payloads, hidden reasoning and recursive maintenance capture.
@@ -114,7 +114,23 @@ No enterprise administration, production ingestion, hosted embeddings, universal
 crawler, graph query language, transcript replay, automatic retention pruning,
 private browser protocol or migration of disposable experiment state is included.
 
-## Evidence and acceptance
+## Alternatives considered
+
+**Transcript replay as the retrieval mechanism.** Rejected in favour of narrow
+retrieval guidance and tools.
+
+**Bun's SQLite for the embedding index.** Evaluated and rejected: the target
+Mac's Bun SQLite rejects dynamic extension loading, so a fresh Node process
+hosts the index instead.
+
+**Claiming success without the cost review.** Explicitly refused: where semantic
+retrieval does not earn its costs, the decision requires bringing the evidence
+back rather than claiming success. The frozen evaluations are preserved for that
+purpose.
+
+This record does not establish a wider comparison of retrieval architectures.
+
+## Evidence
 
 The maintainer accepted this decision and its existing implementation on
 2026-09-12, retaining local hybrid retrieval and proceeding with Drawloom
@@ -133,7 +149,7 @@ cost, bring the evidence back rather than claiming success. That review has now
 taken place: the maintainer explicitly accepts the implementation without treating
 the small synthetic question set as a decisive test of production retrieval value.
 
-## Accepted trade-offs and follow-up
+## Consequences
 
 The completed checks demonstrate implemented interfaces, local inference and
 integration, with a modest retrieval/answer benefit on the tested corpus. They do

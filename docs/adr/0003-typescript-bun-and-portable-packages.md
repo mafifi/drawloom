@@ -8,8 +8,8 @@
 
 ADR 0001 selected TypeScript as Drawloom's initial implementation language but
 left the package manager, build system, runtime support, and release model for a
-later decision. Those choices must be explicit before the repository defines
-its first capability contract.
+later decision. Those choices must be explicit before the repository defines its
+first capability contract.
 
 Drawloom needs fast local iteration and one dependency graph while its
 abstractions are still changing. It also needs public packages that can be used
@@ -18,10 +18,10 @@ Node.js, and resource-constrained provider runtimes such as Cloudflare Workers.
 Future user interfaces will use SvelteKit, and a future local application will
 use Tauri.
 
-These environments are not interchangeable. Bun can be the repository
-toolchain without becoming an ambient dependency of portable contracts.
-Likewise, support for low-cost provider deployments must not make a provider's
-SDK or runtime types part of the core architecture.
+These environments are not interchangeable. Bun can be the repository toolchain
+without becoming an ambient dependency of portable contracts. Likewise, support
+for low-cost provider deployments must not make a provider's SDK or runtime
+types part of the core architecture.
 
 The existing private projects monorepo centralises external dependency versions
 at its root, uses workspace references for internal packages, and relies on one
@@ -30,7 +30,7 @@ public package publication and enforce it mechanically from the beginning.
 
 ## Decision
 
-### Use TypeScript and ESM as the product baseline
+### TypeScript and ESM as the product baseline
 
 TypeScript is the default language for Drawloom contracts, runtime code,
 providers, composition roots, command-line tools, and user interfaces.
@@ -45,7 +45,7 @@ providers, composition roots, command-line tools, and user interfaces.
 - Public types must not depend on generated or ambient types owned by a specific
   provider runtime.
 
-### Use Bun as the canonical repository toolchain
+### Bun as the canonical repository toolchain
 
 Bun is the sole package manager, workspace manager, script runner, and primary
 test runner for the initial repository.
@@ -54,25 +54,24 @@ test runner for the initial repository.
 - The repository commits `bun.lock`, and frozen lockfile installation is the CI
   default.
 - Canonical development and verification commands run from the repository root.
-- Additional task orchestration or build tools require a demonstrated need;
-  they are not introduced merely to anticipate repository scale.
+- Additional task orchestration or build tools require a demonstrated need; they
+  are not introduced merely to anticipate repository scale.
 
 Using Bun for repository work does not imply that published portable packages
 may import `bun:*` modules or require the `Bun` global.
 
-### Separate portable packages from host integrations
+### Portable packages separated from host integrations
 
 Contract packages and the portable runtime kernel use standard ECMAScript and
 Web Platform APIs wherever the platform supplies the required behaviour.
-Capabilities that are not portable, including process execution, filesystem
-access, durable persistence, clocks, cryptography, and provider bindings, cross
+Capabilities that are not portable — process execution, filesystem access,
+durable persistence, clocks, cryptography, and provider bindings — cross
 explicit contract boundaries.
 
 Packages declare their runtime class and do not claim universal portability:
 
 - `portable` packages support Bun and the declared Node.js support range, and
-  are tested in a Workers-compatible runtime when they claim Cloudflare
-  support;
+  are tested in a Workers-compatible runtime when they claim Cloudflare support;
 - `bun`, `node`, `cloudflare`, or `tauri` packages may use APIs owned by that
   host, but must not leak those types through provider-independent contracts;
 - composition roots select host-specific implementations and are the only
@@ -86,7 +85,7 @@ Cloudflare is a first-class deployment target for relevant portable packages,
 providers, and SvelteKit applications. It is not the architecture's centre, and
 not every capability must fit within a Workers execution model.
 
-### Centralise external dependency versions with Bun catalogs
+### External dependency versions centralised in Bun catalogs
 
 The root `package.json` is the only authority for external dependency version
 ranges.
@@ -109,18 +108,17 @@ Package and dependency metadata must be validated before publication. Packed
 artifacts contain ordinary registry-compatible version ranges rather than
 workspace or catalog protocols.
 
-### Release public packages in lockstep initially
+### Lockstep public releases, initially
 
 All publishable Drawloom packages share one version and are released from one
 repository release during the foundation and pre-1.0 stages. Consumers may
 install only the packages they need; lockstep versioning does not require an
 umbrella package.
 
-Independent package versioning requires a new ADR after real release cadence
-and compatibility evidence show that its additional coordination cost is
-worthwhile.
+Independent package versioning requires a new ADR after real release cadence and
+compatibility evidence show that its additional coordination cost is worthwhile.
 
-### Standardise the application boundaries
+### Application boundaries
 
 SvelteKit is the default framework for Drawloom user interfaces. Hosted
 applications may use a Cloudflare composition and deployment adapter without
@@ -131,7 +129,7 @@ permitted only inside the Tauri-owned native shell and command boundary. Core
 contracts and product capability logic remain TypeScript unless a later ADR
 establishes a narrower Rust-owned subsystem from concrete evidence.
 
-### Enforce the decision in guidance and automation
+### Enforcement in guidance and automation
 
 Follow-up implementation must add:
 
@@ -140,7 +138,7 @@ Follow-up implementation must add:
 - current dependency-policy reference documentation;
 - a repository check that validates manifests, catalog references, internal
   workspace references, runtime declarations, and lockstep package versions;
-- CI checks for strict TypeScript, Bun tests, and dependency policy immediately;
+- CI checks for strict TypeScript, Bun tests, and dependency policy immediately.
   Node compatibility, claimed Workers compatibility, and packed publication
   artifacts are added when the first corresponding package makes those checks
   meaningful.
@@ -148,7 +146,37 @@ Follow-up implementation must add:
 The repository must not describe these checks as enforced before their
 implementations and CI wiring exist.
 
-## Implementation
+## Alternatives considered
+
+**Node.js with npm or pnpm as the repository toolchain.** A conservative
+compatibility baseline, but it would give up the preferred Bun development
+workflow without removing the need to test Cloudflare and other hosts
+separately.
+
+**Publishing Bun-specific TypeScript source only.** Less initial build
+configuration, but it would make Bun an unnecessary consumer requirement and
+conflict with Node.js support.
+
+**Copying the private monorepo's external `*` convention literally.** Using `*`
+keeps workspace manifests short but would publish unbounded external dependency
+compatibility. Bun catalogs preserve root version authority and are resolved to
+normal version ranges when packages are packed.
+
+**Declaring versions independently in each workspace.** Conventional for
+independently maintained packages, but it creates avoidable drift and upgrade
+work while Drawloom intentionally operates as one repository and release train.
+
+**Versioning every package independently.** Independent versions reduce
+unnecessary releases for unchanged packages, but they introduce compatibility
+matrices and release coordination before package boundaries or consumer demand
+are established.
+
+**Introducing a Rust runtime core immediately.** Rust could provide strong
+performance and isolation properties, but it would add language, packaging, and
+interoperation boundaries before profiling or security evidence identifies a
+subsystem that needs them.
+
+## Evidence
 
 This decision is implemented at acceptance by the root Bun manifest and
 lockfile, strict shared TypeScript configuration, workspace package metadata,
@@ -168,52 +196,15 @@ claims.
 ## Consequences
 
 - Contributors use one fast toolchain, dependency graph, and lockfile.
-- External dependency upgrades occur once at the root instead of drifting
-  across packages.
-- Public package manifests retain bounded compatibility ranges when Bun
-  resolves catalog and workspace protocols during packaging.
+- External dependency upgrades occur once at the root instead of drifting across
+  packages.
+- Public package manifests retain bounded compatibility ranges when Bun resolves
+  catalog and workspace protocols during packaging.
 - Portable packages cannot use convenient host globals without crossing an
   explicit capability boundary.
 - Runtime compatibility claims require more than passing the Bun test suite;
   they require target-specific verification.
-- Lockstep releases simplify compatibility while contracts are unstable but
-  may publish unchanged packages more often.
+- Lockstep releases simplify compatibility while contracts are unstable but may
+  publish unchanged packages more often.
 - Tauri introduces a contained Rust toolchain when the desktop application is
   created, without making Rust a second core implementation language.
-
-## Alternatives considered
-
-### Use Node.js and npm or pnpm as the repository toolchain
-
-This would provide a conservative compatibility baseline, but it would give up
-the preferred Bun development workflow without removing the need to test
-Cloudflare and other hosts separately.
-
-### Publish Bun-specific TypeScript source only
-
-This would reduce initial build configuration but make Bun an unnecessary
-consumer requirement and conflict with Node.js support.
-
-### Copy the private monorepo's external `*` convention literally
-
-Using `*` keeps workspace manifests short but would publish unbounded external
-dependency compatibility. Bun catalogs preserve root version authority and are
-resolved to normal version ranges when packages are packed.
-
-### Declare versions independently in each workspace
-
-This is conventional for independently maintained packages but creates
-avoidable drift and upgrade work while Drawloom intentionally operates as one
-repository and release train.
-
-### Version every package independently
-
-Independent versions reduce unnecessary releases for unchanged packages, but
-they introduce compatibility matrices and release coordination before package
-boundaries or consumer demand are established.
-
-### Introduce a Rust runtime core immediately
-
-Rust could provide strong performance and isolation properties, but it would
-add language, packaging, and interoperation boundaries before profiling or
-security evidence identifies a subsystem that needs them.

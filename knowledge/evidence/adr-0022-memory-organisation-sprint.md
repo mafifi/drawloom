@@ -179,3 +179,47 @@ The success remains deliberately narrow:
 Keep ADR 0022 Proposed and changes uncommitted for review. These results support
 discussing the simple lifecycle and responsibilities; they do not accept a final
 schema, confidence model, scalable retrieval algorithm or production implementation.
+
+## Historical extract from ADR 0022
+
+Moved from the decision record on 2026-09-16 during an editorial revision.
+Original wording, dates and qualifications are unchanged; this is the record of
+the sprint, not a new finding.
+
+### Fourth bounded sprint: organisation, judgement and interrupted maintenance
+
+Run one synthetic sequence with unfiled observations, not preassigned topic
+groups. The maintainer chooses short topic labels and source-linked notes; derive
+the small routing index directly from those saved labels. Reuse the existing
+JSON notebook rather than introduce a catalogue service or a new public API.
+
+Replace the proof's same-topic publication requirement for this scenario with a
+bounded whole-notebook publication: every original observation must be accounted
+for, referenced IDs must exist, and an older evidence snapshot cannot replace
+the current notes. Coverage is not agreement or proof of a claim. Original source
+text remains unchanged. Readers can see newly unprocessed observations alongside
+the last saved notes; mark that pending coverage explicitly. This is coarse
+whole-notebook maintenance, not incremental claim repair or production storage.
+
+Include repeated delivery, separately identified reports of the same incident,
+independent observations, unrelated topics and later contradictory evidence.
+Inspect the actual claims for unjustified generalisation and independent-evidence
+counting. Include a source containing misleading instructions and an unsupported
+assertion; check both maintenance and later reader behaviour without a human
+approval queue. Do not treat schema validation as a semantic safety guarantee.
+
+Interrupt a live maintenance turn after reading but before publication, reopen
+the stored notebook, ask a fresh reader to use the pending evidence, then run
+maintenance again. Retain the last notes and source identities throughout.
+Record the controlled interruption point and distinguish it from power-loss
+durability. Topic stability, bounded discovery and safe use remain empirical
+questions. Stop for review within an hour even if the experiment exposes failures.
+
+The [fourth sprint evidence](../../knowledge/evidence/adr-0022-memory-organisation-sprint.md)
+records generated topics, duplicate-versus-independent evidence judgement,
+controlled native interruption, use of pending observations before maintenance
+recovered, and rejection of an explicit hostile source instruction by maintenance
+and readers. No observation/note fields were added. Seven controlled sources and
+one run do not establish scalable organisation, calibrated confidence or a
+security guarantee. The precise interruption boundary and remaining limits are
+part of the evidence; the ADR remained Proposed at that checkpoint.

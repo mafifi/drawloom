@@ -1,7 +1,8 @@
 # Dependency and package policy
 
-This document is the current reference for the package metadata and dependency
-rules decided by [ADR 0003](../adr/0003-typescript-bun-and-portable-packages.md).
+This is the reference for anyone adding a dependency or a new workspace
+package: the package metadata and dependency rules decided by
+[ADR 0003](../adr/0003-typescript-bun-and-portable-packages.md).
 
 ## Version authority
 

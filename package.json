@@ -111,7 +111,7 @@
     "spike:adr-0009:preview": "cd spikes/adr-0009-publishing && astro preview --host 127.0.0.1",
     "check:publishing-types": "tsc --noEmit -p spikes/adr-0009-publishing/tsconfig.json && bun run journal:check",
     "check": "bun run check:ci",
-    "check:ci": "bun run check:format && bun run check:dependency-policy && bun run check:licenses && bun run build:packages && bun run check:package-artifacts && bun run desktop:check && bun run --cwd apps/desktop build && bun run check:architecture && bun run check:design && bun run check:types && bun run check:publishing-types && bun run test && bun run test:node && bun run test:replacements",
+    "check:ci": "bun run check:format && bun run check:docs && bun run check:dependency-policy && bun run check:licenses && bun run build:packages && bun run check:package-artifacts && bun run desktop:check && bun run --cwd apps/desktop build && bun run check:architecture && bun run check:design && bun run check:types && bun run check:publishing-types && bun run test && bun run test:node && bun run test:replacements",
     "format": "biome format --write .",
     "check:format": "biome format .",
     "check:licenses": "bun run scripts/dependency-license-inventory.ts --offline && bun run scripts/check-license-policy.ts",
@@ -130,7 +130,8 @@
     "spike:adr-0005": "bun run spikes/adr-0005-tool-exposure/run-live-spike.ts",
     "spike:adr-0007": "bun run spikes/adr-0007-codex-app-server/run-live.ts",
     "spike:adr-0008": "bun run spikes/adr-0008-tool-execution/run-live.ts",
-    "spike:adr-0017": "bun run build:packages && node --experimental-strip-types --test spikes/adr-0017-orchestration/temporal-host.test.ts && bun build spikes/adr-0017-orchestration/temporal-worker.ts --target node --packages external --outdir spikes/adr-0017-orchestration/dist && node --experimental-strip-types spikes/adr-0017-orchestration/temporal-run.ts"
+    "spike:adr-0017": "bun run build:packages && node --experimental-strip-types --test spikes/adr-0017-orchestration/temporal-host.test.ts && bun build spikes/adr-0017-orchestration/temporal-worker.ts --target node --packages external --outdir spikes/adr-0017-orchestration/dist && node --experimental-strip-types spikes/adr-0017-orchestration/temporal-run.ts",
+    "check:docs": "bun run scripts/check-docs.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",

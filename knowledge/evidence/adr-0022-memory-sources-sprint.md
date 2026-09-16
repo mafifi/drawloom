@@ -194,3 +194,50 @@ case—not a claim of subtle contradiction detection across an arbitrary corpus.
 
 Keep ADR 0022 Proposed and everything uncommitted. Review the claim-versus-
 assessment distinction before promoting evidence relations into a public API.
+
+## Historical extract from ADR 0022
+
+Moved from the decision record on 2026-09-16 during an editorial revision.
+Original wording, dates and qualifications are unchanged; this is the record of
+the sprint, not a new finding.
+
+### Fifth bounded sprint: plugin-owned source revisions and one waterline
+
+Exercise a source-agnostic, producer-bound intake inside the retained proof.
+The producer owns source identities, revisions, detection and access. Intake
+namespaces identities by producer, accepts content/revision/withdrawal changes,
+and deduplicates repeated revisions without granting access to knowledge editing.
+No Git detection, watcher framework, supported plugin extension or capability
+API is added. A synthetic producer exercises the candidate boundary directly.
+
+Use one ordered change log for fibres, threads and source changes, with a shared
+pending-count threshold (50 by default; smaller batches in live examples).
+The fifth sprint initially let Nightloom's model choose claims and revision-specific
+links labelled supports, contradicts or qualifies. The agent-facing simplification
+below replaces that surface with claims and evidence references; the host retains
+revision-specific links, without a polarity enum. Linked revision changes mark claims
+for reassessment, not automatic confidence reduction. Previously unlinked sources
+enter the backlog so Nightloom can discover their relevance.
+
+Publication atomically saves assessed claims and advances the waterline to the
+snapshot actually read. New arrivals remain pending and can leave published
+claims needing recheck. Reject conflicting concurrent publication; do not force
+an endless restart whenever evidence arrives during assessment. Preserve source
+revisions and distinguish withdrawal of support from proof a claim is false.
+
+The earlier same-topic and whole-notebook proof shapes remain reproducible;
+this scenario tests a revised disposable shape because immutable observations
+alone cannot express changing external sources. Keep fields and operations
+small and provisional. Verify threshold/deduplication and revision races
+deterministically, then use live Codex to assess supplied sources, a revised
+source, withdrawal and a previously unlinked contradiction. Stop within an hour
+and retain limitations; this is not production ingestion or scheduler delivery.
+
+The [fifth sprint evidence](../../knowledge/evidence/adr-0022-memory-sources-sprint.md)
+demonstrates source revision/withdrawal intake, threshold deduplication, linked
+reassessment, new-source linking and publication that leaves later arrivals
+pending. The initial planner deferred unexpectedly over environment identity.
+It also exposed ambiguity when mutable claim text changes meaning while link
+relations still describe its original proposition. The maintainer chose to keep
+these distinctions out of the agent interface rather than add a claim/assessment
+subsystem. Historical receipt labels are not machine-actionable public contracts.

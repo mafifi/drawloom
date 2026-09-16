@@ -4,6 +4,16 @@
 - **Date:** 2026-09-08
 - **Decision owners:** Drawloom maintainers
 
+## Context
+
+ADR 0007 and ADR 0008 defined the agent and tool contracts. Implementing them
+needs an explicit scope: which packages exist, what the composition root owns,
+and what a first trusted plugin may contribute at startup.
+
+This record stays Proposed. Implementation is authorised, but acceptance waits
+on implementation review and maintainer approval. Having an implementation is
+not sufficient.
+
 ## Decision
 
 Implement ADR 0007 and ADR 0008 as independent agent and tool contracts and
@@ -43,7 +53,18 @@ the implementation test boundary; this change authorises no live provider spend.
 Transport failure fails an active operation, preserving uncertainty; there is
 no automatic operation retry or claim of lost-delta reconstruction.
 
-## Consequences and verification
+## Alternatives considered
+
+**Defining a second plugin model here.** Rejected. The accepted plugin
+ownership, dependency, startup and UI integration decisions are consolidated in
+[ADR 0013](0013-plugin-boundaries-and-host-integration.md); this record retains
+the foundation implementation scope instead.
+
+**Live provider traffic as the implementation test boundary.** Rejected.
+Recorded synthetic protocol traffic is the boundary, and this change authorises
+no live provider spend.
+
+## Evidence
 
 Each provider runs shared exported conformance. Root verification builds ESM
 and declarations, type checks portable packages without host ambient types,
@@ -52,3 +73,12 @@ install locally packed public artifacts; public CI never accesses them.
 Startup lifecycle and contribution validation follow Accepted ADR 0013.
 Advanced context compilation, sandbox enforcement, durable observability,
 provider availability and business workflows remain separate work.
+
+This record remains Proposed; the evidence above supports the implementation
+scope, not acceptance.
+
+## Consequences
+
+Advanced context compilation, sandbox enforcement, durable observability,
+provider availability and business workflows remain separate work. No package
+has been publicly released.

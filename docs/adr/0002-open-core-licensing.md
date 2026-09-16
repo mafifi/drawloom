@@ -63,35 +63,35 @@ The Apache License 2.0 does not grant rights to Drawloom names or marks beyond
 customary description of origin. A separate trademark policy may be adopted
 before the first public release.
 
+## Alternatives considered
+
+**AGPL-3.0.** Would require source availability for modified versions used over
+a network, but its copyleft boundary would complicate adoption and integration
+for the audience Drawloom initially seeks.
+
+**Source-available commercial licences.** Business or source-available licences
+could restrict competitive use, but would weaken the project's claim to be open
+source and create additional adoption friction.
+
+**A Contributor Licence Agreement from inception.** Would preserve more
+relicensing flexibility, at the cost of legal and community overhead before a
+concrete need exists.
+
+## Evidence
+
+None. This is a licensing and governance decision taken on legal and commercial
+judgement; there is nothing here that a test could establish.
+
 ## Consequences
 
 - Individuals and organisations may use, modify, redistribute, and commercially
   offer the public core under Apache-2.0 terms.
 - Drawloom may build proprietary products that depend on or extend the public
   contracts.
-- Competitors may lawfully offer hosted or proprietary derivatives of the
-  public core; commercial differentiation must come from product execution,
-  enterprise capabilities, operations, support, and brand.
+- Competitors may lawfully offer hosted or proprietary derivatives of the public
+  core. Commercial differentiation must come from product execution, enterprise
+  capabilities, operations, support, and brand.
 - Publicly released versions cannot later be withdrawn from their recipients.
 - The public/private boundary must remain architectural rather than being
   enforced through imports from unavailable packages.
 - DCO sign-off adds a small contribution step while keeping provenance visible.
-
-## Alternatives considered
-
-### AGPL-3.0
-
-AGPL would require source availability for modified versions used over a
-network, but its copyleft boundary would complicate adoption and integration for
-the audience Drawloom initially seeks.
-
-### Source-available commercial licences
-
-Business/source-available licences could restrict competitive use but would
-weaken the project's claim to be open source and create additional adoption
-friction.
-
-### Contributor Licence Agreement from inception
-
-A CLA would preserve more relicensing flexibility but impose additional legal
-and community overhead before a concrete need exists.

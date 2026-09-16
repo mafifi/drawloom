@@ -191,7 +191,9 @@ gateway retain ADR 0008's checks; user-facing UI is not permission to invoke an
 unchecked handler, claim a trusted origin or gain filesystem access. Requesting
 AI assistance from the UI remains an AI request, not a direct-edit exemption.
 
-## Reference evidence and deliberate choices
+## Alternatives considered
+
+### Reference evidence and deliberate choices
 
 The [repository survey](../reference/harness-workbench-survey/README.md) records
 the wider evidence and limitations. Revisions below identify inspected source,
@@ -214,7 +216,7 @@ human/delegated review requirement differs from Open Design's permissive paths;
 it is justified by principles 7 and 8, not claimed as matching their implementation.
 No additional MCP Apps bridge method or first-party extension is selected.
 
-## Contrasting workbenches considered
+### Contrasting workbenches considered
 
 These examples explain the boundaries, not a public business schema or a claim
 of completed end-to-end integration. Private code, prompts, data and fixtures
@@ -239,7 +241,23 @@ remain outside this repository.
   a typed edit without a preview, score, timeline or version field. It must be
   possible to test public invocation guarantees without private consumers.
 
-## Implementation status and verification
+- **One artifact/revision framework for all material:** rejected because file
+  type does not determine ownership and the host need not interpret domain edits.
+- **Snapshot or import every provider output:** rejected as unnecessary copying
+  and lifecycle work. Conversation capture is already covered by ADR 0014.
+- **Mandatory preview, dry run or durable proposal:** rejected; the references
+  support simpler invocation approval and rendering may be costly or unsuitable.
+- **Host-owned staleness, locks, undo or rollback:** rejected; the plugin knows
+  its state and can choose appropriate protections without universal contracts.
+- **Route direct human edits through AI review:** rejected; plugin UI editing
+  is outside that flow, without bypassing existing host security controls.
+- **Bypass all approvals to reduce complexity:** rejected by principles 7 and 8.
+  Simplicity cannot substitute unconditional permission for delegated assessment.
+- **Build a Drawloom pending-review service or reviewer agent:** rejected for
+  this integration. Codex provides the selected behaviour natively; another
+  reviewer would duplicate lifecycle, policy and authority without evidence.
+
+## Evidence
 
 The agreed native-review implementation was verified and accepted on 2026-09-09.
 The [implementation evidence](../reference/adr-0015-native-edit-review.md) records
@@ -300,21 +318,3 @@ Capabilities such as undo, previews and cross-machine use will differ between
 plugins and providers. The UI must not promise unsupported behaviour. The cost
 of this flexibility is plugin-specific implementation and evidence, rather than
 a misleading universal guarantee from the core.
-
-## Alternatives considered
-
-- **One artifact/revision framework for all material:** rejected because file
-  type does not determine ownership and the host need not interpret domain edits.
-- **Snapshot or import every provider output:** rejected as unnecessary copying
-  and lifecycle work. Conversation capture is already covered by ADR 0014.
-- **Mandatory preview, dry run or durable proposal:** rejected; the references
-  support simpler invocation approval and rendering may be costly or unsuitable.
-- **Host-owned staleness, locks, undo or rollback:** rejected; the plugin knows
-  its state and can choose appropriate protections without universal contracts.
-- **Route direct human edits through AI review:** rejected; plugin UI editing
-  is outside that flow, without bypassing existing host security controls.
-- **Bypass all approvals to reduce complexity:** rejected by principles 7 and 8.
-  Simplicity cannot substitute unconditional permission for delegated assessment.
-- **Build a Drawloom pending-review service or reviewer agent:** rejected for
-  this integration. Codex provides the selected behaviour natively; another
-  reviewer would duplicate lifecycle, policy and authority without evidence.

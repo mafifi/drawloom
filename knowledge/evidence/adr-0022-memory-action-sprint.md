@@ -182,3 +182,40 @@ action, fresh environment evidence may be needed. No new freshness contract or
 automatic reinspection policy is selected by this sprint.
 
 Stop for maintainer review. Keep ADR 0022 Proposed and all changes uncommitted.
+
+## Historical extract from ADR 0022
+
+Moved from the decision record on 2026-09-16 during an editorial revision.
+Original wording, dates and qualifications are unchanged; this is the record of
+the sprint, not a new finding.
+
+### Second bounded sprint (authorised after first review)
+
+Reuse the same notebook and integration. Ask fresh agents to save a disposable
+export plan, not merely recommend one. The unchanged task requires transparent
+pixels and prefers the faster mode when correctness is known. Observe four
+conditions: no evidence; a diagnostic demonstrating a transparent-image defect
+and working compatibility mode; a successful opaque-image test that should not
+change this task's choice; and a later installed-version diagnostic demonstrating
+the transparent-image fix. Keep the irrelevant observation under the same topic
+so a retrieval filter cannot alone pass that control.
+
+The plan tool accepts any valid mode, including deferral. The evaluator—not the
+tool handler—checks the independently specified expected choices and evidence
+references. Do not put expected choices in agent prompts or fabricate execution
+success. This tests one synthetic decision, not real rendering or general task
+quality. Leave the notebook model unchanged unless an observed failure requires
+discussion.
+
+The [first sprint evidence](../../knowledge/evidence/adr-0022-memory-sprint.md)
+records two live runs, the checked source, measurements and limitations. The
+integration loop worked; a changed task outcome was still unproven at that
+checkpoint, so the ADR remained Proposed pending subsequent sprints.
+
+The [second sprint evidence](../../knowledge/evidence/adr-0022-memory-action-sprint.md)
+records an informative initial failure caused by ambiguity about current versus
+recorded environment state. With a snapshot-relative question, fresh agents
+saved the expected changing plans and preserved their choice under same-topic
+irrelevant evidence. This demonstrates synthetic plan selection, not actual
+rendering, present-day environment verification or general task-performance gain.
+The notebook model and supported interfaces remain unchanged.

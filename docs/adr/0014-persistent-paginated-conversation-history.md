@@ -63,21 +63,20 @@ This is required to distinguish unsupported history methods from invalid native
 cursors on the actual process transport, not only in synthetic adapter tests.
 It introduces no new provider method or plugin/UI permission.
 
-## Consequences and alternatives
+## Alternatives considered
 
-- SQLite supplies atomicity and indexed pagination without an ORM or additional
-  dependency. A single JSON document would require rewriting and reading history
-  proportional to conversation size; a custom indexed JSONL format would recreate
-  database machinery. Neither is selected.
-- Durable display records improve offline reading but do not make native sessions
-  portable across machines. Native continuity remains adapter-private (ADR 0007).
-- Bounded HTTP updates avoid introducing another streaming framework. No plugin
-  subscription contract is necessary for this host optimization (ADR 0013).
-- No automatic pruning, search, memory retrieval, cloud synchronization or new
-  UI authority is introduced. Model-token savings are not claimed for data-only
-  App Server history reads; measure payload transfer, parsing and memory instead.
+**A single JSON document.** Would require rewriting and reading history
+proportional to conversation size. Not selected.
 
-## Acceptance
+**A custom indexed JSONL format.** Would recreate database machinery. Not
+selected. SQLite supplies atomicity and indexed pagination without an ORM or
+additional dependency.
+
+**Another streaming framework for updates.** Bounded HTTP updates avoid it. No
+plugin subscription contract is necessary for this host optimization
+(ADR 0013).
+
+## Evidence
 
 Accepted after shared conformance, fault/restart, pagination, browser and
 10,000-entry measurements passed, together with `bun install --frozen-lockfile`
@@ -85,3 +84,13 @@ and `bun run check:ci`. Independent reviews verified the store, host/UI and
 native recovery boundaries. The [implementation evidence](../reference/conversation-history-evidence.md)
 records results, reproduction commands and limitations. Installed protocol checks
 and synthetic transport evidence are not live-provider performance measurements.
+
+## Consequences
+
+- Durable display records improve offline reading but do not make native
+  sessions portable across machines. Native continuity remains adapter-private
+  (ADR 0007).
+- No automatic pruning, search, memory retrieval, cloud synchronization or new
+  UI authority is introduced.
+- Model-token savings are not claimed for data-only App Server history reads;
+  measure payload transfer, parsing and memory instead.

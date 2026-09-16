@@ -1,11 +1,30 @@
 # ADR 0025: Evaluation boundaries and a comparative proof
 
-- Status: Accepted
-- Date: 2026-09-12
-- Accepted: 2026-09-13 (interfaces and supported implementation direction)
+- **Status:** Accepted
+- **Date:** 2026-09-12
+- **Accepted:** 2026-09-13 (interfaces and supported implementation direction)
 - Implementation accepted: 2026-09-13 (verified local delivery; quality limitations retained)
 
-## Accepted implementation decision
+## Context
+
+Drawloom needs to assess existing work and compare ways of producing it. These
+are different operations: checking a saved video must not require regenerating
+it. An evaluation result is evidence, not permission, business acceptance or
+publication. The current knowledge evaluation is a useful consumer, not yet a
+general evaluation capability.
+
+The [permissive evaluation survey](../reference/evaluation-survey/README.md)
+records seven inspected repositories, exact revisions, licence boundaries,
+interfaces and architecture maps. It is the comparison authority; source
+inspection is not integration evidence.
+
+This proposal applies useful type safety, replaceable boundaries, local access,
+proportional efficiency, proven implementations and safe user control from
+[the architecture principles](../../ARCHITECTURE.md#decision-principles).
+Reuse working scorers/runners rather than recreating their libraries. Generalise
+from contrasting consumers rather than naming a universal quality score.
+
+## Decision
 
 The maintainer accepted the demonstrated boundaries and approved
 [supported implementation](../plans/adr-0025-supported-evaluation.md). Acceptance
@@ -43,26 +62,7 @@ records conformance, restart/recovery, installed consumers, runtime checks and
 presentation verification. Broader judgement calibration and production usefulness
 remain limitations, not claims established by technical delivery.
 
-## Context
-
-Drawloom needs to assess existing work and compare ways of producing it. These
-are different operations: checking a saved video must not require regenerating
-it. An evaluation result is evidence, not permission, business acceptance or
-publication. The current knowledge evaluation is a useful consumer, not yet a
-general evaluation capability.
-
-The [permissive evaluation survey](../reference/evaluation-survey/README.md)
-records seven inspected repositories, exact revisions, licence boundaries,
-interfaces and architecture maps. It is the comparison authority; source
-inspection is not integration evidence.
-
-This proposal applies useful type safety, replaceable boundaries, local access,
-proportional efficiency, proven implementations and safe user control from
-[the architecture principles](../../ARCHITECTURE.md#decision-principles).
-Reuse working scorers/runners rather than recreating their libraries. Generalise
-from contrasting consumers rather than naming a universal quality score.
-
-## Comparative proposal and decision history
+## Alternatives considered
 
 ### Capabilities and ownership
 
@@ -150,7 +150,7 @@ An OpenAI-compatible judge client is not Codex App Server. Live model integratio
 must use Drawloom's intended provider boundary explicitly; it cannot silently
 assume API credentials, billing or subscription equivalence.
 
-## Proof and acceptance
+## Evidence
 
 The first sprint is time-bounded to 1–2 hours. It delivers a comparison, even when
 a library fails a requirement. It uses public synthetic document/media fixtures,
@@ -181,7 +181,7 @@ public conformance never depends on it. Any broader plugin boundary requires a
 maintainer decision before implementation. First-sprint success cannot accept
 this ADR or establish production compatibility.
 
-## Consequences and evidence
+## Consequences
 
 Evaluation remains separable from execution authority and from domain judgement.
 The proof may reveal that an adapter costs more than it saves; report that

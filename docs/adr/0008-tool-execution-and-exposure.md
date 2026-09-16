@@ -181,42 +181,6 @@ it is not a general MCP authentication mechanism. Other providers, remote
 transport authentication, and stronger observability durability need their own
 implementation evidence when claimed.
 
-## Implementation and acceptance
-
-Architectural semantics live here; exact candidate interfaces and schemas live
-in the linked working design and retained
-[`spike`](../../spikes/adr-0008-tool-execution/). The proof implements a small
-local tool gateway and an MCP exposure exercised through Codex. It has no
-supported package API. Product package layout and dependency seams will be
-planned against this design in a subsequent implementation task. Retained
-spikes remain evidence and cannot be imported by supported packages.
-
-Acceptance requires a concrete contract design, conformance for the claimed
-behaviour, and integration evidence for the chosen exposure and authority
-binding. Reuse existing evidence where it applies; add focused tests for the
-gaps rather than repeating unrelated agent-lifecycle scenarios.
-Those gates are evidenced, and the maintainers accepted this ADR on 2026-09-04.
-
-## Consequences
-
-- Tool behaviour can serve direct and agent-mediated callers through one
-  validation and execution path.
-- Tool authors retain inferred input and output types without implementing
-  transport machinery for each tool.
-- Canonical results support programmatic callers and presentation without
-  duplicating the tool's execution logic.
-- Protocol adapters add translation work, but that cost serves the existing
-  provider-replacement boundary.
-- Output validation detects a contract failure after execution; it cannot undo
-  side effects or justify an automatic retry.
-- Observability availability becomes a prerequisite for handler dispatch.
-  Outcome-recording failures remain distinguishable from execution failures.
-- Callers own retry decisions; cancellation cannot promise rollback or hard
-  termination of an in-process handler.
-- A supported implementation must preserve the proven authority and evidence
-  semantics and run the same conformance suite. The retained proof is not a
-  production runtime or a commitment to its file-based test fixtures.
-
 ## Alternatives considered
 
 ### Adopt DeepSeek Harness's full Cordis plugin model
@@ -276,3 +240,39 @@ definition adds those concrete capabilities while preserving a simple handler.
 Discovery, installation, worker scheduling, and distributed retries may become
 useful. The present evidence does not require them to establish tool execution
 and exposure. They should not be prerequisites for the first local tool.
+
+## Evidence
+
+Architectural semantics live here; exact candidate interfaces and schemas live
+in the linked working design and retained
+[`spike`](../../spikes/adr-0008-tool-execution/). The proof implements a small
+local tool gateway and an MCP exposure exercised through Codex. It has no
+supported package API. Product package layout and dependency seams will be
+planned against this design in a subsequent implementation task. Retained
+spikes remain evidence and cannot be imported by supported packages.
+
+Acceptance requires a concrete contract design, conformance for the claimed
+behaviour, and integration evidence for the chosen exposure and authority
+binding. Reuse existing evidence where it applies; add focused tests for the
+gaps rather than repeating unrelated agent-lifecycle scenarios.
+Those gates are evidenced, and the maintainers accepted this ADR on 2026-09-04.
+
+## Consequences
+
+- Tool behaviour can serve direct and agent-mediated callers through one
+  validation and execution path.
+- Tool authors retain inferred input and output types without implementing
+  transport machinery for each tool.
+- Canonical results support programmatic callers and presentation without
+  duplicating the tool's execution logic.
+- Protocol adapters add translation work, but that cost serves the existing
+  provider-replacement boundary.
+- Output validation detects a contract failure after execution; it cannot undo
+  side effects or justify an automatic retry.
+- Observability availability becomes a prerequisite for handler dispatch.
+  Outcome-recording failures remain distinguishable from execution failures.
+- Callers own retry decisions; cancellation cannot promise rollback or hard
+  termination of an in-process handler.
+- A supported implementation must preserve the proven authority and evidence
+  semantics and run the same conformance suite. The retained proof is not a
+  production runtime or a commitment to its file-based test fixtures.

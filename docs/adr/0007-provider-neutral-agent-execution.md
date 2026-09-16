@@ -222,39 +222,6 @@ that an implementation exposes. Provider protocol mapping, connection recovery,
 and observational richness remain provider-specific tests rather than
 combinations in a portable capability matrix.
 
-### Retain provider evidence supporting acceptance
-
-Codex app-server is the first evidenced provider, not the definition of the
-contract. Its protocol mapping, tool-exposure spike, and evidence gates live in
-the
-[Codex app-server adapter design](../design/codex-app-server-adapter.md).
-
-Retained non-production Codex integration tests and a manual Codex Desktop MCP
-smoke demonstrated the semantics claimed by the adapter. Desktop discovered and
-invoked the same MCP boundary but declined MCP form elicitation without showing
-UI; that host behaviour does not constrain Drawloom's app-server client, which
-successfully round-tripped the interaction. The retained spike is evidence for
-this decision, not production adapter code.
-
-## Consequences
-
-- Consumers can operate an interactive agent without provider protocol
-  vocabulary.
-- Adapters retain responsibility for their own transcript continuity and
-  recovery rather than exporting it as Drawloom lifecycle machinery.
-- Context, tools, policy, sandboxing, observability, and orchestration retain
-  their own authority and public types.
-- The contract has fewer coordinated state machines and no capability-flag
-  combinations to keep consistent.
-- Approval choices and requested input remain useful without introducing a
-  general approval engine inside agent execution.
-- Provider-native delegation remains observable without becoming shadow
-  orchestration.
-- Provider-specific richness may remain a bounded observation until another
-  provider or consumer earns a portable abstraction.
-- Accepting this ADR does not create a production agent package or supported
-  API; those require separate implementation and conformance work.
-
 ## Alternatives considered
 
 ### Mirror Codex app-server
@@ -329,3 +296,36 @@ mandatory provider capability.
 Two retrieval authorities can inject conflicting and non-reproducible context.
 The provider may keep its session transcript, but Drawloom remains the only
 cross-session memory authority.
+
+## Evidence
+
+Codex app-server is the first evidenced provider, not the definition of the
+contract. Its protocol mapping, tool-exposure spike, and evidence gates live in
+the
+[Codex app-server adapter design](../design/codex-app-server-adapter.md).
+
+Retained non-production Codex integration tests and a manual Codex Desktop MCP
+smoke demonstrated the semantics claimed by the adapter. Desktop discovered and
+invoked the same MCP boundary but declined MCP form elicitation without showing
+UI; that host behaviour does not constrain Drawloom's app-server client, which
+successfully round-tripped the interaction. The retained spike is evidence for
+this decision, not production adapter code.
+
+## Consequences
+
+- Consumers can operate an interactive agent without provider protocol
+  vocabulary.
+- Adapters retain responsibility for their own transcript continuity and
+  recovery rather than exporting it as Drawloom lifecycle machinery.
+- Context, tools, policy, sandboxing, observability, and orchestration retain
+  their own authority and public types.
+- The contract has fewer coordinated state machines and no capability-flag
+  combinations to keep consistent.
+- Approval choices and requested input remain useful without introducing a
+  general approval engine inside agent execution.
+- Provider-native delegation remains observable without becoming shadow
+  orchestration.
+- Provider-specific richness may remain a bounded observation until another
+  provider or consumer earns a portable abstraction.
+- Accepting this ADR does not create a production agent package or supported
+  API; those require separate implementation and conformance work.

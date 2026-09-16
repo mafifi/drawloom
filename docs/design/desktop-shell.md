@@ -1,4 +1,7 @@
-# Desktop shell implementation brief
+# How the desktop shell looks and behaves
+
+This is the implementation brief for the desktop shell — layout, theming
+and navigation — for anyone building or reviewing that UI.
 
 Status: implementation direction from the approved desktop plan; not a claim
 of visual acceptance or a shipped application.
@@ -15,20 +18,21 @@ and details pane at the right. Keep Drawloom branding. Do not copy another
 product's logo or require its implementation.
 
 [The design study](assets/desktop-shell-concept.png) is a layout and colour
-reference for layout, not an image to ship as interactive UI. Its original green
-palette is superseded by the owner's neutral light/dark direction below. It was generated from this
-project's public synthetic text scenario. Its invented Code, Data and Image
-studios and extra conversations are not requirements and must not be seeded as
-fake functionality. The generated leaf-like logo is not a selected brand mark;
-use the Drawloom wordmark. Actual controls and records reflect working features.
+reference, not an image to ship as interactive UI. Its green palette is
+superseded by the neutral light/dark direction below. Its Code, Data and
+Image studios and extra conversations are illustrative, not requirements —
+do not seed them as fake functionality. Its leaf-like logo is not a
+selected brand mark; use the Drawloom wordmark. Actual controls and records
+reflect working features.
 
 - Use [Tailwind's neutral palette](https://tailwindcss.com/docs/colors), not
   slate, zinc, stone or a green accent palette. Keep surfaces achromatic.
-- The owner's later Codex screenshot governs colour balance and hierarchy:
-  use a soft grey sidebar, not near-black navigation against a lighter canvas.
+- A private Codex screenshot governs colour balance and hierarchy: use a
+  soft grey sidebar, not near-black navigation against a lighter canvas.
   Keep workspace and workbench rows quiet; avoid simultaneous heavy selection
   cards. New conversation is an ordinary navigation action, not a filled CTA.
-  The screenshot contains private application content and is not a public asset.
+  Because it contains private application content, the screenshot is not a
+  public asset.
 - Support light and dark appearances, following `prefers-color-scheme` without
   a saved manual override. Respond to preference changes while the app is open.
 - Light surfaces use white and light neutrals, dark text and fine neutral rules.
@@ -45,9 +49,9 @@ use the Drawloom wordmark. Actual controls and records reflect working features.
   The centre absorbs remaining space. Do not turn every item into a card.
 - Composer remains mounted and editable during execution. Input has a modest
   radius, clear focus, accessible attachments and context controls.
-  The later component amendment uses shadcn Sidebar and a single filled
-  InputGroup. Primary actions use blue and send is circular; user messages sit
-  right, assistant messages left. Root DESIGN.md owns the current exact tokens.
+  It uses shadcn Sidebar and a single filled InputGroup. Primary actions use
+  blue and send is circular; user messages sit right, assistant messages
+  left. Root DESIGN.md owns the current exact tokens.
 - Tool details and candidate records use rows, separators and disclosures.
 - Plugins uses a dedicated main-content destination. Settings replaces the
   navigation with categories and Back to app restores the prior destination.

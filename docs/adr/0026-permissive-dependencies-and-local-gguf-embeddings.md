@@ -1,17 +1,9 @@
 # ADR 0026: Permissive dependencies and local GGUF embeddings
 
-- Status: Accepted
-- Date: 2026-09-14
-- Accepted: 2026-09-14 by the maintainer
-- Partially supersedes: [ADR 0024](0024-local-knowledge-memory-and-retrieval.md), only its MLX-only embedding provider, Python/uv installation prerequisites and inference-hosting choice.
-
-## Acceptance boundary
-
-The maintainer accepted this architecture and authorised its implementation commit
-on 2026-09-14, including reviewed MPL-2.0 dependencies and a reproducible build patch
-rejecting generation endpoints. Acceptance is not runtime-publication approval or
-a claim that the incomplete 100k stress proof has passed. Remaining release checks
-and measured limitations stay explicit in the evidence record.
+- **Status:** Accepted
+- **Date:** 2026-09-14
+- **Accepted:** 2026-09-14 by the maintainer
+- **Partially supersedes:** [ADR 0024](0024-local-knowledge-memory-and-retrieval.md), only its MLX-only embedding provider, Python/uv installation prerequisites and inference-hosting choice.
 
 ## Context
 
@@ -94,14 +86,32 @@ knowledge, source revisions, claims and historical evidence. Cleanup of verified
 Drawloom-owned obsolete files is an explicit action, never global environment
 cleanup or automatic deletion of user caches.
 
-## Unchanged decisions
+## Alternatives considered
 
-ADR 0024 continues to govern SQLite authority, evidence relationships, intake,
-authorization, lexical/hybrid retrieval, Nightloom, assessment boundaries,
-cross-project scope, OKF export and bounded context integration. No production
-retrieval-value claim or enterprise-policy claim is added by this replacement.
+**`mlx-embeddings==0.1.0`.** Evaluated and rejected: the licence inventory
+established it is GPL-3.0-only, which the selected policy excludes.
 
-## Evidence and acceptance
+**MLX-VLM 0.7.0.** Evaluated: its native MIT Qwen implementation passed an
+isolated GPU smoke test. Rejected because its standard installation pulls in
+SciPy through MLX-Audio, and the Mac wheel contains GCC runtime libraries under
+GPL with an exception. This is a product policy decision, not a claim that every
+GPL exception imposes the same obligations as ordinary GPL.
+
+**Treating separate user downloads as outside the policy.** Rejected. Separate
+user downloads do not remove licensing obligations.
+
+**Popularity as evidence of suitability.** Rejected. Popularity is useful
+maintenance evidence, not proof of correctness, licence clearance or
+performance.
+
+## Evidence
+
+The maintainer accepted this architecture and authorised its implementation commit
+on 2026-09-14, including reviewed MPL-2.0 dependencies and a reproducible build patch
+rejecting generation endpoints. Acceptance is not runtime-publication approval or
+a claim that the incomplete 100k stress proof has passed. Remaining release checks
+and measured limitations stay explicit in the evidence record.
+
 
 The linked evidence distinguishes source inspection, isolated smoke tests,
 deterministic conformance, local integration and evaluation. Release verification requires
@@ -127,3 +137,10 @@ restricted API is not a server-level prohibition. The maintainer approved a smal
 reproducible build patch rejecting generation endpoints, rather than relaxing that
 boundary. Patch verification and archive provenance belong in the linked evidence;
 archive publication still requires separate approval.
+
+## Consequences
+
+ADR 0024 continues to govern SQLite authority, evidence relationships, intake,
+authorization, lexical/hybrid retrieval, Nightloom, assessment boundaries,
+cross-project scope, OKF export and bounded context integration. No production
+retrieval-value claim or enterprise-policy claim is added by this replacement.

@@ -131,9 +131,10 @@ with the second refinement's layout, then removes all photographic header bands.
 The two views in the mockup are separate home and article pages, not a two-column
 reading interface.
 
-[Approved visual, local preview](/Users/afifim/.codex/generated_images/01a06218-f36c-7660-9fde-633b4b5b7215/exec-f79b3b69-24f1-4276-a3c3-08d9825cf164.png).
-This machine-local preview is not a deployable asset or repository dependency.
-The rules here preserve its intent without depending on that file's availability.
+The approved visual was reviewed as a machine-local preview. It is not a
+deployable asset or repository dependency, and is deliberately not linked here:
+the rules in this document preserve its intent without depending on that file's
+availability.
 Exact token values are implementation starting points to validate against the
 approved appearance, not asserted measurements of an image-generated font.
 

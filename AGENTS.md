@@ -135,7 +135,7 @@ area you change.
 
 - Apply [proven boundaries before invention](CONTRIBUTING.md#reference-led-changes-and-approval).
   Plugin contract and proof revisions follow the explicit approval gate in
-  [ADR 0013](docs/adr/0013-plugin-boundaries-and-host-integration.md#reference-comparison-and-alternatives).
+  [ADR 0013](docs/adr/0013-plugin-boundaries-and-host-integration.md#alternatives-considered).
   Compare both OpenAI/Rosalind and DeepSeek Harness before changing a boundary.
   Stop for maintainer approval when they differ or the proposal departs from
   either reference; a working demo or generic naming is not approval. Record

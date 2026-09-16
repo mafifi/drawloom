@@ -6,8 +6,8 @@
 
 ## Context
 
-Drawloom is organised around replaceable capabilities. Consumers must be able
-to depend on a model, sandbox, memory, knowledge, tool, evaluation, or
+Drawloom is organised around replaceable capabilities. Consumers must be able to
+depend on a model, sandbox, memory, knowledge, tool, evaluation, or
 observability capability without knowing which provider implements it.
 
 TypeScript interfaces can describe provider behaviour during development, but
@@ -20,15 +20,15 @@ Provider replacement needs behavioural evidence as well as matching method
 signatures. If every provider invents its own test fixtures and expectations,
 nominally compatible implementations can disagree on observable semantics.
 
-The repository therefore needs one capability-agnostic contract standard
-before choosing its first concrete capability. The standard should give human
-and agentic contributors strong architectural rails without requiring
-inheritance-heavy object-oriented design or a language-neutral interface
+The repository therefore needs one capability-agnostic contract standard before
+choosing its first concrete capability. The standard should give human and
+agentic contributors strong architectural rails without requiring
+inheritance-heavy object-oriented design, or a language-neutral interface
 definition system before an external protocol needs one.
 
 ## Decision
 
-### Keep ADR 0004 capability-agnostic
+### This standard stays capability-agnostic
 
 This ADR defines how every Drawloom capability contract is authored and
 verified. It does not choose the first capability or invent a generic contract
@@ -48,7 +48,7 @@ The contract package has `drawloom.role: "contract"` and
 `drawloom.runtime: "portable"`. Provider packages depend on the contract;
 contracts never depend on providers.
 
-### Express behaviour with TypeScript interfaces and composition
+### Behaviour expressed with TypeScript interfaces and composition
 
 Public behavioural ports are TypeScript interfaces. They describe what a
 consumer may ask of a capability and the observable result, without exposing a
@@ -68,7 +68,7 @@ Contract methods accept and return contract-owned domain values. Provider SDK
 types are parsed and translated inside the provider package rather than leaking
 through the public interface.
 
-### Use Zod 4 as the runtime schema implementation
+### Zod 4 as the runtime schema implementation
 
 Zod 4 is the canonical runtime schema library for TypeScript capability
 contracts. Its compatible version range is owned by the root Bun catalog.
@@ -90,17 +90,17 @@ For boundary values:
   default, while a provider adapter may deliberately project the known fields
   from an extensible vendor response;
 - normalization that is useful independently remains a named pure function;
-  schema transforms are used only when their distinct input and output types
-  are intentional and tested.
+  schema transforms are used only when their distinct input and output types are
+  intentional and tested.
 
 Purely internal values constructed from already validated domain values do not
 need repeated parsing.
 
-### Generate interchange descriptions only where needed
+### Interchange descriptions generated only where needed
 
 Zod schemas remain the TypeScript implementation source. When an external
-boundary needs a language-neutral description, the contract exports or
-generates JSON Schema from Zod's first-party conversion support.
+boundary needs a language-neutral description, the contract exports or generates
+JSON Schema from Zod's first-party conversion support.
 
 Only semantics faithfully representable by the target JSON Schema dialect are
 claimed at that boundary. Runtime-only refinements, transforms, or effects are
@@ -109,7 +109,7 @@ externally exchanged formats receive an explicit schema identifier and version
 when independent evolution or replay requires them; in-process values do not
 receive ceremonial versions.
 
-### Make failures part of the contract
+### Failures are part of the contract
 
 Validation failures are normalized at the boundary that performs parsing and
 must identify the invalid path without exposing secrets or raw provider
@@ -129,23 +129,23 @@ A contract documents for each operation:
 These requirements are added only when meaningful to that capability; empty
 abstractions are not created for uniformity.
 
-### Ship one shared conformance suite with each contract
+### One shared conformance suite ships with each contract
 
 Every contract package exports a provider-neutral conformance suite or suite
 factory. It accepts only the provider factory and fixtures needed to observe the
 public contract. Every provider invokes that same suite in its own tests.
 
 The shared suite verifies observable semantics, including valid behaviour,
-contract-owned failure behaviour, and relevant lifecycle guarantees. It does
-not inspect provider internals or require every provider to use the same test
+contract-owned failure behaviour, and relevant lifecycle guarantees. It does not
+inspect provider internals or require every provider to use the same test
 double. Provider packages add their own integration and vendor-edge tests in
 addition to, not instead of, the shared suite.
 
-A provider is not described as conforming until the shared suite runs against
-it in a runtime the provider claims to support. Compilation or structural
+**A provider is not described as conforming until the shared suite runs against
+it in a runtime the provider claims to support.** Compilation or structural
 assignability alone is insufficient evidence.
 
-### Keep the public surface explicit
+### The public surface stays explicit
 
 Each contract package has one documented public export surface. It exports only
 the schemas, inferred domain types, behavioural interfaces, contract-owned
@@ -157,7 +157,35 @@ Cross-capability behaviour depends on another capability's public contract. It
 does not import package internals or combine unrelated capabilities into a
 generic foundation package.
 
-## Implementation
+## Alternatives considered
+
+**TypeScript types and interfaces without runtime schemas.** Simpler at compile
+time, but it cannot validate external values because TypeScript types are
+erased. It would move inconsistent validation into every adapter.
+
+**Maintaining TypeScript types and validators separately.** Avoids a schema
+dependency in public packages, but creates two authorities for each boundary
+shape and allows them to drift.
+
+**JSON Schema or another IDL as the source of truth.** Stronger language-neutral
+generation, but it makes the initial TypeScript developer experience and
+behavioural contracts more indirect. JSON Schema remains available at boundaries
+that actually require interchange.
+
+**A library-neutral schema interface.** Could make the validator replaceable,
+but would either expose only a lowest common denominator or require Drawloom to
+build schema tooling before concrete needs exist. Zod is adopted directly and
+may be reconsidered from evidence.
+
+**Abstract base classes.** Can share implementation, but would couple providers
+to inheritance and confuse behavioural compatibility with code reuse. TypeScript
+interfaces plus composition provide the required boundary with less constraint.
+
+**Letting every provider own its tests.** Provider-specific tests are necessary
+but cannot demonstrate consistent semantics across implementations. Shared
+conformance is therefore mandatory.
+
+## Evidence
 
 At acceptance, the root Bun catalog adds Zod `^4.5.4`, and the package guidance
 records the schema, interface, and conformance invariants. Architecture and the
@@ -172,9 +200,9 @@ real package graph.
 
 - Boundary data has one executable source of truth instead of drifting
   TypeScript and validation definitions.
-- Consumers and coding agents receive explicit interfaces and package
-  direction, while implementations retain freedom to use classes, objects, or
-  pure functions appropriately.
+- Consumers and coding agents receive explicit interfaces and package direction,
+  while implementations retain freedom to use classes, objects, or pure
+  functions appropriately.
 - Provider compatibility is demonstrated through shared behaviour rather than
   inferred from similar method names.
 - Contract packages acquire a deliberate public dependency on Zod 4. Replacing
@@ -189,40 +217,3 @@ real package graph.
   be represented faithfully.
 - ADR 0005 can focus on the semantics of the first capability instead of
   reopening repository-wide contract mechanics.
-
-## Alternatives considered
-
-### Use TypeScript types and interfaces without runtime schemas
-
-This is simpler at compile time but cannot validate external values because
-TypeScript types are erased. It would move inconsistent validation into every
-adapter.
-
-### Maintain TypeScript types and validators separately
-
-This avoids a schema dependency in public packages but creates two authorities
-for each boundary shape and allows them to drift.
-
-### Make JSON Schema or another IDL the source of truth
-
-This gives stronger language-neutral generation but makes the initial
-TypeScript developer experience and behavioural contracts more indirect. JSON
-Schema remains available at boundaries that actually require interchange.
-
-### Depend only on a library-neutral schema interface
-
-A neutral interface could make the validator replaceable, but it would either
-expose only a lowest common denominator or require Drawloom to build schema
-tooling before concrete needs exist. Zod is adopted directly and may be
-reconsidered from evidence.
-
-### Require abstract base classes
-
-Base classes can share implementation but would couple providers to inheritance
-and confuse behavioural compatibility with code reuse. TypeScript interfaces
-plus composition provide the required boundary with less constraint.
-
-### Let every provider own its tests
-
-Provider-specific tests are necessary but cannot demonstrate consistent
-semantics across implementations. Shared conformance is therefore mandatory.

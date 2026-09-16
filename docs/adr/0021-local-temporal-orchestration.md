@@ -30,7 +30,7 @@ wall-clock time; ambiguous in-flight effects remain uncertain until reconciled.
 Completed results are reused; retries remain bounded, explicit per step and never
 override grants, native approvals or uncertainty protections.
 
-## Plugin boundary amendment
+### Plugin boundary amendment
 
 Extend ADR 0018's namespaced metadata with an optional prebuilt workflow entrypoint.
 It exports portable workflow/task definitions. The existing trusted backend returns
@@ -44,40 +44,7 @@ workflow bundles; unfinished runs block replacing/removing the relevant package.
 Changed on-disk code blocks recovery rather than replaying against a new bundle.
 No side-by-side version management or workflow-history migration is added.
 
-## Principles and references
-
-Apply proportional efficiency, accessible local operation, replaceable boundaries,
-safe defaults and familiar user control from [ARCHITECTURE.md](../../ARCHITECTURE.md).
-Preserve the accepted [ADR 0017 reference comparison](0017-orchestration-interfaces.md):
-Temporal supplies durable coordination, DeepSeek informed typed workflow/job seams,
-and the existing Codex adapter retains agent authority. DeepSeek's in-process
-composition and OpenAI/Rosalind's UI entrypoints do not establish this new workflow
-packaging field; it is the maintainer-approved addition for deterministic loading.
-
-[Temporal deployment guidance](https://docs.temporal.io/self-hosted-guide/deployment)
-and [embedded-server limitations](https://docs.temporal.io/self-hosted-guide/embedded-server)
-distinguish development SQLite from supported production service deployments.
-
-## Delivery and acceptance
-
-The [implementation plan](../plans/0021-local-temporal.md) defines public synthetic
-conformance, installed package checks and private deterministic-media acceptance.
-The private consumer renders three scene branches, waits for review and assembles
-a draft master through existing media tools. No LLM, paid generation or publication
-is part of this implementation. Existing downloaded private files remain private.
-
-Acceptance requires actual service/worker/host recovery, isolated ownership,
-controlled retry/cancellation, useful UI and both repositories' canonical checks.
-Implementation results and remaining limitations are recorded in the
-[evidence record](../../knowledge/evidence/adr-0021-local-temporal.md), including
-the distinction between paused dispatch and uncertain interrupted effects.
-The maintainer accepted this decision on 2026-09-11 after reviewing the implementation
-and evidence, including actual parallel media processing. This supersedes ADR 0017's
-proof-only backend disposition; its authority and retry semantics remain in force.
-Enterprise implementations are a later delivery. Acceptance does not establish
-production-server guarantees or transparent recovery of uncertain external effects.
-
-## Approved implementation amendment: concurrent MCP calls
+### Amendment: concurrent MCP calls
 
 The actual media acceptance run found that Drawloom serializes requests on each
 MCP connection to bind form elicitation to its originating invocation. The pinned
@@ -102,3 +69,43 @@ The amendment is implemented. Renewed installed-workbench verification observed
 three actual FFmpeg processes concurrently before the scene-review wait.
 No new correlation metadata,
 browser protocol, duplicate media executor or weakened consent route was added.
+
+## Alternatives considered
+
+Apply proportional efficiency, accessible local operation, replaceable boundaries,
+safe defaults and familiar user control from [ARCHITECTURE.md](../../ARCHITECTURE.md).
+Preserve the accepted [ADR 0017 reference comparison](0017-orchestration-interfaces.md):
+Temporal supplies durable coordination, DeepSeek informed typed workflow/job seams,
+and the existing Codex adapter retains agent authority. DeepSeek's in-process
+composition and OpenAI/Rosalind's UI entrypoints do not establish this new workflow
+packaging field; it is the maintainer-approved addition for deterministic loading.
+
+[Temporal deployment guidance](https://docs.temporal.io/self-hosted-guide/deployment)
+and [embedded-server limitations](https://docs.temporal.io/self-hosted-guide/embedded-server)
+distinguish development SQLite from supported production service deployments.
+
+## Evidence
+
+The [implementation plan](../plans/0021-local-temporal.md) defines public synthetic
+conformance, installed package checks and private deterministic-media acceptance.
+The private consumer renders three scene branches, waits for review and assembles
+a draft master through existing media tools. No LLM, paid generation or publication
+is part of this implementation. Existing downloaded private files remain private.
+
+Acceptance requires actual service/worker/host recovery, isolated ownership,
+controlled retry/cancellation, useful UI and both repositories' canonical checks.
+Implementation results and remaining limitations are recorded in the
+[evidence record](../../knowledge/evidence/adr-0021-local-temporal.md), including
+the distinction between paused dispatch and uncertain interrupted effects.
+The maintainer accepted this decision on 2026-09-11 after reviewing the implementation
+and evidence, including actual parallel media processing. This supersedes ADR 0017's
+proof-only backend disposition; its authority and retry semantics remain in force.
+Enterprise implementations are a later delivery. Acceptance does not establish
+production-server guarantees or transparent recovery of uncertain external effects.
+
+## Consequences
+
+Acceptance does not establish production-server guarantees or transparent
+recovery of uncertain external effects. Enterprise implementations are a later
+delivery. This supersedes ADR 0017's proof-only backend disposition; its
+authority and retry semantics remain in force.

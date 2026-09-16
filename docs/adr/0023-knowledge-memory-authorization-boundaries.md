@@ -105,7 +105,23 @@ knowledge or a private fork of the core. Such implementations and organisational
 policy remain outside this public repository under the existing public/private
 admission rules.
 
-## Evidence and alternatives
+## Alternatives considered
+
+**A proprietary authorization language.** Rejected. AuthZEN already supplies a
+reference decision boundary, and Cedar and Casbin supply evaluators.
+
+**Embedding enterprise classification rules into core.** Rejected; those rules
+stay implementation-owned.
+
+**Using project boundaries as a substitute for authorization.** Rejected. A
+project boundary organises storage; it does not establish who may read a record.
+
+**Assuming an engine alone guarantees privacy.** Rejected. Neither Cedar nor
+Casbin supplies the end-to-end knowledge integration automatically. ADR 0022's
+reference comparisons remain relevant; banks, groups and directories are storage
+organisation, not proof of access control.
+
+## Evidence
 
 The [source-pinned comparison](../reference/authorization-survey/README.md) and
 [retained experiment](../../spikes/adr-0023-authorization/README.md) exercise real
@@ -120,15 +136,7 @@ attribute resolution and conservative restriction inheritance. These demonstrate
 that policy can affect disclosure; they are **not accepted core assignment rules**.
 The Archify map describes that fixture, not required production services.
 
-We reject inventing a proprietary authorization language, embedding enterprise
-classification rules into core, and using project boundaries as a substitute for
-authorization. We also reject assuming that an engine alone guarantees privacy.
-AuthZEN supplies a reference decision boundary; Cedar and Casbin supply evaluators.
-Neither supplies our end-to-end knowledge integration automatically. ADR 0022's
-reference comparisons remain relevant; banks, groups and directories are storage
-organisation, not proof of access control.
-
-## Consequences and follow-up
+## Consequences
 
 This applies architecture principles 3–7: replaceability, a useful local path,
 proportional effort, proven standards and secure defaults. It accepts the boundary

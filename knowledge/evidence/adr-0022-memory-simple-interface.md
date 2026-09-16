@@ -128,3 +128,27 @@ has not yet shipped in a real workbench. Durable local implementation, access
 scoping and scheduling remain outside this disposable proof.
 
 ADR 0022 remains Proposed. All work stays uncommitted for review.
+
+## Historical extract from ADR 0022
+
+Moved from the decision record on 2026-09-16 during an editorial revision.
+Original wording, dates and qualifications are unchanged; this is the record of
+the sprint, not a new finding.
+
+### Agent-facing simplification (maintainer direction)
+
+Agents consume knowledge: claims and cited evidence, with uncertainty stated in
+plain language. They do not manage source revisions, link polarity, pending
+counts, thresholds or waterlines. Source plugins retain their separate update
+interface. Nightloom's host captures the assessment boundary and commits it;
+the model doing the assessment reads evidence and writes claims with evidence
+references only. A later arrival must remain pending even though the model is
+never shown that bookkeeping. Historical or withdrawn evidence must still be
+recognisable as such, without presenting the underlying revision machinery.
+
+Exercise this smaller surface in the existing source-update scenario. Evidence
+references are validated against the host-captured assessment; no caller-supplied
+progress position is accepted. This is a proof revision, not a new public API or
+a commitment to the internal claim model. Prior sprint receipts remain unchanged.
+The [simplification evidence](../../knowledge/evidence/adr-0022-memory-simple-interface.md)
+records the narrowed surface, verification and outstanding limits.

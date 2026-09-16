@@ -1,49 +1,82 @@
 # Local retrieval admission policy
 
-The accepted boundary is relevance, not answer sufficiency: omit wholly unrelated
-material, but permit related records even when they omit the requested attribute.
-Context guidance explicitly asks the answering model to acknowledge missing
-information and not infer unsupported facts. This framing is not a security
-boundary or a guarantee that a model will comply.
+This explains what the local knowledge runtime admits into an answer's
+context, and why. Read it if you are tuning retrieval, investigating a
+relevance regression, or replacing the embedding model — it assumes you
+already know the [KnowledgeRetrieval](../knowledge/README.md) contract this
+runtime implements.
+
+## Relevance, not sufficiency
+
+The accepted boundary is relevance, not answer sufficiency: admission omits
+wholly unrelated material, but permits related records even when they omit
+the requested attribute. Context guidance separately asks the answering
+model to acknowledge missing information and not infer unsupported facts.
+That guidance is not a security boundary or a guarantee that a model will
+comply — it shapes what the model is told, not what it does with it.
+
+## Lexical admission
 
 SQLite lexical admission removes only the explicitly enumerated English
-function/question words in its query builder, retaining other Unicode terms and
-quoted compound identifiers. Remaining terms use OR matching. No retained terms
-means an empty result after authorization, not a browse-all query. This is a
-conservative English heuristic, not language detection or stemming; unknown
-languages retain their terms, including their function words. Identifiers equal
-to excluded English words are ambiguous and exact-reference reads remain available.
+function and question words from its query builder, retaining other
+Unicode terms and quoted compound identifiers. Remaining terms use OR
+matching. No retained terms means an empty result after authorization, not
+a browse-all query — an empty query should never silently become "show
+everything". This is a conservative English heuristic, not language
+detection or stemming: unknown languages retain their terms, including
+their function words. An identifier that happens to equal an excluded
+English word is ambiguous under this heuristic, so exact-reference reads
+remain available as a way around it.
+
+## Semantic admission
 
 The local composition uses SQLite's best-passage cosine similarity to admit
-semantic candidates at **0.52 inclusive before reciprocal-rank fusion**. Lexical
-admission is independent. No candidate is rescued merely because it ranks first.
-Authorization and provenance checks precede rank assignment, and continuation
-rechecks authority and corpus revision. An empty admitted set is ready/empty;
-unavailable inference falls back to lexical admission.
+semantic candidates at **0.52 inclusive, before reciprocal-rank fusion**.
+Lexical admission is independent of this floor, and no candidate is
+rescued merely because it ranks first. Authorization and provenance checks
+precede rank assignment, and continuation rechecks authority and corpus
+revision on every page. An empty admitted set is a ready/empty result, not
+a failure; if inference is unavailable, retrieval falls back to lexical
+admission rather than blocking.
 
-This floor is the current Qwen3-Embedding-0.6B Q8_0 GGUF / product-formatting policy,
-not a portable score contract. A replacement model requires independent
-calibration. It changes retrieval, not vectors, so stored embeddings are not
-rebuilt or reinterpreted. SearchHit.relevance remains a rank-derived ordering
-value and must not be used as a similarity threshold by context consumers.
+This floor belongs to the current Qwen3-Embedding-0.6B Q8_0 GGUF and its
+product formatting policy — it is not a portable score contract. Swapping
+the model requires independent calibration; changing the floor changes
+retrieval, not the stored vectors, so embeddings are not rebuilt or
+reinterpreted. `SearchHit.relevance` remains a rank-derived ordering value,
+and context consumers must not treat it as a similarity threshold.
 
-Before the frozen evaluation, an independent eight-positive/72-negative public
-calibration measured minimum positive cosine 0.6058640109357305 and maximum
-negative 0.43258229611100957. The preregistered midpoint rounded upward to two
-decimals selected 0.52. Fixtures/results are retained with the learning-journey
-evidence. These small examples do not establish universal relevance: weak
-paraphrases may be lost, shared content terms may admit irrelevant lexical
-records, and near-colliding identifiers still require exact evidence inspection.
-Relevance admission neither detects hostile instructions nor replaces disclosure
-authorization. Held-out measurements must report recall losses, not retune the
-floor against answer keys.
+The value itself comes from an independent calibration exercise, not from
+tuning against the held-out cases below; the fixtures, the calibration
+run, and the per-case diagnosis are retained with the learning-journey
+evidence, in
+[adr-0027-learning-journey.md](../../../knowledge/evidence/adr-0027-learning-journey.md).
 
-The unchanged historical 24-case corpus scores same-entity/wrong-attribute
-references as irrelevant. Under that original metric, this candidate retains
-zero abstention; that result remains a failed sufficiency result, not relabeled.
-Hybrid relevant recall falls from 1 to 26/27: the museum-access support record
-has cosine about 0.5068 and is omitted at 0.52, while museum-visiting survives
-and links to that support. Lexical recall also falls (23/27 to 20/27). Neither
-the threshold nor the English list was retuned to those cases. The independent
-challenge separates unrelated omission from related-but-incomplete admission;
-its results are reported separately, not substituted into the old metric.
+## Known limits
+
+Held-out measurement, not the calibration itself, is how this floor's
+limits get reported — the floor is never retuned against an answer key to
+close a gap found this way.
+
+- **Weak paraphrases can be lost.** A record that restates a request's
+  intent without sharing its vocabulary may fall below 0.52.
+- **Shared content terms can admit irrelevant lexical records.** Lexical
+  admission does not know that a term is being used in an unrelated sense.
+- **Near-colliding identifiers still need exact evidence inspection.**
+  Neither admission path resolves an identifier clash on its own.
+- **A same-entity, wrong-attribute record still scores as irrelevant**
+  under the original 24-case corpus's metric — that remains a failed
+  sufficiency result under that metric, not one this floor relabels.
+- **Recall drops when the floor is applied.** Against the independent
+  27-case challenge, hybrid relevant recall falls from 27/27 to 26/27: a
+  museum-access support record sits at roughly 0.5068 cosine and is
+  omitted at 0.52, while a related museum-visiting record survives and
+  links to it. Lexical recall falls too, from 23/27 to 20/27. Neither the
+  threshold nor the English function-word list was retuned to these cases.
+
+Relevance admission neither detects hostile instructions nor replaces
+disclosure authorization — it decides what a search can surface, not
+whether a request is safe to answer. The independent held-out challenge
+keeps unrelated omission separate from related-but-incomplete admission,
+and its results are reported on their own terms rather than folded into
+the older metric.
