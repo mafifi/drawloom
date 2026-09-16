@@ -1,4 +1,5 @@
 import type { JsonStore } from "@drawloom/host";
+import type { AuthZenRequest } from "@drawloom/authorization";
 import type { ToolEvidence, ToolGateway } from "@drawloom/tools";
 import type { createWorkflowAuthority } from "./workflow-authority.js";
 import { createDesktopEvidence } from "./evidence.js";
@@ -37,15 +38,32 @@ export function createWorkflowToolScope(options: {
   }
   return {
     refresh: options.refreshGrants,
-    owns: (operationId?: string) => Boolean(owner(operationId)),
-    allowed(operationId: string, name: string) {
+    owns: (operationId?: string) => {
       const current = owner(operationId);
-      return Boolean(
+      return Boolean(current && !current.signal.aborted);
+    },
+    facts(operationId: string, name: string): AuthZenRequest {
+      const current = owner(operationId);
+      const granted = Boolean(
         current &&
           !current.signal.aborted &&
           options.workbenchIds.length &&
           options.workbenchIds.every((id) => options.grants.get(id)?.has(name)),
       );
+      return {
+        subject: {
+          type: "operation",
+          id: operationId,
+          properties: {
+            granted,
+            projectId: options.projectId,
+            installationId: options.installationId,
+            workbenchIds: [...options.workbenchIds],
+          },
+        },
+        action: { name: "invoke" },
+        resource: { type: "tool", id: name, properties: {} },
+      };
     },
     async record(record: ToolEvidence) {
       const current = owner(

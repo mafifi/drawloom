@@ -24,6 +24,99 @@ const request: AssessmentRequest = {
     links: [],
   },
 };
+
+test("assessment policy inability blocks submission reconciliation and cancellation explicitly", async () => {
+  for (const [value, code] of [
+    [{ kind: "failure", code: "unavailable" }, "unavailable"],
+    [{}, "malformed_result"],
+    ["throw", "rejected"],
+  ] as const) {
+    const f = fixture({
+      decision: () => {
+        if (value === "throw") throw Error("offline");
+        return value;
+      },
+    });
+    try {
+      const identity = {
+        requestId: request.requestId,
+        payloadFingerprint: request.payloadFingerprint,
+      };
+      for (const result of [
+        await f.provider.assess(subject, request),
+        await f.provider.reconcile(subject, identity),
+        await f.provider.cancel(subject, identity),
+      ]) {
+        expect(result).toEqual({ kind: "failure", ...identity, code });
+      }
+      expect(f.calls).toEqual([]);
+    } finally {
+      await f.provider.close();
+    }
+  }
+});
+
+test("revocation after persisted preflight prevents submission and later protected operations", async () => {
+  let allowed = true;
+  const f = fixture({
+    decision: () => ({ decision: allowed }),
+    handle: async (method) => {
+      if (method === "thread/memoryMode/set") allowed = false;
+    },
+  });
+  try {
+    expect(await f.provider.assess(subject, request)).toEqual({ kind: "denied" });
+    expect(f.calls).not.toContain("turn/start");
+    const identity = {
+      requestId: request.requestId,
+      payloadFingerprint: request.payloadFingerprint,
+    };
+    expect(await f.provider.reconcile(subject, identity)).toEqual({ kind: "denied" });
+    expect(await f.provider.cancel(subject, identity)).toEqual({ kind: "denied" });
+    expect(f.calls).not.toContain("turn/interrupt");
+  } finally {
+    await f.provider.close();
+  }
+});
+
+test("assessment forwards one decreasing budget and cancellation stops native submission", async () => {
+  const controller = new AbortController();
+  let remaining = 1000;
+  const f = fixture({
+    authorize: async () => {
+      remaining -= 600;
+    },
+  });
+  try {
+    expect(
+      await f.provider.assess(subject, request, {
+        signal: controller.signal,
+        remainingMs: () => remaining,
+      }),
+    ).toEqual({
+      kind: "failure",
+      requestId: request.requestId,
+      payloadFingerprint: request.payloadFingerprint,
+      code: "budget_exhausted",
+    });
+    controller.abort();
+    expect(
+      await f.provider.reconcile(
+        subject,
+        { requestId: request.requestId, payloadFingerprint: request.payloadFingerprint },
+        { signal: controller.signal, remainingMs: () => 1000 },
+      ),
+    ).toEqual({
+      kind: "failure",
+      requestId: request.requestId,
+      payloadFingerprint: request.payloadFingerprint,
+      code: "cancelled",
+    });
+    expect(f.calls).toEqual([]);
+  } finally {
+    await f.provider.close();
+  }
+});
 type FailurePoint =
   | "initialize"
   | "model/list"
@@ -41,6 +134,10 @@ function fixture(
     readonly answer?: unknown;
     readonly write?: () => Promise<void>;
     readonly authorize?: (action: string) => Promise<void>;
+    readonly decision?: () => unknown;
+    readonly timeoutMs?: number;
+    readonly connecting?: () => Promise<void>;
+    readonly resolving?: () => Promise<void>;
     readonly handle?: (method: string, params: unknown) => Promise<unknown>;
   } = {},
 ) {
@@ -134,12 +231,16 @@ function fixture(
     model: options.model ?? "gpt-5.6-terra",
     effort: options.effort ?? "low",
     workingDirectory: "/private/tmp",
-    timeoutMs: 20,
+    timeoutMs: options.timeoutMs ?? 20,
     store,
-    connect: async () => transport,
+    connect: async () => {
+      await options.connecting?.();
+      return transport;
+    },
     authorizer: {
       async authorize(value) {
         await options.authorize?.(value.action.name);
+        if (options.decision) return options.decision() as never;
         return {
           decision:
             value.subject.id === subject.id && !options.deniedRefs?.includes(value.resource.id),
@@ -147,6 +248,7 @@ function fixture(
       },
     },
     resolveResource: async ({ ref }) => {
+      await options.resolving?.();
       resolverRefs.push(ref?.id);
       return {
         type: ref ? "knowledge-record" : "model-destination",
@@ -199,6 +301,193 @@ test("denies native submission when an allowed record names a denied evidence in
     await f.provider.close();
   }
 });
+
+for (const stop of ["cancelled", "budget_exhausted"] as const) {
+  test(`parent ${stop} after submission attempt preserves uncertain recovery without resubmission`, async () => {
+    let release!: () => void;
+    let entered!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const f = fixture({
+      timeoutMs: 1000,
+      handle: async (method) => {
+        if (method === "turn/start") {
+          entered();
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+        }
+      },
+    });
+    const controller = new AbortController();
+    try {
+      const deadline = Date.now() + (stop === "cancelled" ? 1000 : 25);
+      const pending = f.provider.assess(subject, request, {
+        signal: controller.signal,
+        remainingMs: () => deadline - Date.now(),
+      });
+      await waiting;
+      if (stop === "cancelled") controller.abort();
+      expect(await pending).toEqual({
+        kind: "uncertain",
+        requestId: request.requestId,
+        payloadFingerprint: request.payloadFingerprint,
+      });
+      release();
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      expect((await f.provider.assess(subject, request)).kind).toBe("uncertain");
+      expect(f.calls.filter((value) => value === "turn/start")).toHaveLength(1);
+      expect(JSON.stringify([...f.saved.values()])).toContain("submission_attempted");
+    } finally {
+      release?.();
+      await f.provider.close();
+    }
+  });
+  test(`parent ${stop} during cancellation connect prevents any late interrupt`, async () => {
+    let hold = false;
+    let release!: () => void;
+    let entered!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const f = fixture({
+      timeoutMs: 1000,
+      connecting: async () => {
+        if (hold) {
+          entered();
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+        }
+      },
+    });
+    const controller = new AbortController();
+    try {
+      expect((await f.provider.assess(subject, request)).kind).toBe("running");
+      f.emit({ method: "item/tool/requestUserInput", params: {} });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      hold = true;
+      const deadline = Date.now() + (stop === "cancelled" ? 1000 : 25);
+      const pending = f.provider.cancel(
+        subject,
+        { requestId: request.requestId, payloadFingerprint: request.payloadFingerprint },
+        { signal: controller.signal, remainingMs: () => deadline - Date.now() },
+      );
+      await waiting;
+      if (stop === "cancelled") controller.abort();
+      expect(
+        await Promise.race([
+          pending,
+          new Promise((resolve) => setTimeout(() => resolve("did not settle"), 100)),
+        ]),
+      ).toEqual({
+        kind: "failure",
+        requestId: request.requestId,
+        payloadFingerprint: request.payloadFingerprint,
+        code: stop,
+      });
+      release();
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      expect(f.calls).not.toContain("turn/interrupt");
+    } finally {
+      release?.();
+      await f.provider.close();
+    }
+  });
+  for (const method of ["thread/turns/list", "thread/items/list"] as const) {
+    test(`parent ${stop} fences pending reconciliation ${method} and late proposals`, async () => {
+      let release!: () => void;
+      let entered!: () => void;
+      const waiting = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const f = fixture({
+        timeoutMs: 1000,
+        handle: async (name) => {
+          if (name === method) {
+            entered();
+            await new Promise<void>((resolve) => {
+              release = resolve;
+            });
+          }
+        },
+      });
+      const controller = new AbortController();
+      try {
+        expect((await f.provider.assess(subject, request)).kind).toBe("running");
+        const deadline = Date.now() + (stop === "cancelled" ? 1000 : 25);
+        const pending = f.provider.reconcile(
+          subject,
+          { requestId: request.requestId, payloadFingerprint: request.payloadFingerprint },
+          { signal: controller.signal, remainingMs: () => deadline - Date.now() },
+        );
+        await waiting;
+        if (stop === "cancelled") controller.abort();
+        const result = await Promise.race([
+          pending,
+          new Promise((resolve) => setTimeout(() => resolve("did not settle"), 100)),
+        ]);
+        expect(result).toEqual({
+          kind: "failure",
+          requestId: request.requestId,
+          payloadFingerprint: request.payloadFingerprint,
+          code: stop,
+        });
+        release();
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        expect(JSON.stringify([...f.saved.values()])).not.toContain('"proposals"');
+        expect(f.calls.filter((value) => value === "turn/start")).toHaveLength(1);
+      } finally {
+        release?.();
+        await f.provider.close();
+      }
+    });
+  }
+  test(`parent ${stop} settles hung resource resolution before any native call`, async () => {
+    let release!: () => void;
+    let entered!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const f = fixture({
+      timeoutMs: 1000,
+      resolving: async () => {
+        entered();
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      },
+    });
+    const controller = new AbortController();
+    try {
+      const deadline = Date.now() + (stop === "cancelled" ? 1000 : 25);
+      const pending = f.provider.assess(subject, request, {
+        signal: controller.signal,
+        remainingMs: () => deadline - Date.now(),
+      });
+      await waiting;
+      if (stop === "cancelled") controller.abort();
+      expect(
+        await Promise.race([
+          pending,
+          new Promise((resolve) => setTimeout(() => resolve("did not settle"), 100)),
+        ]),
+      ).toEqual({
+        kind: "failure",
+        requestId: request.requestId,
+        payloadFingerprint: request.payloadFingerprint,
+        code: stop,
+      });
+      release();
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      expect(f.calls).toEqual([]);
+    } finally {
+      release?.();
+      await f.provider.close();
+    }
+  });
+}
 
 test("every root in a maintenance batch requires disclosure authority before connecting", async () => {
   const hidden = { ...source, id: "denied-second-root" };

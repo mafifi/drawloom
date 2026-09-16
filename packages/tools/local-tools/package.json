@@ -22,6 +22,7 @@
     "runtime": "portable"
   },
   "dependencies": {
+    "@drawloom/authorization": "workspace:*",
     "zod": "catalog:",
     "@drawloom/tools": "workspace:*",
     "@drawloom/host": "workspace:*"

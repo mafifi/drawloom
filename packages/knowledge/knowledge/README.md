@@ -27,12 +27,24 @@ bounded maintenance, assessment, and embeddings.
   consumer acknowledges a provider batch only after durable index activation;
   unacknowledged work and duplicate acknowledgement are replay-safe.
 
-The KnowledgeAuthorizer uses an AuthZEN-shaped request. Trusted composition
+The `Authorizer` from `@drawloom/authorization` uses an AuthZEN-shaped request. Trusted composition
 establishes the subject, and providers resolve resource facts from trusted
 state; operation payloads cannot grant access. Missing, invalid, unavailable,
-or non-affirmative decisions fail closed. Providers authorize both link
+or malformed decisions return explicit failures; ordinary denial stays distinct.
+Providers authorize both link
 endpoints and derived disclosure at publication, retrieval, export,
 maintenance, and configured model destinations.
+
+Knowledge operations accept a trailing `AuthorizationEvaluationOptions`. Nested
+consumers pass the same cancellation signal and remaining-time supplier across
+all reads and checks. When omitted at a standalone local provider boundary,
+SQLite and embedding operations establish one 30-second operation budget;
+assessment uses its configured operation deadline. Trusted composition wraps
+policy providers with the authorization scheduler, which caps each decision at
+two seconds and the enclosing remaining time. These defaults never reset inside
+a record loop. Context preparation requires the host's remaining-time supplier
+and reports parent expiry as `timeout`, cancellation as `cancelled`, and policy
+inability as `unavailable`, without returning a partial automatic selection.
 
 `knowledgeStorageConformance`, `knowledgeAssessmentConformance`,
 `knowledgeEmbeddingConformance`, and `knowledgeIndexWorkConformance` are

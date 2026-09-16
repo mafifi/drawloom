@@ -5,10 +5,17 @@ export async function retireCreatedRuntimes<T>(
   retire: (runtime: T) => Promise<void>,
 ) {
   const retired = new Map<string, Promise<T>>();
+  const errors: unknown[] = [];
   while (true) {
     const created = [...runtimes].filter(([key, runtime]) => retired.get(key) !== runtime);
-    if (!created.length) return;
-    await Promise.all(created.map(async ([, runtime]) => retire(await runtime)));
+    if (!created.length) {
+      if (errors.length) throw new AggregateError(errors, "Project runtime cleanup failed");
+      return;
+    }
+    const results = await Promise.allSettled(
+      created.map(async ([, runtime]) => retire(await runtime)),
+    );
+    for (const result of results) if (result.status === "rejected") errors.push(result.reason);
     for (const [key, runtime] of created) retired.set(key, runtime);
   }
 }

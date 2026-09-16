@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { createDesktopAuthorization } from "./authorization.js";
 import { createLocalToolGateway } from "@drawloom/local-tools";
 import type { JsonValue } from "@drawloom/host";
 import { createWorkflowAuthority } from "./workflow-authority.js";
@@ -99,7 +100,11 @@ test("detached tasks require all declaring grants, refresh each call and retain 
           },
         },
       ],
-      policy: scope.allowed,
+      authorization: createDesktopAuthorization().tools({
+        owns: scope.owns,
+        facts: scope.facts,
+        background: () => true,
+      }),
       evidence: { record: scope.record },
       nextInvocationId: () => crypto.randomUUID(),
     }),

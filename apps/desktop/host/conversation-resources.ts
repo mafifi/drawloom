@@ -1,4 +1,5 @@
 import type { AgentSession } from "@drawloom/agent";
+import { cleanup } from "./cleanup.js";
 import type { ConversationHistoryStore } from "@drawloom/conversation-history";
 import type { Asset, AssetLibrary, JsonStore } from "@drawloom/host";
 import { createDesktopEvidence } from "./evidence.js";
@@ -115,7 +116,7 @@ export function createConversationResources(options: {
     recover,
     synchronize,
     async drainWriters() {
-      await Promise.all([...writers.values()].map((current) => current.close()));
+      await cleanup([...writers.values()].map((current) => () => current.close()));
     },
     async closeHistory() {
       await options.history.close();

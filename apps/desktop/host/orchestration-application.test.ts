@@ -140,7 +140,15 @@ test("desktop attaches installed task handlers, restores both projects and enfor
     configuration: {},
   });
   let created = 0;
+  let replacementDecision: boolean | undefined;
+  let decisions = 0;
   const app = await createDesktopApplication(root, {
+    authorizer: {
+      authorize: async (request) => {
+        decisions++;
+        return { decision: replacementDecision ?? request.subject.properties.granted === true };
+      },
+    },
     orchestration: {
       manager: async () => {
         created++;
@@ -177,6 +185,13 @@ test("desktop attaches installed task handlers, restores both projects and enfor
       outcome: { status: "failed", code: "denied" },
     });
     expect(calls).toBe(0);
+    expect(decisions).toBeGreaterThan(0);
+    replacementDecision = true;
+    expect(await task.run({}, context)).toMatchObject({ outcome: { status: "ok" } });
+    expect(calls).toBe(1);
+    // The replacement is the decision authority; legacy grants are supplied facts.
+    calls = 0;
+    replacementDecision = undefined;
     await app.command({ kind: "select_project", projectId });
     await app.command({
       kind: "create_conversation",

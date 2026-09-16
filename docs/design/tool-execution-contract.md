@@ -53,7 +53,7 @@ fields and validation rules.
 
 ## Register tools and call the gateway
 
-The host creates a gateway with its tools, a permission check, a record writer
+The host creates a gateway with its tools, an asynchronous authorization binding, a record writer
 and a function that issues unique invocation IDs. The gateway's `exposure`
 describes its tools for the agent; it is not permission to use them.
 
@@ -67,6 +67,12 @@ handler. If the binding is unknown, revoked or no longer allowed, execution is
 denied. `revoke(binding)` prevents later dispatch; it cannot undo a handler
 that has already started. A delayed invocation cannot borrow a newer
 operation's permission.
+
+An unavailable decision is not ordinary denial, and neither permits execution.
+If the second check fails, no handler has run: the result reports
+`execution: "not_started"`. The host also checks authority generations around
+awaited decisions; those checks do not replace the second policy evaluation.
+See [access-decision replacement](../reference/replacing-capabilities.md#supply-access-decisions).
 
 Call the gateway rather than `ToolDefinition.execute` directly. Calling the
 handler yourself bypasses the checks and recording described here.

@@ -11,6 +11,11 @@ replaces its original embedding runtime. The
 [evidence record](../../knowledge/evidence/adr-0024-local-knowledge.md) separates
 tested behaviour from remaining quality and deployment questions.
 
+This page describes the default local implementation. Developers can supply a
+different learning service while keeping the shared desktop screens; see
+[replacing capabilities](../reference/replacing-capabilities.md). Its processing
+scope and availability may differ from those described here.
+
 ## Who can use the knowledge?
 
 Knowledge belongs to the local user across projects. A record's project tells
@@ -26,7 +31,8 @@ other policies without prescribing an organisation's classifications.
 ## Use knowledge in conversations
 
 In **Knowledge → Settings**, choose **Use knowledge in conversations**, then
-save. It is off by default. Drawloom searches locally before sending each message
+save, then confirm the displayed processing scope. Saving the preference alone
+does not grant permission. It is off by default. Drawloom searches locally before sending each message
 and includes up to eight permitted references, within a 12 KiB limit. This also
 applies when a queued message is dispatched or you steer work already running.
 Your own instructions, attachments and selected context remain intact.
@@ -67,7 +73,8 @@ application checks, bounded live-model results and remaining limitations.
 ## From observations to learnings
 
 **Remember useful tool outcomes** is a separate, initially off choice in Knowledge
-settings. Participating tools can retain a small, selected observation from a
+settings. Save the preference and confirm its processing scope before capture
+starts. Participating tools can retain a small, selected observation from a
 validated successful result. For example, the public word-count tool retains
 the count, not the text it counted. This does not collect whole transcripts or
 give every installed tool permission to retain its arguments and results.
@@ -85,10 +92,11 @@ ineligible calls. Failed or uncertain tool execution is not treated as success.
 
 A configured source supplies observations and source revisions. SQLite stores
 them before acknowledging receipt. To process retained evidence in the background,
-enable **Curate knowledge automatically** and save in Knowledge settings. This
+enable **Curate knowledge automatically**, save, and confirm its scope in Knowledge settings. This
 separate choice is off by default, including for existing settings without a
 recorded choice. It sends selected evidence to the configured Codex model; local
-search alone does not. **Run now** remains a separate deliberate action.
+search alone does not. **Run now** remains a separate deliberate action with its
+own scope check; it does not require enabling automatic curation.
 
 When enabled, Nightloom takes a limited batch of pending work, asks an assessor
 to review its evidence, and publishes the resulting changes together with its
@@ -238,7 +246,8 @@ curation or retrieval journey. Keep provider calls opt-in and use synthetic
 records for public tests.
 
 After building packages, `bun run test:temporal` checks the real workflow service
-and `bun run test:temporal:learning` checks Nightloom recovery with SQLite. These
+and `bun run test:orchestration:learning` checks Nightloom recovery with SQLite through
+the orchestration contract, using the Temporal implementation. These
 commands use isolated local services and do not call an answering model. They
 require the exact Node and Temporal versions enforced by the local manager; the
 dedicated learning CI job installs those versions. Unavailable services are

@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
+import type {
+  AuthorizationEvaluationOptions,
+  AuthorizationFailureCode,
+} from "@drawloom/authorization";
 import { z } from "zod";
 import {
   AssessmentReconcileRequestSchema,
@@ -13,13 +17,20 @@ import {
   type AuthZenEntity,
   type ClaimProposal,
   type KnowledgeAssessment,
-  type KnowledgeAuthorizer,
+  type Authorizer,
   type RecordRef,
   type TrustedKnowledgeSubject,
 } from "@drawloom/knowledge";
 import type { JsonStore, JsonValue, RpcMessage, RpcTransport } from "@drawloom/host";
 
 const Id = z.string().min(1).max(256);
+class PolicyFailure extends Error {
+  readonly code: AuthorizationFailureCode;
+  constructor(code: AuthorizationFailureCode) {
+    super(code);
+    this.code = code;
+  }
+}
 const Milestone = z.enum(["preflight", "thread_created", "submission_attempted", "accepted"]);
 const WireOutput = z.strictObject({
   proposals: z
@@ -66,7 +77,7 @@ export interface CodexAssessmentOptions {
   timeoutMs?: number;
   store: JsonStore;
   connect(): Promise<RpcTransport>;
-  authorizer: KnowledgeAuthorizer;
+  authorizer: Authorizer;
   resolveResource(input: {
     subject: TrustedKnowledgeSubject;
     action: string;
@@ -107,7 +118,26 @@ export function createCodexAssessment(
   const generations = new Map<string, number>();
   const flights = new Map<string, { payload: string; promise: Promise<AssessmentResult> }>();
   const writes = new Map<string, Promise<void>>();
-  const deadlineContext = new AsyncLocalStorage<{ deadline: number; generation: number }>();
+  const deadlineContext = new AsyncLocalStorage<{
+    deadline: number;
+    generation: number;
+    operation: AuthorizationEvaluationOptions;
+    parent?: AuthorizationEvaluationOptions;
+    stopped?: Error;
+    submissionAttempted?: boolean;
+  }>();
+  const policyCheck = () => {
+    if (deadlineContext.getStore()?.stopped) throw deadlineContext.getStore()!.stopped;
+    if (closed) throw new PolicyFailure("shutdown");
+    const operation = deadlineContext.getStore()!.operation;
+    if (operation.signal.aborted) throw new PolicyFailure("cancelled");
+    let remaining = 0;
+    try {
+      remaining = operation.remainingMs();
+    } catch {}
+    if (!Number.isFinite(remaining) || remaining <= 0) throw new PolicyFailure("budget_exhausted");
+    return operation;
+  };
   let closed = false;
   let cleanupFailed = false;
 
@@ -116,6 +146,10 @@ export function createCodexAssessment(
     generations.set(key, generation(key) + 1);
   };
   const check = (key: string, expected: number) => {
+    const scope = deadlineContext.getStore();
+    if (scope?.stopped) throw scope.stopped;
+    if (scope?.operation.signal.aborted) throw new PolicyFailure("cancelled");
+    if (scope?.parent) policyCheck();
     if (
       closed ||
       generation(key) !== expected ||
@@ -145,6 +179,7 @@ export function createCodexAssessment(
             throw Error("Assessment milestone cannot move backwards");
         }
         await options.store.set(key, snapshot);
+        check(key, expected);
       });
     writes.set(key, pending);
     try {
@@ -166,22 +201,32 @@ export function createCodexAssessment(
       const unique = new Map<string, RecordRef>();
       for (const ref of refs) unique.set(JSON.stringify(ref), ref);
       for (const ref of [undefined, ...unique.values()] as const) {
+        const operation = policyCheck();
         const resource = AuthZenEntitySchema.parse(
           await options.resolveResource({ subject, action, ...(ref ? { ref } : {}), destination }),
         );
-        const result = AuthorizationResultSchema.parse(
-          await options.authorizer.authorize({
-            subject,
-            action: { name: action },
-            resource,
-            context: { destination },
-          }),
+        policyCheck();
+        const result = AuthorizationResultSchema.safeParse(
+          await options.authorizer.authorize(
+            {
+              subject,
+              action: { name: action },
+              resource,
+              context: { destination },
+            },
+            operation,
+          ),
         );
-        if (!("decision" in result) || !result.decision) return false;
+        policyCheck();
+        if (!result.success) throw new PolicyFailure("malformed_result");
+        if (!("decision" in result.data)) throw new PolicyFailure(result.data.code);
+        if (!result.data.decision) return false;
       }
       return true;
-    } catch {
-      return false;
+    } catch (error) {
+      policyCheck();
+      if (error instanceof PolicyFailure) throw error;
+      throw new PolicyFailure("rejected");
     }
   }
   const evidenceRefs = (request: AssessmentRequest): RecordRef[] => [
@@ -218,32 +263,51 @@ export function createCodexAssessment(
   };
   const bounded = async <T>(key: string, operation: () => Promise<T>, fence = true): Promise<T> => {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const expected = deadlineContext.getStore()?.generation ?? generation(key);
+    const scope = deadlineContext.getStore()!;
+    const expected = scope.generation;
     check(key, expected);
+    let abort: (() => void) | undefined;
     try {
       const result = await Promise.race([
-        operation(),
         new Promise<T>((_, reject) => {
+          const stop = (error: Error) => {
+            scope.stopped ??= error;
+            if (generation(key) === scope.generation) {
+              const ownedGeneration = scope.generation;
+              invalidate(key);
+              if (opening.get(key) === ownedGeneration) opening.delete(key);
+              void disconnect(key, ownedGeneration);
+            }
+            reject(scope.stopped);
+          };
+          abort = () => stop(new PolicyFailure("cancelled"));
+          scope.operation.signal.addEventListener("abort", abort, { once: true });
+          let remaining = 0;
+          try {
+            remaining = scope.operation.remainingMs();
+          } catch {}
+          if (!Number.isFinite(remaining)) remaining = 0;
           timer = setTimeout(
-            () => {
-              if (generation(key) === expected) {
-                invalidate(key);
-                if (opening.get(key) === expected) opening.delete(key);
-                void disconnect(key, expected);
-              }
-              reject(new Error("Assessment deadline exceeded"));
-            },
-            Math.max(
-              0,
-              (deadlineContext.getStore()?.deadline ?? Date.now() + timeoutMs) - Date.now(),
-            ),
+            () =>
+              stop(
+                scope.parent
+                  ? new PolicyFailure("budget_exhausted")
+                  : new Error("Assessment deadline exceeded"),
+              ),
+            Math.max(0, remaining),
           );
+          if (scope.operation.signal.aborted) abort();
+        }),
+        Promise.resolve().then(() => {
+          check(key, expected);
+          return operation();
         }),
       ]);
-      if (fence) check(key, expected);
+      check(key, fence ? expected : scope.generation);
       return result;
     } finally {
       if (timer) clearTimeout(timer);
+      if (abort) scope.operation.signal.removeEventListener("abort", abort);
     }
   };
   async function markNativeStop(
@@ -288,17 +352,24 @@ export function createCodexAssessment(
       throw error;
     }
     if (opening.get(key) === expected) opening.delete(key);
-    if (closed || generation(key) !== expected) {
+    try {
+      check(key, expected);
+    } catch (error) {
       await closeRpc(rpc);
-      throw Error("Assessment startup was interrupted");
+      throw error;
     }
     let unsubscribe = () => {};
     try {
       const stopped = (message: RpcMessage) => {
         if (connections.get(key)?.rpc !== rpc) return;
         void deadlineContext
-          .run({ deadline: Infinity, generation: generation(key) }, () =>
-            markNativeStop(key, receipt, message, rpc),
+          .run(
+            {
+              deadline: Date.now() + 5000,
+              generation: generation(key),
+              operation: { signal: new AbortController().signal, remainingMs: () => 5000 },
+            },
+            () => markNativeStop(key, receipt, message, rpc),
           )
           .catch(() => undefined);
       };
@@ -538,7 +609,9 @@ export function createCodexAssessment(
       }
       await save(key, receipt);
       return receipt.outcome;
-    } catch {
+    } catch (error) {
+      if (error instanceof PolicyFailure) throw error;
+      check(key, expected);
       return { kind: "uncertain", ...identity(receipt.request) };
     } finally {
       if (receipt.outcome.kind !== "running" && receipt.outcome.kind !== "uncertain")
@@ -635,9 +708,15 @@ export function createCodexAssessment(
         receipt.milestone = "submission_attempted";
         await save(key, receipt);
         check(key, expected);
+        if (!(await authorized(subject, "assess", evidenceRefs(request))))
+          return { kind: "denied" };
+        check(key, expected);
         const turn = z.object({ turn: z.object({ id: Id }) }).parse(
-          await bounded(key, () =>
-            rpc.request("turn/start", {
+          await bounded(key, () => {
+            // The durable marker already exists. Losing this wait cannot prove
+            // the native request did not execute; retain uncertain recovery.
+            deadlineContext.getStore()!.submissionAttempted = true;
+            return rpc.request("turn/start", {
               threadId: receipt.threadId,
               model: options.model,
               effort: options.effort,
@@ -645,8 +724,8 @@ export function createCodexAssessment(
                 { type: "text", text: receipt.marker + "\n" + JSON.stringify(request.evidence) },
               ],
               outputSchema: z.toJSONSchema(WireOutput),
-            }),
-          ),
+            });
+          }),
         );
         check(key, expected);
         receipt.turnId = turn.turn.id;
@@ -655,8 +734,10 @@ export function createCodexAssessment(
         await save(key, receipt);
         check(key, expected);
         return receipt.outcome;
-      } catch {
+      } catch (error) {
+        if (error instanceof PolicyFailure) throw error;
         if (generation(key) !== expected) return { kind: "uncertain", ...identity(request) };
+        check(key, expected);
         const latest = await options.store.get(key);
         const persisted = latest === undefined ? receipt : Receipt.parse(latest);
         if (terminal(persisted.outcome)) return persisted.outcome;
@@ -708,6 +789,8 @@ export function createCodexAssessment(
       if (receipt.outcome.kind === "completed" || receipt.outcome.kind === "failure")
         return { kind: "too_late", ...identity(request) };
       if (receipt.outcome.kind === "cancelled") return receipt.outcome;
+      if (!(await authorized(subject, "assess.cancel"))) return { kind: "denied" };
+      check(key, expected);
       invalidate(key);
       const active = deadlineContext.getStore();
       if (active) active.generation = generation(key);
@@ -739,7 +822,9 @@ export function createCodexAssessment(
             )
           )
             receipt.outcome = { kind: "cancelled", ...identity(receipt.request) };
-        } catch {
+        } catch (error) {
+          if (error instanceof PolicyFailure) throw error;
+          check(key, cancellationGeneration);
           /* A request without confirmation is not a cancelled outcome. */
         }
       }
@@ -757,14 +842,34 @@ export function createCodexAssessment(
     subject: TrustedKnowledgeSubject,
     request: { requestId: string; payloadFingerprint: string },
     run: () => Promise<T>,
-  ): Promise<T | { kind: "uncertain"; requestId: string; payloadFingerprint: string }> {
+    parent?: AuthorizationEvaluationOptions,
+  ): Promise<
+    | T
+    | { kind: "uncertain"; requestId: string; payloadFingerprint: string }
+    | {
+        kind: "failure";
+        requestId: string;
+        payloadFingerprint: string;
+        code: AuthorizationFailureCode;
+      }
+  > {
     const key = keyFor(subject, request.requestId);
+    const deadline = Date.now() + timeoutMs;
+    const signal = parent?.signal ?? new AbortController().signal;
+    const operation = {
+      signal,
+      remainingMs: () => Math.min(deadline - Date.now(), parent?.remainingMs() ?? Infinity),
+    };
     return deadlineContext.run(
-      { deadline: Date.now() + timeoutMs, generation: generation(key) },
+      { deadline, generation: generation(key), operation, ...(parent ? { parent } : {}) },
       async () => {
         try {
           return await bounded(key, run, false);
-        } catch {
+        } catch (error) {
+          if (deadlineContext.getStore()!.submissionAttempted)
+            return { kind: "uncertain" as const, ...identity(request) };
+          if (error instanceof PolicyFailure)
+            return { kind: "failure" as const, ...identity(request), code: error.code };
           return { kind: "uncertain" as const, ...identity(request) };
         }
       },
@@ -772,11 +877,11 @@ export function createCodexAssessment(
   }
   return {
     ...provider,
-    reconcile: (subject, input) =>
-      withinDeadline(subject, input, () => provider.reconcile(subject, input)),
-    cancel: (subject, input) =>
-      withinDeadline(subject, input, () => provider.cancel(subject, input)),
-    assess(subject, input) {
+    reconcile: (subject, input, operation) =>
+      withinDeadline(subject, input, () => provider.reconcile(subject, input), operation),
+    cancel: (subject, input, operation) =>
+      withinDeadline(subject, input, () => provider.cancel(subject, input), operation),
+    assess(subject, input, operation) {
       const key = keyFor(subject, input.requestId),
         payload = digest(JSON.stringify(input));
       const existing = flights.get(key);
@@ -784,7 +889,12 @@ export function createCodexAssessment(
         return existing.payload === payload
           ? existing.promise
           : Promise.resolve({ kind: "conflict" });
-      const promise = withinDeadline(subject, input, () => provider.assess(subject, input));
+      const promise = withinDeadline(
+        subject,
+        input,
+        () => provider.assess(subject, input),
+        operation,
+      );
       flights.set(key, { payload, promise });
       void promise
         .finally(() => {

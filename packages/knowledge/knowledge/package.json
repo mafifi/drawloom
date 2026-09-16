@@ -20,6 +20,21 @@
       "bun": "./src/conformance.ts",
       "types": "./dist/conformance.d.ts",
       "import": "./dist/conformance.js"
+    },
+    "./learning-conformance": {
+      "bun": "./src/learning-conformance.ts",
+      "types": "./dist/learning-conformance.d.ts",
+      "import": "./dist/learning-conformance.js"
+    },
+    "./learning": {
+      "bun": "./src/learning.ts",
+      "types": "./dist/learning.d.ts",
+      "import": "./dist/learning.js"
+    },
+    "./consent": {
+      "bun": "./src/consent.ts",
+      "types": "./dist/consent.d.ts",
+      "import": "./dist/consent.js"
     }
   },
   "drawloom": {
@@ -27,6 +42,7 @@
     "runtime": "portable"
   },
   "dependencies": {
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@drawloom/authorization": "workspace:*"
   }
 }

@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { createManagedLocalKnowledgeClient } from "@drawloom/local-knowledge-runtime";
+import { createAuthorizedKnowledgeFixture as createManagedLocalKnowledgeClient } from "../tests/knowledge-authority-fixture.js";
 import { createDesktopApplication } from "./application.js";
 import { serveDesktop } from "./server.js";
 import { createKnowledgeActivityFixture } from "../tests/knowledge-activity-fixture.js";
@@ -15,7 +15,7 @@ test("authenticated Activity uses the composed Nightloom registration without a 
     workingDirectory: root,
   });
   const app = await createDesktopApplication(root, {
-    knowledge: { service },
+    knowledge: { local: service },
     orchestration: { manager: async () => fixture.manager },
   });
   const host = serveDesktop(app, resolve("apps/desktop/build"));

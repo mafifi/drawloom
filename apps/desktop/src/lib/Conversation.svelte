@@ -24,6 +24,7 @@
   import AttachmentCard from "./AttachmentCard.svelte";
   import ResourceCard from './ResourceCard.svelte';
   import ElicitationForm from './ElicitationForm.svelte';
+  import ApprovalView from './ApprovalView.svelte';
   import { presentToolOutcome } from './tool-outcome.js';
   import type { DesktopViewModel } from "./view-model.svelte.js";
   let { vm }: { vm: DesktopViewModel } = $props();
@@ -173,35 +174,9 @@
         ><span>Open</span></Button
       >{/if}
     {#each vm.state?.elicitations ?? [] as request (request.requestId)}<ElicitationForm {vm} {request} />{/each}
+    {#each vm.approvals as approval (approval.id)}<ApprovalView presentation={approval.presentation} actions={approval.actions} />{/each}
     {#each vm.state?.signals ?? [] as signal}
-      {#if signal.kind === "approval.requested" && vm.state?.activeOperation === signal.request.operationId && !vm.state.signals.some((s) => s.kind === "approval.resolved" && s.approvalId === signal.request.approvalId)}
-        <Alert.Root class="interaction"
-          ><Alert.Title>Execution approval</Alert.Title><Alert.Description
-            ><p>{signal.request.summary}</p>
-            {#if signal.request.details}<Collapsible.Root>
-              <Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost">Proposed action</Button>{/snippet}</Collapsible.Trigger>
-              <Collapsible.Content><pre>{signal.request.details}</pre></Collapsible.Content>
-            </Collapsible.Root>{/if}
-            <div class="flex flex-wrap gap-2">
-              {#each signal.request.options as option}<StatefulButton
-                  variant="outline"
-                  disabled={vm.busy}
-                  pending={vm.pendingCommand?.kind === 'approval' && vm.pendingCommand.resolution.approvalId === signal.request.approvalId && vm.pendingCommand.resolution.optionId === option.optionId}
-                  onclick={() =>
-                    vm.state &&
-                    vm.command({
-                      kind: "approval",
-                      conversationId: vm.state.selectedId,
-                      resolution: {
-                        approvalId: signal.request.approvalId,
-                        optionId: option.optionId,
-                      },
-                    })}>{option.label}</StatefulButton
-                >{/each}
-            </div></Alert.Description
-          ></Alert.Root
-        >
-      {:else if signal.kind === "input.requested" && vm.state?.activeOperation === signal.request.operationId && !vm.state.signals.some((s) => s.kind === "input.resolved" && s.requestId === signal.request.requestId)}
+      {#if signal.kind === "input.requested" && vm.state?.activeOperation === signal.request.operationId && !vm.state.signals.some((s) => s.kind === "input.resolved" && s.requestId === signal.request.requestId)}
         <Alert.Root class="interaction"
           ><Alert.Title>Requested information</Alert.Title><Alert.Description
             ><p>{signal.request.prompt}</p>

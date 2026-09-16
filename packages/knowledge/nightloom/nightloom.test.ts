@@ -703,6 +703,50 @@ const assessInput = (id: string, units: PendingWorkUnit[] = [unit(id)]) => ({
   units,
 });
 
+test("evidence pagination and assessment receive the same remaining budget and cancellation signal", async () => {
+  let admitted: Parameters<KnowledgeAssessment["assess"]>[2];
+  const configured = dependencies({
+    async assess(_subject, request, operation) {
+      expect(operation).toBe(admitted);
+      return {
+        kind: "completed",
+        requestId: request.requestId,
+        payloadFingerprint: request.payloadFingerprint,
+        proposals: [],
+      };
+    },
+    async reconcile() {
+      throw Error("unexpected");
+    },
+    async cancel() {
+      throw Error("unexpected");
+    },
+  });
+  let calls = 0;
+  configured.retrieval.evidence = async (_subject, _request, operation) => {
+    expect(operation).toBeDefined();
+    if (!admitted) admitted = operation;
+    expect(operation).toBe(admitted);
+    calls++;
+    return {
+      kind: "ok",
+      records: [source],
+      links: [],
+      bytes: 100,
+      ...(calls === 1 ? { cursor: "next" as never } : {}),
+    };
+  };
+  const controller = new AbortController();
+  const handler = createNightloomTaskHandlers(configured).find(
+    (value) => value.id === "nightloom.assess-batch",
+  )!;
+  expect(await handler.run(assessInput("budget"), context(controller.signal))).toMatchObject({
+    kind: "completed",
+  });
+  expect(calls).toBe(2);
+  expect((admitted as { signal: AbortSignal }).signal).toBe(controller.signal);
+});
+
 test("uncertain assessment is durably reconciled on the next run and never submitted twice", async () => {
   let submissions = 0;
   let reconciliations = 0;
@@ -825,7 +869,7 @@ test("a conflicting receipt writer cannot turn an unpersisted model outcome into
   expect(stored?.state).toBe("uncertain");
 });
 
-test("a cancelled assessment is recorded without a submission or publication-ready result", async () => {
+test("an already cancelled new assessment stops before evidence or provider work", async () => {
   let submissions = 0;
   let cancellations = 0;
   const assessment: KnowledgeAssessment = {
@@ -853,7 +897,7 @@ test("a cancelled assessment is recorded without a submission or publication-rea
     kind: "blocked",
     reason: "cancelled",
   });
-  expect({ submissions, cancellations }).toEqual({ submissions: 0, cancellations: 1 });
+  expect({ submissions, cancellations }).toEqual({ submissions: 0, cancellations: 0 });
 });
 
 test("assessment rejects references outside its bounded evidence package", async () => {

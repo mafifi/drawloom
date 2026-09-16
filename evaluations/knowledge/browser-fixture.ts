@@ -1,6 +1,6 @@
 /** Opt-in invented records for the existing desktop; never connects to a model. */
 import { resolve } from "node:path";
-import { createManagedLocalKnowledgeClient } from "@drawloom/local-knowledge-runtime";
+import { createAuthorizedKnowledgeFixture as createManagedLocalKnowledgeClient } from "../../apps/desktop/tests/knowledge-authority-fixture.js";
 const root = process.argv[2];
 if (!root || !resolve(root).startsWith("/private/tmp/drawloom-adr24-browser."))
   throw Error("Use an explicitly created isolated browser-check directory");

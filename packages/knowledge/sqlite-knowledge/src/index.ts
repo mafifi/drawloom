@@ -1,4 +1,9 @@
 import { chmodSync, mkdirSync } from "node:fs";
+import { AsyncLocalStorage } from "node:async_hooks";
+import type {
+  AuthorizationEvaluationOptions,
+  AuthorizationFailureCode,
+} from "@drawloom/authorization";
 import { dirname } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
@@ -27,7 +32,7 @@ import {
   type AuthZenEntity,
   type EmbeddingIndexQueryResult,
   type IntakeResult,
-  type KnowledgeAuthorizer,
+  type Authorizer,
   type KnowledgeEmbeddingIndex,
   type KnowledgeIntake,
   type KnowledgeLink,
@@ -45,6 +50,14 @@ import {
 } from "@drawloom/knowledge";
 
 type Database = DatabaseSync;
+
+class PolicyFailure extends Error {
+  readonly code: AuthorizationFailureCode;
+  constructor(code: AuthorizationFailureCode) {
+    super(code);
+    this.code = code;
+  }
+}
 
 type Row = Record<string, unknown>;
 type Current = {
@@ -73,7 +86,9 @@ export interface TrustedKnowledgeResourceResolver {
 }
 export interface SqliteKnowledgeOptions extends TrustedKnowledgeResourceResolver {
   readonly databasePath: string;
-  readonly authorizer: KnowledgeAuthorizer;
+  readonly authorizer: Authorizer;
+  /** Trusted composition selects the background port; operation payloads cannot select it. */
+  readonly maintenanceAuthorizer?: Authorizer;
 }
 export interface SqliteKnowledge {
   readonly intake: KnowledgeIntake;
@@ -130,6 +145,43 @@ function queryText(query: string): string {
 }
 
 export function createSqliteKnowledge(options: SqliteKnowledgeOptions): SqliteKnowledge {
+  // Each public call owns one scope. Nested record/provenance checks never reset it.
+  const operations = new AsyncLocalStorage<
+    AuthorizationEvaluationOptions & { authorizer: Authorizer }
+  >();
+  const checkOperation = () => {
+    const operation = operations.getStore();
+    if (!operation) throw new PolicyFailure("unavailable");
+    if (operation.signal.aborted) throw new PolicyFailure("cancelled");
+    let remaining = 0;
+    try {
+      remaining = operation.remainingMs();
+    } catch {}
+    if (!Number.isFinite(remaining) || remaining <= 0) throw new PolicyFailure("budget_exhausted");
+    return operation;
+  };
+  async function run<T>(
+    operation: AuthorizationEvaluationOptions | undefined,
+    action: () => Promise<T>,
+    authorizer = options.authorizer,
+  ): Promise<T | { kind: "failure"; code: AuthorizationFailureCode }> {
+    const deadline = performance.now() + 30_000;
+    const parent = operation ?? {
+      signal: new AbortController().signal,
+      remainingMs: () => deadline - performance.now(),
+    };
+    return operations.run({ ...parent, authorizer }, async () => {
+      try {
+        checkOperation();
+        const result = await action();
+        checkOperation();
+        return result;
+      } catch (error) {
+        if (error instanceof PolicyFailure) return { kind: "failure", code: error.code };
+        throw error;
+      }
+    });
+  }
   mkdirSync(dirname(options.databasePath), { recursive: true, mode: 0o700 });
   const db = new DatabaseSync(options.databasePath, { allowExtension: true });
   try {
@@ -376,19 +428,29 @@ export function createSqliteKnowledge(options: SqliteKnowledgeOptions): SqliteKn
     ref?: RecordRef,
   ): Promise<boolean> => {
     try {
+      const operation = checkOperation();
       const resolved = await options.resolveResource({ subject, action, ...(ref ? { ref } : {}) });
+      checkOperation();
       const resource = AuthZenEntitySchema.safeParse(resolved);
-      if (!resource.success) return false;
+      if (!resource.success) throw new PolicyFailure("invalid_facts");
       const result = AuthorizationResultSchema.safeParse(
-        await options.authorizer.authorize({
-          subject,
-          action: { name: action },
-          resource: resource.data,
-        }),
+        await operation.authorizer.authorize(
+          {
+            subject,
+            action: { name: action },
+            resource: resource.data,
+          },
+          operation,
+        ),
       );
-      return result.success && "decision" in result.data && result.data.decision === true;
-    } catch {
-      return false;
+      checkOperation();
+      if (!result.success) throw new PolicyFailure("malformed_result");
+      if (!("decision" in result.data)) throw new PolicyFailure(result.data.code);
+      return result.data.decision;
+    } catch (error) {
+      checkOperation();
+      if (error instanceof PolicyFailure) throw error;
+      throw new PolicyFailure("rejected");
     }
   };
   const allowedRecord = async (
@@ -515,7 +577,8 @@ export function createSqliteKnowledge(options: SqliteKnowledgeOptions): SqliteKn
           bumpEpoch();
           return { kind: "accepted", revision: ref.revision };
         });
-      } catch {
+      } catch (error) {
+        if (error instanceof PolicyFailure) throw error;
         return { kind: "failure", code: "unavailable" };
       }
     },
@@ -587,7 +650,8 @@ export function createSqliteKnowledge(options: SqliteKnowledgeOptions): SqliteKn
           bytes: bytes(items),
           ...(next ? { cursor: next as never } : {}),
         };
-      } catch {
+      } catch (error) {
+        if (error instanceof PolicyFailure) throw error;
         return { kind: "failure", code: "unavailable" };
       }
     },
@@ -1134,7 +1198,37 @@ export function createSqliteKnowledge(options: SqliteKnowledgeOptions): SqliteKn
   };
 
   const embeddingIndex: KnowledgeEmbeddingIndex = embedding(db);
-  return { intake, retrieval, maintenance, indexWork, embeddingIndex, close: () => db.close() };
+  return {
+    intake: {
+      ingest: (subject, input, operation) => run(operation, () => intake.ingest(subject, input)),
+    },
+    retrieval: {
+      search: (subject, input, operation) => run(operation, () => retrieval.search(subject, input)),
+      get: (subject, input, operation) => run(operation, () => retrieval.get(subject, input)),
+      expand: (subject, input, operation) => run(operation, () => retrieval.expand(subject, input)),
+      evidence: (subject, input, operation) =>
+        run(operation, () => retrieval.evidence(subject, input)),
+      export: (subject, input, operation) => run(operation, () => retrieval.export(subject, input)),
+    },
+    maintenance: {
+      status: (subject, operation) =>
+        run(operation, () => maintenance.status(subject), options.maintenanceAuthorizer),
+      pending: (subject, input, operation) =>
+        run(operation, () => maintenance.pending(subject, input), options.maintenanceAuthorizer),
+      publish: (subject, input, operation) =>
+        run(operation, () => maintenance.publish(subject, input), options.maintenanceAuthorizer),
+      release: (subject, input, operation) =>
+        run(operation, () => maintenance.release(subject, input), options.maintenanceAuthorizer),
+    },
+    indexWork: {
+      pending: (subject, input, operation) =>
+        run(operation, () => indexWork.pending(subject, input), options.maintenanceAuthorizer),
+      acknowledge: (subject, input, operation) =>
+        run(operation, () => indexWork.acknowledge(subject, input), options.maintenanceAuthorizer),
+    },
+    embeddingIndex,
+    close: () => db.close(),
+  };
 }
 
 const digestIndex = (...parts: readonly string[]) =>

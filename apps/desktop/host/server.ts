@@ -8,6 +8,7 @@ import {
   ResourceOpenSchema,
   DiscoveryResourceReadSchema,
   DiscoveryAuthenticationSchema,
+  DesktopCommandSchema,
 } from "../src/lib/protocol.js";
 import type { createDesktopApplication } from "./application.js";
 import { createStateFeed } from "./state-feed.js";
@@ -20,7 +21,8 @@ import { ProjectDirectoryError } from "./projects.js";
 import { remoteMediaResponse } from "./remote-media-response.js";
 import { createOrchestrationHttp } from "./orchestration-http.js";
 import { WorkflowControlError } from "./orchestration-presentation.js";
-import { KnowledgeCommandSchema } from "../src/lib/knowledge-protocol.js";
+import { LearningCommandSchema } from "../src/lib/learning-protocol.js";
+import { LocalLearningSetupCommandSchema } from "../src/lib/local-knowledge-setup-protocol.js";
 type Application = Awaited<ReturnType<typeof createDesktopApplication>>;
 export function serveDesktop(
   app: Application,
@@ -191,16 +193,28 @@ export function serveDesktop(
             const result = await workflows(request, url);
             return json(result.body, result.status);
           }
+          if (url.pathname === "/api/knowledge/local-setup" && request.method === "POST") {
+            const command = LocalLearningSetupCommandSchema.parse(await request.json());
+            // Installer cancellation and status must remain responsive during download.
+            return json(
+              await app.localLearningSetupCommand(command, {
+                signal: request.signal,
+                remainingMs: () => Number.MAX_SAFE_INTEGER,
+              }),
+            );
+          }
           if (url.pathname === "/api/knowledge" && request.method === "POST") {
-            const command = KnowledgeCommandSchema.parse(await request.json());
+            const command = LearningCommandSchema.parse(await request.json());
             const settleAdmission = app.admitKnowledgeCommand(command);
+            const operation = {
+              signal: request.signal,
+              remainingMs: () => Number.MAX_SAFE_INTEGER,
+            };
             // Cancellation must not queue behind the download it interrupts.
-            if (command.action === "cancel_download")
-              return json(await app.knowledgeCommand(command));
             if (["status", "search", "evidence", "export"].includes(command.action))
-              return json(await app.knowledgeCommand(command));
+              return json(await app.knowledgeCommand(command, operation));
             const next = commandQueue
-              .then(() => app.knowledgeCommand(command))
+              .then(() => app.knowledgeCommand(command, operation))
               .finally(() => settleAdmission?.());
             commandQueue = next.catch(() => {});
             return json(await next);
@@ -422,7 +436,11 @@ export function serveDesktop(
             }
           }
           if (url.pathname === "/api/command" && request.method === "POST") {
-            const raw: unknown = await request.json();
+            const raw = DesktopCommandSchema.parse(await request.json());
+            // Stopping admitted work must not wait for its pending approval response.
+            // Authentication/origin checks above and operation ownership in the app still apply.
+            if (raw.kind === "stop" || (raw.kind === "approval_surface" && raw.action === "stop"))
+              return json(await app.command(raw));
             const settleAdmission = await app.admitCommand(raw);
             const next = commandQueue
               .then(() => app.command(raw))

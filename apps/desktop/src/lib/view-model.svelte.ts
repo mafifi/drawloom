@@ -27,6 +27,7 @@ import { remoteMediaPreviewUrl } from "./media-ui.js";
 import type { ResourceCardPresentation } from "./resource-card.js";
 import { createConversationNavigationViewModel } from "./conversation-navigation-view-model.svelte.js";
 import { initializeUiTelemetry, telemetryFetch as fetch } from "./telemetry.js";
+import { approvalCard } from "./approval-presentation.js";
 type Discovery = DesktopCatalogue["entries"][number];
 type Attachment = {
   id: string;
@@ -107,7 +108,9 @@ export function createDesktopViewModel() {
   let draft = $state(""),
     error = $state(""),
     busy = $state(false);
-  let pendingCommand = $state<DesktopCommand>();
+  let pendingCommand = $state.raw<DesktopCommand>();
+  let stoppingApproval = $state.raw<DesktopCommand>();
+  let stoppingApprovalOwner: Extract<DesktopCommand, { kind: "approval" }> | undefined;
   let elicitationChoices = $state<Record<string, string>>({});
   // Feedback belongs to the initiating control; rejected overlapping work must
   // not replace it. Imports are independent so the next draft remains editable.
@@ -522,6 +525,25 @@ export function createDesktopViewModel() {
   }
   function project(raw: unknown) {
     const next = DesktopSnapshotSchema.parse(raw);
+    const pending = pendingCommand;
+    const stillPending = (owner: Extract<DesktopCommand, { kind: "approval" }>) =>
+      next.approvals.some(
+        (entry) =>
+          entry.conversationId === owner.conversationId &&
+          entry.request.approvalId === owner.resolution.approvalId &&
+          entry.presentationId === owner.presentationId,
+      );
+    if (stoppingApprovalOwner && !stillPending(stoppingApprovalOwner)) {
+      stoppingApproval = undefined;
+      stoppingApprovalOwner = undefined;
+      requestEpoch++;
+    }
+    if (pending?.kind === "approval" && !stillPending(pending)) {
+      // Native invalidation retires this command even if its HTTP response is late.
+      pendingCommand = undefined;
+      busy = false;
+      requestEpoch++;
+    }
     if (
       editTarget &&
       (editTarget.conversationId !== next.selectedId ||
@@ -591,7 +613,7 @@ export function createDesktopViewModel() {
     }
   }
   async function refresh() {
-    if (refreshingEpoch === requestEpoch || busy) return;
+    if (refreshingEpoch === requestEpoch || (busy && pendingCommand?.kind !== "approval")) return;
     const captured = requestEpoch;
     refreshingEpoch = captured;
     try {
@@ -619,6 +641,38 @@ export function createDesktopViewModel() {
     }
   }
   async function command(value: DesktopCommand) {
+    // A native response may be awaiting the provider; Stop cannot queue behind it.
+    if (
+      busy &&
+      (value.kind === "stop" || (value.kind === "approval_surface" && value.action === "stop")) &&
+      pendingCommand?.kind === "approval" &&
+      value.conversationId === pendingCommand.conversationId
+    ) {
+      if (stoppingApproval) return false;
+      stoppingApproval = value;
+      stoppingApprovalOwner = pendingCommand;
+      const epoch = ++requestEpoch;
+      try {
+        const next = await response(
+          await fetch("/api/command", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(value),
+          }),
+        );
+        if (epoch === requestEpoch) project(next);
+        return true;
+      } catch (cause) {
+        if (epoch === requestEpoch)
+          error = cause instanceof Error ? cause.message : "Could not stop the operation";
+        return false;
+      } finally {
+        if (stoppingApproval === value) {
+          stoppingApproval = undefined;
+          stoppingApprovalOwner = undefined;
+        }
+      }
+    }
     if (busy) return false;
     if (
       ["select_conversation", "select_project", "add_project", "create_conversation"].includes(
@@ -632,25 +686,26 @@ export function createDesktopViewModel() {
     error = "";
     stateRead.abort();
     stateRead = new AbortController();
-    requestEpoch++;
+    const epoch = ++requestEpoch;
     pager.invalidate();
     try {
-      project(
-        await response(
-          await fetch("/api/command", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(value),
-          }),
-        ),
+      const next = await response(
+        await fetch("/api/command", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(value),
+        }),
       );
+      if (epoch === requestEpoch) project(next);
       return true;
     } catch (e) {
-      error = e instanceof Error ? e.message : "Operation failed";
+      if (pendingCommand === value) error = e instanceof Error ? e.message : "Operation failed";
       return false;
     } finally {
-      busy = false;
-      pendingCommand = undefined;
+      if (pendingCommand === value) {
+        busy = false;
+        pendingCommand = undefined;
+      }
     }
   }
   async function selectConversation(id: string) {
@@ -1191,6 +1246,45 @@ export function createDesktopViewModel() {
     get pendingCommand() {
       return pendingCommand;
     },
+    get approvals() {
+      return (state?.approvals ?? []).map((entry) => ({
+        id: entry.request.approvalId,
+        presentation: approvalCard(entry, pendingCommand, busy, stoppingApproval),
+        actions: {
+          choose: (optionId: string) =>
+            command({
+              kind: "approval",
+              conversationId: entry.conversationId,
+              presentationId: entry.presentationId,
+              resolution: { approvalId: entry.request.approvalId, optionId },
+            }),
+          dismiss: () =>
+            command({
+              kind: "approval_surface",
+              conversationId: entry.conversationId,
+              presentationId: entry.presentationId,
+              approvalId: entry.request.approvalId,
+              action: "dismiss",
+            }),
+          reopen: () =>
+            command({
+              kind: "approval_surface",
+              conversationId: entry.conversationId,
+              presentationId: entry.presentationId,
+              approvalId: entry.request.approvalId,
+              action: "reopen",
+            }),
+          stop: () =>
+            command({
+              kind: "approval_surface",
+              action: "stop",
+              conversationId: entry.conversationId,
+              approvalId: entry.request.approvalId,
+              presentationId: entry.presentationId,
+            }),
+        },
+      }));
+    },
     get creationSource() {
       return creationSource;
     },
@@ -1416,7 +1510,7 @@ export function createDesktopViewModel() {
       void initializeUiTelemetry();
       await refresh();
       timer = setInterval(() => {
-        if (!busy) void refresh();
+        if (!busy || pendingCommand?.kind === "approval") void refresh();
         if (
           !catalogueError &&
           catalogue?.categories.some((category) => category.status === "loading")

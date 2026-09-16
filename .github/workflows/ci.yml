@@ -80,8 +80,8 @@ jobs:
       - name: Verify real service recovery
         # Each test owns an isolated service and closes it in finally.
         run: bun run test:temporal
-      - name: Verify Nightloom service recovery
-        run: bun run test:temporal:learning
+      - name: Verify learning orchestration recovery (Temporal-backed)
+        run: bun run test:orchestration:learning
 
   publish:
     needs: [check, learning-integration]

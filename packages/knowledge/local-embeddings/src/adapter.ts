@@ -4,7 +4,7 @@ import {
   EmbeddingBatchSchema,
   embeddingResultSchemaFor,
   type EmbeddingConfiguration,
-  type KnowledgeAuthorizer,
+  type Authorizer,
   type KnowledgeEmbeddings,
 } from "@drawloom/knowledge";
 import { KnownLlamaRuntime, knownManifest, type KnownModelId } from "./manifest.js";
@@ -35,27 +35,48 @@ export function embeddingConfiguration(model: KnownModelId): EmbeddingConfigurat
 
 export function createKnowledgeEmbeddings(options: {
   model: KnownModelId;
-  authorizer: KnowledgeAuthorizer;
+  authorizer: Authorizer;
   worker: Pick<EmbeddingWorker, "embed">;
 }): KnowledgeEmbeddings {
   const configuration = embeddingConfiguration(options.model);
   return {
-    async embed(subject, input) {
+    async embed(subject, input, parent) {
+      const deadline = performance.now() + 30_000;
+      const operation = parent ?? {
+        signal: new AbortController().signal,
+        remainingMs: () => deadline - performance.now(),
+      };
+      const stopped = () => {
+        if (operation.signal.aborted)
+          return { kind: "failure" as const, code: "cancelled" as const };
+        try {
+          const remaining = operation.remainingMs();
+          if (Number.isFinite(remaining) && remaining > 0) return;
+        } catch {}
+        return { kind: "failure" as const, code: "budget_exhausted" as const };
+      };
+      if (stopped()) return stopped()!;
       try {
-        const decision = AuthorizationResultSchema.parse(
-          await options.authorizer.authorize({
-            subject,
-            action: { name: "embed" },
-            resource: {
-              type: "embedding-destination",
-              id: configuration.id,
-              properties: { local: true },
+        const decision = AuthorizationResultSchema.safeParse(
+          await options.authorizer.authorize(
+            {
+              subject,
+              action: { name: "embed" },
+              resource: {
+                type: "embedding-destination",
+                id: configuration.id,
+                properties: { local: true },
+              },
             },
-          }),
+            operation,
+          ),
         );
-        if (!("decision" in decision) || !decision.decision) return { kind: "denied" };
+        if (stopped()) return stopped()!;
+        if (!decision.success) return { kind: "failure", code: "malformed_result" };
+        if (!("decision" in decision.data)) return decision.data;
+        if (!decision.data.decision) return { kind: "denied" };
       } catch {
-        return { kind: "denied" };
+        return stopped() ?? { kind: "failure", code: "rejected" };
       }
       const parsed = EmbeddingBatchSchema.safeParse(input);
       if (!parsed.success) return { kind: "failure", code: "invalid" };
@@ -67,10 +88,17 @@ export function createKnowledgeEmbeddings(options: {
       )
         return { kind: "failure", code: "invalid" };
       try {
-        const vectors = await options.worker.embed({
-          role: batch.role,
-          items: batch.items.map((item) => item.text),
-        });
+        const vectors = await options.worker.embed(
+          {
+            role: batch.role,
+            items: batch.items.map((item) => item.text),
+          },
+          {
+            signal: operation.signal,
+            timeoutMs: Math.floor(Math.min(300_000, operation.remainingMs())),
+          },
+        );
+        if (stopped()) return stopped()!;
         const result = embeddingResultSchemaFor(batch).safeParse({
           kind: "ok",
           configuration,
@@ -82,7 +110,7 @@ export function createKnowledgeEmbeddings(options: {
         });
         return result.success ? result.data : { kind: "failure", code: "invalid" };
       } catch {
-        return { kind: "failure", code: "unavailable" };
+        return stopped() ?? { kind: "failure", code: "unavailable" };
       }
     },
   };

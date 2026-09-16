@@ -1,3 +1,4 @@
+import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 import { expect, test } from "bun:test";
 import { z } from "zod";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -45,7 +46,7 @@ for (const mode of ["approve", "deny", "delegated", "revoked"] as const) {
             },
           }),
         ],
-        policy: () => grant,
+        authorization: toolAuthorizationFixture({ authorize: async () => ({ decision: grant }) }),
         nextInvocationId: () => crypto.randomUUID(),
         evidence: { async record() {} },
       });

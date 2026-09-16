@@ -1,3 +1,4 @@
+import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 import { test, expect } from "bun:test";
 import { z } from "zod";
 import { defineTool, type ToolDefinition } from "@drawloom/tools";
@@ -21,7 +22,7 @@ test("cancellation after an effect waits for settlement and does not retry", asy
   });
   const gateway = createLocalToolGateway({
     tools: [tool],
-    policy: () => true,
+    authorization: toolAuthorizationFixture(),
     evidence: { record: async () => {} },
     nextInvocationId: () => "id",
   });
@@ -55,7 +56,7 @@ test("custom renderer cannot mutate the canonical result and render failures pre
   });
   const g = createLocalToolGateway({
     tools: [tool, bad],
-    policy: () => true,
+    authorization: toolAuthorizationFixture(),
     evidence: { record: async () => {} },
     nextInvocationId: () => String(++id),
   });
@@ -83,7 +84,7 @@ test("output and rendering failures retain execution knowledge without retry", a
   });
   const gateway = createLocalToolGateway({
     tools: [tool],
-    policy: () => true,
+    authorization: toolAuthorizationFixture(),
     evidence: { record: async () => {} },
     nextInvocationId: () => String(calls + 1),
   });
@@ -110,14 +111,14 @@ test("catalogue rejects duplicates and takes an immutable schema snapshot", () =
   expect(() =>
     createLocalToolGateway({
       tools: [tool, tool],
-      policy: () => true,
+      authorization: toolAuthorizationFixture(),
       evidence: { record: async () => {} },
       nextInvocationId: () => "1",
     }),
   ).toThrow();
   const g = createLocalToolGateway({
     tools: [tool],
-    policy: () => true,
+    authorization: toolAuthorizationFixture(),
     evidence: { record: async () => {} },
     nextInvocationId: () => "1",
   });
@@ -148,7 +149,7 @@ test("annotation values supplied at authoring and gateway boundaries are validat
     expect(() =>
       createLocalToolGateway({
         tools: [manual],
-        policy: () => true,
+        authorization: toolAuthorizationFixture(),
         evidence: { record: async () => {} },
         nextInvocationId: () => "1",
       }),

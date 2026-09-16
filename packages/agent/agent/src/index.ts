@@ -122,6 +122,22 @@ export const AgentApprovalResolutionSchema = z.strictObject({
   optionId: id,
 });
 export type AgentApprovalResolution = z.infer<typeof AgentApprovalResolutionSchema>;
+export const AgentApprovalRequestSchema = z.strictObject({
+  approvalId: id,
+  operationId: id,
+  summary: z.string().max(4096),
+  details: z.string().max(16384).optional(),
+  options: z
+    .array(
+      z.strictObject({
+        optionId: id,
+        label: z.string().max(512),
+        description: z.string().max(4096).optional(),
+      }),
+    )
+    .min(1),
+});
+export type AgentApprovalRequest = z.infer<typeof AgentApprovalRequestSchema>;
 export const AgentInputResolutionSchema = z.discriminatedUnion("action", [
   z.strictObject({
     requestId: id,
@@ -227,21 +243,7 @@ export const AgentSessionSignalSchema = z.discriminatedUnion("kind", [
   }),
   z.strictObject({
     kind: z.literal("approval.requested"),
-    request: z.strictObject({
-      approvalId: id,
-      operationId: id,
-      summary: z.string().max(4096),
-      details: z.string().max(16384).optional(),
-      options: z
-        .array(
-          z.strictObject({
-            optionId: id,
-            label: z.string().max(512),
-            description: z.string().max(4096).optional(),
-          }),
-        )
-        .min(1),
-    }),
+    request: AgentApprovalRequestSchema,
   }),
   z.strictObject({
     kind: z.literal("approval.resolved"),

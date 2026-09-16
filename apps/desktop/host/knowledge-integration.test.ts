@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createManagedLocalKnowledgeClient } from "@drawloom/local-knowledge-runtime";
+import { createAuthorizedKnowledgeFixture as createManagedLocalKnowledgeClient } from "../tests/knowledge-authority-fixture.js";
 import {
   SearchResultSchema,
   type KnowledgeAssessment,
@@ -14,7 +14,7 @@ import {
 import { createNightloomTaskHandlers, type NightloomAssessmentReceipt } from "@drawloom/nightloom";
 import type { TaskContext } from "@drawloom/orchestration";
 import { createDesktopApplication } from "./application.js";
-import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION } from "@drawloom/local-knowledge-runtime";
+import { confirmApplicationLearning } from "../tests/learning-consent-fixture.js";
 
 test("restore completes eligible failed intake without opening a synthetic execution", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-outcome-recovery-"));
@@ -27,10 +27,10 @@ test("restore completes eligible failed intake without opening a synthetic execu
     });
     return createDesktopApplication(data, {
       knowledge: {
-        service: {
+        local: {
           ...client,
-          ingest: (input) =>
-            denied ? Promise.resolve({ kind: "denied" as const }) : client.ingest(input),
+          ingest: (input, operation) =>
+            denied ? Promise.resolve({ kind: "denied" as const }) : client.ingest(input, operation),
         },
       },
     });
@@ -42,9 +42,10 @@ test("restore completes eligible failed intake without opening a synthetic execu
     await app.command({ kind: "add_project", directory });
     await app.command({ kind: "create_conversation", workbenchId: "text", provider: "synthetic" });
     const id = (await app.snapshot()).selectedId!;
-    await app.knowledgeCommand({
-      action: "configure",
-      configuration: { ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, captureOutcomes: true },
+    await confirmApplicationLearning(app, {
+      captureOutcomes: true,
+      automaticContext: false,
+      automaticCuration: false,
     });
     await app.command({
       kind: "operator",
@@ -98,9 +99,9 @@ test("recovering one conversation keeps another conversation's learning warning 
     });
     return createDesktopApplication(data, {
       knowledge: {
-        service: {
+        local: {
           ...client,
-          ingest: (input) => {
+          ingest: (input, operation) => {
             const confidence = "record" in input ? input.record.confidence : undefined;
             const conversationId =
               confidence &&
@@ -110,7 +111,7 @@ test("recovering one conversation keeps another conversation's learning warning 
                 ? confidence.conversationId
                 : undefined;
             return conversationId && recoverable.has(conversationId)
-              ? client.ingest(input)
+              ? client.ingest(input, operation)
               : Promise.resolve({ kind: "denied" as const });
           },
         },
@@ -119,9 +120,10 @@ test("recovering one conversation keeps another conversation's learning warning 
   };
   let app = await open();
   try {
-    await app.knowledgeCommand({
-      action: "configure",
-      configuration: { ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, captureOutcomes: true },
+    await confirmApplicationLearning(app, {
+      captureOutcomes: true,
+      automaticContext: false,
+      automaticCuration: false,
     });
     const conversations: string[] = [];
     for (const name of ["first", "second"]) {
@@ -192,10 +194,10 @@ test("an unreadable capture queue keeps the aggregate pending count unknown", as
     });
     return createDesktopApplication(data, {
       knowledge: {
-        service: {
+        local: {
           ...client,
-          ingest: (input) =>
-            denied ? Promise.resolve({ kind: "denied" as const }) : client.ingest(input),
+          ingest: (input, operation) =>
+            denied ? Promise.resolve({ kind: "denied" as const }) : client.ingest(input, operation),
         },
       },
     });
@@ -204,9 +206,10 @@ test("an unreadable capture queue keeps the aggregate pending count unknown", as
   const unavailableDirectory = join(root, "first-unavailable");
   let app = await open();
   try {
-    await app.knowledgeCommand({
-      action: "configure",
-      configuration: { ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, captureOutcomes: true },
+    await confirmApplicationLearning(app, {
+      captureOutcomes: true,
+      automaticContext: false,
+      automaticCuration: false,
     });
     const conversations: string[] = [];
     for (const [name, sends] of [
@@ -285,16 +288,17 @@ test("enabled product word count captures selected counts without retaining supp
   const data = join(root, "data");
   const app = await createDesktopApplication(data, {
     knowledge: {
-      service: createManagedLocalKnowledgeClient({
+      local: createManagedLocalKnowledgeClient({
         root: join(data, "knowledge"),
         workingDirectory: root,
       }),
     },
   });
   try {
-    await app.knowledgeCommand({
-      action: "configure",
-      configuration: { ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, captureOutcomes: true },
+    await confirmApplicationLearning(app, {
+      captureOutcomes: true,
+      automaticContext: false,
+      automaticCuration: false,
     });
     const directory = join(root, "project");
     await mkdir(directory);
@@ -337,19 +341,24 @@ test("two project conversations capture into the real shared SQLite service and 
   const open = () =>
     createDesktopApplication(data, {
       knowledge: {
-        service: createManagedLocalKnowledgeClient({
+        local: createManagedLocalKnowledgeClient({
           root: join(data, "knowledge"),
           workingDirectory: root,
         }),
       },
     });
   let app = await open();
+  await confirmApplicationLearning(app, {
+    captureOutcomes: true,
+    automaticContext: false,
+    automaticCuration: false,
+  });
   const search = async () =>
     SearchResultSchema.parse(
       await app.knowledgeCommand({
         action: "search",
         request: {
-          query: "completed",
+          query: "counted",
           mode: "best_available",
           limit: 20,
           maxBytes: 65_536,

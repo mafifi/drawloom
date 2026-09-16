@@ -1,3 +1,4 @@
+import type { AuthorizationEvaluationOptions } from "@drawloom/authorization";
 import { createHash } from "node:crypto";
 import type { JsonStore, JsonValue } from "@drawloom/host";
 import type {
@@ -21,44 +22,64 @@ import {
   createNightloomTaskHandlers,
   DEFAULT_NIGHTLOOM_SETTINGS,
   NightloomWorkflowResultSchema,
+  NightloomCoordinatorStateSchema,
   type NightloomAssessmentReceipt,
   type NightloomCoordinatorState,
 } from "@drawloom/nightloom";
 import type { z } from "zod";
 import type { LocalKnowledgeConfiguration } from "@drawloom/local-knowledge-runtime";
+import type { createLearningPermission } from "./learning-permission.js";
+import type { LearningCuration } from "@drawloom/knowledge/learning";
 
 export interface NightloomKnowledgeService {
-  maintenanceStatus(): ReturnType<import("@drawloom/knowledge").KnowledgeMaintenance["status"]>;
+  /** Host-bound view preserving unattended scheduling through nested reads. */
+  readonly background?: NightloomKnowledgeService;
+  maintenanceStatus(
+    operation?: AuthorizationEvaluationOptions,
+  ): ReturnType<import("@drawloom/knowledge").KnowledgeMaintenance["status"]>;
   maintenancePending(
     value: z.input<typeof PendingRequestSchema>,
+    operation?: AuthorizationEvaluationOptions,
   ): ReturnType<import("@drawloom/knowledge").KnowledgeMaintenance["pending"]>;
   maintenancePublish(
     value: PublicationInput,
+    operation?: AuthorizationEvaluationOptions,
   ): ReturnType<import("@drawloom/knowledge").KnowledgeMaintenance["publish"]>;
   maintenanceRelease(
     value: WorkBatchReleaseInput,
+    operation?: AuthorizationEvaluationOptions,
   ): ReturnType<import("@drawloom/knowledge").KnowledgeMaintenance["release"]>;
   search(
     value: SearchRequest,
+    operation?: AuthorizationEvaluationOptions,
   ): ReturnType<import("@drawloom/knowledge").KnowledgeRetrieval["search"]>;
-  get(value: RecordRef): ReturnType<import("@drawloom/knowledge").KnowledgeRetrieval["get"]>;
+  get(
+    value: RecordRef,
+    operation?: AuthorizationEvaluationOptions,
+  ): ReturnType<import("@drawloom/knowledge").KnowledgeRetrieval["get"]>;
   expand(
     value: ExpandRequest,
+    operation?: AuthorizationEvaluationOptions,
   ): ReturnType<import("@drawloom/knowledge").KnowledgeRetrieval["expand"]>;
   evidence(
     value: EvidenceRequest,
+    operation?: AuthorizationEvaluationOptions,
   ): ReturnType<import("@drawloom/knowledge").KnowledgeRetrieval["evidence"]>;
   export(
     value: KnowledgeExportRequest,
+    operation?: AuthorizationEvaluationOptions,
   ): ReturnType<import("@drawloom/knowledge").KnowledgeRetrieval["export"]>;
   assess(
     value: AssessmentRequest,
+    operation?: AuthorizationEvaluationOptions,
   ): ReturnType<import("@drawloom/knowledge").KnowledgeAssessment["assess"]>;
   reconcile(
     value: AssessmentReconcileRequest,
+    operation?: AuthorizationEvaluationOptions,
   ): ReturnType<import("@drawloom/knowledge").KnowledgeAssessment["reconcile"]>;
   cancelAssessment(
     value: AssessmentReconcileRequest,
+    operation?: AuthorizationEvaluationOptions,
   ): ReturnType<import("@drawloom/knowledge").KnowledgeAssessment["cancel"]>;
 }
 
@@ -68,25 +89,12 @@ const subject = Object.freeze({
   properties: { locality: "device", scope: "global-knowledge" },
 }) as unknown as TrustedKnowledgeSubject;
 
-export function isNightloomKnowledgeService(value: object): value is NightloomKnowledgeService {
-  return [
-    "maintenanceStatus",
-    "maintenancePending",
-    "maintenancePublish",
-    "maintenanceRelease",
-    "get",
-    "expand",
-    "assess",
-    "reconcile",
-    "cancelAssessment",
-  ].every((name) => typeof Reflect.get(value, name) === "function");
-}
-
 export function createKnowledgeNightloom(options: {
   service: NightloomKnowledgeService;
   store: JsonStore;
   packageDirectory: string;
   settings(): Promise<LocalKnowledgeConfiguration>;
+  permission: ReturnType<typeof createLearningPermission>;
   prepareHost(owner: PrepareHostOwner): Promise<LocalTemporalRegistration>;
   /** Trusted host lifetime seam, never browser/model configuration. */
   scheduleTick?(tick: () => Promise<void>, milliseconds: number): () => void;
@@ -109,33 +117,80 @@ export function createKnowledgeNightloom(options: {
     else receiptSerial = result.catch(() => undefined);
     return result;
   };
+  const service = options.service.background ?? options.service;
   const maintenance = {
-    status: () => options.service.maintenanceStatus(),
-    pending: (_subject: TrustedKnowledgeSubject, request: z.input<typeof PendingRequestSchema>) =>
-      options.service.maintenancePending(request),
-    publish: (_subject: TrustedKnowledgeSubject, request: PublicationInput) =>
-      options.service.maintenancePublish(request),
-    release: (_subject: TrustedKnowledgeSubject, request: WorkBatchReleaseInput) =>
-      options.service.maintenanceRelease(request),
+    status: (_subject: TrustedKnowledgeSubject, operation?: AuthorizationEvaluationOptions) =>
+      service.maintenanceStatus(operation),
+    pending: (
+      _subject: TrustedKnowledgeSubject,
+      request: z.input<typeof PendingRequestSchema>,
+      operation?: AuthorizationEvaluationOptions,
+    ) => service.maintenancePending(request, operation),
+    publish: (
+      _subject: TrustedKnowledgeSubject,
+      request: PublicationInput,
+      operation?: AuthorizationEvaluationOptions,
+    ) => service.maintenancePublish(request, operation),
+    release: (
+      _subject: TrustedKnowledgeSubject,
+      request: WorkBatchReleaseInput,
+      operation?: AuthorizationEvaluationOptions,
+    ) => service.maintenanceRelease(request, operation),
   };
   const retrieval = {
-    search: (_subject: TrustedKnowledgeSubject, request: SearchRequest) =>
-      options.service.search(request),
-    get: (_subject: TrustedKnowledgeSubject, ref: RecordRef) => options.service.get(ref),
-    expand: (_subject: TrustedKnowledgeSubject, request: ExpandRequest) =>
-      options.service.expand(request),
-    evidence: (_subject: TrustedKnowledgeSubject, request: EvidenceRequest) =>
-      options.service.evidence(request),
-    export: (_subject: TrustedKnowledgeSubject, request: KnowledgeExportRequest) =>
-      options.service.export(request),
+    search: (
+      _subject: TrustedKnowledgeSubject,
+      request: SearchRequest,
+      operation?: AuthorizationEvaluationOptions,
+    ) => service.search(request, operation),
+    get: (
+      _subject: TrustedKnowledgeSubject,
+      ref: RecordRef,
+      operation?: AuthorizationEvaluationOptions,
+    ) => service.get(ref, operation),
+    expand: (
+      _subject: TrustedKnowledgeSubject,
+      request: ExpandRequest,
+      operation?: AuthorizationEvaluationOptions,
+    ) => service.expand(request, operation),
+    evidence: (
+      _subject: TrustedKnowledgeSubject,
+      request: EvidenceRequest,
+      operation?: AuthorizationEvaluationOptions,
+    ) => service.evidence(request, operation),
+    export: (
+      _subject: TrustedKnowledgeSubject,
+      request: KnowledgeExportRequest,
+      operation?: AuthorizationEvaluationOptions,
+    ) => service.export(request, operation),
   };
   const assessment = {
-    assess: (_subject: TrustedKnowledgeSubject, request: AssessmentRequest) =>
-      options.service.assess(request),
-    reconcile: (_subject: TrustedKnowledgeSubject, request: AssessmentReconcileRequest) =>
-      options.service.reconcile(request),
-    cancel: (_subject: TrustedKnowledgeSubject, request: AssessmentReconcileRequest) =>
-      options.service.cancelAssessment(request),
+    assess: async (
+      _subject: TrustedKnowledgeSubject,
+      request: AssessmentRequest,
+      operation?: AuthorizationEvaluationOptions,
+    ) => {
+      // Mode comes from the host coordinator's durable ownership, never worker input.
+      const raw = await options.store.get("knowledge-nightloom-coordinator");
+      const state = raw === undefined ? undefined : NightloomCoordinatorStateSchema.parse(raw);
+      if (!state?.active) return { kind: "denied" as const };
+      const lease = await options.permission.lease("automaticCuration", state.active.mode);
+      if (!lease) return { kind: "denied" as const };
+      return service.assess(request, {
+        signal: operation ? AbortSignal.any([lease.signal, operation.signal]) : lease.signal,
+        remainingMs: operation?.remainingMs ?? lease.remainingMs,
+      });
+    },
+    reconcile: (
+      _subject: TrustedKnowledgeSubject,
+      request: AssessmentReconcileRequest,
+      operation?: AuthorizationEvaluationOptions,
+    ) => service.reconcile(request, operation),
+    cancel: (
+      _subject: TrustedKnowledgeSubject,
+      request: AssessmentReconcileRequest,
+      operation?: AuthorizationEvaluationOptions,
+    ) => service.cancelAssessment(request, operation),
   };
   const coordinatorStore = {
     async load() {
@@ -234,8 +289,10 @@ export function createKnowledgeNightloom(options: {
   const ready = async () => ((await initialize()).status === "ready" ? coordinator : undefined);
   async function tick() {
     // Old configuration, default model selection and unpaused state are not consent.
-    if (!(await options.settings()).automaticCuration) return { kind: "idle" as const };
+    const lease = await options.permission.lease("automaticCuration");
+    if (!lease) return { kind: "idle" as const };
     const current = await ready();
+    if (lease.signal.aborted) return { kind: "cancelled" as const };
     return current ? current.tick() : { kind: "unavailable" as const };
   }
   let scheduling = false,
@@ -281,7 +338,10 @@ export function createKnowledgeNightloom(options: {
     },
     stopScheduling,
     async runNow(overrideBudget: boolean) {
+      const lease = await options.permission.lease("automaticCuration", "manual");
+      if (!lease) return { kind: "consent_required" as const };
       const current = await ready();
+      if (lease.signal.aborted) return { kind: "cancelled" as const };
       return current ? current.runNow(overrideBudget) : { kind: "unavailable" as const };
     },
     async pause() {
@@ -374,6 +434,50 @@ export function createKnowledgeNightloom(options: {
       await stopScheduling();
       await preparing?.catch(() => undefined);
       await registration?.close();
+    },
+  };
+}
+
+export function createLocalLearningCuration(
+  nightloom: ReturnType<typeof createKnowledgeNightloom>,
+  pendingUpdates: () => Promise<number>,
+): LearningCuration {
+  return {
+    async status() {
+      const state = await nightloom.status();
+      return {
+        state: state.state === "idle" && state.paused ? "paused" : state.state,
+        paused: state.paused,
+        active: !!state.active,
+        message: state.message ?? "",
+        pendingUpdates: await pendingUpdates(),
+        automaticStartsToday: state.budget.automaticStarts,
+        automaticMillisecondsToday: state.budget.automaticReservedMilliseconds,
+      };
+    },
+    // The scheduler evaluates host consent on each attempt; this never creates a grant.
+    setAutomatic: async () => ({ kind: "ready" }),
+    async run(override) {
+      const result = await nightloom.runNow(override);
+      return result.kind === "started"
+        ? { kind: result.kind, runId: result.runId }
+        : { kind: result.kind };
+    },
+    async pause() {
+      try {
+        await nightloom.pause();
+        return { kind: "ready" };
+      } catch {
+        return { kind: "unavailable" };
+      }
+    },
+    async resume() {
+      try {
+        await nightloom.resume();
+        return { kind: "ready" };
+      } catch {
+        return { kind: "unavailable" };
+      }
     },
   };
 }

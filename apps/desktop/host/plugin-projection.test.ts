@@ -1,3 +1,4 @@
+import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 import { test, expect } from "bun:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -38,7 +39,7 @@ test("standard server projection preserves wire names, app visibility, validatio
     let allowed = false;
     const gateway = createLocalToolGateway({
       tools: first.tools,
-      policy: () => allowed,
+      authorization: toolAuthorizationFixture({ authorize: async () => ({ decision: allowed }) }),
       nextInvocationId: () => crypto.randomUUID(),
       evidence: { record: async () => {} },
     });
@@ -80,7 +81,7 @@ test("an MCP tool error remains a failed gateway invocation and recorded outcome
     const recorded: unknown[] = [];
     const gateway = createLocalToolGateway({
       tools: projection.tools,
-      policy: () => true,
+      authorization: toolAuthorizationFixture(),
       nextInvocationId: () => "failed-invocation",
       evidence: {
         record: async (record) => {

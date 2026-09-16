@@ -27,6 +27,7 @@
     "runtime": "portable"
   },
   "dependencies": {
+    "@drawloom/authorization": "workspace:*",
     "@modelcontextprotocol/sdk": "catalog:",
     "zod": "catalog:",
     "@drawloom/host": "workspace:*"

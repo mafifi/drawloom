@@ -48,15 +48,20 @@
       "version": "0.0.0",
       "dependencies": {
         "@drawloom/agent": "workspace:*",
+        "@drawloom/authorization": "workspace:*",
+        "@drawloom/authorization-scheduler": "workspace:*",
         "@drawloom/braintrust-assessment": "workspace:*",
         "@drawloom/codex-agent": "workspace:*",
+        "@drawloom/context": "workspace:*",
         "@drawloom/conversation-history": "workspace:*",
+        "@drawloom/default-context": "workspace:*",
         "@drawloom/desktop-host": "workspace:*",
         "@drawloom/evaluation": "workspace:*",
         "@drawloom/evaluation-orchestration": "workspace:*",
         "@drawloom/git-knowledge-source": "workspace:*",
         "@drawloom/host": "workspace:*",
         "@drawloom/knowledge": "workspace:*",
+        "@drawloom/local-authorization": "workspace:*",
         "@drawloom/local-knowledge-runtime": "workspace:*",
         "@drawloom/local-plugin-packages": "workspace:*",
         "@drawloom/local-tools": "workspace:*",
@@ -81,6 +86,7 @@
         "zod": "catalog:",
       },
       "devDependencies": {
+        "@drawloom/replacement-examples": "workspace:*",
         "@modelcontextprotocol/ext-apps": "catalog:",
         "@modelcontextprotocol/sdk": "catalog:",
         "@sveltejs/adapter-static": "catalog:",
@@ -126,12 +132,48 @@
         "zod": "catalog:",
       },
     },
+    "packages/authorization/authorization": {
+      "name": "@drawloom/authorization",
+      "version": "0.0.0",
+      "dependencies": {
+        "zod": "catalog:",
+      },
+    },
+    "packages/authorization/authorization-scheduler": {
+      "name": "@drawloom/authorization-scheduler",
+      "version": "0.0.0",
+      "dependencies": {
+        "@drawloom/authorization": "workspace:*",
+      },
+    },
+    "packages/authorization/deterministic-authorization": {
+      "name": "@drawloom/deterministic-authorization",
+      "version": "0.0.0",
+      "dependencies": {
+        "@drawloom/authorization": "workspace:*",
+      },
+    },
+    "packages/authorization/local-authorization": {
+      "name": "@drawloom/local-authorization",
+      "version": "0.0.0",
+      "dependencies": {
+        "@drawloom/authorization": "workspace:*",
+      },
+    },
     "packages/context/context": {
       "name": "@drawloom/context",
       "version": "0.0.0",
       "dependencies": {
+        "@drawloom/host": "workspace:*",
         "@drawloom/knowledge": "workspace:*",
         "zod": "catalog:",
+      },
+    },
+    "packages/context/default-context": {
+      "name": "@drawloom/default-context",
+      "version": "0.0.0",
+      "dependencies": {
+        "@drawloom/context": "workspace:*",
       },
     },
     "packages/context/knowledge-context": {
@@ -220,6 +262,16 @@
         "vite": "catalog:",
       },
     },
+    "packages/examples/replacement-examples": {
+      "name": "@drawloom/replacement-examples",
+      "version": "0.0.0",
+      "dependencies": {
+        "@drawloom/agent": "workspace:*",
+        "@drawloom/authorization": "workspace:*",
+        "@drawloom/context": "workspace:*",
+        "@drawloom/knowledge": "workspace:*",
+      },
+    },
     "packages/examples/synthetic-workbench": {
       "name": "@drawloom/synthetic-workbench",
       "version": "0.0.0",
@@ -254,6 +306,7 @@
       "name": "@drawloom/codex-assessment",
       "version": "0.0.0",
       "dependencies": {
+        "@drawloom/authorization": "workspace:*",
         "@drawloom/host": "workspace:*",
         "@drawloom/knowledge": "workspace:*",
         "zod": "catalog:",
@@ -263,6 +316,7 @@
       "name": "@drawloom/knowledge",
       "version": "0.0.0",
       "dependencies": {
+        "@drawloom/authorization": "workspace:*",
         "zod": "catalog:",
       },
     },
@@ -281,6 +335,7 @@
       "name": "@drawloom/local-knowledge-runtime",
       "version": "0.0.0",
       "dependencies": {
+        "@drawloom/authorization": "workspace:*",
         "@drawloom/codex-assessment": "workspace:*",
         "@drawloom/context": "workspace:*",
         "@drawloom/host": "workspace:*",
@@ -308,6 +363,7 @@
       "name": "@drawloom/sqlite-knowledge",
       "version": "0.0.0",
       "dependencies": {
+        "@drawloom/authorization": "workspace:*",
         "@drawloom/knowledge": "workspace:*",
         "sqlite-vec": "catalog:",
         "zod": "catalog:",
@@ -419,6 +475,7 @@
       "name": "@drawloom/local-tools",
       "version": "0.0.0",
       "dependencies": {
+        "@drawloom/authorization": "workspace:*",
         "@drawloom/host": "workspace:*",
         "@drawloom/tools": "workspace:*",
         "zod": "catalog:",
@@ -428,6 +485,7 @@
       "name": "@drawloom/tools",
       "version": "0.0.0",
       "dependencies": {
+        "@drawloom/authorization": "workspace:*",
         "@drawloom/host": "workspace:*",
         "@modelcontextprotocol/sdk": "catalog:",
         "zod": "catalog:",
@@ -807,6 +865,10 @@
 
     "@drawloom/agent": ["@drawloom/agent@workspace:packages/agent/agent"],
 
+    "@drawloom/authorization": ["@drawloom/authorization@workspace:packages/authorization/authorization"],
+
+    "@drawloom/authorization-scheduler": ["@drawloom/authorization-scheduler@workspace:packages/authorization/authorization-scheduler"],
+
     "@drawloom/braintrust-assessment": ["@drawloom/braintrust-assessment@workspace:packages/evaluation/braintrust-assessment"],
 
     "@drawloom/codex-agent": ["@drawloom/codex-agent@workspace:packages/agent/codex-agent"],
@@ -817,9 +879,13 @@
 
     "@drawloom/conversation-history": ["@drawloom/conversation-history@workspace:packages/observability/conversation-history"],
 
+    "@drawloom/default-context": ["@drawloom/default-context@workspace:packages/context/default-context"],
+
     "@drawloom/desktop": ["@drawloom/desktop@workspace:apps/desktop"],
 
     "@drawloom/desktop-host": ["@drawloom/desktop-host@workspace:packages/desktop/desktop-host"],
+
+    "@drawloom/deterministic-authorization": ["@drawloom/deterministic-authorization@workspace:packages/authorization/deterministic-authorization"],
 
     "@drawloom/evaluation": ["@drawloom/evaluation@workspace:packages/evaluation/evaluation"],
 
@@ -836,6 +902,8 @@
     "@drawloom/knowledge-context": ["@drawloom/knowledge-context@workspace:packages/context/knowledge-context"],
 
     "@drawloom/knowledge-evaluation": ["@drawloom/knowledge-evaluation@workspace:packages/examples/knowledge-evaluation"],
+
+    "@drawloom/local-authorization": ["@drawloom/local-authorization@workspace:packages/authorization/local-authorization"],
 
     "@drawloom/local-embeddings": ["@drawloom/local-embeddings@workspace:packages/knowledge/local-embeddings"],
 
@@ -854,6 +922,8 @@
     "@drawloom/otel-host": ["@drawloom/otel-host@workspace:packages/observability/otel-host"],
 
     "@drawloom/plugins": ["@drawloom/plugins@workspace:packages/plugins/plugins"],
+
+    "@drawloom/replacement-examples": ["@drawloom/replacement-examples@workspace:packages/examples/replacement-examples"],
 
     "@drawloom/sqlite-conversation-history": ["@drawloom/sqlite-conversation-history@workspace:packages/observability/sqlite-conversation-history"],
 

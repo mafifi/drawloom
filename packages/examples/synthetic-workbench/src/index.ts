@@ -43,9 +43,30 @@ export function createSyntheticWorkbench(evidence: ToolEvidenceSink) {
   const registry = createPluginRegistry([{ plugin, config: {} }], ["agent"]);
   const granted = new Set<string>();
   let sequence = 0;
+  let generation = 0;
   const gateway = createLocalToolGateway({
     tools: registry.tools,
-    policy: (operation) => granted.has(operation),
+    authorization: {
+      authorizer: {
+        authorize: async (request) => ({ decision: request.subject.properties.granted === true }),
+      },
+      authority: {
+        resolve: (operationId, tool) => ({
+          generation,
+          request: {
+            subject: {
+              type: "operation",
+              id: operationId,
+              properties: { granted: granted.has(operationId) },
+            },
+            action: { name: "invoke" },
+            resource: { type: "tool", id: tool, properties: {} },
+          },
+        }),
+        isCurrent: (_operationId, expected) => expected === generation,
+        remainingMs: () => Number.MAX_SAFE_INTEGER,
+      },
+    },
     evidence,
     nextInvocationId: () => `invocation-${++sequence}`,
   });
@@ -55,9 +76,11 @@ export function createSyntheticWorkbench(evidence: ToolEvidenceSink) {
     driver: createSyntheticDriver((text) => text),
     grant(operationId: string) {
       granted.add(operationId);
+      generation++;
     },
     revoke(operationId: string) {
       granted.delete(operationId);
+      generation++;
     },
   };
 }

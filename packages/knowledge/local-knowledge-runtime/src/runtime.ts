@@ -1,3 +1,8 @@
+import {
+  AuthorizationResultSchema,
+  type AuthorizationEvaluationOptions,
+  type Authorizer,
+} from "@drawloom/authorization";
 import { join } from "node:path";
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { createSqliteKnowledge } from "@drawloom/sqlite-knowledge";
@@ -18,7 +23,6 @@ import {
 import {
   type AssessmentReconcileRequest,
   type AssessmentRequest,
-  type AuthZenRequest,
   type EvidenceRequest,
   type ExpandRequest,
   type IntakeInput,
@@ -61,36 +65,12 @@ const resource = (request: {
     : "local-global",
   properties: { locality: "device", scope: "global-knowledge", action: request.action },
 });
-const authorizer = {
-  async authorize(request: AuthZenRequest) {
-    const embedding =
-      request.resource.type === "embedding-destination" &&
-      request.resource.properties.local === true;
-    return {
-      decision:
-        request.subject.type === subject.type &&
-        request.subject.id === subject.id &&
-        (request.resource.properties.scope === "global-knowledge" || embedding),
-    };
-  },
-};
-const authorizeSearch = async (ref?: RecordRef): Promise<boolean> => {
-  try {
-    const result = await authorizer.authorize({
-      subject,
-      action: { name: "knowledge.search" },
-      resource: resource({ action: "knowledge.search", ...(ref ? { ref } : {}) }),
-    });
-    return "decision" in result && result.decision === true;
-  } catch {
-    return false;
-  }
-};
-
 export interface LocalKnowledgeRuntimeOptions {
   root: string;
   workingDirectory: string;
   connectCodex(): Promise<RpcTransport>;
+  /** Trusted composition only. The supervised worker supplies reverse host RPC. */
+  authorizer: Authorizer;
   /** Provider-local deterministic seam for tests; production uses ModelSetup. */
   createEmbeddingSetup?: (
     root: string,
@@ -115,6 +95,26 @@ export interface LocalKnowledgeRuntimeOptions {
 }
 
 export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntimeOptions) {
+  const authorizer = options.authorizer;
+  const authorizeSearch = async (
+    ref: RecordRef | undefined,
+    operation: AuthorizationEvaluationOptions,
+  ) => {
+    try {
+      const result = await authorizer.authorize(
+        {
+          subject,
+          action: { name: "knowledge.search" },
+          resource: resource({ action: "knowledge.search", ...(ref ? { ref } : {}) }),
+        },
+        operation,
+      );
+      return AuthorizationResultSchema.parse(result);
+    } catch {
+      return { kind: "failure" as const, code: "rejected" as const };
+    }
+  };
+
   const state = createNodeJsonStore(join(options.root, "state"));
   const storedConfiguration = await state.get("configuration");
   const configured = parseStoredLocalKnowledgeConfiguration(
@@ -131,6 +131,7 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
   const sqlite = createSqliteKnowledge({
     databasePath: join(options.root, "knowledge.sqlite"),
     authorizer,
+    maintenanceAuthorizer: authorizer,
     resolveResource: ({ action, ref }) => resource({ action, ...(ref ? { ref } : {}) }),
   });
   const modelRoot = join(options.root, "models");
@@ -172,8 +173,9 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
   const preparer = createKnowledgeContextPreparer({
     retrieval: {
       ...sqlite.retrieval,
-      search: (_subject, request) =>
-        activeSemantic?.retrieval.search(request) ?? sqlite.retrieval.search(subject, request),
+      search: (_subject, request, operation) =>
+        activeSemantic?.retrieval.search(request, operation) ??
+        sqlite.retrieval.search(subject, request, operation),
     },
     authorizer,
     subject,
@@ -192,7 +194,7 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
       workingDirectory: options.workingDirectory,
       store: state,
       connect: options.connectCodex,
-      authorizer,
+      authorizer: authorizer,
       resolveResource: async ({ action, ref, destination }) => ({
         ...resource({ action, ...(ref ? { ref } : {}) }),
         properties: { locality: "device", scope: "global-knowledge", destination },
@@ -218,10 +220,15 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
         work: sqlite.indexWork,
         index: sqlite.embeddingIndex,
         embeddings: createKnowledgeEmbeddings({ model, authorizer, worker }),
+        backgroundEmbeddings: createKnowledgeEmbeddings({
+          model,
+          authorizer: authorizer,
+          worker,
+        }),
         configuration: embeddingConfiguration(model),
         authorizeSearch,
-        revision: async () => {
-          const status = await sqlite.maintenance.status(subject);
+        revision: async (operation) => {
+          const status = await sqlite.maintenance.status(subject, operation);
           if (status.kind !== "ok") throw Error("Knowledge revision unavailable");
           return status.checkpoint;
         },
@@ -250,14 +257,19 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
     });
     return preparing;
   }
-  function pumpSemantic() {
-    if (indexing || closed) return;
+  function pumpSemantic(parent?: AuthorizationEvaluationOptions) {
+    if (indexing || closed) return indexing;
+    const deadline = performance.now() + 30_000;
+    const operation = parent ?? {
+      signal: new AbortController().signal,
+      remainingMs: () => deadline - performance.now(),
+    };
     indexing = (async () => {
       await prepareSelectedSemantic();
       const target = candidateSemantic ?? activeSemantic;
       if (!target) return;
       do {
-        await target.retrieval.indexNext();
+        await target.retrieval.indexNext(operation);
         if (closed || (candidateSemantic && candidateSemantic !== target)) return;
         if (target.retrieval.state === "pending")
           await new Promise<void>((resolve) => setImmediate(resolve));
@@ -274,6 +286,7 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
     })().finally(() => {
       indexing = undefined;
     });
+    return indexing;
   }
   async function modelState(id: KnownModelId) {
     const setup = setups.get(id)!;
@@ -306,12 +319,11 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
       return { state: "failed" as const, message: "runtime_unavailable" };
     return { state: "missing" as const };
   }
-  async function status(): Promise<LocalKnowledgeStatus> {
+  async function status(operation?: AuthorizationEvaluationOptions): Promise<LocalKnowledgeStatus> {
     ensureOpen();
-    const backlog = await sqlite.maintenance.status(subject);
+    const backlog = await sqlite.maintenance.status(subject, operation);
     if (backlog.kind !== "ok") throw Error("Knowledge maintenance status unavailable");
     await prepareSelectedSemantic();
-    pumpSemantic();
     const models = await Promise.all(
       (Object.keys(KnownModelManifests) as KnownModelId[]).map(async (id) => {
         const manifest = KnownModelManifests[id];
@@ -366,13 +378,23 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
   }
   return {
     status,
-    async warmup(): Promise<{ kind: "ready" | "unavailable" }> {
+    async index(operation?: AuthorizationEvaluationOptions) {
+      ensureOpen();
+      await pumpSemantic(operation);
+      return {};
+    },
+    async warmup(
+      operation?: AuthorizationEvaluationOptions,
+    ): Promise<{ kind: "ready" | "unavailable" }> {
       ensureOpen();
       try {
         await prepareSelectedSemantic();
         const worker = (candidateSemantic ?? activeSemantic)?.worker;
         if (!worker?.warmup) return { kind: "unavailable" };
-        await worker.warmup({ timeoutMs: 30_000 });
+        await worker.warmup({
+          timeoutMs: Math.floor(Math.min(30_000, operation?.remainingMs() ?? 30_000)),
+          ...(operation ? { signal: operation.signal } : {}),
+        });
         return { kind: "ready" };
       } catch {
         return { kind: "unavailable" };
@@ -380,22 +402,26 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
     },
     async prepare(value: ContextPreparationRequest): Promise<ContextPreparationResult> {
       ensureOpen();
-      const { signal, ...data } = value;
+      const { signal, remainingMs, ...data } = value;
       const request = ContextPreparationRequestSchema.parse(data);
-      if (!configuration.automaticContext) return { kind: "unavailable", references: [], bytes: 0 };
+      // Effective consent is bound to this admitted operation by the trusted host.
+      // Retrieval and disclosure still pass the runtime's independent authorizer.
       const controller = new AbortController();
       preparations.add(controller);
       const cancel = () => controller.abort();
       signal.addEventListener("abort", cancel, { once: true });
       if (signal.aborted) cancel();
       try {
-        return await preparer.prepare({ ...request, signal: controller.signal });
+        return await preparer.prepare({ ...request, signal: controller.signal, remainingMs });
       } finally {
         preparations.delete(controller);
         signal.removeEventListener("abort", cancel);
       }
     },
-    async configure(value: LocalKnowledgeConfiguration) {
+    async configure(
+      value: LocalKnowledgeConfiguration,
+      operation?: AuthorizationEvaluationOptions,
+    ) {
       ensureOpen();
       const next = LocalKnowledgeConfigurationSchema.parse(value);
       // Stop foreground additions immediately, including while assessment config is stable.
@@ -409,86 +435,100 @@ export async function createLocalKnowledgeRuntime(options: LocalKnowledgeRuntime
         await assessment.close();
         assessment = assessmentFor(next);
       }
-      return status();
+      return status(operation);
     },
-    search(request: SearchRequest) {
+    search(request: SearchRequest, operation?: AuthorizationEvaluationOptions) {
       ensureOpen();
-      return activeSemantic?.retrieval.search(request) ?? sqlite.retrieval.search(subject, request);
+      return (
+        activeSemantic?.retrieval.search(request, operation) ??
+        sqlite.retrieval.search(subject, request, operation)
+      );
     },
-    get(ref: RecordRef) {
+    get(ref: RecordRef, operation?: AuthorizationEvaluationOptions) {
       ensureOpen();
-      return sqlite.retrieval.get(subject, ref);
+      return sqlite.retrieval.get(subject, ref, operation);
     },
-    expand(request: ExpandRequest) {
+    expand(request: ExpandRequest, operation?: AuthorizationEvaluationOptions) {
       ensureOpen();
-      return sqlite.retrieval.expand(subject, request);
+      return sqlite.retrieval.expand(subject, request, operation);
     },
-    evidence(request: EvidenceRequest) {
+    evidence(request: EvidenceRequest, operation?: AuthorizationEvaluationOptions) {
       ensureOpen();
-      return sqlite.retrieval.evidence(subject, request);
+      return sqlite.retrieval.evidence(subject, request, operation);
     },
-    export(request: KnowledgeExportRequest) {
+    export(request: KnowledgeExportRequest, operation?: AuthorizationEvaluationOptions) {
       ensureOpen();
-      return sqlite.retrieval.export(subject, request);
+      return sqlite.retrieval.export(subject, request, operation);
     },
-    async ingest(input: IntakeInput) {
+    async ingest(input: IntakeInput, operation?: AuthorizationEvaluationOptions) {
       ensureOpen();
-      const result = await sqlite.intake.ingest(subject, input);
-      if (result.kind === "accepted") pumpSemantic();
+      const result = await sqlite.intake.ingest(subject, input, operation);
       return result;
     },
-    maintenanceStatus() {
+    maintenanceStatus(operation?: AuthorizationEvaluationOptions) {
       ensureOpen();
-      return sqlite.maintenance.status(subject);
+      return sqlite.maintenance.status(subject, operation);
     },
-    maintenancePending(request: Parameters<typeof sqlite.maintenance.pending>[1]) {
+    maintenancePending(
+      request: Parameters<typeof sqlite.maintenance.pending>[1],
+      operation?: AuthorizationEvaluationOptions,
+    ) {
       ensureOpen();
-      return sqlite.maintenance.pending(subject, request);
+      return sqlite.maintenance.pending(subject, request, operation);
     },
-    maintenancePublish(input: PublicationInput) {
+    maintenancePublish(input: PublicationInput, operation?: AuthorizationEvaluationOptions) {
       ensureOpen();
-      return sqlite.maintenance.publish(subject, input);
+      return sqlite.maintenance.publish(subject, input, operation);
     },
-    maintenanceRelease(input: WorkBatchReleaseInput) {
+    maintenanceRelease(input: WorkBatchReleaseInput, operation?: AuthorizationEvaluationOptions) {
       ensureOpen();
-      return sqlite.maintenance.release(subject, input);
+      return sqlite.maintenance.release(subject, input, operation);
     },
-    assess(request: AssessmentRequest) {
+    assess(request: AssessmentRequest, operation?: AuthorizationEvaluationOptions) {
       ensureOpen();
-      return assessment.assess(subject, request);
+      return assessment.assess(subject, request, operation);
     },
-    reconcile(request: AssessmentReconcileRequest) {
+    reconcile(request: AssessmentReconcileRequest, operation?: AuthorizationEvaluationOptions) {
       ensureOpen();
-      return assessment.reconcile(subject, request);
+      return assessment.reconcile(subject, request, operation);
     },
-    cancelAssessment(request: AssessmentReconcileRequest) {
+    cancelAssessment(
+      request: AssessmentReconcileRequest,
+      operation?: AuthorizationEvaluationOptions,
+    ) {
       ensureOpen();
-      return assessment.cancel(subject, request);
+      return assessment.cancel(subject, request, operation);
     },
-    async download(model: KnownModelId): Promise<LocalKnowledgeStatus> {
+    async download(
+      model: KnownModelId,
+      operation?: AuthorizationEvaluationOptions,
+    ): Promise<LocalKnowledgeStatus> {
       ensureOpen();
       const setup = setups.get(model)!;
       const install = setup.install({ consent: true }).then(
-        (result) => {
-          if (result.kind === "ready") pumpSemantic();
-        },
+        () => undefined,
         () => undefined,
       );
       installs.add(install);
       void install.finally(() => installs.delete(install));
-      return status();
+      return status(operation);
     },
-    async cancelDownload(model: KnownModelId): Promise<LocalKnowledgeStatus> {
+    async cancelDownload(
+      model: KnownModelId,
+      operation?: AuthorizationEvaluationOptions,
+    ): Promise<LocalKnowledgeStatus> {
       ensureOpen();
       setups.get(model)!.cancel();
-      return status();
+      return status(operation);
     },
-    async cleanupObsoleteRuntime(): Promise<LocalKnowledgeStatus> {
+    async cleanupObsoleteRuntime(
+      operation?: AuthorizationEvaluationOptions,
+    ): Promise<LocalKnowledgeStatus> {
       ensureOpen();
       const result = await setups.values().next().value!.cleanupObsoleteMlxRuntime();
       if (result.kind === "refused")
         throw Error(`Obsolete runtime cleanup refused: ${result.code}`);
-      return status();
+      return status(operation);
     },
     async close() {
       if (closed) return;

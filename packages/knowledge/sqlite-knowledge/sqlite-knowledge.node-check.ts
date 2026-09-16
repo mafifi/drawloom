@@ -8,7 +8,7 @@ import {
   knowledgeIndexWorkConformance,
   knowledgeStorageConformance,
 } from "@drawloom/knowledge/conformance";
-import type { KnowledgeAuthorizer, RecordRef, TrustedKnowledgeSubject } from "@drawloom/knowledge";
+import type { Authorizer, RecordRef, TrustedKnowledgeSubject } from "@drawloom/knowledge";
 import { createSqliteKnowledge } from "./src/index.ts";
 
 const owner = { type: "user", id: "owner", properties: { local: true } } as TrustedKnowledgeSubject;
@@ -17,7 +17,7 @@ const visitor = {
   id: "visitor",
   properties: { local: false },
 } as TrustedKnowledgeSubject;
-const authorizer: KnowledgeAuthorizer = {
+const authorizer: Authorizer = {
   authorize: async (request) => ({ decision: request.subject.id === owner.id }),
 };
 const trustedResource = ({ ref }: { readonly ref?: RecordRef }) => ({
@@ -49,6 +49,143 @@ const claim = (id: string, revision: string, body: string, input: RecordRef) => 
   freshness: "current" as const,
   confidence: { value: "provisional" },
   provenance: { producer: { type: "test", id: "fixture" }, inputs: [input] },
+});
+
+test("policy inability never discloses a partially authorized search or evidence page", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-policy-failure-"));
+  let failure = false;
+  const provider = open(join(root, "knowledge.sqlite"), {
+    authorizer: {
+      authorize: async (request) =>
+        failure && request.resource.id.includes(":second:")
+          ? { kind: "failure", code: "unavailable" }
+          : { decision: true },
+    },
+  });
+  const first = source("first", "r1", "matching secret first");
+  const second = source("second", "r1", "matching secret second");
+  try {
+    await provider.intake.ingest(owner, {
+      operation: "upsert",
+      expectedRevision: null,
+      record: first,
+      links: [],
+    });
+    await provider.intake.ingest(owner, {
+      operation: "upsert",
+      expectedRevision: null,
+      record: second,
+      links: [{ from: second.ref, to: first.ref, relation: "support" }],
+    });
+    failure = true;
+    assert.deepEqual(
+      await provider.retrieval.search(owner, {
+        query: "matching",
+        mode: "lexical",
+        limit: 10,
+        maxBytes: 8192,
+      }),
+      { kind: "failure", code: "unavailable" },
+    );
+    assert.deepEqual(
+      await provider.retrieval.evidence(owner, {
+        root: first.ref,
+        direction: "reverse",
+        maxDepth: 4,
+        maxRecords: 10,
+        maxLinks: 10,
+        maxBytes: 8192,
+      }),
+      { kind: "failure", code: "unavailable" },
+    );
+  } finally {
+    provider.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("one remaining budget covers all record checks and never returns a checked prefix", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-shared-budget-"));
+  let remaining = 1000;
+  let consume = false;
+  const provider = open(join(root, "knowledge.sqlite"), {
+    authorizer: {
+      authorize: async (_request, operation) => {
+        if (consume) {
+          assert.equal(operation.remainingMs(), remaining);
+          remaining -= 350;
+        }
+        return { decision: true };
+      },
+    },
+  });
+  try {
+    for (const id of ["one", "two"])
+      await provider.intake.ingest(owner, {
+        operation: "upsert",
+        expectedRevision: null,
+        record: source(id, "r1", "matching secret"),
+        links: [],
+      });
+    consume = true;
+    const result = await provider.retrieval.search(
+      owner,
+      { query: "matching", mode: "lexical", limit: 10, maxBytes: 8192 },
+      { signal: new AbortController().signal, remainingMs: () => remaining },
+    );
+    assert.deepEqual(result, { kind: "failure", code: "budget_exhausted" });
+  } finally {
+    provider.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("throwing and malformed policy differ from denial; shared cancellation and budget stop reads", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-policy-budget-"));
+  let mode = "deny";
+  const provider = open(join(root, "knowledge.sqlite"), {
+    authorizer: {
+      authorize: async () => {
+        if (mode === "throw") throw Error("offline");
+        if (mode === "malformed") return {} as never;
+        return { decision: mode === "allow" };
+      },
+    },
+  });
+  try {
+    const ref = source("one", "r1", "secret").ref;
+    assert.deepEqual(await provider.retrieval.get(owner, ref), { kind: "denied" });
+    mode = "throw";
+    assert.deepEqual(await provider.retrieval.get(owner, ref), {
+      kind: "failure",
+      code: "rejected",
+    });
+    mode = "malformed";
+    assert.deepEqual(await provider.retrieval.get(owner, ref), {
+      kind: "failure",
+      code: "malformed_result",
+    });
+    mode = "allow";
+    const controller = new AbortController();
+    controller.abort();
+    assert.deepEqual(
+      await provider.retrieval.get(owner, ref, {
+        signal: controller.signal,
+        remainingMs: () => 1000,
+      }),
+      { kind: "failure", code: "cancelled" },
+    );
+    assert.deepEqual(
+      await provider.retrieval.get(owner, ref, {
+        signal: new AbortController().signal,
+        remainingMs: () => 0,
+      }),
+      { kind: "failure", code: "budget_exhausted" },
+    );
+  } finally {
+    provider.close();
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("lexical admission ignores English filler without discarding Unicode or compound identifiers", async () => {

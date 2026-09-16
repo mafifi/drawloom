@@ -105,7 +105,51 @@ const input = (signal = new AbortController().signal) => ({
   request: "What did we learn?",
   binding: { executionId: "execution-1", conversationId: "conversation-1" },
   signal,
+  remainingMs: () => 5000,
   budget: { maxRecords: 8, maxBytes: 12 * 1024 },
+});
+
+test("parent budget consumed by repeated reads discards the entire selection", async () => {
+  let remaining = 5000;
+  const result = await fixture({
+    hits: [record("one", "secret one"), record("two", "secret two")],
+    afterRead: () => {
+      remaining -= 1500;
+    },
+  }).prepare({ ...input(), remainingMs: () => remaining });
+  expect(result).toEqual({ kind: "timeout", references: [], bytes: 0 });
+});
+
+test("structured policy failure during final disclosure is not ordinary denial", async () => {
+  const original = record("one", "secret");
+  let count = 0;
+  const preparer = createKnowledgeContextPreparer({
+    subject,
+    destination,
+    retrieval: {
+      search: async () => ({
+        kind: "ok",
+        mode: "lexical",
+        semantic: { status: "unavailable" },
+        items: [{ record: original as any, relevance: 1 }],
+        bytes: 1,
+      }),
+      get: async () => ({ kind: "ok", record: original }),
+      expand: async () => ({ kind: "denied" }),
+      evidence: async () => ({ kind: "denied" }),
+      export: async () => ({ kind: "denied" }),
+    },
+    resolveDisclosureResource: async () => ({ type: "record", id: "one", properties: {} }),
+    authorizer: {
+      authorize: async () =>
+        ++count === 1 ? { decision: true } : { kind: "failure", code: "unavailable" },
+    },
+  });
+  expect(await preparer.prepare(input())).toEqual({
+    kind: "unavailable",
+    references: [],
+    bytes: 0,
+  });
 });
 
 test("supported knowledge preparer satisfies shared conformance", async () =>
@@ -232,7 +276,7 @@ test("malformed dependency results and unavailable search are explicit", async (
     bytes: 0,
   });
   expect(await fixture({ search: "denied" }).prepare(input())).toEqual({
-    kind: "unavailable",
+    kind: "empty",
     references: [],
     bytes: 0,
   });

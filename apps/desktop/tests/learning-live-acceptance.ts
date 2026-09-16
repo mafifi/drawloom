@@ -33,7 +33,12 @@ import {
 } from "../../../evaluations/knowledge/corpus.js";
 import { createDesktopApplication } from "../host/application.js";
 import { createInstallationStore } from "../host/plugin-installations.js";
-import { KnowledgeStatusSchema } from "../src/lib/knowledge-protocol.js";
+import { LearningStatusSchema } from "../src/lib/learning-protocol.js";
+import {
+  LocalLearningSetupStatusSchema,
+  LocalLearningConfigurationSchema,
+} from "../src/lib/local-knowledge-setup-protocol.js";
+import { confirmApplicationLearning } from "./learning-consent-fixture.js";
 import { createLearningApplicationFixture } from "./learning-journey-lifecycle.js";
 import {
   createLiveBudget,
@@ -320,21 +325,31 @@ async function run() {
         client = managed;
         const service: typeof managed = {
           ...managed,
-          assess: (request) => assessor.assess(subject, request),
-          reconcile: async (request) => {
-            const result = await assessor.reconcile(subject, request);
+          assess: (request, operation) => assessor.assess(subject, request, operation),
+          reconcile: async (request, operation) => {
+            const result = await assessor.reconcile(subject, request, operation);
             assessmentResults.push(result);
             event("assessment-result", result);
             return result;
           },
-          cancelAssessment: (request) => assessor.cancel(subject, request),
+          cancelAssessment: (request, operation) => assessor.cancel(subject, request, operation),
         };
         return createDesktopApplication(data, {
           codex: {
             connect: (cwd) => connect(cwd, "foreground"),
             store: createNodeJsonStore(join(data, "provider")),
           },
-          knowledge: { service },
+          knowledge: {
+            local: {
+              ...service,
+              background: {
+                ...managed.background,
+                assess: service.assess,
+                reconcile: service.reconcile,
+                cancelAssessment: service.cancelAssessment,
+              },
+            },
+          },
         });
       },
     );
@@ -342,19 +357,27 @@ async function run() {
     await app.knowledgeCommand({ action: "pause", paused: true });
     return { app, client };
   }
-  const status = async ({ app }: Opened) =>
-    KnowledgeStatusSchema.parse(await app.knowledgeCommand({ action: "status" }));
-  const configure = async ({ app }: Opened, automaticContext: boolean, captureOutcomes = false) =>
-    app.knowledgeCommand({
-      action: "configure",
-      configuration: {
-        ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION,
-        automaticContext,
-        captureOutcomes,
-        assessmentModel: MODEL,
-        assessmentTimeoutMs: 120_000,
-      },
+  const status = async ({ app }: Opened) => ({
+    ...LearningStatusSchema.parse(await app.knowledgeCommand({ action: "status" })),
+    local: LocalLearningSetupStatusSchema.parse(
+      await app.localLearningSetupCommand({ action: "status" }),
+    ),
+  });
+  const configure = async (opened: Opened, automaticContext: boolean, captureOutcomes = false) => {
+    await confirmApplicationLearning(opened.app, {
+      automaticContext,
+      captureOutcomes,
+      automaticCuration: false,
     });
+    const state = await status(opened);
+    const configuration = {
+      ...state.local.configuration,
+      assessmentModel: MODEL,
+      assessmentTimeoutMs: 120_000,
+    };
+    if (JSON.stringify(configuration) !== JSON.stringify(state.local.configuration))
+      await opened.app.localLearningSetupCommand({ action: "configure", configuration });
+  };
   async function conversation({ app }: Opened, count = false) {
     await app.command({ kind: "create_conversation", workbenchId: "text", provider: "codex" });
     const id = (await app.snapshot()).selectedId!;
@@ -508,12 +531,12 @@ async function run() {
     });
     const f = await open("journey", true);
     await configure(f, true, true);
-    assert.equal((await status(f)).models[0]!.state, "ready");
+    assert.equal((await status(f)).local.models[0]!.state, "ready");
     await f.app.knowledgeCommand({ action: "source", enabled: true });
     if (preflightOnly) {
       const id = await conversation(f, true);
       const observed = await status(f);
-      assert.equal(observed.maintenance.paused, true);
+      assert.equal(observed.curation!.paused, true);
       assert.equal(observed.source?.state, "ready");
       assert.equal(budget.state.attempts.length, 0);
       save("result.json", {
@@ -549,17 +572,17 @@ async function run() {
     await until(
       async () => {
         const s = await status(f);
-        if (["uncertain", "failed"].includes(s.maintenance.state))
-          throw Error(`Curation ${s.maintenance.state}`);
+        if (["uncertain", "failed"].includes(s.curation!.state))
+          throw Error(`Curation ${s.curation!.state}`);
         return (
-          s.maintenance.state === "idle" && assessmentResults.some((r) => r.kind === "completed")
+          s.curation!.state === "idle" && assessmentResults.some((r) => r.kind === "completed")
         );
       },
       "live curation",
       180_000,
     );
     await f.app.knowledgeCommand({ action: "pause", paused: true });
-    await until(async () => (await status(f)).indexing === "ready", "GGUF indexing");
+    await until(async () => (await status(f)).local.indexing === "ready", "GGUF indexing");
     save("curation.json", {
       assessmentResults,
       hostileClaimLeak: assessmentResults.some(
@@ -669,7 +692,7 @@ async function run() {
       }
       if (variant !== "lexical-automatic")
         await until(
-          async () => (await status(c)).indexing === "ready",
+          async () => (await status(c)).local.indexing === "ready",
           `comparison ${variant} indexing`,
         );
       save(`${variant}-readiness.json`, await status(c));

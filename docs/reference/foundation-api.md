@@ -12,23 +12,27 @@ implementations when setting up your application; consumers use their interfaces
 ## Find the right interface
 
 The ten [capabilities](../../ARCHITECTURE.md#core-capabilities) are not ten
-independent services. Memory uses knowledge interfaces; context provides shared
-instruction types and a bounded reference-preparation interface, not a general
-prompt compiler. Sandboxing comes from the execution environment.
-Permission checks live alongside agents, tools and knowledge access. There is no
-general model-inference API.
+independent services. Memory uses knowledge interfaces. Context separates session
+and turn assembly from bounded knowledge preparation. Sandboxing comes from the
+execution environment. A shared authorization interface supplies access decisions;
+agents, tools and knowledge still enforce those decisions independently. There is
+no general model-inference API.
 
 | What you want to do | Start here | Implementation or detailed guide |
 | --- | --- | --- |
 | Supply prepared instructions | `@drawloom/context`: `CompiledContext` | Your application prepares trusted text and source references |
+| Assemble session and turn input | `@drawloom/context/assembly`: `ContextAssembler` | `@drawloom/default-context`; [replacement guide](replacing-capabilities.md#assemble-context-differently) |
 | Select knowledge for a request | `@drawloom/context`: `ContextPreparer` | `@drawloom/knowledge-context`; [knowledge guide](../design/local-knowledge.md#use-knowledge-in-conversations) |
 | Connect an agent | `@drawloom/agent`: `AgentDriver`, `AgentSession` | `@drawloom/codex-agent`; `@drawloom/synthetic-agent` for tests |
+| Supply access decisions | `@drawloom/authorization`: `Authorizer` | `@drawloom/local-authorization`; [replacement guide](replacing-capabilities.md#supply-access-decisions) |
+| Present native approvals | `@drawloom/agent/approval-presentation`: `ApprovalPresenter` | Shared desktop presentation or a trusted alternative; [replacement guide](replacing-capabilities.md#show-approvals-in-another-place) |
 | Define and call tools | `@drawloom/tools`: `defineTool`, `ToolGateway` | `@drawloom/local-tools`; [tool guide](../design/tool-execution-contract.md) |
 | Register plugins and inspect packages | `@drawloom/plugins`: definitions, metadata and tests | `@drawloom/startup-plugins`, `@drawloom/local-plugin-packages`; [package guide](plugin-packages.md) |
 | Connect a trusted workbench backend | `@drawloom/desktop-host`: `PluginBackendFactory` | [Desktop host guide](../design/desktop-host.md) |
 | Describe working material and review controls | `@drawloom/workbench`: schemas and `OperatorController` | Plugin-owned controllers; `@drawloom/synthetic-workbench` for tests |
 | Read and store conversation history | `@drawloom/conversation-history`: reader and store | `@drawloom/sqlite-conversation-history`; [history guide](conversation-history.md) |
 | Record observations and retrieve knowledge | `@drawloom/knowledge`: intake, retrieval, maintenance and access interfaces | `@drawloom/sqlite-knowledge`; [knowledge guide](../design/local-knowledge.md) |
+| Supply the shared learning experience | `@drawloom/knowledge/learning`: `LearningService` | Contribution and retrieval with optional curation and warmup; [replacement guide](replacing-capabilities.md#supply-learning-without-a-local-installer) |
 | Create embeddings or assess knowledge | `KnowledgeEmbeddings`, `KnowledgeAssessment` in `@drawloom/knowledge` | `@drawloom/local-embeddings`, `@drawloom/codex-assessment`; Nightloom coordinates curation |
 | Schedule tasks and workflows | `@drawloom/orchestration`: `Orchestrator`, tasks and workflows | `@drawloom/temporal-orchestration`; [orchestration guide](../design/orchestration-contract.md) |
 | Assess results and compare experiments | `@drawloom/evaluation`: targets, scorers, results and feedback | SQLite storage, orchestration-backed execution and Braintrust assessment; [evaluation guide](../design/evaluation.md) |
@@ -46,19 +50,21 @@ turn those references into instructions. The knowledge-backed implementation
 receives retrieval, authorization and trusted identity from application setup.
 The application supplies the verified conversation and execution binding.
 
-This fragment assumes those objects already exist:
+This fragment assumes those objects already exist and `deadline` is the enclosing
+operation's expiry time in milliseconds:
 
 ```ts
 const preparation = await preparer.prepare({
   request: message,
   binding: { conversationId, executionId },
   signal,
+  remainingMs: () => deadline - Date.now(),
   budget: { maxRecords: 8, maxBytes: 12 * 1024 },
 });
 ```
 
 A ready result contains reference text, exact record revisions and its byte
-count. Other results distinguish no matches, cancellation and unavailability.
+count. Other results distinguish no matches, cancellation, timeout and unavailability.
 The host decides the deadline and checks whether disclosure is still allowed
 before handing references to the agent adapter. Do not append retrieved bodies
 to `CompiledContext.text`: that field contains trusted application instructions.
@@ -93,7 +99,7 @@ content; they do not replace the structured result. Rendering failure never runs
 the handler again. MCP annotations such as `readOnlyHint` describe a tool, not
 permission to run it. Local validation may enforce rules JSON Schema cannot express.
 
-`createLocalToolGateway({tools, policy, evidence, nextInvocationId})` connects
+`createLocalToolGateway({tools, authorization, evidence, nextInvocationId})` connects
 tools to permission checks and execution records. Trusted application code calls
 `bind(operationId)`; it must not expose binding creation as a model tool.
 `revoke(binding)` closes a binding permanently. `invoke` validates arguments,

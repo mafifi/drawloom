@@ -38,23 +38,38 @@ function setup() {
 
 test("foreground policy denies another project, another workbench, and a revoked grant", () => {
   const fixture = setup();
-  expect(fixture.access.allowed("operation", "tool.allowed")).toBe(true);
+  expect(
+    fixture.access.owns("operation") &&
+      fixture.access.facts("operation", "tool.allowed").subject.properties.granted,
+  ).toBe(true);
   fixture.setOwner({
     conversationId: "conversation",
     projectId: "other",
     workbenchId: "workbench",
   });
-  expect(fixture.access.allowed("operation", "tool.allowed")).toBe(false);
+  expect(
+    fixture.access.owns("operation") &&
+      fixture.access.facts("operation", "tool.allowed").subject.properties.granted,
+  ).toBe(false);
   fixture.setOwner({ conversationId: "conversation", projectId: "project", workbenchId: "other" });
-  expect(fixture.access.allowed("operation", "tool.allowed")).toBe(false);
+  expect(
+    fixture.access.owns("operation") &&
+      fixture.access.facts("operation", "tool.allowed").subject.properties.granted,
+  ).toBe(false);
   fixture.setOwner({
     conversationId: "conversation",
     projectId: "project",
     workbenchId: "workbench",
   });
-  expect(fixture.access.allowed("operation", "tool.allowed")).toBe(true);
+  expect(
+    fixture.access.owns("operation") &&
+      fixture.access.facts("operation", "tool.allowed").subject.properties.granted,
+  ).toBe(true);
   fixture.grants.get("workbench")!.delete("tool.allowed");
-  expect(fixture.access.allowed("operation", "tool.allowed")).toBe(false);
+  expect(
+    fixture.access.owns("operation") &&
+      fixture.access.facts("operation", "tool.allowed").subject.properties.granted,
+  ).toBe(false);
 });
 
 test("foreground evidence rejects when its operation owner has disappeared", async () => {

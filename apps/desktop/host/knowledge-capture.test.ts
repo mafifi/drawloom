@@ -1,3 +1,4 @@
+import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 import { expect, test } from "bun:test";
 import { z } from "zod";
 import { createNodeJsonStore } from "@drawloom/node-host";
@@ -10,6 +11,126 @@ import * as capture from "./knowledge-tools.js";
 import { defineTool } from "@drawloom/tools";
 import { createLocalToolGateway } from "@drawloom/local-tools";
 import { toolOutcomeProjectors, textPlugin } from "./composition.js";
+import { createConfirmedLearningPermission } from "../tests/learning-consent-fixture.js";
+
+test.each([1, 2, 3])(
+  "capture cannot admit retrospective eligibility when check %s crosses revocation",
+  async (check) => {
+    const directory = await mkdtemp(join(tmpdir(), "knowledge-capture-start-race-"));
+    try {
+      const store = createNodeJsonStore(directory);
+      const permission = await createConfirmedLearningPermission(store, {
+        captureOutcomes: true,
+        automaticContext: false,
+        automaticCuration: false,
+      });
+      const evidence = await createDesktopEvidence(store, "race");
+      let checks = 0,
+        retained = 0;
+      const collector = await capture.createKnowledgeOutcomeCapture({
+        store,
+        conversationId: "race",
+        projectId: "fixed",
+        evidence,
+        projectors: new Map(),
+        permission: () => permission.lease("captureOutcomes"),
+        enabled: async () => {
+          checks++;
+          if (checks === (check === 3 ? 2 : check)) {
+            await permission.preferences({
+              captureOutcomes: false,
+              automaticContext: false,
+              automaticCuration: false,
+            });
+            if (check === 3)
+              await permission.preferences({
+                captureOutcomes: true,
+                automaticContext: false,
+                automaticCuration: false,
+              });
+            return check !== 2; // Either async check may return a stale allow, even after reenabling.
+          }
+          return !!(await permission.lease("captureOutcomes"));
+        },
+        ingest: async () => {
+          retained++;
+          return { kind: "accepted", revision: "r1" };
+        },
+      });
+      const started = { kind: "started" as const, invocationId: "revoked", tool: "public.measure" };
+      await collector.started(started);
+      expect(collector.pending()).toEqual([]);
+      await evidence.record(started);
+      const result = {
+        invocationId: "revoked",
+        evidence: "recorded" as const,
+        outcome: { status: "ok" as const, value: null, text: "" },
+      };
+      await evidence.record({ kind: "finished", result });
+      await permission.preferences({
+        captureOutcomes: true,
+        automaticContext: false,
+        automaticCuration: false,
+      });
+      await collector.finished(result);
+      await collector.recover();
+      expect(retained).toBe(0);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
+test("capture carries revocation into pending intake, including recovered work", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "knowledge-capture-race-"));
+  try {
+    const store = createNodeJsonStore(directory);
+    const permission = await createConfirmedLearningPermission(store, {
+      captureOutcomes: true,
+      automaticContext: false,
+      automaticCuration: false,
+    });
+    const evidence = await createDesktopEvidence(store, "race");
+    let release!: () => void;
+    let retained = 0;
+    const collector = await capture.createKnowledgeOutcomeCapture({
+      store,
+      conversationId: "race",
+      projectId: "fixed",
+      evidence,
+      projectors: new Map(),
+      enabled: async () => true,
+      permission: () => permission.lease("captureOutcomes"),
+      ingest: async (_input, operation) => {
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        if (operation?.signal.aborted) return { kind: "failure", code: "cancelled" };
+        retained++;
+        return { kind: "accepted", revision: "r1" };
+      },
+    });
+    await collector.started({ kind: "started", invocationId: "one", tool: "public.measure" });
+    const result = {
+      invocationId: "one",
+      evidence: "recorded" as const,
+      outcome: { status: "ok" as const, value: null, text: "" },
+    };
+    const finish = collector.finished(result);
+    while (!release) await new Promise((resolve) => setTimeout(resolve, 1));
+    await permission.preferences({
+      captureOutcomes: false,
+      automaticContext: false,
+      automaticCuration: false,
+    });
+    release();
+    await finish;
+    expect(retained).toBe(0);
+    expect(collector.pending()).toHaveLength(1);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 test("contrasting public tools project only selected validated outcomes through the real gateway", async () => {
   const directory = await mkdtemp(join(tmpdir(), "knowledge-projectors-"));
@@ -47,6 +168,8 @@ test("contrasting public tools project only selected validated outcomes through 
       evidence,
       projectors,
       enabled: async () => enabled,
+      permission: async () =>
+        enabled ? { signal: new AbortController().signal, remainingMs: () => 5000 } : undefined,
       ingest: async (input) => {
         saved.push(input);
         return { kind: "accepted", revision: "saved" };
@@ -55,7 +178,7 @@ test("contrasting public tools project only selected validated outcomes through 
     const tools = [...textPlugin.prepare({})().tools!, archive];
     const gateway = createLocalToolGateway({
       tools,
-      policy: () => true,
+      authorization: toolAuthorizationFixture(),
       nextInvocationId: () => `invocation-${++invocation}`,
       evidence: {
         async record(record) {
@@ -88,10 +211,10 @@ test("contrasting public tools project only selected validated outcomes through 
     expect(JSON.stringify(saved)).not.toContain("private example words");
     enabled = false;
     await gateway.invoke(binding, archive.name, {}, new AbortController().signal);
-    expect(saved[2]).toMatchObject({ record: { confidence: { contentCaptured: false } } });
+    expect(saved).toHaveLength(2);
     enabled = true;
     await collector.recover();
-    expect(saved).toHaveLength(3);
+    expect(saved).toHaveLength(2);
     enabled = false;
     await collector.started({ kind: "started", invocationId: "before-enable", tool: archive.name });
     enabled = true;
@@ -104,14 +227,14 @@ test("contrasting public tools project only selected validated outcomes through 
         text: "secret",
       },
     });
-    expect(saved[3]).toMatchObject({ record: { confidence: { contentCaptured: false } } });
+    expect(saved).toHaveLength(2);
     await collector.started({ kind: "started", invocationId: "uncertain", tool: archive.name });
     await collector.finished({
       invocationId: "uncertain",
       evidence: "recorded",
       outcome: { status: "failed", code: "handler_failed", execution: "unknown" },
     });
-    expect(saved[4]).toMatchObject({
+    expect(saved[2]).toMatchObject({
       record: { confidence: { contentCaptured: false, operationStatus: "unknown" } },
     });
     await collector.started({
@@ -140,6 +263,8 @@ test("selected outcomes survive restart and authorization failure without repeat
       projectId: "fixed-project",
       evidence,
       enabled: async () => enabled,
+      permission: async () =>
+        enabled ? { signal: new AbortController().signal, remainingMs: () => 5000 } : undefined,
       ingest: async (input: IntakeInput) => {
         if (denied) return { kind: "denied" as const };
         saved.push(input);

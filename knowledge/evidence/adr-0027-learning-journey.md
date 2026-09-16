@@ -4,7 +4,7 @@ id: adr-0027-learning-journey
 title: Learning journey implementation checks
 status: active
 created: 2026-09-15
-updated: 2026-09-15
+updated: 2026-09-16
 ---
 
 # Learning journey verification
@@ -127,8 +127,10 @@ broader precision and abstention measurements above.
 Whole-fixture durations, including setup and cleanup, were 8,519 ms for lexical
 and 9,326 ms for GGUF. These are not per-search latency or cold-start measurements.
 Both runs closed their owned services and removed their disposable stores.
-Reproduce the lexical path with `bun run test:temporal:learning`; for installed
-GGUF, run `apps/desktop/tests/learning-journey-temporal.ts` with Bun and set
+The reproduction paths below were updated for orchestration-focused test naming
+on 2026-09-16; the retained measurements above have not been rerun by that change.
+Reproduce the lexical path with `bun run test:orchestration:learning`; for installed
+GGUF, run `apps/desktop/tests/learning-journey-orchestration.integration.ts` with Bun and set
 `DRAWLOOM_LEARNING_MODEL_ROOT` to an already verified model installation.
 The script copies it into isolated storage and never downloads models. Set
 `DRAWLOOM_LEARNING_REPORT` to retain the JSON result outside the temporary store.

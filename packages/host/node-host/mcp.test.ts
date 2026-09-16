@@ -1,3 +1,4 @@
+import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 import { test, expect } from "bun:test";
 import { createMcpToolServer } from "./src/index.js";
 import { defineTool } from "@drawloom/tools";
@@ -55,7 +56,7 @@ test("MCP executes through the gateway and delayed origins cannot borrow authori
         },
       }),
     ],
-    policy: () => true,
+    authorization: toolAuthorizationFixture(),
     evidence: { record: async () => {} },
     nextInvocationId: () => String(++sequence),
   });

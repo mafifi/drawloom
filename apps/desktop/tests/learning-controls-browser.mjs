@@ -156,7 +156,7 @@ try {
             state: collectionFailed ? "unavailable" : "ready",
             message: collectionMessage,
           },
-          maintenance: { ...value.maintenance, state: curationState, message: curationMessage },
+          curation: { ...value.curation, state: curationState, message: curationMessage },
         },
       });
     }
@@ -235,7 +235,7 @@ try {
   );
   const save = page.getByRole("button", { name: "Save settings", exact: true }).first();
   await page.route("**/api/knowledge", async (route) => {
-    if (route.request().postDataJSON()?.action === "configure")
+    if (route.request().postDataJSON()?.action === "preferences")
       await route.fulfill({ status: 503, body: "Synthetic save failure" });
     else await route.continue();
   });

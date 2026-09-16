@@ -1,4 +1,5 @@
 import type { ToolEvidence, ToolResult } from "@drawloom/tools";
+import type { AuthZenRequest } from "@drawloom/authorization";
 
 type ForegroundOwner = {
   conversationId: string;
@@ -25,9 +26,24 @@ export function createProjectToolGatewayAccess(options: {
   }
 
   return {
-    allowed(operationId: string, toolName: string) {
+    owns(operationId: string) {
+      return Boolean(owner(operationId));
+    },
+    facts(operationId: string, toolName: string): AuthZenRequest {
       const current = owner(operationId);
-      return Boolean(current && options.grants.get(current.workbenchId)?.has(toolName));
+      return {
+        subject: {
+          type: "operation",
+          id: operationId,
+          properties: {
+            granted: Boolean(current && options.grants.get(current.workbenchId)?.has(toolName)),
+            projectId: options.projectId,
+            workbenchId: current?.workbenchId ?? "",
+          },
+        },
+        action: { name: "invoke" },
+        resource: { type: "tool", id: toolName, properties: {} },
+      };
     },
     async record(record: ToolEvidence) {
       const operationId =

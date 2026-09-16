@@ -70,9 +70,11 @@ phases. `artifact.available` announces a separately available asset.
 
 Session context provides the starting instructions. `additionalContext` supplies
 selected information for an operation or steering request. The current
-`CompiledContext` is a shared data shape, not a separate context-compilation
-service. The driver consumes it; it does not independently search memory or
-knowledge.
+`CompiledContext` remains the shared instruction shape consumed by the driver.
+The replaceable `ContextAssembler` prepares session and turn input before it
+reaches that driver; a separate `ContextPreparer` can select knowledge references.
+The driver does not independently search memory or knowledge. See the
+[replacement guide](../reference/replacing-capabilities.md#assemble-context-differently).
 
 Operations may also include up to 32 discovery selections and 16 asset
 attachments. The host must resolve and authorise those references. Their presence

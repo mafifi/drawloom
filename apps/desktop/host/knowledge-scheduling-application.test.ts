@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION } from "@drawloom/local-knowledge-runtime";
 import { createDesktopApplication } from "./application.js";
-import type { KnowledgeService } from "./knowledge-host.js";
+import type { LocalKnowledgeClient } from "@drawloom/local-knowledge-runtime";
+import { confirmApplicationLearning } from "../tests/learning-consent-fixture.js";
 import type { NightloomKnowledgeService } from "./knowledge-nightloom.js";
 import {
   createKnowledgeActivityFixture,
@@ -23,14 +24,19 @@ test("ordinary application restore owns one consent-gated tick and stops it befo
   let release: (() => void) | undefined;
   let statusReadStarted: (() => void) | undefined;
   let hold: Promise<void> | undefined;
-  const service: KnowledgeService & NightloomKnowledgeService = {
+  const foreground: Omit<LocalKnowledgeClient, "background"> = {
+    warmup: async () => ({ kind: "unavailable" }),
+    prepare: async () => ({ kind: "unavailable", references: [], bytes: 0 }),
+    cleanupObsoleteRuntime: async () => {
+      throw Error("No cleanup");
+    },
     ...syntheticNightloomMethods,
     async maintenanceStatus() {
+      statusReadStarted?.();
+      await hold;
       return { kind: "ok", pendingUnits: 50, checkpoint: "public" };
     },
     async status() {
-      statusReadStarted?.();
-      await hold;
       return {
         availability: "ready",
         message: "",
@@ -87,9 +93,10 @@ test("ordinary application restore owns one consent-gated tick and stops it befo
       closed.push("service");
     },
   };
+  const service: LocalKnowledgeClient = { ...foreground, background: foreground };
   const app = await createDesktopApplication(root, {
     knowledge: {
-      service,
+      local: service,
       scheduleNightloomTick(tick) {
         expect(callback).toBeUndefined();
         callback = tick;
@@ -110,15 +117,23 @@ test("ordinary application restore owns one consent-gated tick and stops it befo
     await app.restore();
     await fire();
     expect(fixture.calls.started).toBe(0);
-    await app.knowledgeCommand({
-      action: "configure",
-      configuration: { ...configuration, automaticCuration: true },
+    await confirmApplicationLearning(app, {
+      automaticCuration: true,
+      captureOutcomes: false,
+      automaticContext: false,
     });
     await fire();
     expect(fixture.calls.started).toBe(1);
-    configuration = { ...configuration, automaticCuration: false };
+    await app.knowledgeCommand({
+      action: "preferences",
+      preferences: { automaticCuration: false, captureOutcomes: false, automaticContext: false },
+    });
     await fire();
     expect(fixture.calls.started).toBe(1);
+    await app.knowledgeCommand({
+      action: "preferences",
+      preferences: { automaticCuration: true, captureOutcomes: false, automaticContext: false },
+    });
     hold = new Promise<void>((resolve) => {
       release = resolve;
     });

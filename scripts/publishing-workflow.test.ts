@@ -26,7 +26,7 @@ test("publication is callable only after the same-commit CI dependency succeeds"
   );
   expect(learningNode.with["node-version"]).toBe(LOCAL_TEMPORAL_NODE_VERSION);
   expect(learningRuns).toContain("bun run test:temporal");
-  expect(learningRuns).toContain("bun run test:temporal:learning");
+  expect(learningRuns).toContain("bun run test:orchestration:learning");
   expect(
     learningRuns.some((run: string) => /check:ci|journal:build|journal:render/.test(run)),
   ).toBe(false);

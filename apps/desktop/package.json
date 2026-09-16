@@ -17,6 +17,11 @@
     "bundle:host": "bun run --cwd ../.. build:packages && bun run ../../scripts/stage-temporal-runtime.ts && bun run ../../scripts/stage-knowledge-runtime.ts && bun build --compile host/main.ts --outfile src-tauri/binaries/drawloom-host"
   },
   "dependencies": {
+    "@drawloom/context": "workspace:*",
+    "@drawloom/default-context": "workspace:*",
+    "@drawloom/authorization": "workspace:*",
+    "@drawloom/authorization-scheduler": "workspace:*",
+    "@drawloom/local-authorization": "workspace:*",
     "@drawloom/evaluation": "workspace:*",
     "@drawloom/evaluation-orchestration": "workspace:*",
     "@drawloom/sqlite-evaluation": "workspace:*",
@@ -51,6 +56,7 @@
     "@drawloom/local-plugin-packages": "workspace:*"
   },
   "devDependencies": {
+    "@drawloom/replacement-examples": "workspace:*",
     "@modelcontextprotocol/ext-apps": "catalog:",
     "@modelcontextprotocol/sdk": "catalog:",
     "@tailwindcss/vite": "catalog:",

@@ -1,3 +1,4 @@
+import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 import { test, expect, afterAll } from "bun:test";
 import { context, propagation, trace } from "@opentelemetry/api";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
@@ -149,7 +150,7 @@ test("a denied gateway call creates no execution span and never invokes its hand
   const gateway = observedToolGateway(
     createLocalToolGateway({
       tools: [tool],
-      policy: () => false,
+      authorization: toolAuthorizationFixture({ authorize: async () => ({ decision: false }) }),
       evidence: { record: async () => {} },
       nextInvocationId: () => crypto.randomUUID(),
     }),

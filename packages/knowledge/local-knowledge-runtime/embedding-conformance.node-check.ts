@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { knowledgeEmbeddingConformance } from "@drawloom/knowledge/conformance";
-import type { KnowledgeAuthorizer, TrustedKnowledgeSubject } from "@drawloom/knowledge";
+import type { Authorizer, TrustedKnowledgeSubject } from "@drawloom/knowledge";
 import { createSqliteKnowledge } from "@drawloom/sqlite-knowledge";
 import {
   createKnowledgeEmbeddings,
@@ -22,7 +22,7 @@ const denied = {
   id: "conformance-visitor",
   properties: {},
 } as TrustedKnowledgeSubject;
-const authorizer: KnowledgeAuthorizer = {
+const authorizer: Authorizer = {
   authorize: async (request) => ({ decision: request.subject.id === owner.id }),
 };
 

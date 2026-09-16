@@ -20,6 +20,16 @@
       "bun": "./src/conformance.ts",
       "types": "./dist/conformance.d.ts",
       "import": "./dist/conformance.js"
+    },
+    "./assembly": {
+      "bun": "./src/assembly.ts",
+      "types": "./dist/assembly.d.ts",
+      "import": "./dist/assembly.js"
+    },
+    "./assembly-conformance": {
+      "bun": "./src/assembly-conformance.ts",
+      "types": "./dist/assembly-conformance.d.ts",
+      "import": "./dist/assembly-conformance.js"
     }
   },
   "drawloom": {
@@ -27,6 +37,7 @@
     "runtime": "portable"
   },
   "dependencies": {
+    "@drawloom/host": "workspace:*",
     "@drawloom/knowledge": "workspace:*",
     "zod": "catalog:"
   }

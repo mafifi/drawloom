@@ -33,7 +33,8 @@
     "@drawloom/local-embeddings": "workspace:*",
     "@drawloom/node-host": "workspace:*",
     "@drawloom/sqlite-knowledge": "workspace:*",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@drawloom/authorization": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:node-runtime"

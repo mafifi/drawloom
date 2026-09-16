@@ -1,10 +1,12 @@
 import { z } from "zod";
+import type { AuthorizationEvaluationOptions } from "@drawloom/authorization";
 import {
   ContextPreparationRequestSchema,
   ContextPreparationResultSchema,
   type ContextPreparationRequest,
   type ContextPreparationResult,
   type ContextPreparationSummary,
+  type ContextPreparer,
 } from "@drawloom/context";
 import type { JsonStore, JsonValue } from "@drawloom/host";
 import {
@@ -19,54 +21,23 @@ import {
 } from "@drawloom/knowledge";
 import { GitBatchSchema, type GitBatch } from "@drawloom/git-knowledge-source/protocol";
 import {
-  LocalKnowledgeStatusSchema,
-  type LocalKnowledgeConfiguration,
-  type LocalKnowledgeStatus,
-} from "@drawloom/local-knowledge-runtime";
+  LearningAvailabilitySchema,
+  type LearningService,
+  type LearningCurationResult,
+  type LearningControlResult,
+} from "@drawloom/knowledge/learning";
+import type { createLearningPermission } from "./learning-permission.js";
 import {
-  KnowledgeCommandSchema,
-  KnowledgeStatusSchema,
-  type KnowledgeCommand,
-  type KnowledgeStatus,
-} from "../src/lib/knowledge-protocol.js";
+  LearningCommandSchema,
+  LearningStatusSchema,
+  type LearningCommand,
+  type LearningStatus,
+} from "../src/lib/learning-protocol.js";
 
-export interface KnowledgeService {
-  prepare?(request: ContextPreparationRequest): Promise<ContextPreparationResult>;
-  warmup?(): Promise<{ kind: "ready" | "unavailable" }>;
-  status(): Promise<LocalKnowledgeStatus>;
-  configure(configuration: LocalKnowledgeConfiguration): Promise<LocalKnowledgeStatus>;
-  search(request: SearchRequest): Promise<SearchResult>;
-  evidence(request: EvidenceRequest): Promise<EvidenceResult>;
-  export(request: KnowledgeExportRequest): Promise<KnowledgeExportResult>;
-  ingest(input: IntakeInput): Promise<IntakeResult>;
-  download(model: LocalKnowledgeConfiguration["embeddingModel"]): Promise<LocalKnowledgeStatus>;
-  cancelDownload(
-    model: LocalKnowledgeConfiguration["embeddingModel"],
-  ): Promise<LocalKnowledgeStatus>;
-  cleanupObsoleteRuntime?(): Promise<LocalKnowledgeStatus>;
-  close(): Promise<void>;
-}
 export interface InstalledGitKnowledgeFeed {
   readonly sourceId: string;
   changes(): Promise<GitBatch>;
   acknowledge(token: string): Promise<void>;
-}
-export interface NightloomControl {
-  initialize?(): Promise<{ status: "ready" } | { status: "unavailable"; message: string }>;
-  tick(): Promise<{ kind: string }>;
-  runNow(overrideBudget: boolean): Promise<{ kind: string }>;
-  pause(): Promise<void>;
-  resume(): Promise<void>;
-  configure?(configuration: LocalKnowledgeConfiguration): Promise<void>;
-  status(): Promise<{
-    available?: boolean;
-    state?: "idle" | "running" | "uncertain" | "failed" | "unavailable";
-    message?: string;
-    paused: boolean;
-    active?: unknown;
-    budget: { automaticStarts: number; automaticReservedMilliseconds: number };
-  }>;
-  close?(): Promise<void>;
 }
 
 const SourceStateSchema = z.strictObject({
@@ -108,12 +79,13 @@ function sourceIntake(sourceId: string, update: GitBatch["updates"][number]): In
 }
 
 export function createKnowledgeHost(options: {
-  service: KnowledgeService;
+  service: LearningService;
+  context?: ContextPreparer;
+  permission: ReturnType<typeof createLearningPermission>;
   store: JsonStore;
   selectedProjectId(): string | undefined;
   sourceForProject(projectId: string): Promise<InstalledGitKnowledgeFeed>;
   captureQueues?(): Promise<readonly { conversationId: string; pendingObservations: number }[]>;
-  nightloom?: NightloomControl;
   schedulePreparationDeadline?: (expire: () => void, milliseconds: number) => () => void;
 }) {
   let serial: Promise<unknown> = Promise.resolve();
@@ -121,7 +93,6 @@ export function createKnowledgeHost(options: {
   const captureFailures = new Set<string>();
   let contextEpoch = 0;
   let referenceGeneration = new AbortController();
-  let automaticSuppressed = false;
   const pendingDisables = new Set<symbol>();
   const preparing = new Map<string, AbortController>();
   const attempted = new Set<string>();
@@ -131,14 +102,9 @@ export function createKnowledgeHost(options: {
     referenceGeneration = new AbortController();
     for (const request of preparing.values()) request.abort();
   };
-  const assessmentSettings = (c: LocalKnowledgeConfiguration) =>
-    JSON.stringify([
-      c.assessmentModel,
-      c.assessmentTimeoutMs,
-      c.maxAutomaticStartsPerDay,
-      c.maxAutomaticMillisecondsPerDay,
-      c.embeddingModel,
-    ]);
+  const unsubscribe = options.permission.subscribe((feature) => {
+    if (feature === "automaticContext") invalidatePreparation();
+  });
   const exclusive = <T>(work: () => Promise<T>) => {
     const result = serial.then(work, work);
     serial = result.catch(() => undefined);
@@ -150,8 +116,8 @@ export function createKnowledgeHost(options: {
   };
   const saveSource = (value: SourceState) =>
     options.store.set("knowledge-source", value as unknown as JsonValue);
-  async function mappedStatus(base?: LocalKnowledgeStatus): Promise<KnowledgeStatus> {
-    const parsed = LocalKnowledgeStatusSchema.parse(base ?? (await options.service.status()));
+  async function mappedStatus(): Promise<LearningStatus> {
+    const parsed = LearningAvailabilitySchema.parse(await options.service.status());
     const source = await loadSource();
     const sourceMessages = !source
       ? ["No installed Git source is configured."]
@@ -165,40 +131,7 @@ export function createKnowledgeHost(options: {
     )
       sourceMessages.push(sourceWarning);
     const message = [parsed.message, ...sourceMessages].join(" ");
-    let maintenance = { ...parsed.maintenance, paused: false };
-    if (options.nightloom) {
-      const state = await options.nightloom.status();
-      maintenance =
-        state.available === false
-          ? {
-              ...maintenance,
-              paused: state.paused,
-              state: "unavailable",
-              message: state.message ?? "Automatic maintenance is unavailable.",
-              automaticStartsToday: state.budget.automaticStarts,
-              automaticMillisecondsToday: state.budget.automaticReservedMilliseconds,
-            }
-          : {
-              ...maintenance,
-              paused: state.paused,
-              state:
-                state.state === "uncertain" ||
-                state.state === "failed" ||
-                state.state === "unavailable"
-                  ? state.state
-                  : state.paused
-                    ? "paused"
-                    : (state.state ?? (state.active ? "running" : maintenance.state)),
-              ...(state.message ? { message: state.message } : {}),
-              automaticStartsToday: state.budget.automaticStarts,
-              automaticMillisecondsToday: state.budget.automaticReservedMilliseconds,
-            };
-    } else
-      maintenance = {
-        ...maintenance,
-        state: "unavailable",
-        message: "Automatic maintenance requires the configured Temporal runtime.",
-      };
+    const curation = await options.service.capabilities.curation?.status();
     const captureQueues = (await options.captureQueues?.()) ?? [];
     const pendingByConversation = new Map(
       captureQueues.map((queue) => [queue.conversationId, queue.pendingObservations]),
@@ -224,7 +157,7 @@ export function createKnowledgeHost(options: {
             message: `${pendingObservations} tool observation${pendingObservations === 1 ? " is" : "s are"} waiting to be added to local knowledge. Recovery will not rerun the original tool${pendingObservations === 1 ? "" : "s"}. Reconnect or reopen Drawloom, then refresh status.`,
           }
         : { state: "idle" as const, pendingObservations: 0 as const, message: "" as const };
-    return KnowledgeStatusSchema.parse({
+    return LearningStatusSchema.parse({
       ...parsed,
       message: message.slice(0, 1024),
       ...(sourceWarning ? { sourceWarning } : {}),
@@ -241,10 +174,14 @@ export function createKnowledgeHost(options: {
             },
           }
         : {}),
-      maintenance,
+      ...(curation ? { curation } : {}),
+      consent: await options.permission.consent.status(),
     });
   }
-  async function pollSourceUnlocked(prepared?: InstalledGitKnowledgeFeed): Promise<void> {
+  async function pollSourceUnlocked(
+    prepared?: InstalledGitKnowledgeFeed,
+    operation?: AuthorizationEvaluationOptions,
+  ): Promise<void> {
     const saved = await loadSource();
     if (!saved) throw Error("No installed Git source is configured");
     if (!saved.enabled) return;
@@ -257,7 +194,7 @@ export function createKnowledgeHost(options: {
     }
     const batch = GitBatchSchema.parse(await feed.changes());
     for (const update of batch.updates) {
-      const result = await options.service.ingest(sourceIntake(saved.sourceId, update));
+      const result = await options.service.ingest(sourceIntake(saved.sourceId, update), operation);
       if (result.kind !== "accepted" && result.kind !== "duplicate")
         throw Error("Source intake unavailable");
     }
@@ -265,7 +202,7 @@ export function createKnowledgeHost(options: {
     await feed.acknowledge(batch.token);
     await saveSource({ projectId: saved.projectId, sourceId: saved.sourceId, enabled: true });
   }
-  async function configureSource(): Promise<void> {
+  async function configureSource(operation?: AuthorizationEvaluationOptions): Promise<void> {
     const projectId = options.selectedProjectId();
     if (!projectId) {
       sourceWarning = "Choose a project containing the configured Git source.";
@@ -287,7 +224,7 @@ export function createKnowledgeHost(options: {
       const feed = await options.sourceForProject(projectId);
       await saveSource({ projectId, sourceId: feed.sourceId, enabled: true });
       sourceWarning = "";
-      await pollSourceUnlocked(feed);
+      await pollSourceUnlocked(feed, operation);
     } catch (error) {
       const expectedFailure =
         error instanceof Error &&
@@ -318,11 +255,19 @@ export function createKnowledgeHost(options: {
       };
     },
     invalidatePreparation,
-    warmup() {
-      void options.service.warmup?.().catch(() => undefined);
+    async warmup(): Promise<LearningControlResult> {
+      try {
+        return (
+          (await options.service.capabilities.warmup?.run(referenceGeneration.signal)) ?? {
+            kind: "unavailable",
+          }
+        );
+      } catch {
+        return { kind: "unavailable" };
+      }
     },
     async prepare(
-      raw: Omit<ContextPreparationRequest, "signal">,
+      raw: Omit<ContextPreparationRequest, "signal" | "remainingMs">,
       allowed: () => boolean,
     ): Promise<{
       summary: ContextPreparationSummary;
@@ -334,6 +279,7 @@ export function createKnowledgeHost(options: {
       preparing.set(conversation, controller);
       const epoch = contextEpoch;
       const timeout = attempted.has(conversation) ? 2000 : 5000;
+      const deadline = performance.now() + timeout;
       let timedOut = false;
       const expire = () => {
         timedOut = true;
@@ -349,17 +295,24 @@ export function createKnowledgeHost(options: {
         summary: { kind, references: [] },
       });
       const work = async () => {
-        const configuration = (await options.service.status()).configuration;
+        const operation = {
+          signal: controller.signal,
+          remainingMs: () => Math.max(0, deadline - performance.now()),
+        };
+        const permission = await options.permission.lease("automaticContext");
         if (controller.signal.aborted || epoch !== contextEpoch)
           return summary(timedOut ? "timeout" : "cancelled");
-        if (pendingDisables.size || automaticSuppressed || !configuration.automaticContext)
-          return summary("disabled");
+        if (pendingDisables.size || !permission) return summary("disabled");
         if (!allowed()) return summary("denied");
-        if (!options.service.prepare) return summary("unavailable");
+        if (!options.context) return summary("unavailable");
         const parsed = ContextPreparationRequestSchema.parse(raw);
         attempted.add(conversation);
         const result = ContextPreparationResultSchema.parse(
-          await options.service.prepare({ ...parsed, signal: controller.signal }),
+          await options.context.prepare({
+            ...parsed,
+            ...operation,
+            signal: AbortSignal.any([operation.signal, permission.signal]),
+          }),
         );
         if (controller.signal.aborted || epoch !== contextEpoch)
           return summary(timedOut ? "timeout" : "cancelled");
@@ -398,10 +351,10 @@ export function createKnowledgeHost(options: {
     reportObservationRecovery(conversationId: string) {
       captureFailures.delete(conversationId);
     },
-    pollSource: () =>
+    pollSource: (operation?: AuthorizationEvaluationOptions) =>
       exclusive(async () => {
         try {
-          await pollSourceUnlocked();
+          await pollSourceUnlocked(undefined, operation);
           if ((await loadSource())?.enabled) sourceWarning = "";
         } catch (error) {
           if ((await loadSource())?.enabled)
@@ -412,31 +365,33 @@ export function createKnowledgeHost(options: {
       }),
     async command(
       raw: unknown,
-    ): Promise<KnowledgeStatus | SearchResult | EvidenceResult | KnowledgeExportResult> {
-      const command: KnowledgeCommand = KnowledgeCommandSchema.parse(raw);
-      if (command.action === "configure") {
-        if (!command.configuration.automaticContext) automaticSuppressed = true;
-        invalidatePreparation();
+      operation?: AuthorizationEvaluationOptions,
+    ): Promise<
+      | LearningStatus
+      | SearchResult
+      | EvidenceResult
+      | KnowledgeExportResult
+      | LearningCurationResult
+      | LearningControlResult
+    > {
+      const command: LearningCommand = LearningCommandSchema.parse(raw);
+      if (command.action === "search") return options.service.search(command.request, operation);
+      if (command.action === "evidence")
+        return options.service.evidence(command.request, operation);
+      if (command.action === "export") return options.service.export(command.request, operation);
+      if (command.action === "preferences" || command.action === "confirm") {
+        await (command.action === "preferences"
+          ? options.permission.preferences(command.preferences)
+          : options.permission.confirm(command.feature, command.scope));
+        await options.service.capabilities.curation?.setAutomatic(
+          !!(await options.permission.lease("automaticCuration")),
+        );
+        return mappedStatus();
       }
-      if (command.action === "search") return options.service.search(command.request);
-      if (command.action === "evidence") return options.service.evidence(command.request);
-      if (command.action === "export") return options.service.export(command.request);
       return exclusive(async () => {
         if (command.action === "status") return mappedStatus();
-        if (command.action === "configure") {
-          const prior = (await options.service.status()).configuration;
-          const changed = assessmentSettings(prior) !== assessmentSettings(command.configuration);
-          if (changed && (await options.nightloom?.status())?.active)
-            throw Error(
-              "Wait for the active knowledge assessment before changing its configuration",
-            );
-          const base = await options.service.configure(command.configuration);
-          automaticSuppressed = !base.configuration.automaticContext;
-          if (changed) await options.nightloom?.configure?.(command.configuration);
-          return mappedStatus(base);
-        }
         if (command.action === "source") {
-          if (command.enabled) await configureSource();
+          if (command.enabled) await configureSource(operation);
           else {
             const saved = await loadSource();
             if (saved?.pendingAck) {
@@ -455,27 +410,20 @@ export function createKnowledgeHost(options: {
           }
           return mappedStatus();
         }
-        if (command.action === "download")
-          return mappedStatus(await options.service.download(command.model));
-        if (command.action === "cancel_download")
-          return mappedStatus(await options.service.cancelDownload(command.model));
-        if (command.action === "cleanup_obsolete") {
-          if (!options.service.cleanupObsoleteRuntime)
-            throw Error("Previous runtime cleanup is unavailable.");
-          return mappedStatus(await options.service.cleanupObsoleteRuntime());
-        }
+        const curation = options.service.capabilities.curation;
+        if (!curation) return { kind: "unavailable" };
         if (command.action === "pause") {
-          if (options.nightloom)
-            await (command.paused ? options.nightloom.pause() : options.nightloom.resume());
-          return mappedStatus();
+          return command.paused ? curation.pause() : curation.resume();
         }
-        if (options.nightloom) await options.nightloom.runNow(command.overrideBudget);
-        return mappedStatus();
+        if (!(await options.permission.lease("automaticCuration", "manual")))
+          return { kind: "consent_required" };
+        return curation.run(command.overrideBudget);
       });
     },
     async close() {
       invalidatePreparation();
-      await options.nightloom?.close?.();
+      unsubscribe();
+      options.permission.close();
       await options.service.close();
     },
   };

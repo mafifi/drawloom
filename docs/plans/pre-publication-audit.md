@@ -236,6 +236,10 @@ CLI v1.3.0 verified by SHA-256, runs `test:temporal` and `test:temporal:learning
 and `publish` now requires it — `needs: [check, learning-integration]`. The
 safeguard is gated, not merely tested somewhere.
 
+The learning command is now named `test:orchestration:learning` (2026-09-16).
+The historical command above records what ran at that commit; the current lane
+still tests the orchestration contract using Temporal.
+
 Embedding conformance also reached an enforced lane: the shared suite runs
 against the real adapter, real SQLite index and real authorization inside
 `check:ci`, with only the GGUF worker variant left opt-in. Its first run failed

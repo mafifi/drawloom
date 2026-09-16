@@ -3,11 +3,11 @@ import { mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
+import type { Authorizer } from "@drawloom/authorization";
 import {
   KnowledgeLinkSchema,
   KnowledgeRecordSchema,
   RecordRefSchema,
-  type KnowledgeAuthorizer,
   type RecordRef,
   type TrustedKnowledgeSubject,
 } from "@drawloom/knowledge";
@@ -798,7 +798,7 @@ const evaluationSubject = Object.freeze({
   id: "answer-owner",
   properties: { scope: "local-knowledge-answer-evaluation" },
 }) as unknown as TrustedKnowledgeSubject;
-const evaluationAuthorizer: KnowledgeAuthorizer = { authorize: async () => ({ decision: true }) };
+const evaluationAuthorizer: Authorizer = { authorize: async () => ({ decision: true }) };
 const resolveEvaluationResource = ({ ref }: { readonly ref?: RecordRef }) => ({
   type: ref ? "knowledge-record" : "knowledge-store",
   id: ref ? refKey(ref) : "answer-evaluation",

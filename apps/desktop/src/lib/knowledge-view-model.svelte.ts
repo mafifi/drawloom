@@ -1,4 +1,10 @@
 import {
+  LearningCurationResultSchema,
+  LearningControlResultSchema,
+} from "@drawloom/knowledge/learning";
+import { z } from "zod";
+import type { LearningFeature } from "@drawloom/knowledge/consent";
+import {
   SearchResultSchema,
   EvidenceResultSchema,
   KnowledgeExportResultSchema,
@@ -8,25 +14,25 @@ import {
   type KnowledgeLink,
 } from "@drawloom/knowledge";
 import {
-  KnowledgeCommandSchema,
-  KnowledgeStatusSchema,
-  KnowledgeConfigurationSchema,
-  type KnowledgeCommand,
-  type KnowledgeStatus,
-} from "./knowledge-protocol.js";
+  LearningCommandSchema,
+  LearningStatusSchema,
+  type LearningCommand,
+  type LearningStatus,
+} from "./learning-protocol.js";
 import {
   knowledgeCopy,
+  describeProcessing,
   type KnowledgePresentation,
   type KnowledgeActions,
 } from "./knowledge-presentation.js";
 import { telemetryFetch } from "./telemetry.js";
 import { serializeKnowledgeExport } from "./knowledge-export.js";
 
-async function send(command: KnowledgeCommand, signal?: AbortSignal): Promise<unknown> {
+async function send(command: LearningCommand, signal?: AbortSignal): Promise<unknown> {
   const response = await telemetryFetch("/api/knowledge", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(KnowledgeCommandSchema.parse(command)),
+    body: JSON.stringify(LearningCommandSchema.parse(command)),
     ...(signal ? { signal } : {}),
   });
   if (!response.ok) throw Error("Knowledge is unavailable. Refresh status for setup details.");
@@ -41,6 +47,12 @@ function outcomeMessage(value: { kind: string; code?: string }): string {
     return "This evidence exceeds the page limit. Inspect a smaller part of the chain.";
   return "Knowledge is unavailable. Your existing records have not been replaced.";
 }
+const readableError = (cause: unknown) =>
+  cause instanceof z.ZodError
+    ? "Knowledge returned an unexpected response. Refresh status and try again."
+    : cause instanceof Error
+      ? cause.message
+      : "Knowledge is unavailable.";
 export function createKnowledgeViewModel(
   options: { send?: typeof send; download?: (text: string) => void } = {},
 ) {
@@ -49,7 +61,7 @@ export function createKnowledgeViewModel(
     results = $state<Extract<SearchResult, { kind: "ok" }>["items"]>([]);
   let evidence = $state<{ records: KnowledgeRecord[]; links: KnowledgeLink[] }>();
   let selected = $state<RecordRef>(),
-    status = $state<KnowledgeStatus>();
+    status = $state<LearningStatus>();
   let learningDraft = $state<{
     captureOutcomes: boolean;
     automaticContext: boolean;
@@ -60,6 +72,7 @@ export function createKnowledgeViewModel(
     searchStatus = $state(""),
     searched = $state(false);
   let statusError = $state("");
+  let manualConsent = $state(false);
   let searchPending = $state(false),
     evidencePending = $state(false),
     statusPending = $state(false),
@@ -74,7 +87,7 @@ export function createKnowledgeViewModel(
     searchRead = new AbortController(),
     evidenceRead = new AbortController();
   const fail = (cause: unknown) => {
-    error = cause instanceof Error ? cause.message : "Knowledge is unavailable.";
+    error = readableError(cause);
   };
   async function refresh() {
     if (statusPending) return;
@@ -82,41 +95,64 @@ export function createKnowledgeViewModel(
       readVersion = statusVersion;
     statusPending = true;
     try {
-      const next = KnowledgeStatusSchema.parse(await request({ action: "status" }));
+      const next = LearningStatusSchema.parse(await request({ action: "status" }));
       if (version === epoch && readVersion === statusVersion) {
         status = next;
         statusError = "";
       }
     } catch (cause) {
-      if (version === epoch && readVersion === statusVersion)
-        statusError = cause instanceof Error ? cause.message : "Knowledge status is unavailable.";
+      if (version === epoch && readVersion === statusVersion) statusError = readableError(cause);
     } finally {
       if (version === epoch) statusPending = false;
     }
   }
-  async function command(value: KnowledgeCommand, key: string = value.action) {
-    // Cancel remains available during an ongoing download request.
-    if (pendingAction && value.action !== "cancel_download") return;
+  async function command(value: LearningCommand, key: string = value.action) {
+    if (pendingAction) return;
     const version = epoch,
       actionKey = key;
     statusVersion++;
     pendingAction = actionKey;
     notice = "";
     try {
-      const next = KnowledgeStatusSchema.parse(await request(value));
+      const raw = await request(value);
+      let next;
+      if (value.action === "run" || value.action === "pause") {
+        const result =
+          value.action === "run"
+            ? LearningCurationResultSchema.parse(raw)
+            : LearningControlResultSchema.parse(raw);
+        if (version !== epoch) return;
+        manualConsent = result.kind === "consent_required";
+        notice =
+          result.kind === "consent_required"
+            ? "Review and confirm how assessment uses your knowledge before running it."
+            : result.kind === "cancelled"
+              ? "The request was cancelled."
+              : result.kind === "unavailable"
+                ? "This action is unavailable with the current learning service."
+                : result.kind === "uncertain"
+                  ? "The earlier assessment is unconfirmed. No replacement was started."
+                  : result.kind === "busy"
+                    ? "Curation is already running."
+                    : result.kind === "paused"
+                      ? "Resume curation before starting a run."
+                      : result.kind === "budget_exhausted"
+                        ? "The automatic daily limit has been reached."
+                        : result.kind === "started"
+                          ? "Curation started."
+                          : result.kind === "idle"
+                            ? "No pending evidence needs assessment."
+                            : "";
+        next = LearningStatusSchema.parse(await request({ action: "status" }));
+      } else next = LearningStatusSchema.parse(raw);
       if (version === epoch && pendingAction === actionKey) {
         statusVersion++;
         status = next;
         error = "";
-        if (value.action === "cleanup_obsolete" && next.obsoleteRuntimePresent === false)
-          notice =
-            "Previous runtime files are no longer present. Your knowledge and evidence are unchanged.";
       }
     } catch (cause) {
       if (version === epoch && pendingAction === actionKey) {
-        if (value.action === "cleanup_obsolete")
-          error = "Could not complete cleanup safely. Your knowledge is unchanged.";
-        else if (value.action === "source" && value.enabled)
+        if (value.action === "source" && value.enabled)
           error =
             "Collection could not start. Choose a project with an installed Git source, then connect it.";
         else fail(cause);
@@ -129,9 +165,9 @@ export function createKnowledgeViewModel(
     setLearning(key, enabled) {
       if (pendingAction || !status) return;
       learningDraft = {
-        captureOutcomes: status.configuration.captureOutcomes,
-        automaticContext: status.configuration.automaticContext,
-        automaticCuration: status.configuration.automaticCuration,
+        captureOutcomes: status.consent.features.captureOutcomes.preferred,
+        automaticContext: status.consent.features.automaticContext.preferred,
+        automaticCuration: status.consent.features.automaticCuration.preferred,
         ...learningDraft,
         [key]: enabled,
       };
@@ -139,10 +175,7 @@ export function createKnowledgeViewModel(
     async saveLearning() {
       if (pendingAction || !status || !learningDraft) return;
       const life = epoch;
-      await command(
-        { action: "configure", configuration: { ...status.configuration, ...learningDraft } },
-        "configure:learning",
-      );
+      await command({ action: "preferences", preferences: learningDraft }, "preferences");
       if (life === epoch && !error) learningDraft = undefined;
     },
     setQuery(value) {
@@ -184,9 +217,7 @@ export function createKnowledgeViewModel(
         hasMoreResults = Boolean(result.cursor);
         searched = true;
         searchStatus =
-          result.mode === "hybrid"
-            ? "Matched by words and meaning"
-            : "Matched by words · search by meaning is not ready yet";
+          result.mode === "hybrid" ? "Matched by words and meaning" : "Matched by words";
       } catch (cause) {
         if (version === searchVersion && life === epoch) fail(cause);
       } finally {
@@ -242,24 +273,14 @@ export function createKnowledgeViewModel(
       }
     },
     refresh,
-    async configure(value) {
-      try {
-        await command({
-          action: "configure",
-          configuration: KnowledgeConfigurationSchema.parse(value),
-        });
-      } catch (cause) {
-        fail(cause);
-      }
+    async confirmConsent(feature, scope) {
+      await command({ action: "confirm", feature, scope }, "confirm:" + feature);
+      if (!error) manualConsent = false;
     },
     run: (overrideBudget) => command({ action: "run", overrideBudget }),
     source: (enabled) =>
       command({ action: "source", enabled }, enabled ? "source:start" : "source:stop"),
     pause: (paused) => command({ action: "pause", paused }),
-    download: (model) => command({ action: "download", model, consent: true }, "download:" + model),
-    cancelDownload: (model) =>
-      command({ action: "cancel_download", model }, "cancel_download:" + model),
-    cleanupObsolete: () => command({ action: "cleanup_obsolete", consent: true }),
     async export() {
       if (!evidence?.records.length || pendingAction) return;
       const life = epoch;
@@ -301,9 +322,9 @@ export function createKnowledgeViewModel(
   const presentation: KnowledgePresentation = {
     get learning() {
       const saved = {
-        captureOutcomes: status?.configuration.captureOutcomes ?? false,
-        automaticContext: status?.configuration.automaticContext ?? false,
-        automaticCuration: status?.configuration.automaticCuration ?? false,
+        captureOutcomes: status?.consent.features.captureOutcomes.preferred ?? false,
+        automaticContext: status?.consent.features.automaticContext.preferred ?? false,
+        automaticCuration: status?.consent.features.automaticCuration.preferred ?? false,
       };
       const draft = learningDraft ?? saved;
       return {
@@ -319,8 +340,8 @@ export function createKnowledgeViewModel(
       return [
         status?.sourceWarning ||
           (status?.source?.state === "unavailable" ? status.source.message : ""),
-        status && ["uncertain", "failed", "unavailable"].includes(status.maintenance.state)
-          ? status.maintenance.message
+        status?.curation && ["uncertain", "failed", "unavailable"].includes(status.curation.state)
+          ? status.curation.message
           : "",
       ].filter(Boolean);
     },
@@ -369,8 +390,25 @@ export function createKnowledgeViewModel(
     get searchStatus() {
       return searchStatus;
     },
-    get configuration() {
-      return status?.configuration;
+    get consentRequests() {
+      if (!status) return [];
+      return (
+        Object.entries(status.consent.features) as [
+          LearningFeature,
+          typeof status.consent.features.captureOutcomes,
+        ][]
+      )
+        .filter(
+          ([feature, value]) =>
+            value.state === "consent_required" ||
+            (feature === "automaticCuration" && manualConsent),
+        )
+        .map(([feature, value]) => ({
+          feature,
+          scope: $state.snapshot(value.scope),
+          title: knowledgeCopy[feature],
+          ...describeProcessing(value.scope),
+        }));
     },
   };
   return {
@@ -387,6 +425,8 @@ export function createKnowledgeViewModel(
       evidence = undefined;
       selected = undefined;
       learningDraft = undefined;
+      manualConsent = false;
+      status = undefined;
       error = "";
       statusError = "";
       notice = "";

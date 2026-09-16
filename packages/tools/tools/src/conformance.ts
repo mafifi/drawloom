@@ -1,15 +1,36 @@
 import { z } from "zod";
+import type { Authorizer } from "@drawloom/authorization";
 import {
   defineTool,
   type ToolDefinition,
   type ToolGateway,
-  type ToolPolicy,
+  type ToolAuthorization,
   type ToolEvidenceSink,
 } from "./index.js";
+/** Synthetic conformance authority only; production hosts supply owned facts and generations. */
+export function toolAuthorizationFixture(
+  authorizer: Authorizer = { authorize: async () => ({ decision: true }) },
+): ToolAuthorization {
+  return {
+    authorizer,
+    authority: {
+      resolve: (operationId, tool) => ({
+        generation: 0,
+        request: {
+          subject: { type: "operation", id: operationId, properties: {} },
+          action: { name: "invoke" },
+          resource: { type: "tool", id: tool, properties: {} },
+        },
+      }),
+      isCurrent: () => true,
+      remainingMs: () => Number.MAX_SAFE_INTEGER,
+    },
+  };
+}
 export async function toolConformance(
   factory: (options: {
     tools: readonly ToolDefinition[];
-    policy: ToolPolicy;
+    authorization: ToolAuthorization;
     evidence: ToolEvidenceSink;
     nextInvocationId: () => string;
   }) => ToolGateway,
@@ -40,7 +61,7 @@ export async function toolConformance(
   });
   const richGateway = factory({
     tools: [rich],
-    policy: () => true,
+    authorization: toolAuthorizationFixture(),
     evidence: { record: async () => {} },
     nextInvocationId: () => "rich-1",
   });
@@ -91,7 +112,7 @@ export async function toolConformance(
   let id = 0;
   gateway = factory({
     tools: [tool],
-    policy: () => allowed,
+    authorization: toolAuthorizationFixture({ authorize: async () => ({ decision: allowed }) }),
     evidence,
     nextInvocationId: () => String(++id),
   });
@@ -228,7 +249,7 @@ export async function toolConformance(
   let invocation = 0;
   const extra = factory({
     tools: extraTools,
-    policy: () => true,
+    authorization: toolAuthorizationFixture(),
     evidence: { async record() {} },
     nextInvocationId: () => `extra-${++invocation}`,
   });
@@ -284,4 +305,48 @@ export async function toolConformance(
       effects === 4,
     "cancellation after entry cannot retry or claim rollback",
   );
+
+  // A second decision must be awaited after evidence, even with unchanged host facts.
+  let decisions = 0,
+    unauthorizedEffects = 0;
+  const terminal: import("./index.js").ToolEvidence[] = [];
+  const asyncGateway = factory({
+    tools: [
+      defineTool({
+        name: "protected",
+        description: "protected",
+        input: z.string(),
+        output: z.string(),
+        execute: (text) => {
+          unauthorizedEffects++;
+          return text;
+        },
+      }),
+    ],
+    authorization: toolAuthorizationFixture({
+      authorize: async () =>
+        ++decisions === 1 ? { decision: true } : { kind: "failure", code: "unavailable" },
+    }),
+    evidence: {
+      async record(record) {
+        terminal.push(record);
+      },
+    },
+    nextInvocationId: () => "async-failure",
+  });
+  const blocked = await asyncGateway.invoke(
+    asyncGateway.bind("async-operation"),
+    "protected",
+    "text",
+    signal,
+  );
+  check(decisions === 2 && unauthorizedEffects === 0, "second async decision gates execution");
+  check(
+    blocked.outcome.status === "failed" &&
+      blocked.outcome.code === "authorization_failed" &&
+      blocked.outcome.authorizationFailure === "unavailable" &&
+      blocked.outcome.execution === "not_started",
+    "authorization inability is not denial or unknown execution",
+  );
+  check(terminal.at(-1)?.kind === "finished", "authorization failure has terminal evidence");
 }

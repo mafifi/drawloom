@@ -1,3 +1,4 @@
+import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 import { test, expect } from "bun:test";
 import { agentConformance } from "../agent/src/conformance.js";
 import { createCodexDriver, createCodexToolBridge } from "./src/index.js";
@@ -59,7 +60,7 @@ test("Codex bridge preserves standard returned media beside canonical typed outp
         renderContent: () => content,
       }),
     ],
-    policy: () => true,
+    authorization: toolAuthorizationFixture(),
     evidence: { record: async () => {} },
     nextInvocationId: () => "one",
   });
@@ -427,7 +428,7 @@ test("MCP failure projection retains unknown execution", async () => {
         },
       }),
     ],
-    policy: () => true,
+    authorization: toolAuthorizationFixture(),
     evidence: { record: async () => {} },
     nextInvocationId: () => "id",
   });
@@ -667,7 +668,7 @@ test("Codex origin bridge cannot borrow a later operation binding", async () => 
   });
   const gateway = createLocalToolGateway({
     tools: [tool],
-    policy: () => true,
+    authorization: toolAuthorizationFixture(),
     evidence: { record: async () => {} },
     nextInvocationId: () => String(++id),
   });

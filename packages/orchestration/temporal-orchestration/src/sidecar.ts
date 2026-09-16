@@ -128,11 +128,11 @@ if (configuration.mode === "service") {
                   const generated = path === entry || path.startsWith(`${entry}-`);
                   // Only the package, provider runtime, Temporal runtime and portable public dependencies.
                   const dependency =
-                    /[/\\]node_modules[/\\](?:\.bun[/\\][^/\\]+[/\\]node_modules[/\\])?(?:@temporalio[/\\]|@drawloom[/\\](?:orchestration|evaluation|agent|tools|context|host|knowledge)[/\\]|@modelcontextprotocol[/\\]sdk[/\\]|zod[/\\]|long[/\\]|ms[/\\]|protobufjs[/\\]|@protobufjs[/\\]|uuid[/\\]|abort-controller[/\\]|event-target-shim[/\\]|nexus-rpc[/\\])/.test(
+                    /[/\\]node_modules[/\\](?:\.bun[/\\][^/\\]+[/\\]node_modules[/\\])?(?:@temporalio[/\\]|@drawloom[/\\](?:authorization|orchestration|evaluation|agent|tools|context|host|knowledge)[/\\]|@modelcontextprotocol[/\\]sdk[/\\]|zod[/\\]|long[/\\]|ms[/\\]|protobufjs[/\\]|@protobufjs[/\\]|uuid[/\\]|abort-controller[/\\]|event-target-shim[/\\]|nexus-rpc[/\\])/.test(
                       path,
                     );
                   const publicContract =
-                    /[/\\]packages[/\\](?:orchestration[/\\]orchestration|evaluation[/\\]evaluation|agent[/\\]agent|tools[/\\]tools|context[/\\]context|host[/\\]host|knowledge[/\\]knowledge)[/\\]dist[/\\]/.test(
+                    /[/\\]packages[/\\](?:authorization[/\\]authorization|orchestration[/\\]orchestration|evaluation[/\\]evaluation|agent[/\\]agent|tools[/\\]tools|context[/\\]context|host[/\\]host|knowledge[/\\]knowledge)[/\\]dist[/\\]/.test(
                       path,
                     );
                   const hostKnowledgeContract =

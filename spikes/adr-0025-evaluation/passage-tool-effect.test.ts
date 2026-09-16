@@ -1,3 +1,4 @@
+import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 import { expect, test } from "bun:test";
 import { z } from "zod";
 import { createCodexDriver, createCodexToolBridge } from "@drawloom/codex-agent";
@@ -44,7 +45,7 @@ function harness() {
       output: z.strictObject({ text: z.string(), accepted: z.literal(false) }),
       execute: ({ replacement }) => { calls += 1; text = replacement; return { text, accepted: false as const }; },
     })],
-    policy: () => grant,
+    authorization: toolAuthorizationFixture({ authorize: async () => ({ decision: grant }) }),
     evidence: { async record() {} },
     nextInvocationId: () => crypto.randomUUID(),
   });

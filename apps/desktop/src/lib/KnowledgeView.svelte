@@ -1,13 +1,9 @@
 <script lang="ts">
-  import { Button, Checkbox, Field, Input, Separator, StatefulButton, Tabs, Collapsible, Empty, SearchIcon, ChevronRightIcon, Badge, DownloadProgress, ModelSelector, Dialog } from '@drawloom/ui';
-  import CodexModelSelector from './CodexModelSelector.svelte';
+  import { Button, Checkbox, Field, Input, Separator, StatefulButton, Tabs, Collapsible, Empty, SearchIcon, ChevronRightIcon } from '@drawloom/ui';
+  import type { Snippet } from 'svelte';
   import type { KnowledgePresentation, KnowledgeActions } from './knowledge-presentation.js';
-  let { presentation: p, actions: a }: { presentation: KnowledgePresentation; actions: KnowledgeActions } = $props();
-  let assessmentModel=$state('');
-  let cleanupOpen=$state(false);
+  let { presentation: p, actions: a, localSetup }: { presentation: KnowledgePresentation; actions: KnowledgeActions; localSetup?: Snippet | undefined } = $props();
   let selectedTab=$state('search');
-  const configuredAssessmentModel=$derived(p.configuration?.assessmentModel??'');
-  $effect(()=>{assessmentModel=configuredAssessmentModel;});
 </script>
 
 <div class="primary-view-content knowledge-content">
@@ -82,7 +78,8 @@
   </section>
   </Tabs.Content>
   <Tabs.Content value="settings" class="space-y-10">
-  {#if p.configuration}
+  <div class="flex flex-wrap items-center justify-between gap-3"><p role="status">{p.status?.message ?? p.copy.loading}</p><StatefulButton variant="ghost" pending={p.statusPending} onclick={() => a.refresh()}>{p.copy.refresh}</StatefulButton></div>
+  {#if p.status}
     <section class="space-y-6" aria-label={p.copy.learning}>
       <h2>{p.copy.learning}</h2>
       <div class="space-y-2">
@@ -102,89 +99,50 @@
       </div>
       <div class="space-y-2">
         <Field.Field orientation="horizontal">
-          <Checkbox id="knowledge-automatic-curation" checked={p.learning.automaticCuration} onCheckedChange={value => a.setLearning('automaticCuration', value)} disabled={Boolean(p.pendingAction)} aria-describedby="knowledge-curation-help knowledge-curation-disable" />
+          <Checkbox id="knowledge-automatic-curation" checked={p.learning.automaticCuration} onCheckedChange={value => a.setLearning('automaticCuration', value)} disabled={Boolean(p.pendingAction) || !p.status?.curation} aria-describedby="knowledge-curation-help knowledge-curation-disable" />
           <Field.Label for="knowledge-automatic-curation">{p.copy.automaticCuration}</Field.Label>
         </Field.Field>
         <p id="knowledge-curation-help" class="text-sm text-muted-foreground">{p.copy.automaticCurationHelp}</p>
         <p id="knowledge-curation-disable" class="text-sm text-muted-foreground">{p.copy.curationDisableHelp}</p>
       </div>
-      <StatefulButton variant="outline" pending={p.pendingAction === 'configure:learning'} disabled={Boolean(p.pendingAction) || !p.learning.dirty} onclick={() => a.saveLearning()}>{p.copy.save}</StatefulButton>
+      <StatefulButton variant="outline" pending={p.pendingAction === 'preferences'} disabled={Boolean(p.pendingAction) || !p.learning.dirty} onclick={() => a.saveLearning()}>{p.copy.save}</StatefulButton>
     </section>
   {/if}
-  <section class="flex flex-col gap-3" aria-label={p.copy.setup}>
-    <div class="flex flex-wrap items-start justify-between gap-3"><div class="min-w-0 flex-1 space-y-2"><h2>{p.copy.setup}</h2><p class="text-muted-foreground">{p.copy.setupHelp}</p></div>
-    <StatefulButton variant="ghost" class="w-fit" pending={p.statusPending} onclick={() => a.refresh()}>{p.copy.refresh}</StatefulButton></div>
-    {#if p.status && !p.status.models.length}<p role="status">{p.status.message}</p>{/if}
-    {#each p.status?.models ?? [] as model (model.id)}
-      <article class="flex flex-col gap-3 py-4">
-        <div class="flex flex-wrap justify-between gap-3"><ModelSelector label="Embedding model" options={[{id:model.id,title:model.title,provider:'Local embeddings',local:true,description:'Search only · not a chat model'}]} value={model.id} onSelect={()=>{}} /><Badge variant="outline">{!model.runtimeDownloadAvailable && model.state !== 'ready' ? 'Download unavailable' : model.state === 'missing' ? 'Not installed' : model.state.replace('_', ' ')}</Badge></div>
-        <dl class="model-facts text-sm">
-          <dt>{p.copy.modelWeights}</dt><dd>{(model.weightsBytes / 1048576).toFixed(1)} MiB · {model.licence}</dd>
-          <dt>{p.copy.runtimeExtra}</dt><dd>{model.runtime.package} · {model.runtime.licence} · {(model.runtimeBytes / 1048576).toFixed(1)} MiB</dd>
-          <dt>{p.copy.prerequisites}</dt><dd>{model.prerequisites}</dd>
-        </dl>
-        <Collapsible.Root><Collapsible.Trigger>{#snippet child({props})}<Button {...props} variant="ghost" size="sm">Installation details <ChevronRightIcon class="size-4" /></Button>{/snippet}</Collapsible.Trigger><Collapsible.Content class="space-y-3 py-3"><p class="break-all"><strong>{p.copy.location}:</strong> {model.modelDirectory}<br />{model.runtimeDirectory}</p><p>{model.licence}</p><p class="break-all"><a class="underline" href={model.source} target="_blank" rel="noreferrer">Model source</a></p></Collapsible.Content></Collapsible.Root>
-        {#if model.message && model.message !== 'runtime_unavailable'}<p>{model.message}</p>{/if}
-        {#if (model.state==='downloading' || model.state==='installing_runtime') && model.receivedBytes !== undefined && model.expectedBytes !== undefined}<DownloadProgress received={model.receivedBytes} total={model.expectedBytes} label="Current file" />{/if}
-        {#if model.state==='installing_runtime' || model.state==='verifying'}<p role="status" class="text-sm text-muted-foreground">{model.state==='verifying'?'Verifying downloaded files…':'Installing the local runtime…'}</p>{/if}
-        {#if ['installing_runtime', 'downloading', 'verifying'].includes(model.state) || p.pendingAction === 'download:' + model.id}
-          <StatefulButton variant="outline" class="w-fit" pending={p.pendingAction === 'cancel_download:' + model.id} onclick={() => a.cancelDownload(model.id)}>{p.copy.cancel}</StatefulButton>
-        {:else if model.state !== 'ready'}
-          {#if !model.runtimeDownloadAvailable}<p role="status" class="text-sm text-muted-foreground">The replacement download is not published yet. Text search remains available.</p>{/if}
-          <StatefulButton variant="outline" class="w-fit" pending={p.pendingAction === 'download:' + model.id} disabled={Boolean(p.pendingAction) || !model.runtimeDownloadAvailable} onclick={() => a.download(model.id)}>{!model.runtimeDownloadAvailable ? p.copy.download : model.state === 'failed' || model.state === 'cancelled' ? p.copy.retry : p.copy.download}</StatefulButton>
-        {/if}
-      </article>
-    {/each}
-    {#if p.status?.obsoleteRuntimePresent}
-      <Dialog.Root bind:open={cleanupOpen}>
-        <Dialog.Trigger>{#snippet child({ props })}<Button {...props} variant="outline" class="w-fit" disabled={Boolean(p.pendingAction)}>{p.copy.cleanup}</Button>{/snippet}</Dialog.Trigger>
-        <Dialog.Content>
-          <Dialog.Header><Dialog.Title>{p.copy.cleanupTitle}</Dialog.Title><Dialog.Description>{p.copy.cleanupHelp}</Dialog.Description></Dialog.Header>
-          <Dialog.Footer>
-            <Button variant="outline" onclick={() => { cleanupOpen=false; }}>{p.copy.cleanupCancel}</Button>
-            <StatefulButton variant="destructive" pending={p.pendingAction==='cleanup_obsolete'} onclick={async () => { await a.cleanupObsolete(); cleanupOpen=false; }}>{p.copy.cleanup}</StatefulButton>
-          </Dialog.Footer>
-        </Dialog.Content>
-      </Dialog.Root>
-    {/if}
-  </section>
+  {#each p.consentRequests as request (request.feature)}
+    <section class="space-y-4" aria-label={request.title}>
+      <h3>{request.title}: {p.copy.permissionNeeded}</h3>
+      <p class="text-sm text-muted-foreground">{p.copy.permissionHelp}</p>
+      <dl class="consent-facts text-sm">
+        <dt>{p.copy.permissionPurpose}</dt><dd>{request.purpose}</dd>
+        <dt>{p.copy.permissionData}</dt><dd>{request.data}</dd>
+        <dt>{p.copy.permissionDestination}</dt><dd>{request.destinations}</dd>
+        <dt>{p.copy.permissionBoundaries}</dt><dd>{request.boundaries}</dd>
+      </dl>
+      <StatefulButton variant="outline" pending={p.pendingAction === 'confirm:' + request.feature} disabled={Boolean(p.pendingAction)} onclick={() => a.confirmConsent(request.feature, request.scope)}>{p.copy.permissionAllow}</StatefulButton>
+    </section>
+  {/each}
   <Separator />
   <section class="flex flex-col gap-3" aria-label={p.copy.maintenance}>
     <h2>{p.copy.maintenance}</h2><p class="text-muted-foreground">{p.copy.maintenanceHelp}</p>
-    {#if p.status}
-      {#if !p.recoveryNotices.includes(p.status.maintenance.message)}<p role="status">{p.status.maintenance.message}</p>{/if}
+    {#if p.status?.curation}
+      {#if !p.recoveryNotices.includes(p.status.curation.message)}<p role="status">{p.status.curation.message}</p>{/if}
       <div class="flex flex-wrap gap-2">
-        <StatefulButton pending={p.pendingAction === 'run'} disabled={Boolean(p.pendingAction) || p.status.maintenance.paused || ['running', 'uncertain', 'unavailable', 'paused'].includes(p.status.maintenance.state)} onclick={() => a.run(p.status?.maintenance.state === 'budget_exhausted')}>{p.status.maintenance.state === 'budget_exhausted' ? p.copy.override : p.copy.run}</StatefulButton>
-        <StatefulButton variant="outline" pending={p.pendingAction === 'pause'} disabled={Boolean(p.pendingAction)} onclick={() => a.pause(!p.status?.maintenance.paused)}>{p.status.maintenance.paused ? p.copy.resume : p.copy.pause}</StatefulButton>
+        <StatefulButton pending={p.pendingAction === 'run'} disabled={Boolean(p.pendingAction) || (p.status.curation.active && p.status.curation.state !== 'idle') || p.status.curation.paused || ['running', 'uncertain', 'unavailable', 'paused'].includes(p.status.curation.state)} onclick={() => a.run(p.status?.curation?.state === 'budget_exhausted')}>{p.status.curation.state === 'budget_exhausted' ? p.copy.override : p.copy.run}</StatefulButton>
+        <StatefulButton variant="outline" pending={p.pendingAction === 'pause'} disabled={Boolean(p.pendingAction)} onclick={() => a.pause(!p.status?.curation?.paused)}>{p.status.curation.paused ? p.copy.resume : p.copy.pause}</StatefulButton>
       </div>
-    {/if}
-    {#if p.configuration}
-      <form class="knowledge-settings-form" onsubmit={event => {
-        event.preventDefault(); const data = new FormData(event.currentTarget);
-        if (p.configuration) void a.configure({ ...p.configuration, assessmentModel, assessmentTimeoutMs: Number(data.get('timeout')) * 1000, maxAutomaticStartsPerDay: Number(data.get('starts')), maxAutomaticMillisecondsPerDay: Number(data.get('minutes')) * 60000 });
-      }}>
-        <h3>{p.copy.settings}</h3>
-        <div class="flex flex-wrap items-center justify-between gap-3"><span>{p.copy.assessmentModel}</span><CodexModelSelector label={p.copy.assessmentModel} selection={{model:assessmentModel}} requiredEffort="low" disabled={Boolean(p.pendingAction)} onSelect={value=>{if(value)assessmentModel=value.model;}} /></div>
-        <Field.Field><Field.Label for="knowledge-timeout">{p.copy.timeout}</Field.Label><Input id="knowledge-timeout" name="timeout" type="number" min="1" max="300" value={p.configuration.assessmentTimeoutMs / 1000} required /></Field.Field>
-        <Field.Field><Field.Label for="knowledge-starts">{p.copy.starts}</Field.Label><Input id="knowledge-starts" name="starts" type="number" min="1" max="100" value={p.configuration.maxAutomaticStartsPerDay} required /></Field.Field>
-        <Field.Field><Field.Label for="knowledge-minutes">{p.copy.minutes}</Field.Label><Input id="knowledge-minutes" name="minutes" type="number" min="1" max="1440" value={p.configuration.maxAutomaticMillisecondsPerDay / 60000} required /></Field.Field>
-        <p class="text-muted-foreground">{p.copy.confidentiality}</p>
-        <StatefulButton type="submit" variant="outline" class="w-fit" pending={p.pendingAction === 'configure'} disabled={Boolean(p.pendingAction)}>{p.copy.save}</StatefulButton>
-      </form>
-    {/if}
+    {:else}<p role="status" class="text-sm text-muted-foreground">{p.copy.unsupportedCuration}</p>{/if}
+
   </section>
+  {#if localSetup}<Separator />{@render localSetup()}{/if}
   </Tabs.Content>
   </Tabs.Root>
 </div>
 
 <style>
+  .consent-facts { display: grid; grid-template-columns: minmax(80px, 120px) minmax(0,1fr); gap: 8px 16px; }
+  .consent-facts dt { color: var(--muted-foreground); }
+  .consent-facts dd { margin:0; overflow-wrap:anywhere; }
   .knowledge-content { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
   .knowledge-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 2rem; }
   .knowledge-record { display: flex; flex-direction: column; gap: .65rem; border-bottom: 1px solid var(--border); padding-block: .75rem; }
-  .knowledge-settings-form { display: flex; flex-direction: column; gap: 24px; margin-top: 24px; }
-  .model-facts { display: grid; grid-template-columns: minmax(100px, 150px) minmax(0, 1fr); gap: 12px 24px; padding-block: 12px; }
-  .model-facts dt { color: var(--muted-foreground); }
-  .model-facts dd { margin: 0; overflow-wrap: anywhere; }
-  .knowledge-settings-form :global([data-slot="field"]) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(100px, 180px); align-items: center; gap: 16px; }
-  @media (max-width: 480px) { .knowledge-settings-form :global([data-slot="field"]) { grid-template-columns: 1fr; } .model-facts { grid-template-columns: 1fr; gap: 4px; } .model-facts dd { margin-bottom: 12px; } }
 </style>

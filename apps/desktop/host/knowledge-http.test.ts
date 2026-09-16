@@ -3,47 +3,23 @@ import { mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION } from "@drawloom/local-knowledge-runtime";
-import type { KnowledgeService } from "./knowledge-host.js";
+import type { LearningService } from "@drawloom/knowledge/learning";
+import { DEFAULT_LOCAL_LEARNING_SCOPE } from "./learning-consent.js";
+import { confirmApplicationLearning } from "../tests/learning-consent-fixture.js";
 import { createDesktopApplication } from "./application.js";
 import { serveDesktop } from "./server.js";
 
 const baseStatus = {
   availability: "ready" as const,
   message: "Local text search is ready.",
-  configuration: DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION,
-  models: [
-    {
-      id: "qwen3-embedding-0.6b-gguf" as const,
-      title: "Qwen GGUF",
-      licence: "Apache-2.0 model and conversion",
-      source: "https://example.invalid/model",
-      modelDirectory: "/data/models/active/qwen",
-      runtimeDirectory: "/data/models/runtime/mlx",
-      prerequisites: "Apple Silicon with Metal",
-      runtime: { package: "llama.cpp", version: "0.1.0", licence: "MIT" },
-      runtimeBytes: 1000,
-      runtimeDownloadAvailable: true,
-      weightsBytes: 10,
-      state: "missing" as const,
-    },
-  ],
-  indexing: "unavailable" as const,
-  maintenance: {
-    state: "idle" as const,
-    pendingUpdates: 0,
-    message: "Idle",
-    automaticStartsToday: 0,
-    automaticMillisecondsToday: 0,
-  },
+  retrieval: "lexical" as const,
 };
 
 test("knowledge is exposed only through the authenticated, schema-checked application endpoint", async () => {
   const calls: unknown[] = [];
   const service = {
+    capabilities: {},
     async status() {
-      return baseStatus;
-    },
-    async configure() {
       return baseStatus;
     },
     async search(request) {
@@ -65,17 +41,11 @@ test("knowledge is exposed only through the authenticated, schema-checked applic
     async ingest() {
       return { kind: "accepted" as const, revision: "r1" };
     },
-    async download() {
-      return baseStatus;
-    },
-    async cancelDownload() {
-      return baseStatus;
-    },
     async close() {},
-  } satisfies KnowledgeService;
+  } satisfies LearningService;
   const app = await createDesktopApplication(
     await mkdtemp(join(tmpdir(), "drawloom-knowledge-http-")),
-    { knowledge: { service } },
+    { knowledge: { service, declaration: DEFAULT_LOCAL_LEARNING_SCOPE } },
   );
   const server = serveDesktop(app, resolve("apps/desktop/build"));
   try {
@@ -123,10 +93,8 @@ test("knowledge tools use independent per-workbench grants", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-knowledge-grants-"));
   const observations: unknown[] = [];
   const service = {
+    capabilities: {},
     async status() {
-      return baseStatus;
-    },
-    async configure() {
       return baseStatus;
     },
     async search() {
@@ -148,16 +116,17 @@ test("knowledge tools use independent per-workbench grants", async () => {
       observations.push(value);
       return { kind: "accepted" as const, revision: "r1" };
     },
-    async download() {
-      return baseStatus;
-    },
-    async cancelDownload() {
-      return baseStatus;
-    },
     async close() {},
-  } satisfies KnowledgeService;
-  const app = await createDesktopApplication(join(root, "data"), { knowledge: { service } });
+  } satisfies LearningService;
+  const app = await createDesktopApplication(join(root, "data"), {
+    knowledge: { service, declaration: DEFAULT_LOCAL_LEARNING_SCOPE },
+  });
   try {
+    await confirmApplicationLearning(app, {
+      captureOutcomes: true,
+      automaticContext: false,
+      automaticCuration: false,
+    });
     const working = join(root, "working");
     await mkdir(working);
     await app.command({ kind: "add_project", directory: working });

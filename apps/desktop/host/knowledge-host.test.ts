@@ -1,41 +1,15 @@
 import { expect, test } from "bun:test";
 import type { JsonStore, JsonValue } from "@drawloom/host";
 import type { IntakeInput } from "@drawloom/knowledge";
-import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION } from "@drawloom/local-knowledge-runtime";
-import {
-  createKnowledgeHost,
-  type InstalledGitKnowledgeFeed,
-  type KnowledgeService,
-} from "./knowledge-host.js";
+import type { LearningService } from "@drawloom/knowledge/learning";
+import type { ContextPreparer } from "@drawloom/context";
+import { createConfirmedLearningPermission } from "../tests/learning-consent-fixture.js";
+import { createKnowledgeHost, type InstalledGitKnowledgeFeed } from "./knowledge-host.js";
 
 const status = () => ({
   availability: "ready" as const,
   message: "Text search ready.",
-  configuration: DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION,
-  models: [
-    {
-      id: "qwen3-embedding-0.6b-gguf" as const,
-      title: "Qwen GGUF",
-      licence: "Apache-2.0 model and conversion",
-      source: "https://example.invalid/model",
-      modelDirectory: "/data/models/active/qwen",
-      runtimeDirectory: "/data/models/runtime/mlx",
-      prerequisites: "Apple Silicon with Metal",
-      runtime: { package: "llama.cpp", version: "0.1.0", licence: "MIT" },
-      runtimeBytes: 1000,
-      runtimeDownloadAvailable: true,
-      weightsBytes: 10,
-      state: "missing" as const,
-    },
-  ],
-  indexing: "unavailable" as const,
-  maintenance: {
-    state: "idle" as const,
-    pendingUpdates: 0,
-    message: "Idle",
-    automaticStartsToday: 0,
-    automaticMillisecondsToday: 0,
-  },
+  retrieval: "lexical" as const,
 });
 
 for (const outcome of ["uncertain", "failed", "unavailable"] as const) {
@@ -44,52 +18,52 @@ for (const outcome of ["uncertain", "failed", "unavailable"] as const) {
     let dispatches = 0;
     const message = "The earlier assessment outcome remains unresolved.";
     const options = {
-      service: service([]),
+      service: {
+        ...service([]),
+        capabilities: {
+          curation: {
+            status: async () => ({
+              state: outcome,
+              message,
+              paused: (await store.get("paused")) === true,
+              active: false,
+              pendingUpdates: 0,
+              automaticStartsToday: 1,
+              automaticMillisecondsToday: 1000,
+            }),
+            setAutomatic: async () => ({ kind: "ready" as const }),
+            run: async () => {
+              dispatches++;
+              return { kind: "idle" as const };
+            },
+            pause: async () => {
+              await store.set("paused", true);
+              return { kind: "ready" as const };
+            },
+            resume: async () => {
+              await store.set("paused", false);
+              return { kind: "ready" as const };
+            },
+          },
+        },
+      },
+      permission: await createConfirmedLearningPermission(memoryStore()),
       store,
       selectedProjectId: () => undefined,
       sourceForProject: async () => {
         throw Error("No source requested");
       },
-      nightloom: {
-        async tick() {
-          dispatches++;
-          return { kind: "idle" };
-        },
-        async runNow() {
-          dispatches++;
-          return { kind: "idle" };
-        },
-        async pause() {
-          await store.set("paused", true);
-        },
-        async resume() {
-          await store.set("paused", false);
-        },
-        async status() {
-          return {
-            available: outcome !== "unavailable",
-            state: outcome,
-            message,
-            paused: (await store.get("paused")) === true,
-            budget: { automaticStarts: 1, automaticReservedMilliseconds: 1000 },
-          };
-        },
-      },
     };
     const host = createKnowledgeHost(options);
     expect(await host.command({ action: "status" })).toMatchObject({
-      maintenance: { paused: false, state: outcome, message },
+      curation: { paused: false, state: outcome, message },
     });
-    expect(await host.command({ action: "pause", paused: true })).toMatchObject({
-      maintenance: { paused: true, state: outcome, message },
-    });
+    expect(await host.command({ action: "pause", paused: true })).toEqual({ kind: "ready" });
     const reopened = createKnowledgeHost(options);
     expect(await reopened.command({ action: "status" })).toMatchObject({
-      maintenance: { paused: true, state: outcome, message },
+      curation: { paused: true, state: outcome, message },
     });
-    expect(await reopened.command({ action: "pause", paused: false })).toMatchObject({
-      maintenance: { paused: false, state: outcome, message },
-    });
+    expect(await reopened.command({ action: "pause", paused: false })).toEqual({ kind: "ready" });
     expect(await store.get("paused")).toBe(false);
     expect(dispatches).toBe(0);
     await reopened.close();
@@ -110,12 +84,10 @@ function memoryStore(log: string[] = []): JsonStore {
 function service(
   log: string[],
   intake: (input: IntakeInput) => "accepted" | "failure" = () => "accepted",
-): KnowledgeService {
+): LearningService {
   return {
+    capabilities: {},
     async status() {
-      return status();
-    },
-    async configure() {
       return status();
     },
     async search() {
@@ -141,12 +113,6 @@ function service(
         ? { kind: "accepted", revision: "r1" }
         : { kind: "failure", code: "unavailable" };
     },
-    async download() {
-      return status();
-    },
-    async cancelDownload() {
-      return status();
-    },
     async close() {},
   };
 }
@@ -154,6 +120,7 @@ function service(
 test("background source failure remains explicit until a successful poll confirms recovery", async () => {
   let unavailable = false;
   const host = createKnowledgeHost({
+    permission: await createConfirmedLearningPermission(memoryStore()),
     service: service([]),
     store: memoryStore(),
     selectedProjectId: () => "project-one",
@@ -194,50 +161,31 @@ test("background source failure remains explicit until a successful poll confirm
   );
 });
 
-test("disabling automatic references while assessment and preparation run invalidates late results without reconfiguring assessment", async () => {
-  let configuration = { ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, automaticContext: true };
-  const backend = service([]);
-  backend.status = async () => ({ ...status(), configuration });
-  backend.configure = async (next) => {
-    configuration = next;
-    return { ...status(), configuration };
-  };
+test("disabling automatic references cancels preparation and its pending disclosure generation", async () => {
+  const permission = await createConfirmedLearningPermission(memoryStore(), {
+    captureOutcomes: false,
+    automaticContext: true,
+    automaticCuration: false,
+  });
   let release!: () => void;
-  let starts = 0,
-    assessmentConfigurations = 0;
-  backend.prepare = async () => {
-    starts++;
-    await new Promise<void>((r) => {
-      release = r;
-    });
-    return { kind: "ready", text: "private retained material", references: [], bytes: 25 };
+  let starts = 0;
+  const context: ContextPreparer = {
+    prepare: async () => {
+      starts++;
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return { kind: "ready", text: "private retained material", references: [], bytes: 25 };
+    },
   };
   const host = createKnowledgeHost({
-    service: backend,
+    service: service([]),
+    permission,
+    context,
     store: memoryStore(),
     selectedProjectId: () => undefined,
     sourceForProject: async () => {
       throw Error();
-    },
-    nightloom: {
-      async tick() {
-        return { kind: "idle" };
-      },
-      async runNow() {
-        return { kind: "idle" };
-      },
-      async pause() {},
-      async resume() {},
-      async status() {
-        return {
-          active: {},
-          paused: false,
-          budget: { automaticStarts: 1, automaticReservedMilliseconds: 1000 },
-        };
-      },
-      async configure() {
-        assessmentConfigurations++;
-      },
     },
   });
   const input = {
@@ -247,43 +195,40 @@ test("disabling automatic references while assessment and preparation run invali
   };
   const pending = host.prepare(input, () => true);
   const deliverySignal = host.referenceSignal;
-  while (!starts) await new Promise((r) => setTimeout(r, 1));
-  await host.command({
-    action: "configure",
-    configuration: { ...configuration, automaticContext: false },
+  while (!starts) await Promise.resolve();
+  const save = host.command({
+    action: "preferences",
+    preferences: { captureOutcomes: false, automaticContext: false, automaticCuration: false },
   });
   expect(deliverySignal.aborted).toBe(true);
   release();
+  await save;
   expect(await pending).toMatchObject({ summary: { kind: "cancelled", references: [] } });
-  expect(await host.prepare(input, () => true)).toMatchObject({
-    summary: { kind: "disabled", references: [] },
-  });
+  expect(await host.prepare(input, () => true)).toMatchObject({ summary: { kind: "disabled" } });
   expect(starts).toBe(1);
-  expect(assessmentConfigurations).toBe(0);
-  await expect(
-    host.command({
-      action: "configure",
-      configuration: { ...configuration, assessmentModel: "other" },
-    }),
-  ).rejects.toThrow("active knowledge assessment");
+  await host.close();
 });
 
 test("preparation bounds a hung service, rejects revoked grants and resends every execution", async () => {
   const backend = service([]);
-  backend.status = async () => ({
-    ...status(),
-    configuration: { ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, automaticContext: true },
-  });
   let permitted = true,
     mode: "revoke" | "ready" | "hang" = "revoke",
     calls = 0;
-  backend.prepare = async () => {
-    calls++;
-    if (mode === "hang") return new Promise(() => {});
-    if (mode === "revoke") permitted = false;
-    return { kind: "ready", text: "reference", bytes: 9, references: [] };
+  const context: ContextPreparer = {
+    prepare: async () => {
+      calls++;
+      if (mode === "hang") return new Promise(() => {});
+      if (mode === "revoke") permitted = false;
+      return { kind: "ready", text: "reference", bytes: 9, references: [] };
+    },
   };
   const host = createKnowledgeHost({
+    permission: await createConfirmedLearningPermission(memoryStore(), {
+      automaticContext: true,
+      captureOutcomes: false,
+      automaticCuration: false,
+    }),
+    context,
     service: backend,
     store: memoryStore(),
     selectedProjectId: () => undefined,
@@ -318,30 +263,6 @@ test("preparation bounds a hung service, rejects revoked grants and resends ever
   await host.close();
 });
 
-test("obsolete runtime cleanup is explicit and never changes source collection", async () => {
-  let cleanups = 0,
-    sources = 0;
-  const backend = service([]);
-  backend.cleanupObsoleteRuntime = async () => {
-    cleanups++;
-    return status();
-  };
-  const host = createKnowledgeHost({
-    service: backend,
-    store: memoryStore(),
-    selectedProjectId: () => "project-one",
-    sourceForProject: async () => {
-      sources++;
-      throw Error("not requested");
-    },
-  });
-  await host.command({ action: "status" });
-  expect(cleanups).toBe(0);
-  await host.command({ action: "cleanup_obsolete", consent: true });
-  expect(cleanups).toBe(1);
-  expect(sources).toBe(0);
-});
-
 test("configured Git knowledge stays fixed to its captured project when UI selection changes", async () => {
   const log: string[] = [];
   let selected = "project-one";
@@ -357,6 +278,7 @@ test("configured Git knowledge stays fixed to its captured project when UI selec
     },
   });
   const host = createKnowledgeHost({
+    permission: await createConfirmedLearningPermission(memoryStore()),
     service: service(log),
     store: memoryStore(log),
     selectedProjectId: () => selected,
@@ -387,6 +309,7 @@ test("configured Git knowledge stays fixed to its captured project when UI selec
 test("changing model settings never implicitly enables repository collection", async () => {
   let sourceCalls = 0;
   const host = createKnowledgeHost({
+    permission: await createConfirmedLearningPermission(memoryStore()),
     service: service([]),
     store: memoryStore(),
     selectedProjectId: () => "project-one",
@@ -395,13 +318,17 @@ test("changing model settings never implicitly enables repository collection", a
       throw Error("should not be called");
     },
   });
-  await host.command({ action: "configure", configuration: DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION });
+  await host.command({
+    action: "preferences",
+    preferences: { automaticContext: false, captureOutcomes: false, automaticCuration: false },
+  });
   expect(sourceCalls).toBe(0);
   expect(await host.command({ action: "status" })).not.toHaveProperty("source");
 });
 
 test("source setup warning is shown without a selected project, survives status refresh, and does not block search", async () => {
   const host = createKnowledgeHost({
+    permission: await createConfirmedLearningPermission(memoryStore()),
     service: service([]),
     store: memoryStore(),
     selectedProjectId: () => undefined,
@@ -427,6 +354,7 @@ test("source setup warning is shown without a selected project, survives status 
 
 test("missing installed Git feed retains one actionable warning after source setup", async () => {
   const host = createKnowledgeHost({
+    permission: await createConfirmedLearningPermission(memoryStore()),
     service: service([]),
     store: memoryStore(),
     selectedProjectId: () => "project-one",
@@ -452,6 +380,7 @@ test("first-source presentation warning survives unrelated configuration and cle
   let projectId: string | undefined,
     feedReady = false;
   const host = createKnowledgeHost({
+    permission: await createConfirmedLearningPermission(memoryStore()),
     service: service([]),
     store: memoryStore(),
     selectedProjectId: () => projectId,
@@ -467,8 +396,8 @@ test("first-source presentation warning survives unrelated configuration and cle
   await expect(host.command({ action: "source", enabled: true })).rejects.toThrow();
   expect(
     await host.command({
-      action: "configure",
-      configuration: DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION,
+      action: "preferences",
+      preferences: { automaticContext: false, captureOutcomes: false, automaticCuration: false },
     }),
   ).toMatchObject({ sourceWarning: "Choose a project containing the configured Git source." });
   projectId = "project";
@@ -492,35 +421,44 @@ test("first-source presentation warning survives unrelated configuration and cle
   });
 });
 
-test("Run now bypasses backlog timing while only an explicit override bypasses its budget", async () => {
-  const calls: string[] = [];
-  const nightloom = {
-    async tick() {
-      calls.push("tick");
-      return { kind: "idle" };
-    },
-    async runNow(overrideBudget: boolean) {
-      calls.push(`run:${overrideBudget}`);
-      return { kind: "started" };
-    },
-    async pause() {},
-    async resume() {},
-    async status() {
-      return { paused: false, budget: { automaticStarts: 0, automaticReservedMilliseconds: 0 } };
+test("Run now preserves automatic preference off and forwards the explicit budget override", async () => {
+  const calls: boolean[] = [];
+  const capabilities: import("@drawloom/knowledge/learning").LearningService["capabilities"] & {
+    curation?: import("@drawloom/knowledge/learning").LearningCuration;
+  } = {};
+  const backend = { ...service([]), capabilities };
+  const permission = await createConfirmedLearningPermission(memoryStore());
+  capabilities.curation = {
+    status: async () => ({
+      state: "idle",
+      paused: false,
+      active: false,
+      pendingUpdates: 0,
+      message: "",
+      automaticStartsToday: 0,
+      automaticMillisecondsToday: 0,
+    }),
+    setAutomatic: async () => ({ kind: "ready" }),
+    pause: async () => ({ kind: "ready" }),
+    resume: async () => ({ kind: "ready" }),
+    run: async (override) => {
+      calls.push(override);
+      return { kind: "started", runId: "public-run" };
     },
   };
   const host = createKnowledgeHost({
-    service: service([]),
+    service: backend,
+    permission,
     store: memoryStore(),
     selectedProjectId: () => undefined,
     sourceForProject: async () => {
-      throw Error("not used");
+      throw Error();
     },
-    nightloom,
   });
   await host.command({ action: "run", overrideBudget: false });
   await host.command({ action: "run", overrideBudget: true });
-  expect(calls).toEqual(["run:false", "run:true"]);
+  expect(calls).toEqual([false, true]);
+  expect(await permission.consent.permits("automaticCuration")).toBe(false);
 });
 
 test("source ACK follows durable intake and an ack-pending receipt; failed intake is never acknowledged", async () => {
@@ -547,6 +485,7 @@ test("source ACK follows durable intake and an ack-pending receipt; failed intak
     },
   };
   const host = createKnowledgeHost({
+    permission: await createConfirmedLearningPermission(memoryStore()),
     service: service(log, () => (fail ? "failure" : "accepted")),
     store: memoryStore(log),
     selectedProjectId: () => "project-one",
@@ -587,6 +526,7 @@ test("restart retries only the same durable ACK and does not repoll or reingest"
     },
   };
   const host = createKnowledgeHost({
+    permission: await createConfirmedLearningPermission(memoryStore()),
     service: service(log),
     store,
     selectedProjectId: () => "project-two",
@@ -628,6 +568,7 @@ test("enabling another source finishes the prior durable ACK before replacing it
     },
   };
   const host = createKnowledgeHost({
+    permission: await createConfirmedLearningPermission(memoryStore()),
     service: service(log),
     store,
     selectedProjectId: () => "project-two",

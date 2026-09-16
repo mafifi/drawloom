@@ -1,3 +1,4 @@
+import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 import { test, expect } from "bun:test";
 import { z } from "zod";
 import type { JsonValue, JsonStore } from "@drawloom/host";
@@ -56,7 +57,7 @@ test("desktop does not publish an outcome while its commit is pending", async ()
   const sink = await createDesktopEvidence(f.store, "conversation");
   const gateway = createLocalToolGateway({
     tools: [f.tool],
-    policy: () => true,
+    authorization: toolAuthorizationFixture(),
     evidence: sink,
     nextInvocationId: () => "one",
   });
@@ -107,7 +108,7 @@ for (const [failAt, evidence, entered] of [
       sink = await createDesktopEvidence(f.store, "conversation");
     const gateway = createLocalToolGateway({
       tools: [f.tool],
-      policy: () => true,
+      authorization: toolAuthorizationFixture(),
       evidence: sink,
       nextInvocationId: () => "invocation",
     });
@@ -131,7 +132,7 @@ test("overlapping desktop evidence retains every identity and unfinished starts 
   let id = 0;
   const gateway = createLocalToolGateway({
     tools: [f.tool],
-    policy: () => true,
+    authorization: toolAuthorizationFixture(),
     evidence: sink,
     nextInvocationId: () => String(++id),
   });

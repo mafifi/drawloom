@@ -11,7 +11,7 @@ import {
   RecordReadResultSchema,
   SearchResultSchema,
   type AuthZenEntity,
-  type KnowledgeAuthorizer,
+  type Authorizer,
   type KnowledgeRecord,
   type KnowledgeRetrieval,
   type OpaqueCursor,
@@ -27,7 +27,7 @@ const header =
 
 export interface KnowledgeContextDependencies {
   retrieval: KnowledgeRetrieval;
-  authorizer: KnowledgeAuthorizer;
+  authorizer: Authorizer;
   subject: TrustedKnowledgeSubject;
   destination: AuthZenEntity;
   /** Trusted composition resolves authoritative resource attributes; request/model text cannot supply them. */
@@ -45,7 +45,9 @@ const statusOf = (record: KnowledgeRecord) => ({
   ...(record.ref.type === "claim" && "freshness" in record ? { freshness: record.freshness } : {}),
 });
 const bytes = (value: string) => encoder.encode(value).byteLength;
-const terminal = (kind: "empty" | "unavailable" | "cancelled"): ContextPreparationResult => ({
+const terminal = (
+  kind: "empty" | "unavailable" | "cancelled" | "timeout",
+): ContextPreparationResult => ({
   kind,
   references: [],
   bytes: 0,
@@ -63,42 +65,61 @@ export function createKnowledgeContextPreparer(
       });
       if (!parsed.success) return terminal("unavailable");
       const request = parsed.data;
-      if (rawRequest.signal.aborted) return terminal("cancelled");
+      const operation = { signal: rawRequest.signal, remainingMs: rawRequest.remainingMs };
+      const stopped = (): ContextPreparationResult | undefined => {
+        if (operation.signal.aborted) return terminal("cancelled");
+        try {
+          const remaining = operation.remainingMs();
+          if (Number.isFinite(remaining) && remaining > 0) return;
+        } catch {}
+        return terminal("timeout");
+      };
+      const failure = (code: string) =>
+        stopped() ?? terminal(code === "cancelled" ? "cancelled" : "unavailable");
+      if (stopped()) return stopped()!;
       const hits: KnowledgeRecord[] = [];
       let cursor: OpaqueCursor | undefined;
       try {
         do {
           const search = SearchResultSchema.parse(
-            await dependencies.retrieval.search(dependencies.subject, {
-              query: request.request,
-              mode: "best_available",
-              limit: 1,
-              maxBytes: 1024 * 1024,
-              ...(cursor ? { cursor } : {}),
-            }),
+            await dependencies.retrieval.search(
+              dependencies.subject,
+              {
+                query: request.request,
+                mode: "best_available",
+                limit: 1,
+                maxBytes: 1024 * 1024,
+                ...(cursor ? { cursor } : {}),
+              },
+              operation,
+            ),
           );
+          if (stopped()) return stopped()!;
+          if (search.kind === "failure") return failure(search.code);
+          if (search.kind === "denied") return terminal("empty");
           if (search.kind !== "ok") return terminal("unavailable");
           hits.push(...search.items.map((item) => item.record));
           cursor = search.cursor;
-          if (rawRequest.signal.aborted) return terminal("cancelled");
+          if (stopped()) return stopped()!;
         } while (cursor && hits.length < Math.min(MAX_RECORDS, request.budget.maxRecords));
       } catch {
-        return terminal("unavailable");
+        return stopped() ?? terminal("unavailable");
       }
-      if (rawRequest.signal.aborted) return terminal("cancelled");
+      if (stopped()) return stopped()!;
 
       const selected: Array<{ record: KnowledgeRecord; inclusion: "body" | "reference_only" }> = [];
       for (const hit of hits.slice(0, Math.min(MAX_RECORDS, request.budget.maxRecords))) {
-        if (rawRequest.signal.aborted) return terminal("cancelled");
+        if (stopped()) return stopped()!;
         let read;
         try {
           read = RecordReadResultSchema.parse(
-            await dependencies.retrieval.get(dependencies.subject, hit.ref),
+            await dependencies.retrieval.get(dependencies.subject, hit.ref, operation),
           );
         } catch {
-          return terminal("unavailable");
+          return stopped() ?? terminal("unavailable");
         }
-        if (rawRequest.signal.aborted) return terminal("cancelled");
+        if (stopped()) return stopped()!;
+        if (read.kind === "failure") return failure(read.code);
         if (read.kind !== "ok" || !read.record || !sameRef(read.record.ref, hit.ref)) continue;
         const record = KnowledgeRecordSchema.parse(read.record);
         let authorization;
@@ -107,7 +128,7 @@ export function createKnowledgeContextPreparer(
             ref: record.ref,
             destination: dependencies.destination,
           });
-          if (rawRequest.signal.aborted) return terminal("cancelled");
+          if (stopped()) return stopped()!;
           const authorizationRequest = AuthZenRequestSchema.parse({
             subject: dependencies.subject,
             action: { name: "knowledge.disclose" },
@@ -115,13 +136,14 @@ export function createKnowledgeContextPreparer(
             context: { destination: dependencies.destination, execution: request.binding },
           });
           authorization = AuthorizationResultSchema.parse(
-            await dependencies.authorizer.authorize(authorizationRequest),
+            await dependencies.authorizer.authorize(authorizationRequest, operation),
           );
-          if (rawRequest.signal.aborted) return terminal("cancelled");
+          if (stopped()) return stopped()!;
         } catch {
-          return terminal("unavailable");
+          return stopped() ?? terminal("unavailable");
         }
-        if (!("decision" in authorization) || !authorization.decision) continue;
+        if (!("decision" in authorization)) return failure(authorization.code);
+        if (!authorization.decision) continue;
         const bodyEntry = render(record, "body");
         selected.push({
           record,
@@ -142,12 +164,13 @@ export function createKnowledgeContextPreparer(
       // each exact reference and authorization at its point in this final pass.
       for (let index = selected.length - 1; index >= 0; index--) {
         const candidate = selected[index]!;
-        if (rawRequest.signal.aborted) return terminal("cancelled");
+        if (stopped()) return stopped()!;
         try {
           const read = RecordReadResultSchema.parse(
-            await dependencies.retrieval.get(dependencies.subject, candidate.record.ref),
+            await dependencies.retrieval.get(dependencies.subject, candidate.record.ref, operation),
           );
-          if (rawRequest.signal.aborted) return terminal("cancelled");
+          if (stopped()) return stopped()!;
+          if (read.kind === "failure") return failure(read.code);
           if (
             read.kind !== "ok" ||
             !read.record ||
@@ -163,7 +186,7 @@ export function createKnowledgeContextPreparer(
             ref: record.ref,
             destination: dependencies.destination,
           });
-          if (rawRequest.signal.aborted) return terminal("cancelled");
+          if (stopped()) return stopped()!;
           const authorizationRequest = AuthZenRequestSchema.parse({
             subject: dependencies.subject,
             action: { name: "knowledge.disclose" },
@@ -171,13 +194,14 @@ export function createKnowledgeContextPreparer(
             context: { destination: dependencies.destination, execution: request.binding },
           });
           const authorization = AuthorizationResultSchema.parse(
-            await dependencies.authorizer.authorize(authorizationRequest),
+            await dependencies.authorizer.authorize(authorizationRequest, operation),
           );
-          if (rawRequest.signal.aborted) return terminal("cancelled");
-          if (!("decision" in authorization) || !authorization.decision) selected.splice(index, 1);
+          if (stopped()) return stopped()!;
+          if (!("decision" in authorization)) return failure(authorization.code);
+          if (!authorization.decision) selected.splice(index, 1);
           else candidate.record = record;
         } catch {
-          return terminal("unavailable");
+          return stopped() ?? terminal("unavailable");
         }
       }
       if (!selected.length) return terminal("empty");
@@ -187,6 +211,7 @@ export function createKnowledgeContextPreparer(
           ...selected.map(({ record, inclusion }) => render(record, inclusion)),
         ].join("\n\n");
         const measured = bytes(text);
+        if (stopped()) return stopped()!;
         if (measured <= request.budget.maxBytes)
           return ContextPreparationResultSchema.parse({
             kind: "ready",

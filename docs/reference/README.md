@@ -6,6 +6,8 @@ For the bigger picture, start with [Architecture](../../ARCHITECTURE.md).
 ## Build and connect
 
 - [Foundation APIs](foundation-api.md): the shared interfaces and implementations.
+- [Replace a capability](replacing-capabilities.md): trusted setup for learning,
+  context, access decisions and approval presentation, with public examples.
 - [Plugin packages](plugin-packages.md): package and install skills, tools,
   workbenches and Drawloom extensions.
 - [Discovery and resources](discovery-and-resources.md): find available

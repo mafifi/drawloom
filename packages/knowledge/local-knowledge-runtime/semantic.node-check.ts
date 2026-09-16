@@ -49,7 +49,7 @@ async function fixture(vectorFor: (role: string, text: string) => number[] = () 
       retrieval: db.retrieval,
       work: db.indexWork,
       index: db.embeddingIndex,
-      authorizeSearch,
+      authorizeSearch: async (ref) => ({ decision: await authorizeSearch(ref) }),
       revision: async () => {
         const status = await db.maintenance.status(subject);
         if (status.kind !== "ok") throw Error("unavailable");
@@ -71,6 +71,7 @@ async function fixture(vectorFor: (role: string, text: string) => number[] = () 
     });
   return {
     db,
+    embeddings,
     calls,
     make,
     insert,
@@ -125,6 +126,7 @@ test("semantic admission rejects a nearest but unrelated hostile body and admits
         request: "Who composed the sonata?",
         binding: { executionId: "relevance", conversationId: "public" },
         budget: { maxRecords: 8, maxBytes: 12 * 1024 },
+        remainingMs: () => 5000,
         signal: new AbortController().signal,
       });
       assert.deepEqual(prepared, { kind: "empty", references: [], bytes: 0 });
@@ -147,6 +149,25 @@ test("semantic admission rejects a nearest but unrelated hostile body and admits
       assert.equal(found.items[0]?.relevance, 1 / 60);
       assert.equal(found.cursor, undefined);
     }
+  } finally {
+    service.close();
+    await f.cleanup();
+  }
+});
+
+test("hybrid search cannot hide embedding policy failure behind a lexical fallback", async () => {
+  const f = await fixture();
+  const service = f.make();
+  try {
+    await f.insert("one");
+    await service.indexNext();
+    f.embeddings.embed = async () => {
+      throw Error("policy unavailable");
+    };
+    assert.deepEqual(
+      await service.search({ query: "needle", mode: "best_available", limit: 10, maxBytes: 8192 }),
+      { kind: "failure", code: "unavailable" },
+    );
   } finally {
     service.close();
     await f.cleanup();
@@ -385,7 +406,7 @@ test("an oversized internal lexical candidate window falls back to the caller li
     work,
     index,
     embeddings,
-    authorizeSearch: async () => true,
+    authorizeSearch: async () => ({ decision: true }),
     revision: async () => "epoch-1",
   });
   try {
@@ -499,7 +520,7 @@ test("a denied semantic insertion cannot change the fused order of allowed recor
       work,
       index,
       embeddings,
-      authorizeSearch: async (ref) => ref?.id !== "denied-x",
+      authorizeSearch: async (ref) => ({ decision: ref?.id !== "denied-x" }),
       revision: async () => "epoch-1",
     });
     try {

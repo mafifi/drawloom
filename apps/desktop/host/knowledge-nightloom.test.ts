@@ -1,13 +1,12 @@
+import { createAuthorizedKnowledgeFixture as createManagedLocalKnowledgeClient } from "../tests/knowledge-authority-fixture.js";
 import { expect, test } from "bun:test";
 import type { JsonStore, JsonValue } from "@drawloom/host";
 import type { LocalTemporalRegistration } from "@drawloom/temporal-orchestration";
 import type { Orchestrator, RegisteredTaskHandler } from "@drawloom/orchestration";
 import { createKnowledgeNightloom, type NightloomKnowledgeService } from "./knowledge-nightloom.js";
-import { createKnowledgeHost } from "./knowledge-host.js";
-import {
-  createManagedLocalKnowledgeClient,
-  DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION,
-} from "@drawloom/local-knowledge-runtime";
+import { createLocalLearningSetup, createLocalLearningSetupHost } from "./local-learning.js";
+import { createConfirmedLearningPermission } from "../tests/learning-consent-fixture.js";
+import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION } from "@drawloom/local-knowledge-runtime";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -127,9 +126,15 @@ test("Nightloom registers once as a host capability and attaches only its bounde
     },
   } satisfies NightloomKnowledgeService;
   const coordinatorStore = memoryStore();
+  const permission = await createConfirmedLearningPermission(memoryStore(), {
+    automaticCuration: true,
+    automaticContext: false,
+    captureOutcomes: false,
+  });
   const nightloom = createKnowledgeNightloom({
     service,
     store: coordinatorStore,
+    permission,
     packageDirectory: "/installed/nightloom",
     settings: async () => ({
       automaticContext: false,
@@ -187,15 +192,7 @@ test("Nightloom registers once as a host capability and attaches only its bounde
     root: join(root, "knowledge"),
     workingDirectory: root,
   });
-  const host = createKnowledgeHost({
-    service: client,
-    store: memoryStore(),
-    selectedProjectId: () => undefined,
-    sourceForProject: async () => {
-      throw Error("No source requested");
-    },
-    nightloom,
-  });
+  const host = createLocalLearningSetupHost(createLocalLearningSetup(client, nightloom));
   try {
     const before = await coordinatorStore.get("knowledge-nightloom-coordinator");
     for (const changed of [
@@ -208,7 +205,8 @@ test("Nightloom registers once as a host capability and attaches only its bounde
       expect(starts).toHaveLength(1);
     }
   } finally {
-    await host.close();
+    await nightloom.close();
+    await client.close();
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -279,7 +277,9 @@ test("owned scheduling is serial, default-off, pause-aware and stopped before cl
     async respond() {},
     async cancel() {},
   };
+  const permission = await createConfirmedLearningPermission(memoryStore());
   const host = createKnowledgeNightloom({
+    permission,
     service,
     store: memoryStore(),
     packageDirectory: "/public/double",
@@ -311,15 +311,30 @@ test("owned scheduling is serial, default-off, pause-aware and stopped before cl
   await fire();
   expect(starts).toBe(0);
   configuration = { ...configuration, automaticCuration: true };
+  await permission.preferences({
+    automaticContext: false,
+    captureOutcomes: false,
+    automaticCuration: true,
+  });
   await fire();
   expect(starts).toBe(1);
   await fire();
   expect(starts).toBe(1);
   phase = "completed";
   configuration = { ...configuration, automaticCuration: false };
+  await permission.preferences({
+    automaticContext: false,
+    captureOutcomes: false,
+    automaticCuration: false,
+  });
   await fire();
   expect(starts).toBe(1);
   configuration = { ...configuration, automaticCuration: true };
+  await permission.preferences({
+    automaticContext: false,
+    captureOutcomes: false,
+    automaticCuration: true,
+  });
   await host.pause();
   await fire();
   expect(starts).toBe(1);

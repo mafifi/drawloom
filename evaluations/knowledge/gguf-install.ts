@@ -10,7 +10,7 @@ import {
   LlamaEmbeddingWorker,
   createModelSetup,
 } from "@drawloom/local-embeddings";
-import { createManagedLocalKnowledgeClient } from "@drawloom/local-knowledge-runtime";
+import { createAuthorizedKnowledgeFixture as createManagedLocalKnowledgeClient } from "../../apps/desktop/tests/knowledge-authority-fixture.js";
 
 if (process.env.DRAWLOOM_GGUF_EVALUATION !== "1") throw Error("Explicit opt-in required");
 const [rootArg, archiveRootArg, weightsRootArg] = process.argv.slice(2);

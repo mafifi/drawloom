@@ -16,6 +16,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./approval-presentation": {
+      "bun": "./src/approval-presentation.ts",
+      "types": "./dist/approval-presentation.d.ts",
+      "import": "./dist/approval-presentation.js"
+    },
+    "./approval-conformance": {
+      "bun": "./src/approval-conformance.ts",
+      "types": "./dist/approval-conformance.d.ts",
+      "import": "./dist/approval-conformance.js"
+    },
     "./conformance": {
       "bun": "./src/conformance.ts",
       "types": "./dist/conformance.d.ts",

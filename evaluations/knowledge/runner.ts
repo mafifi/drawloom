@@ -5,6 +5,12 @@ import { pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { createSqliteKnowledge } from "@drawloom/sqlite-knowledge";
 import {
+  AuthorizationResultSchema,
+  type Authorizer,
+  type AuthorizationEvaluationOptions,
+  type AuthorizationResult,
+} from "@drawloom/authorization";
+import {
   KnownModelManifests,
   LlamaEmbeddingWorker,
   createKnowledgeEmbeddings,
@@ -16,7 +22,6 @@ import { createSemanticRetrieval } from "../../packages/knowledge/local-knowledg
 import type {
   EmbeddingConfiguration,
   KnowledgeEmbeddings,
-  KnowledgeAuthorizer,
   RecordRef,
   TrustedKnowledgeSubject,
 } from "@drawloom/knowledge";
@@ -135,22 +140,28 @@ const subject = Object.freeze({
   id: "local-owner",
   properties: { scope: "local-knowledge-evaluation" },
 }) as unknown as TrustedKnowledgeSubject;
-const authorizer: KnowledgeAuthorizer = { authorize: async () => ({ decision: true }) };
+const authorizer: Authorizer = { authorize: async () => ({ decision: true }) };
 const resolveResource = ({ ref }: { readonly ref?: RecordRef }) => ({
   type: ref ? "knowledge-record" : "knowledge-store",
   id: ref ? refKey(ref) : "evaluation",
   properties: { locality: "local" },
 });
-async function authorizeSearch(ref?: RecordRef): Promise<boolean> {
+async function authorizeSearch(
+  ref: RecordRef | undefined,
+  operation: AuthorizationEvaluationOptions,
+): Promise<AuthorizationResult> {
   try {
-    const result = await authorizer.authorize({
-      subject,
-      action: { name: "knowledge.search" },
-      resource: resolveResource({ ...(ref ? { ref } : {}) }),
-    });
-    return "decision" in result && result.decision === true;
+    const result = await authorizer.authorize(
+      {
+        subject,
+        action: { name: "knowledge.search" },
+        resource: resolveResource({ ...(ref ? { ref } : {}) }),
+      },
+      operation,
+    );
+    return AuthorizationResultSchema.parse(result);
   } catch {
-    return false;
+    return { kind: "failure", code: "rejected" };
   }
 }
 
@@ -335,8 +346,8 @@ async function measureEmbedding(
     embeddings,
     configuration,
     authorizeSearch,
-    revision: async () => {
-      const status = await provider.maintenance.status(subject);
+    revision: async (operation) => {
+      const status = await provider.maintenance.status(subject, operation);
       if (status.kind !== "ok") throw new Error("knowledge revision unavailable");
       return status.checkpoint;
     },

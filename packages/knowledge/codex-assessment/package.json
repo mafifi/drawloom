@@ -21,6 +21,7 @@
   "dependencies": {
     "@drawloom/knowledge": "workspace:*",
     "@drawloom/host": "workspace:*",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@drawloom/authorization": "workspace:*"
   }
 }

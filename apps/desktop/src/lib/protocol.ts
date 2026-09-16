@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { AgentModelSelectionSchema } from "@drawloom/agent";
 import {
+  ApprovalPresentationRequestSchema,
+  ApprovalSurfaceStateSchema,
+} from "@drawloom/agent/approval-presentation";
+import {
   AgentSessionSignalSchema,
   AgentApprovalResolutionSchema,
   AgentInputResolutionSchema,
@@ -80,6 +84,16 @@ export const DesktopSnapshotSchema = z.strictObject({
   selectedProjectId: id.optional(),
   activity: z.array(ToolResultSchema),
   signals: z.array(AgentSessionSignalSchema),
+  approvals: z
+    .array(
+      ApprovalPresentationRequestSchema.extend({
+        presentationId: id,
+        surface: ApprovalSurfaceStateSchema,
+        submitting: z.boolean(),
+        presentation: z.enum(["desktop", "external"]),
+      }),
+    )
+    .default([]),
   pendingTools: z.array(ToolStartSchema).default([]),
   /** Display-only names for host aliases; never sent as invocation identities. */
   toolLabels: z
@@ -186,7 +200,15 @@ export const DesktopCommandSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("approval"),
     conversationId: id,
+    presentationId: id,
     resolution: AgentApprovalResolutionSchema,
+  }),
+  z.strictObject({
+    kind: z.literal("approval_surface"),
+    conversationId: id,
+    approvalId: id,
+    presentationId: id,
+    action: z.enum(["dismiss", "reopen", "stop"]),
   }),
   z.strictObject({
     kind: z.literal("input"),

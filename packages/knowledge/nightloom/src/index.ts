@@ -19,6 +19,7 @@ import {
   type PendingWorkUnit,
   type RecordRef,
   type TrustedKnowledgeSubject,
+  type AuthorizationEvaluationOptions,
 } from "@drawloom/knowledge";
 import {
   canonical,
@@ -508,6 +509,7 @@ async function collectEvidence(
   retrieval: KnowledgeRetrieval,
   subject: TrustedKnowledgeSubject,
   input: z.infer<typeof AssessBatchInputSchema>,
+  operation: AuthorizationEvaluationOptions,
 ): Promise<EvidencePackage | BatchAssessment> {
   const roots = input.units.map((unit) => ({
     unitId: unit.id,
@@ -519,23 +521,33 @@ async function collectEvidence(
   const transmittedBytes = () =>
     new TextEncoder().encode(JSON.stringify({ roots, records, links, complete: true })).byteLength;
   for (const unit of input.units) {
+    if (operation.signal.aborted) return { kind: "blocked", reason: "cancelled" };
+    if (operation.remainingMs() <= 0) return { kind: "blocked", reason: "unavailable" };
     const root = unit.affectedClaim ?? unit.update.ref;
     if (!(unit.update.operation === "delete" && !unit.affectedClaim)) {
       let cursor;
       const seenCursors = new Set<string>();
       if (!completeRoots.some((prior) => sameRef(prior, root)))
         do {
-          const page = await retrieval.evidence(subject, {
-            root,
-            direction: "forward",
-            maxDepth: 8,
-            // Cursor identity binds these dimensions. Aggregate limits are checked
-            // after each page; they must never change on a continuation request.
-            maxRecords: input.maxRecords,
-            maxLinks: input.maxLinks,
-            maxBytes: input.maxBytes,
-            ...(cursor ? { cursor } : {}),
-          });
+          if (operation.signal.aborted) return { kind: "blocked", reason: "cancelled" };
+          if (operation.remainingMs() <= 0) return { kind: "blocked", reason: "unavailable" };
+          const page = await retrieval.evidence(
+            subject,
+            {
+              root,
+              direction: "forward",
+              maxDepth: 8,
+              // Cursor identity binds these dimensions. Aggregate limits are checked
+              // after each page; they must never change on a continuation request.
+              maxRecords: input.maxRecords,
+              maxLinks: input.maxLinks,
+              maxBytes: input.maxBytes,
+              ...(cursor ? { cursor } : {}),
+            },
+            operation,
+          );
+          if (operation.signal.aborted) return { kind: "blocked", reason: "cancelled" };
+          if (operation.remainingMs() <= 0) return { kind: "blocked", reason: "unavailable" };
           if (page.kind === "denied") return { kind: "blocked", reason: "denied" };
           if (page.kind !== "ok")
             return {
@@ -568,7 +580,7 @@ async function collectEvidence(
         } while (cursor);
       completeRoots.push(root);
       if (records.some((prior) => sameRef(prior.ref, unit.update.ref))) continue;
-      const update = await retrieval.get(subject, unit.update.ref);
+      const update = await retrieval.get(subject, unit.update.ref, operation);
       if (update.kind === "denied") return { kind: "blocked", reason: "denied" };
       if (update.kind !== "ok") return { kind: "blocked", reason: "unavailable" };
       if (update.record && !records.some((prior) => sameRef(prior.ref, update.record!.ref)))
@@ -730,7 +742,48 @@ export function createNightloomTaskHandlers(input: {
     allowSubmit: boolean,
   ): Promise<BatchAssessment> {
     const request = AssessBatchInputSchema.parse(raw);
-    const evidence = await collectEvidence(input.retrieval, input.subject, request);
+    if (context.signal.aborted) {
+      if (input.isHostSuspension?.(context.signal.reason))
+        throw new StepFailure("unknown", "Assessment host suspended");
+      const prior = await input.receipts.load(request.batch.id);
+      if (!prior) return { kind: "blocked", reason: "cancelled" };
+      if (prior.state === "completed")
+        return { kind: "completed", proposals: prior.proposals ?? [] };
+      if (prior.state === "cancelled") return { kind: "blocked", reason: "cancelled" };
+      // Recovery of an already-owned operation does not reread evidence after cancellation.
+      const deadline = Date.now() + 1000;
+      const operation = {
+        signal: new AbortController().signal,
+        remainingMs: () => deadline - Date.now(),
+      };
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const held = await writeReceipt(prior, { ...prior, state: "uncertain" });
+        const result = await Promise.race([
+          input.assessment
+            .cancel(
+              input.subject,
+              { requestId: prior.requestId, payloadFingerprint: prior.payloadFingerprint },
+              operation,
+            )
+            .catch(() => undefined),
+          new Promise<undefined>((resolve) => {
+            timer = setTimeout(() => resolve(undefined), Math.max(0, operation.remainingMs()));
+          }),
+        ]);
+        if (result?.kind === "cancelled") {
+          await writeReceipt(held, { ...held, state: "cancelled" });
+          return { kind: "blocked", reason: "cancelled" };
+        }
+        return { kind: "deferred" };
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    let deadline =
+      Date.now() + (request.assessmentTimeoutMs ?? DEFAULT_NIGHTLOOM_SETTINGS.assessmentTimeoutMs);
+    const operation = { signal: context.signal, remainingMs: () => deadline - Date.now() };
+    const evidence = await collectEvidence(input.retrieval, input.subject, request, operation);
     if ("kind" in evidence) return evidence;
     const retainedEvidence: EvidencePackage = evidence;
     const requestId = request.batch.id;
@@ -752,9 +805,7 @@ export function createNightloomTaskHandlers(input: {
         requestId,
         payloadFingerprint,
         state: "intent",
-        deadlineAtMs:
-          Date.now() +
-          (request.assessmentTimeoutMs ?? DEFAULT_NIGHTLOOM_SETTINGS.assessmentTimeoutMs),
+        deadlineAtMs: deadline,
       });
       if (await input.receipts.compareAndSet(requestId, null, intent)) {
         receipt = intent;
@@ -764,6 +815,7 @@ export function createNightloomTaskHandlers(input: {
         throw new StepFailure("unknown", "Assessment intent conflict");
     }
     const identity = { requestId, payloadFingerprint };
+    if (receipt.deadlineAtMs !== undefined) deadline = Math.min(deadline, receipt.deadlineAtMs);
     // Bound each owner-side wait by the ORIGINAL persisted deadline. A late
     // provider result has no write callback and cannot publish after timeout.
     async function bounded<T>(
@@ -806,16 +858,21 @@ export function createNightloomTaskHandlers(input: {
           payloadFingerprint,
           state: "uncertain",
         });
+        const cancellationDeadline = Date.now() + 1000;
+        const cancellationOperation = {
+          signal: new AbortController().signal,
+          remainingMs: () => cancellationDeadline - Date.now(),
+        };
         const cancelled = await bounded(
-          () => input.assessment.cancel(input.subject, identity),
+          () => input.assessment.cancel(input.subject, identity, cancellationOperation),
           1000,
         ).catch(() => undefined);
         let terminal: AssessmentResult | undefined =
           cancelled?.kind === "cancelled" ? cancelled : undefined;
         if (cancelled?.kind === "too_late") {
           const reconciled = await bounded(
-            () => input.assessment.reconcile(input.subject, identity),
-            1000,
+            () => input.assessment.reconcile(input.subject, identity, cancellationOperation),
+            cancellationOperation.remainingMs(),
           ).catch(() => undefined);
           if (reconciled?.kind === "completed" || reconciled?.kind === "cancelled")
             terminal = reconciled;
@@ -841,8 +898,8 @@ export function createNightloomTaskHandlers(input: {
     const result = await bounded(
       () =>
         !createdIntent || !allowSubmit
-          ? input.assessment.reconcile(input.subject, identity)
-          : input.assessment.assess(input.subject, { ...identity, evidence }),
+          ? input.assessment.reconcile(input.subject, identity, operation)
+          : input.assessment.assess(input.subject, { ...identity, evidence }, operation),
       remaining,
       context.signal,
     );

@@ -51,6 +51,8 @@ export function createWorkflowAuthority() {
           try {
             return await work();
           } finally {
+            // Async continuations retain this exact lease. Ending it must not
+            // invalidate sibling steps that share the workflow's run identity.
             lease.active = false;
           }
         });

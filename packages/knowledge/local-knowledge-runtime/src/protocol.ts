@@ -1,12 +1,5 @@
 import { z } from "zod";
 import { KnownModelManifests } from "@drawloom/local-embeddings";
-import { ContextPreparationRequestSchema } from "@drawloom/context";
-
-/** Private host-to-sidecar boundary. Subject and destination are runtime-owned. */
-export const LocalPreparationSchema = ContextPreparationRequestSchema.extend({
-  requestId: z.string().uuid(),
-});
-export const LocalPreparationCancellationSchema = z.strictObject({ requestId: z.string().uuid() });
 export const LocalWarmupResultSchema = z.strictObject({ kind: z.enum(["ready", "unavailable"]) });
 
 export const LocalKnowledgeConfigurationSchema = z.strictObject({

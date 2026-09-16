@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import "./test-authorization-node.mjs";
 import {
   HistoryEntrySchema,
   HistoryPageOptionsSchema,

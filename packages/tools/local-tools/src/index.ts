@@ -1,5 +1,10 @@
 import { z } from "zod";
 import {
+  AuthZenRequestSchema,
+  AuthorizationResultSchema,
+  type AuthorizationFailureCode,
+} from "@drawloom/authorization";
+import {
   ToolExposureSchema,
   ToolResultSchema,
   ToolContentSchema,
@@ -7,7 +12,7 @@ import {
   type ToolDefinition,
   type ToolEvidenceSink,
   type ToolGateway,
-  type ToolPolicy,
+  type ToolAuthorization,
   type ToolResult,
 } from "@drawloom/tools";
 function freeze<T>(value: T): T {
@@ -24,7 +29,7 @@ function path(error: unknown): (string | number)[] {
 }
 export function createLocalToolGateway(options: {
   tools: readonly ToolDefinition[];
-  policy: ToolPolicy;
+  authorization: ToolAuthorization;
   evidence: ToolEvidenceSink;
   nextInvocationId: () => string;
   exposureId?: string;
@@ -72,7 +77,10 @@ export function createLocalToolGateway(options: {
         ...(origin ? { operationId: origin.operationId } : {}),
       };
       const failure = (
-        code: Extract<ToolResult["outcome"], { status: "failed" }>["code"],
+        code: Exclude<
+          Extract<ToolResult["outcome"], { status: "failed" }>["code"],
+          "authorization_failed"
+        >,
         execution: "not_started" | "completed" | "unknown",
         invalidPath?: (string | number)[],
       ): ToolResult["outcome"] => ({
@@ -81,18 +89,57 @@ export function createLocalToolGateway(options: {
         execution,
         ...(invalidPath ? { path: invalidPath } : {}),
       });
-      const authorized = () => {
+      const authorizationFailure = (code: AuthorizationFailureCode): ToolResult["outcome"] => ({
+        status: "failed",
+        code: "authorization_failed",
+        authorizationFailure: code,
+        execution: "not_started",
+      });
+      const { authority, authorizer } = options.authorization;
+      let generation: number | undefined;
+      const current = () =>
+        !!origin?.active &&
+        generation !== undefined &&
+        authority.isCurrent(origin.operationId, generation);
+      const authorized = async (): Promise<ToolResult["outcome"] | undefined> => {
+        if (!origin?.active) return failure("denied", "not_started");
+        let facts;
         try {
-          return !!origin?.active && options.policy(origin.operationId, name);
+          facts = authority.resolve(origin.operationId, name);
+          if (!facts) return failure("denied", "not_started");
+          generation ??= facts.generation;
+          if (facts.generation !== generation || !current())
+            return failure("denied", "not_started");
         } catch {
-          return false;
+          return authorizationFailure("invalid_facts");
         }
+        const request = AuthZenRequestSchema.safeParse(facts.request);
+        if (!request.success) return authorizationFailure("invalid_facts");
+        if (signal.aborted) return failure("cancelled", "not_started");
+        let result;
+        try {
+          result = AuthorizationResultSchema.safeParse(
+            await authorizer.authorize(request.data, {
+              signal,
+              remainingMs: () => authority.remainingMs(origin.operationId),
+            }),
+          );
+        } catch {
+          return authorizationFailure("rejected");
+        }
+        // Validate again after provider settlement and result parsing, before publishing allow.
+        if (!result.success) return authorizationFailure("malformed_result");
+        if ("kind" in result.data) return authorizationFailure(result.data.code);
+        if (!current()) return failure("denied", "not_started");
+        if (signal.aborted) return failure("cancelled", "not_started");
+        return result.data.decision ? undefined : failure("denied", "not_started");
       };
-      let outcome: ToolResult["outcome"] | undefined;
+      let outcome: ToolResult["outcome"] | undefined = await authorized();
       let parsed: unknown;
       const tool = catalogue.get(name);
-      if (!authorized()) outcome = failure("denied", "not_started");
-      else if (!tool) outcome = failure("unknown_tool", "not_started");
+      if (outcome) {
+        /* Authorization always precedes unknown-tool disclosure. */
+      } else if (!tool) outcome = failure("unknown_tool", "not_started");
       else if (signal.aborted) outcome = failure("cancelled", "not_started");
       else
         try {
@@ -109,7 +156,8 @@ export function createLocalToolGateway(options: {
           outcome: failure("evidence_failed", "not_started"),
         });
       }
-      if (!outcome && !authorized()) outcome = failure("denied", "not_started");
+      if (!outcome) outcome = await authorized();
+      if (!outcome && !current()) outcome = failure("denied", "not_started");
       if (!outcome && signal.aborted) outcome = failure("cancelled", "not_started");
       if (!outcome && tool && origin) {
         let raw: unknown;

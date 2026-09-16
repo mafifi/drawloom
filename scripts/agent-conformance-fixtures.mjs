@@ -1,3 +1,4 @@
+import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 // @ts-check
 // Wire-specific test fixtures stay outside the exported contract suite.
 import { z } from "zod";
@@ -56,7 +57,7 @@ export function codexAgentFixture() {
         },
       }),
     ],
-    policy: () => allowed,
+    authorization: toolAuthorizationFixture({ authorize: async () => ({ decision: allowed }) }),
     evidence: { async record() {} },
     nextInvocationId: () => String(++sequence),
   });

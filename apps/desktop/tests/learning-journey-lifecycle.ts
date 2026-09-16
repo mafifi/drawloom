@@ -1,4 +1,4 @@
-import { createManagedLocalKnowledgeClient } from "@drawloom/local-knowledge-runtime";
+import { createAuthorizedKnowledgeFixture as createManagedLocalKnowledgeClient } from "./knowledge-authority-fixture.js";
 
 /** Test-only ownership for the connected fixture, including incomplete setup. */
 export function createLearningApplicationFixture() {

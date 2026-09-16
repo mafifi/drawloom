@@ -4,7 +4,10 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION } from "@drawloom/local-knowledge-runtime";
 import { createDesktopApplication } from "./application.js";
-import type { KnowledgeService } from "./knowledge-host.js";
+import type { LearningService } from "@drawloom/knowledge/learning";
+import type { ContextPreparer } from "@drawloom/context";
+import { DEFAULT_LOCAL_LEARNING_SCOPE } from "./learning-consent.js";
+import { confirmApplicationLearning } from "../tests/learning-consent-fixture.js";
 
 test("normal product send prepares with fixed conversation, preserves user history and delivers reference content", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-preparation-"));
@@ -13,43 +16,19 @@ test("normal product send prepares with fixed conversation, preserves user histo
   const status = {
     availability: "ready" as const,
     message: "ready",
-    configuration: { ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, automaticContext: true },
-    models: [
-      {
-        id: "qwen3-embedding-0.6b-gguf" as const,
-        title: "Local",
-        licence: "Apache-2.0",
-        source: "local",
-        modelDirectory: "/model",
-        runtimeDirectory: "/runtime",
-        prerequisites: "Metal",
-        runtime: { package: "llama.cpp", version: "revision", licence: "MIT" },
-        weightsBytes: 1,
-        runtimeBytes: 1,
-        runtimeDownloadAvailable: false,
-        state: "missing" as const,
-      },
-    ],
-    indexing: "unavailable" as const,
-    maintenance: {
-      state: "idle" as const,
-      pendingUpdates: 0,
-      message: "idle",
-      automaticStartsToday: 0,
-      automaticMillisecondsToday: 0,
-    },
+    retrieval: "lexical" as const,
   };
-  const service: KnowledgeService = {
+  const service: LearningService & ContextPreparer = {
     async status() {
       return status;
     },
-    async configure(c) {
-      status.configuration = c;
-      return status;
-    },
-    async warmup() {
-      warmups++;
-      return { kind: "unavailable" };
+    capabilities: {
+      warmup: {
+        async run() {
+          warmups++;
+          return { kind: "unavailable" };
+        },
+      },
     },
     async prepare(r) {
       requests.push(r);
@@ -67,16 +46,17 @@ test("normal product send prepares with fixed conversation, preserves user histo
     async ingest() {
       return { kind: "accepted", revision: "r1" };
     },
-    async download() {
-      return status;
-    },
-    async cancelDownload() {
-      return status;
-    },
     async close() {},
   };
-  const app = await createDesktopApplication(join(root, "data"), { knowledge: { service } });
+  const app = await createDesktopApplication(join(root, "data"), {
+    knowledge: { service, context: service, declaration: DEFAULT_LOCAL_LEARNING_SCOPE },
+  });
   try {
+    await confirmApplicationLearning(app, {
+      automaticContext: true,
+      captureOutcomes: false,
+      automaticCuration: false,
+    });
     await mkdir(join(root, "working"));
     await app.command({ kind: "add_project", directory: join(root, "working") });
     const first = await app.command({

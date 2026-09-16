@@ -263,7 +263,7 @@ test("archive rejects active work and manual titles survive automatic naming", a
   }
 });
 
-test("archive rejects a known unresolved approval even after provider operation completion", async () => {
+test("native operation completion invalidates approval presentation and permits archive", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-history-pending-"));
   const replacement = spyOn(synthetic, "createSyntheticDriver").mockImplementation(
     () =>
@@ -343,10 +343,16 @@ test("archive rejects a known unresolved approval even after provider operation 
     expect((await app.snapshot()).activeOperation).toBeUndefined();
     await app.command({ kind: "create_conversation", workbenchId: "text", provider: "synthetic" });
     expect((await app.snapshot()).selectedId).not.toBe(id);
-    expect((await app.snapshot()).archiveBlockedConversationIds).toContain(id);
-    await expect(app.command({ kind: "archive_conversation", conversationId: id })).rejects.toThrow(
-      "approval",
-    );
+    expect((await app.snapshot()).archiveBlockedConversationIds).not.toContain(id);
+    await expect(
+      app.command({
+        kind: "approval",
+        conversationId: id,
+        resolution: { approvalId: "pending-approval", optionId: "decline" },
+      }),
+    ).rejects.toThrow();
+    await app.command({ kind: "archive_conversation", conversationId: id });
+    expect((await app.snapshot()).conversations.find((c) => c.id === id)?.archived).toBe(true);
   } finally {
     replacement.mockRestore();
     await app.close();

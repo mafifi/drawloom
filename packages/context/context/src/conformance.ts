@@ -19,6 +19,7 @@ export async function contextPreparationConformance(
     request: fixture.readyRequest,
     binding: { executionId: "execution-1", conversationId: "conversation-1" },
     signal: new AbortController().signal,
+    remainingMs: () => 5000,
     budget: { maxRecords: 8, maxBytes: 12 * 1024 },
   });
   check(result.kind === "ready", "a useful request returns ready reference context");
@@ -39,6 +40,7 @@ export async function contextPreparationConformance(
     request: "What did we learn?",
     binding: { executionId: "execution-1", conversationId: "conversation-1" },
     signal: controller.signal,
+    remainingMs: () => 5000,
     budget: { maxRecords: 8, maxBytes: 12 * 1024 },
   });
   check(
@@ -49,6 +51,7 @@ export async function contextPreparationConformance(
     request: "What did we learn?",
     binding: { executionId: "execution-1", conversationId: "conversation-1" },
     signal: new AbortController().signal,
+    remainingMs: () => 5000,
     budget: { maxRecords: 1, maxBytes: 128 },
   });
   check(
@@ -59,6 +62,7 @@ export async function contextPreparationConformance(
     request: fixture.emptyRequest,
     binding: { executionId: "execution-1", conversationId: "conversation-1" },
     signal: new AbortController().signal,
+    remainingMs: () => 5000,
     budget: { maxRecords: 8, maxBytes: 12 * 1024 },
   });
   check(
@@ -69,6 +73,7 @@ export async function contextPreparationConformance(
     request: fixture.unavailableRequest,
     binding: { executionId: "execution-1", conversationId: "conversation-1" },
     signal: new AbortController().signal,
+    remainingMs: () => 5000,
     budget: { maxRecords: 8, maxBytes: 12 * 1024 },
   });
   check(

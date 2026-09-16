@@ -4,6 +4,7 @@
 - **Date:** 2026-09-12
 - **Accepted:** 2026-09-12
 - **Decision owners:** Drawloom maintainers
+- **Extension:** Accepted [ADR 0028](0028-replaceable-learning-context-and-decisions.md) provides the shared asynchronous decision interface and trusted host composition while retaining these enforcement boundaries.
 
 ## Context
 

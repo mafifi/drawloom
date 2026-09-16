@@ -28,6 +28,8 @@ export const ContextPreparationRequestSchema = z.strictObject({
 });
 export type ContextPreparationRequest = z.infer<typeof ContextPreparationRequestSchema> & {
   signal: AbortSignal;
+  /** One host-owned budget shared by every nested read and disclosure pass. */
+  remainingMs: () => number;
 };
 export const PreparedContextReferenceSchema = z.strictObject({
   ref: ContextRecordRefSchema,
@@ -47,7 +49,7 @@ export const ContextPreparationResultSchema = z.discriminatedUnion("kind", [
       .max(12 * 1024),
   }),
   z.strictObject({
-    kind: z.enum(["empty", "unavailable", "cancelled"]),
+    kind: z.enum(["empty", "unavailable", "cancelled", "timeout"]),
     references: z.tuple([]),
     bytes: z.literal(0),
   }),

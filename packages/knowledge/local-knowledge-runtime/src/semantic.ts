@@ -1,3 +1,8 @@
+import {
+  AuthorizationResultSchema,
+  type AuthorizationResult,
+  type AuthorizationEvaluationOptions,
+} from "@drawloom/authorization";
 import { createHash, randomUUID } from "node:crypto";
 import {
   SearchRequestSchema,
@@ -28,8 +33,12 @@ export function createSemanticRetrieval(options: {
   index: KnowledgeEmbeddingIndex;
   embeddings: KnowledgeEmbeddings;
   configuration: EmbeddingConfiguration;
-  authorizeSearch(ref?: RecordRef): Promise<boolean>;
-  revision(): Promise<string>;
+  authorizeSearch(
+    ref: RecordRef | undefined,
+    operation: AuthorizationEvaluationOptions,
+  ): Promise<AuthorizationResult>;
+  backgroundEmbeddings?: KnowledgeEmbeddings;
+  revision(operation?: AuthorizationEvaluationOptions): Promise<string>;
 }) {
   let busy = false,
     closed = false,
@@ -59,16 +68,30 @@ export function createSemanticRetrieval(options: {
     generation = result.kind === "ok" ? result.activeGeneration : null;
     generationKnown = true;
   }
-  async function indexNext() {
+  const boundedOperation = (parent?: AuthorizationEvaluationOptions) => {
+    const deadline = performance.now() + 30_000;
+    return (
+      parent ?? {
+        signal: new AbortController().signal,
+        remainingMs: () => deadline - performance.now(),
+      }
+    );
+  };
+  async function indexNext(parent?: AuthorizationEvaluationOptions) {
+    const operation = boundedOperation(parent);
     if (busy || closed) return;
     busy = true;
     state = "indexing";
     try {
-      const pending = await options.work.pending(options.subject, {
-        configuration: options.configuration,
-        limit: 1,
-        maxBytes: 512 * 1024,
-      });
+      const pending = await options.work.pending(
+        options.subject,
+        {
+          configuration: options.configuration,
+          limit: 1,
+          maxBytes: 512 * 1024,
+        },
+        operation,
+      );
       if (pending.kind !== "ok") throw Error("Index work unavailable");
       if (!generationKnown) await active();
       if (!pending.updates.length) {
@@ -115,7 +138,11 @@ export function createSemanticRetrieval(options: {
             ],
           };
           const result = embeddingResultSchemaFor(request).parse(
-            await options.embeddings.embed(options.subject, request),
+            await (options.backgroundEmbeddings ?? options.embeddings).embed(
+              options.subject,
+              request,
+              operation,
+            ),
           );
           if (result.kind !== "ok") throw Error("Embedding inference unavailable");
           if (
@@ -141,8 +168,8 @@ export function createSemanticRetrieval(options: {
       });
       if (committed.kind !== "activated") throw Error("Index changed during update");
       if (
-        (await options.work.acknowledge(options.subject, { batch: pending.batch })).kind !==
-        "acknowledged"
+        (await options.work.acknowledge(options.subject, { batch: pending.batch }, operation))
+          .kind !== "acknowledged"
       )
         throw Error("Index checkpoint changed");
       generation = committed.generation;
@@ -157,13 +184,15 @@ export function createSemanticRetrieval(options: {
   type ActiveRecord = Extract<SearchResult, { kind: "ok" }>["items"][number]["record"];
   async function authorizedRecord(
     ref: RecordRef,
+    operation: AuthorizationEvaluationOptions,
   ): Promise<
     | { kind: "record"; record: ActiveRecord }
     | { kind: "skip" }
     | { kind: "stop"; result: SearchResult }
   > {
-    const value = await options.retrieval.get(options.subject, ref);
+    const value = await options.retrieval.get(options.subject, ref, operation);
     if (value.kind === "denied") return { kind: "skip" };
+    if (value.kind === "failure") return { kind: "stop", result: value };
     if (value.kind === "invalidated") return { kind: "stop", result: value };
     if (value.kind !== "ok")
       return { kind: "stop", result: { kind: "failure", code: "unavailable" } };
@@ -171,9 +200,13 @@ export function createSemanticRetrieval(options: {
     if (!record || record.status !== "active") return { kind: "skip" };
     for (const protectedRef of [record.ref, ...record.provenance.inputs]) {
       try {
-        if (!(await options.authorizeSearch(protectedRef))) return { kind: "skip" };
+        const decision = AuthorizationResultSchema.parse(
+          await options.authorizeSearch(protectedRef, operation),
+        );
+        if (!("decision" in decision)) return { kind: "stop", result: decision };
+        if (!decision.decision) return { kind: "skip" };
       } catch {
-        return { kind: "skip" };
+        return { kind: "stop", result: { kind: "failure", code: "unavailable" } };
       }
     }
     return { kind: "record", record };
@@ -185,14 +218,15 @@ export function createSemanticRetrieval(options: {
     rank: number,
     request: SearchRequest,
     revision: string,
+    operation: AuthorizationEvaluationOptions,
   ): Promise<SearchResult> {
-    if ((await options.revision()) !== revision) return { kind: "invalidated" };
+    if ((await options.revision(operation)) !== revision) return { kind: "invalidated" };
     const items: Extract<SearchResult, { kind: "ok" }>["items"] = [];
     let consumed = offset;
     let exposedRank = rank;
     let successorOffset: number | undefined;
     for (; consumed < refs.length; consumed++) {
-      const candidate = await authorizedRecord(refs[consumed]!);
+      const candidate = await authorizedRecord(refs[consumed]!, operation);
       if (candidate.kind === "stop") return candidate.result;
       if (candidate.kind === "skip") continue;
       if (items.length >= request.limit) {
@@ -216,7 +250,7 @@ export function createSemanticRetrieval(options: {
       });
       while (cursors.size > 64) cursors.delete(cursors.keys().next().value!);
     }
-    if ((await options.revision()) !== revision) return { kind: "invalidated" };
+    if ((await options.revision(operation)) !== revision) return { kind: "invalidated" };
     return {
       kind: "ok",
       mode: "hybrid",
@@ -235,13 +269,21 @@ export function createSemanticRetrieval(options: {
       closed = true;
       cursors.clear();
     },
-    async search(input: SearchRequest): Promise<SearchResult> {
+    async search(
+      input: SearchRequest,
+      parent?: AuthorizationEvaluationOptions,
+    ): Promise<SearchResult> {
+      const operation = boundedOperation(parent);
       const request = SearchRequestSchema.parse(input);
       if (closed) return { kind: "failure", code: "unavailable" };
       try {
-        if (!(await options.authorizeSearch())) return { kind: "denied" };
+        const decision = AuthorizationResultSchema.parse(
+          await options.authorizeSearch(undefined, operation),
+        );
+        if (!("decision" in decision)) return decision;
+        if (!decision.decision) return { kind: "denied" };
       } catch {
-        return { kind: "denied" };
+        return { kind: "failure", code: "unavailable" };
       }
       if (request.cursor && cursors.has(request.cursor)) {
         const stored = cursors.get(request.cursor)!;
@@ -254,19 +296,24 @@ export function createSemanticRetrieval(options: {
           stored.rank,
           request,
           stored.revision,
+          operation,
         );
       }
       const fallback = () =>
-        options.retrieval.search(options.subject, { ...request, mode: "lexical" });
+        options.retrieval.search(options.subject, { ...request, mode: "lexical" }, operation);
       if (request.cursor || request.mode === "lexical" || busy || state !== "ready")
         return fallback();
-      const revision = await options.revision();
-      const lexical = await options.retrieval.search(options.subject, {
-        ...request,
-        mode: "lexical",
-        limit: 100,
-        maxBytes: 1024 * 1024,
-      });
+      const revision = await options.revision(operation);
+      const lexical = await options.retrieval.search(
+        options.subject,
+        {
+          ...request,
+          mode: "lexical",
+          limit: 100,
+          maxBytes: 1024 * 1024,
+        },
+        operation,
+      );
       if (lexical.kind !== "ok")
         return lexical.kind === "failure" && lexical.code === "too_large" ? fallback() : lexical;
       const batch = {
@@ -277,19 +324,23 @@ export function createSemanticRetrieval(options: {
       let encoded;
       try {
         encoded = embeddingResultSchemaFor(batch).parse(
-          await options.embeddings.embed(options.subject, batch),
+          await options.embeddings.embed(options.subject, batch, operation),
         );
       } catch {
-        return fallback();
+        return { kind: "failure", code: "unavailable" };
       }
-      if (encoded.kind !== "ok") return fallback();
+      if (encoded.kind !== "ok") return encoded;
       const semantic = await options.index.query({
         configuration: options.configuration,
         vector: encoded.items[0]!.vector,
         limit: 100,
       });
       if (semantic.kind !== "ok")
-        return options.retrieval.search(options.subject, { ...request, mode: "lexical" });
+        return options.retrieval.search(
+          options.subject,
+          { ...request, mode: "lexical" },
+          operation,
+        );
       const candidates = new Map<string, { ref: RecordRef; rank: number }>();
       for (const list of [
         lexical.items.map((item) => item.record.ref),
@@ -299,7 +350,7 @@ export function createSemanticRetrieval(options: {
       ]) {
         let authorizedRank = 0;
         for (const ref of list) {
-          const candidate = await authorizedRecord(ref);
+          const candidate = await authorizedRecord(ref, operation);
           if (candidate.kind === "stop") return candidate.result;
           if (candidate.kind === "skip") continue;
           const prior = candidates.get(key(ref));
@@ -313,7 +364,7 @@ export function createSemanticRetrieval(options: {
       const refs = [...candidates.values()]
         .sort((a, b) => b.rank - a.rank || key(a.ref).localeCompare(key(b.ref)))
         .map((item) => item.ref);
-      return page(request.query, refs, 0, 0, request, revision);
+      return page(request.query, refs, 0, 0, request, revision, operation);
     },
   };
 }

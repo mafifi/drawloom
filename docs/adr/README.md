@@ -1,5 +1,10 @@
 # Architecture decision records
 
+- [ADR 0028: Replace learning, context and decisions without replacing the desktop](0028-replaceable-learning-context-and-decisions.md)
+  is Accepted. Its implementation separates trusted provider setup from
+  shared presentation, consent and enforcement; the [verification record](../plans/0028-verification.md)
+  lists executed checks and their limits.
+
 - [ADR 0027: Bring retained learning into everyday conversations](0027-complete-learning-journey.md)
   is Accepted. It connects opt-in capture, curation and bounded recall in the
   desktop, partially superseding ADR 0024's tools-only context choice. Its

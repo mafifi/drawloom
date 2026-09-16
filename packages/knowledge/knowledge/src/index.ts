@@ -1,4 +1,24 @@
 import { z } from "zod";
+import {
+  AuthorizationFailureCodeSchema,
+  type AuthZenEntity,
+  type AuthorizationEvaluationOptions,
+} from "@drawloom/authorization";
+export {
+  AuthZenEntitySchema,
+  AuthZenRequestSchema,
+  AuthorizationDecisionSchema,
+  AuthorizationResultSchema,
+  AuthorizationFailureCodeSchema,
+} from "@drawloom/authorization";
+export type {
+  AuthZenEntity,
+  AuthZenRequest,
+  AuthorizationResult,
+  Authorizer,
+  AuthorizationEvaluationOptions,
+  AuthorizationFailureCode,
+} from "@drawloom/authorization";
 
 const Id = z.string().trim().min(1).max(256);
 const MAX_RECORD_BYTES = 512 * 1024;
@@ -25,38 +45,10 @@ export const PageByteLimitSchema = z.number().int().min(1024).max(MAX_PAGE_BYTES
 export const OpaqueCursorSchema = z.string().min(1).max(4096).brand<"KnowledgeCursor">();
 export type OpaqueCursor = z.infer<typeof OpaqueCursorSchema>;
 
-/** AuthZEN-shaped facts are resolved by trusted composition/provider code, never from operation payloads. */
-export const AuthZenEntitySchema = z.strictObject({
-  type: Id,
-  id: Id,
-  properties: z.record(z.string().min(1).max(128), z.json()),
-});
-export type AuthZenEntity = z.infer<typeof AuthZenEntitySchema>;
 declare const trustedSubjectBrand: unique symbol;
 export type TrustedKnowledgeSubject = Readonly<AuthZenEntity> & {
   readonly [trustedSubjectBrand]: true;
 };
-export const AuthZenRequestSchema = boundedJson(
-  z.strictObject({
-    subject: AuthZenEntitySchema,
-    action: z.strictObject({ name: Id }),
-    resource: AuthZenEntitySchema,
-    context: z.record(z.string().min(1).max(128), z.json()).optional(),
-  }),
-  MAX_AUXILIARY_JSON_BYTES,
-  "Authorization request is too large",
-);
-export type AuthZenRequest = z.infer<typeof AuthZenRequestSchema>;
-export const AuthorizationDecisionSchema = z.strictObject({ decision: z.boolean() });
-export const AuthorizationResultSchema = z.union([
-  AuthorizationDecisionSchema,
-  z.strictObject({ kind: z.literal("failure"), code: z.enum(["invalid_facts", "unavailable"]) }),
-]);
-export type AuthorizationResult = z.infer<typeof AuthorizationResultSchema>;
-/** A missing, invalid, unavailable, or non-affirmative authorization result denies the operation. */
-export interface KnowledgeAuthorizer {
-  authorize(request: AuthZenRequest): Promise<AuthorizationResult>;
-}
 
 export const KnowledgeRecordTypeSchema = z.enum(["source", "observation", "claim"]);
 export type KnowledgeRecordType = z.infer<typeof KnowledgeRecordTypeSchema>;
@@ -213,7 +205,10 @@ export interface ToolOutcomeProjector {
   readonly id: string;
   project(validatedResult: unknown): ToolOutcomeObservation | undefined;
 }
-const BoundaryFailureCodeSchema = z.enum(["invalid", "too_large", "unavailable"]);
+const BoundaryFailureCodeSchema = z.union([
+  z.enum(["invalid", "too_large"]),
+  AuthorizationFailureCodeSchema,
+]);
 const BoundaryFailureSchema = z.strictObject({
   kind: z.literal("failure"),
   code: BoundaryFailureCodeSchema,
@@ -229,7 +224,11 @@ export const IntakeResultSchema = z.union([
 export type IntakeResult = z.infer<typeof IntakeResultSchema>;
 export interface KnowledgeIntake {
   /** Authorization precedes existence, duplicate and conflict checks. Null means create-only; a revision means exact update CAS. */
-  ingest(subject: TrustedKnowledgeSubject, input: IntakeInput): Promise<IntakeResult>;
+  ingest(
+    subject: TrustedKnowledgeSubject,
+    input: IntakeInput,
+    options?: AuthorizationEvaluationOptions,
+  ): Promise<IntakeResult>;
 }
 
 const CursorFailureSchema = z.union([
@@ -425,13 +424,30 @@ export interface KnowledgeRetrieval {
   /** Providers admit query-relevant candidates before ranking; an authorized
    * search may return no items. Hit relevance is provider-specific ordering,
    * not confidence, a universal similarity scale, or permission to disclose. */
-  search(subject: TrustedKnowledgeSubject, request: SearchRequest): Promise<SearchResult>;
-  get(subject: TrustedKnowledgeSubject, ref: RecordRef): Promise<RecordReadResult>;
-  expand(subject: TrustedKnowledgeSubject, request: ExpandRequest): Promise<ExpandResult>;
-  evidence(subject: TrustedKnowledgeSubject, request: EvidenceRequest): Promise<EvidenceResult>;
+  search(
+    subject: TrustedKnowledgeSubject,
+    request: SearchRequest,
+    options?: AuthorizationEvaluationOptions,
+  ): Promise<SearchResult>;
+  get(
+    subject: TrustedKnowledgeSubject,
+    ref: RecordRef,
+    options?: AuthorizationEvaluationOptions,
+  ): Promise<RecordReadResult>;
+  expand(
+    subject: TrustedKnowledgeSubject,
+    request: ExpandRequest,
+    options?: AuthorizationEvaluationOptions,
+  ): Promise<ExpandResult>;
+  evidence(
+    subject: TrustedKnowledgeSubject,
+    request: EvidenceRequest,
+    options?: AuthorizationEvaluationOptions,
+  ): Promise<EvidenceResult>;
   export(
     subject: TrustedKnowledgeSubject,
     request: KnowledgeExportRequest,
+    options?: AuthorizationEvaluationOptions,
   ): Promise<KnowledgeExportResult>;
 }
 
@@ -559,16 +575,25 @@ export const WorkBatchReleaseResultSchema = z.union([
 export type WorkBatchReleaseResult = z.infer<typeof WorkBatchReleaseResultSchema>;
 export interface KnowledgeMaintenance {
   /** Each provider-issued unit represents one bounded repair. Publishing completes only the issued units; the provider retains every remaining unit. */
-  status(subject: TrustedKnowledgeSubject): Promise<MaintenanceStatusResult>;
+  status(
+    subject: TrustedKnowledgeSubject,
+    options?: AuthorizationEvaluationOptions,
+  ): Promise<MaintenanceStatusResult>;
   pending(
     subject: TrustedKnowledgeSubject,
     request: z.infer<typeof PendingRequestSchema>,
+    options?: AuthorizationEvaluationOptions,
   ): Promise<PendingKnowledge>;
-  publish(subject: TrustedKnowledgeSubject, input: PublicationInput): Promise<PublicationResult>;
+  publish(
+    subject: TrustedKnowledgeSubject,
+    input: PublicationInput,
+    options?: AuthorizationEvaluationOptions,
+  ): Promise<PublicationResult>;
   /** Releases only this exact subject-owned lease. It advances no checkpoint and every unit remains pending. */
   release(
     subject: TrustedKnowledgeSubject,
     input: WorkBatchReleaseInput,
+    options?: AuthorizationEvaluationOptions,
   ): Promise<WorkBatchReleaseResult>;
 }
 
@@ -595,12 +620,15 @@ export const AssessmentResultSchema = boundedJson(
     z.strictObject({
       kind: z.literal("failure"),
       ...AssessmentIdentified,
-      code: z.enum([
-        "stale_reference",
-        "invalid_reference",
-        "invalid_input",
-        "too_large",
-        "unavailable",
+      code: z.union([
+        AuthorizationFailureCodeSchema,
+        z.enum([
+          "stale_reference",
+          "invalid_reference",
+          "invalid_input",
+          "too_large",
+          "unavailable",
+        ]),
       ]),
     }),
     z.strictObject({ kind: z.literal("conflict") }),
@@ -617,7 +645,7 @@ export const AssessmentCancellationResultSchema = z.union([
   z.strictObject({
     kind: z.literal("failure"),
     ...AssessmentIdentified,
-    code: z.enum(["invalid_input", "unavailable"]),
+    code: z.union([z.literal("invalid_input"), AuthorizationFailureCodeSchema]),
   }),
   z.strictObject({ kind: z.literal("conflict") }),
   DeniedSchema,
@@ -625,14 +653,20 @@ export const AssessmentCancellationResultSchema = z.union([
 export type AssessmentCancellationResult = z.infer<typeof AssessmentCancellationResultSchema>;
 /** The provider authorizes disclosure to its configured model destination before submission. */
 export interface KnowledgeAssessment {
-  assess(subject: TrustedKnowledgeSubject, request: AssessmentRequest): Promise<AssessmentResult>;
+  assess(
+    subject: TrustedKnowledgeSubject,
+    request: AssessmentRequest,
+    options?: AuthorizationEvaluationOptions,
+  ): Promise<AssessmentResult>;
   reconcile(
     subject: TrustedKnowledgeSubject,
     request: AssessmentReconcileRequest,
+    options?: AuthorizationEvaluationOptions,
   ): Promise<AssessmentResult>;
   cancel(
     subject: TrustedKnowledgeSubject,
     request: AssessmentReconcileRequest,
+    options?: AuthorizationEvaluationOptions,
   ): Promise<AssessmentCancellationResult>;
 }
 
@@ -685,10 +719,15 @@ export type IndexWorkAcknowledgeResult = z.infer<typeof IndexWorkAcknowledgeResu
  * activation; repeating a batch or its acknowledgement is harmless.
  */
 export interface KnowledgeIndexWork {
-  pending(subject: TrustedKnowledgeSubject, request: IndexWorkRequest): Promise<IndexWorkResult>;
+  pending(
+    subject: TrustedKnowledgeSubject,
+    request: IndexWorkRequest,
+    options?: AuthorizationEvaluationOptions,
+  ): Promise<IndexWorkResult>;
   acknowledge(
     subject: TrustedKnowledgeSubject,
     input: IndexWorkAcknowledgeInput,
+    options?: AuthorizationEvaluationOptions,
   ): Promise<IndexWorkAcknowledgeResult>;
 }
 export const EmbeddingRoleSchema = z.enum(["document", "query"]);
@@ -766,7 +805,11 @@ export function embeddingResultSchemaFor(batch: EmbeddingBatch) {
   });
 }
 export interface KnowledgeEmbeddings {
-  embed(subject: TrustedKnowledgeSubject, batch: EmbeddingBatch): Promise<EmbeddingResult>;
+  embed(
+    subject: TrustedKnowledgeSubject,
+    batch: EmbeddingBatch,
+    options?: AuthorizationEvaluationOptions,
+  ): Promise<EmbeddingResult>;
 }
 
 /** `id` is a provider-private passage identity; multiple passages may point at one authoritative record revision. */
@@ -872,3 +915,4 @@ export interface KnowledgeEmbeddingIndex {
   ): Promise<z.infer<typeof EmbeddingIndexActivateResultSchema>>;
   query(input: EmbeddingIndexQuery): Promise<EmbeddingIndexQueryResult>;
 }
+export * from "./worker-protocol.js";

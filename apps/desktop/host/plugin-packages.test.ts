@@ -1,3 +1,4 @@
+import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 import { test, expect } from "bun:test";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -579,7 +580,7 @@ test("installed HTTP package tools present standard elicitation only after indep
       let allowed = false;
       const gateway = createLocalToolGateway({
         tools,
-        policy: () => allowed,
+        authorization: toolAuthorizationFixture({ authorize: async () => ({ decision: allowed }) }),
         nextInvocationId: () => crypto.randomUUID(),
         evidence: { record: async () => {} },
       });
@@ -669,7 +670,7 @@ test("reconnected package cancellation removes its form and exposes the replacem
       const registry = createPluginRegistry(loaded.installs, ["agent", "host"]);
       const gateway = createLocalToolGateway({
         tools: registry.tools,
-        policy: () => true,
+        authorization: toolAuthorizationFixture(),
         nextInvocationId: () => "invocation",
         evidence: { record: async () => {} },
       });
@@ -1058,10 +1059,12 @@ test("required origin-qualified tool names invoke their real aliases with unchan
       toolsFor: (_installation, tools) =>
         createLocalToolGateway({
           tools,
-          policy: (_operation, name) => {
-            checked.push(name);
-            return true;
-          },
+          authorization: toolAuthorizationFixture({
+            authorize: async (request) => {
+              checked.push(request.resource.id);
+              return { decision: true };
+            },
+          }),
           nextInvocationId: () => crypto.randomUUID(),
           evidence: {
             record: async (event) => {
@@ -1193,7 +1196,7 @@ test("a dependency absent from the provided gateway cannot activate its backend"
       toolsFor: () =>
         createLocalToolGateway({
           tools: [],
-          policy: () => true,
+          authorization: toolAuthorizationFixture(),
           nextInvocationId: () => crypto.randomUUID(),
           evidence: { record: async () => {} },
         }),

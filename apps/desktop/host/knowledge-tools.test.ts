@@ -3,28 +3,17 @@ import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION } from "@drawloom/local-knowledge
 import { createKnowledgePlugin, knowledgeObservation } from "./knowledge-tools.js";
 import * as knowledgeTools from "./knowledge-tools.js";
 import { runEvidenceReadReceiptConformance } from "@drawloom/knowledge/conformance";
-import type { KnowledgeService } from "./knowledge-host.js";
+import type { LearningService } from "@drawloom/knowledge/learning";
 
-function service(calls: unknown[]): KnowledgeService {
+function service(calls: unknown[]): LearningService {
   const status = {
     availability: "ready" as const,
     message: "ready",
-    configuration: DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION,
-    models: [],
-    indexing: "unavailable" as const,
-    maintenance: {
-      state: "idle" as const,
-      pendingUpdates: 0,
-      message: "idle",
-      automaticStartsToday: 0,
-      automaticMillisecondsToday: 0,
-    },
+    retrieval: "lexical" as const,
   };
   return {
+    capabilities: {},
     async status() {
-      return status;
-    },
-    async configure() {
       return status;
     },
     async search(value) {
@@ -47,15 +36,26 @@ function service(calls: unknown[]): KnowledgeService {
       calls.push(value);
       return { kind: "accepted", revision: "r1" };
     },
-    async download() {
-      return status;
-    },
-    async cancelDownload() {
-      return status;
-    },
     async close() {},
   };
 }
+test("knowledge tools forward their execution cancellation into facade operations", async () => {
+  const backend = service([]);
+  const controller = new AbortController();
+  let received: AbortSignal | undefined;
+  backend.search = async (_request, operation) => {
+    received = operation?.signal;
+    return { kind: "failure", code: "cancelled" };
+  };
+  const tool = createKnowledgePlugin(backend)
+    .plugin.prepare({})()
+    .tools!.find((tool) => tool.name === "knowledge.search")!;
+  await tool.execute(
+    { query: "public", mode: "lexical", limit: 1, maxBytes: 1024 },
+    { invocationId: "one", operationId: "run", signal: controller.signal },
+  );
+  expect(received).toBe(controller.signal);
+});
 test("desktop execution receipts pass the portable knowledge conformance rules", () => {
   runEvidenceReadReceiptConformance(knowledgeTools.createEvidenceReadReceipts);
 });

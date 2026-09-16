@@ -1,8 +1,9 @@
 # ADR 0024: Local knowledge, memory and evidence-based retrieval
 
-- Status: Accepted; partially superseded by ADR 0026 and ADR 0027
+- Status: Accepted; partially superseded by ADR 0026, ADR 0027 and ADR 0028
 - Date: 2026-09-12
 - Accepted: 2026-09-12
+- Further partial replacement: Accepted [ADR 0028](0028-replaceable-learning-context-and-decisions.md) separates the shared learning service from local installation and composition, retaining this local implementation as the default. Original decision text and evidence remain unchanged.
 - Partial replacements: Accepted [ADR 0026](0026-permissive-dependencies-and-local-gguf-embeddings.md) replaces the embedding runtime and installation choice. Accepted [ADR 0027](0027-complete-learning-journey.md) replaces tools-only context preparation with consented, bounded knowledge references and completes the supported capture-to-recall path. The other decisions remain in force; the original text below is retained.
 
 ## Context

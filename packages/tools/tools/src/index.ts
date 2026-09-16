@@ -1,5 +1,10 @@
 import { z } from "zod";
 import {
+  AuthorizationFailureCodeSchema,
+  type Authorizer,
+  type AuthZenRequest,
+} from "@drawloom/authorization";
+import {
   ContentBlockSchema,
   ElicitRequestFormParamsSchema,
   ElicitResultSchema,
@@ -110,7 +115,7 @@ export const ToolResultSchema = z.strictObject({
   invocationId: z.string().min(1),
   operationId: z.string().min(1).optional(),
   evidence: z.enum(["recorded", "start_failed", "outcome_failed"]),
-  outcome: z.discriminatedUnion("status", [
+  outcome: z.union([
     z.strictObject({
       status: z.literal("ok"),
       value: JsonValueSchema,
@@ -132,6 +137,12 @@ export const ToolResultSchema = z.strictObject({
       execution: z.enum(["not_started", "completed", "unknown"]),
       path: z.array(z.union([z.string(), z.number()])).optional(),
     }),
+    z.strictObject({
+      status: z.literal("failed"),
+      code: z.literal("authorization_failed"),
+      authorizationFailure: AuthorizationFailureCodeSchema,
+      execution: z.literal("not_started"),
+    }),
   ]),
 });
 export type ToolResult = z.infer<typeof ToolResultSchema>;
@@ -148,7 +159,23 @@ export type ToolEvidence =
 export interface ToolEvidenceSink {
   record(record: ToolEvidence): Promise<void>;
 }
-export type ToolPolicy = (operationId: string, tool: string) => boolean;
+/** Trusted enforcement facts, never supplied by a tool invocation or plugin manifest.
+ * Generations invalidate pending decisions; ownership remains independent of policy.
+ * remainingMs reflects the enclosing operation, or a finite unbounded host budget
+ * when that operation has no deadline. A scheduler must bound each evaluation.
+ */
+export interface ToolAuthority {
+  resolve(
+    operationId: string,
+    tool: string,
+  ): { request: AuthZenRequest; generation: number } | undefined;
+  isCurrent(operationId: string, generation: number): boolean;
+  remainingMs(operationId: string): number;
+}
+export interface ToolAuthorization {
+  authorizer: Authorizer;
+  authority: ToolAuthority;
+}
 export interface ToolGateway {
   readonly exposure: ToolExposure;
   bind(operationId: string): ToolBinding;

@@ -1,4 +1,5 @@
-import { test, expect } from "bun:test";
+import { test, expect, spyOn } from "bun:test";
+import * as models from "./models.js";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -6,9 +7,15 @@ import { createNodeJsonStore } from "@drawloom/node-host";
 import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION } from "@drawloom/local-knowledge-runtime";
 import type { RpcMessage, RpcTransport } from "@drawloom/host";
 import type { ContextPreparationRequest, ContextPreparationResult } from "@drawloom/context";
+import type { ContextAssembler, TurnContextAssemblyInput } from "@drawloom/context/assembly";
+import { createDefaultContextAssembler } from "@drawloom/default-context";
 import { createDesktopApplication } from "./application.js";
+import { createSectionedContextAssembler } from "@drawloom/replacement-examples";
 import { serveDesktop } from "./server.js";
-import type { KnowledgeService } from "./knowledge-host.js";
+import type { LearningService } from "@drawloom/knowledge/learning";
+import type { ContextPreparer } from "@drawloom/context";
+import { DEFAULT_LOCAL_LEARNING_SCOPE } from "./learning-consent.js";
+import { confirmApplicationLearning } from "../tests/learning-consent-fixture.js";
 import { KNOWLEDGE_RETRIEVAL_GUIDANCE } from "./knowledge-tools.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -40,9 +47,34 @@ const ready: ContextPreparationResult = {
   ],
 };
 
+test("public alternative assembler reaches actual Codex input without changing displayed user text", async () => {
+  const f = await fixture(undefined, undefined, createSectionedContextAssembler());
+  try {
+    const original = "  Public replacement question\n";
+    expect((await f.send(original)).status).toBe(200);
+    const opening = f.calls.find((call) => call.method === "thread/start")!.params;
+    expect(opening.developerInstructions).toContain("Host guidance\n");
+    expect(opening.developerInstructions).toContain(KNOWLEDGE_RETRIEVAL_GUIDANCE);
+    expect(opening.developerInstructions).not.toContain("Retained untrusted evidence");
+    const turn = f.calls.find((call) => call.method === "turn/start")!.params;
+    expect(turn.input[0].text).toContain(original);
+    expect(turn.input[0].text).toContain("Retained untrusted evidence");
+    await until(async () =>
+      (await f.app.historyPage(f.conversationId)).entries.some((entry) => entry.text === original),
+    );
+    expect(
+      (await f.app.historyPage(f.conversationId)).entries.find((entry) => entry.role === "user")
+        ?.text,
+    ).toBe(original);
+  } finally {
+    await f.close();
+  }
+});
+
 async function fixture(
   schedulePreparationDeadline?: (expire: () => void, milliseconds: number) => () => void,
   retained?: { root: string; conversationId: string },
+  contextAssembler?: ContextAssembler,
 ) {
   const root = retained?.root ?? (await mkdtemp(join(tmpdir(), "drawloom-http-preparation-")));
   const directory = join(root, "working");
@@ -59,44 +91,14 @@ async function fixture(
   const status = {
     availability: "ready" as const,
     message: "ready",
-    configuration: { ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION, automaticContext: true },
-    models: [
-      {
-        id: "qwen3-embedding-0.6b-gguf" as const,
-        title: "Local",
-        licence: "Apache-2.0",
-        source: "local",
-        modelDirectory: "/model",
-        runtimeDirectory: "/runtime",
-        prerequisites: "Metal",
-        runtime: { package: "llama.cpp", version: "revision", licence: "MIT" },
-        weightsBytes: 1,
-        runtimeBytes: 1,
-        runtimeDownloadAvailable: false,
-        state: "missing" as const,
-      },
-    ],
-    indexing: "unavailable" as const,
-    maintenance: {
-      state: "idle" as const,
-      pendingUpdates: 0,
-      message: "idle",
-      automaticStartsToday: 0,
-      automaticMillisecondsToday: 0,
-    },
+    retrieval: "lexical" as const,
   };
-  const service: KnowledgeService = {
+  const preferences = { automaticContext: true, captureOutcomes: false, automaticCuration: false };
+  const service: LearningService & ContextPreparer = {
     async status() {
       return structuredClone(status);
     },
-    async configure(c) {
-      await configure?.();
-      status.configuration = c;
-      return structuredClone(status);
-    },
-    async warmup() {
-      return { kind: "unavailable" };
-    },
+    capabilities: { warmup: { run: async () => ({ kind: "unavailable" }) } },
     async prepare(r) {
       preparations.push(r);
       return preparation(r);
@@ -113,17 +115,17 @@ async function fixture(
     async ingest() {
       return { kind: "accepted", revision: "r1" };
     },
-    async download() {
-      return status;
-    },
-    async cancelDownload() {
-      return status;
-    },
     async close() {},
   };
   const store = createNodeJsonStore(join(root, "provider-state"));
   const app = await createDesktopApplication(join(root, "data"), {
-    knowledge: { service, ...(schedulePreparationDeadline ? { schedulePreparationDeadline } : {}) },
+    ...(contextAssembler ? { contextAssembler } : {}),
+    knowledge: {
+      service,
+      context: service,
+      declaration: DEFAULT_LOCAL_LEARNING_SCOPE,
+      ...(schedulePreparationDeadline ? { schedulePreparationDeadline } : {}),
+    },
     codex: {
       store: {
         get: (key) => store.get(key),
@@ -138,6 +140,37 @@ async function fixture(
           async request(method, params) {
             calls.push({ method, params });
             if (method === "initialize") return { userAgent: "codex/0.153.4" };
+            if (method === "skills/list")
+              return {
+                data: [
+                  {
+                    cwd,
+                    skills: [
+                      {
+                        name: "Test skill",
+                        description: "Public test skill",
+                        path: "/public/test/SKILL.md",
+                        scope: "user",
+                        enabled: true,
+                        pluginId: null,
+                      },
+                    ],
+                    errors: [],
+                  },
+                ],
+              };
+            if (method === "model/list")
+              return {
+                data: [
+                  {
+                    id: "small",
+                    model: "small",
+                    displayName: "Small",
+                    supportedReasoningEfforts: [{ reasoningEffort: "low" }],
+                  },
+                ],
+                nextCursor: null,
+              };
             if (method === "thread/start" || method === "thread/resume")
               return { thread: { id: native, cwd }, approvalsReviewer: "user" };
             if (method === "thread/read") return { thread: { cwd } };
@@ -188,6 +221,13 @@ async function fixture(
     admissions.push("command");
     return admission;
   };
+  await confirmApplicationLearning(app, preferences);
+  const knowledgeCommand = app.knowledgeCommand;
+  app.knowledgeCommand = async (raw, operation) => {
+    if (raw && typeof raw === "object" && Reflect.get(raw, "action") === "preferences")
+      await configure?.();
+    return knowledgeCommand(raw, operation);
+  };
   const server = serveDesktop(app, resolve("apps/desktop/build"));
   const bootstrap = await fetch(server.url, { redirect: "manual" });
   const headers = {
@@ -236,7 +276,7 @@ async function fixture(
     command,
     post,
     grant,
-    status,
+    preferences,
     send: (text: string) =>
       post("/api/command", {
         kind: "send",
@@ -255,9 +295,9 @@ async function fixture(
       configure = next;
     },
     unavailablePreparation() {
-      delete service.prepare;
+      preparation = async () => ({ kind: "unavailable", references: [], bytes: 0 });
     },
-    evidence(next: KnowledgeService["evidence"]) {
+    evidence(next: LearningService["evidence"]) {
       service.evidence = next;
     },
     native(method: string, item?: unknown) {
@@ -397,8 +437,8 @@ test.each([
     const revoking = revoke
       ? f.post("/api/command", f.grant(false))
       : f.post("/api/knowledge", {
-          action: "configure",
-          configuration: { ...f.status.configuration, automaticContext: false },
+          action: "preferences",
+          preferences: { ...f.preferences, automaticContext: false },
         });
     const cancelled = await until(() => f.preparations.at(-1)!.signal.aborted, 300).then(
       () => true,
@@ -517,8 +557,8 @@ test.each([false, true])(
         await held.promise;
       });
       const enabling = f.post("/api/knowledge", {
-        action: "configure",
-        configuration: { ...f.status.configuration, automaticContext: true },
+        action: "preferences",
+        preferences: { ...f.preferences, automaticContext: true },
       });
       await entered.promise;
       let admitted = f.admissions.length;
@@ -528,8 +568,8 @@ test.each([false, true])(
           admitted = f.admissions.length;
           extra.push(
             f.post("/api/knowledge", {
-              action: "configure",
-              configuration: { ...f.status.configuration, automaticContext },
+              action: "preferences",
+              preferences: { ...f.preferences, automaticContext },
             }),
           );
           await until(() => f.admissions.length > admitted);
@@ -540,8 +580,8 @@ test.each([false, true])(
       await until(() => f.admissions.length > admitted);
       admitted = f.admissions.length;
       const disabling = f.post("/api/knowledge", {
-        action: "configure",
-        configuration: { ...f.status.configuration, automaticContext: false },
+        action: "preferences",
+        preferences: { ...f.preferences, automaticContext: false },
       });
       await until(() => f.admissions.length > admitted);
       f.configuration();
@@ -570,8 +610,8 @@ test.each([false, true])(
       expect(
         (
           await f.post("/api/knowledge", {
-            action: "configure",
-            configuration: { ...f.status.configuration, automaticContext: true },
+            action: "preferences",
+            preferences: { ...f.preferences, automaticContext: true },
           })
         ).status,
       ).toBe(200);
@@ -613,8 +653,8 @@ test.each(
         expect(
           (
             await f.post("/api/knowledge", {
-              action: "configure",
-              configuration: { ...f.status.configuration, automaticContext: false },
+              action: "preferences",
+              preferences: { ...f.preferences, automaticContext: false },
             })
           ).status,
         ).toBe(200);
@@ -696,8 +736,8 @@ test.each([
     const revoking = revoke
       ? f.post("/api/command", f.grant(false))
       : f.post("/api/knowledge", {
-          action: "configure",
-          configuration: { ...f.status.configuration, automaticContext: false },
+          action: "preferences",
+          preferences: { ...f.preferences, automaticContext: false },
         });
     await until(() => f.admissions.length > admitted);
     f.persistence();
@@ -754,8 +794,8 @@ test("HTTP cancellation rejects unauthenticated, malformed and wrong-target requ
     expect(
       (
         await f.post("/api/knowledge", {
-          action: "configure",
-          configuration: { ...f.status.configuration, automaticContext: false },
+          action: "preferences",
+          preferences: { ...f.preferences, automaticContext: false },
           subject: "forged",
         })
       ).status,
@@ -808,6 +848,109 @@ test("a completed native turn during preparation dispatches once using a fresh e
   } finally {
     held.release();
     await f.close();
+  }
+});
+
+test("completed steering target during assembly gets fresh preparation, receipt and model selection", async () => {
+  const discovery = spyOn(models, "desktopModels").mockResolvedValue([
+    { id: "small", title: "Small", efforts: ["low"] },
+  ]);
+  const held = deferred();
+  const assembler = createDefaultContextAssembler();
+  const assembled: string[] = [];
+  const inputs: TurnContextAssemblyInput[] = [];
+  const f = await fixture(undefined, undefined, {
+    session: assembler.session,
+    async turn(input, options) {
+      inputs.push(structuredClone(input));
+      assembled.push(input.automaticKnowledge?.text ?? "missing");
+      if (assembled.length === 2) await held.promise;
+      return assembler.turn(input, options);
+    },
+  });
+  try {
+    f.prepare(async (request) => {
+      const text = request.binding.executionId;
+      return { ...ready, text, bytes: new TextEncoder().encode(text).byteLength };
+    });
+    await f.command({
+      kind: "set_model",
+      conversationId: f.conversationId,
+      selection: { model: "small", effort: "low" },
+    });
+    const first = await f.send("first");
+    if (!first.ok) throw Error(await first.text());
+    const old = (await f.app.snapshot()).activeOperation!;
+    const image = await f.app.importAsset(
+      Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a0qkAAAAASUVORK5CYII=",
+        "base64",
+      ),
+      "image/png",
+      "public-test.png",
+      f.conversationId,
+    );
+    await until(async () =>
+      (await f.app.discover(f.conversationId)).entries.some(
+        (entry) => entry.origin === "codex" && entry.kind === "skill",
+      ),
+    );
+    const catalogue = await f.app.discover(f.conversationId);
+    const skill = catalogue.entries.find(
+      (entry) => entry.origin === "codex" && entry.kind === "skill",
+    )!;
+    const selection = { id: skill.id, revision: skill.revision };
+    const sending = f.post("/api/command", {
+      kind: "send",
+      conversationId: f.conversationId,
+      text: "original after assembly",
+      attachmentKeys: [image.key],
+      contextArtifactIds: [],
+      selections: [selection],
+    });
+    await until(() => assembled.length === 2);
+    f.complete();
+    await until(async () => !(await f.app.snapshot()).activeOperation);
+    held.release();
+    expect((await sending).status).toBe(200);
+    expect(f.preparations).toHaveLength(3);
+    const fresh = f.preparations[2]!.binding.executionId;
+    expect(fresh).not.toBe(old);
+    expect(assembled).toEqual([old, old, fresh]);
+    for (const input of inputs.slice(1)) {
+      expect(input.request).toBe("original after assembly");
+      expect(input.attachments).toEqual([image]);
+      expect(input.selections).toEqual([selection]);
+    }
+    expect((await f.app.snapshot()).activeOperation).toBe(fresh);
+    const starts = f.calls.filter((c) => c.method === "turn/start");
+    expect(starts).toHaveLength(2);
+    expect(starts[1]?.params).toMatchObject({ model: "small", effort: "low" });
+    expect(starts[1]?.params.input).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "localImage" }),
+        expect.objectContaining({
+          type: "skill",
+          name: "Test skill",
+          path: "/public/test/SKILL.md",
+        }),
+      ]),
+    );
+    expect(f.calls.filter((c) => c.method === "turn/steer")).toHaveLength(0);
+    await until(async () =>
+      (await f.app.historyPage(f.conversationId)).entries.some(
+        (e) => e.text === "original after assembly",
+      ),
+    );
+    expect(
+      (await f.app.historyPage(f.conversationId)).entries.find(
+        (e) => e.text === "original after assembly",
+      )?.preparation?.receipt?.executionId,
+    ).toBe(fresh);
+  } finally {
+    held.release();
+    await f.close();
+    discovery.mockRestore();
   }
 });
 

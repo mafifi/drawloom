@@ -1,4 +1,14 @@
-import { expect, test } from "bun:test";
+import { expect, test, afterEach } from "bun:test";
+import { createDesktopAuthorization } from "../../../apps/desktop/host/authorization.js";
+const hosts: ReturnType<typeof createDesktopAuthorization>[] = [];
+const authority = () => {
+  const host = createDesktopAuthorization();
+  hosts.push(host);
+  return host.knowledge();
+};
+afterEach(() => {
+  for (const host of hosts.splice(0)) host.shutdown();
+});
 import type { RpcTransport } from "@drawloom/host";
 import { createLocalKnowledgeClient } from "./src/client.js";
 import { parseStoredLocalKnowledgeConfiguration } from "./src/protocol.js";
@@ -23,7 +33,7 @@ test("close waits for runtime shutdown before terminating its transport, once", 
       calls.push("transport.close");
     },
   };
-  const client = createLocalKnowledgeClient(rpc);
+  const client = createLocalKnowledgeClient(rpc, authority());
   const closing = client.close();
   await Promise.resolve();
   expect(calls).toEqual(["knowledge.close"]);
@@ -37,7 +47,7 @@ test("the bounded client never accepts a caller-supplied knowledge subject", asy
   const calls: Array<{ method: string; params: unknown }> = [];
   const rpc: RpcTransport = {
     async request(method, params) {
-      calls.push({ method, params });
+      calls.push({ method, params: (params as { params: unknown }).params });
       if (method === "knowledge.search")
         return {
           kind: "ok",
@@ -56,7 +66,7 @@ test("the bounded client never accepts a caller-supplied knowledge subject", asy
     },
     async close() {},
   };
-  const client = createLocalKnowledgeClient(rpc);
+  const client = createLocalKnowledgeClient(rpc, authority());
   expect(
     await client.search({ query: "local", mode: "best_available", limit: 5, maxBytes: 4096 }),
   ).toMatchObject({ kind: "ok", mode: "lexical" });
@@ -112,7 +122,7 @@ test("obsolete runtime cleanup sends the explicit consent command", async () => 
   };
   const rpc: RpcTransport = {
     async request(method, params) {
-      calls.push({ method, params });
+      calls.push({ method, params: (params as { params: unknown }).params });
       return status;
     },
     notify() {},
@@ -122,7 +132,7 @@ test("obsolete runtime cleanup sends the explicit consent command", async () => 
     },
     async close() {},
   };
-  await createLocalKnowledgeClient(rpc).cleanupObsoleteRuntime();
+  await createLocalKnowledgeClient(rpc, authority()).cleanupObsoleteRuntime();
   expect(calls).toEqual([
     {
       method: "knowledge.cleanup-obsolete-runtime",
@@ -163,25 +173,29 @@ test("preparation validates bounds, excludes authority input and cancels late si
         });
       return { kind: "empty", references: [], bytes: 0 };
     },
-    notify() {},
+    notify(method) {
+      calls.push(method);
+    },
     respond() {},
     subscribe() {
       return () => {};
     },
     async close() {},
   };
-  const client = createLocalKnowledgeClient(rpc);
+  const client = createLocalKnowledgeClient(rpc, authority());
   const controller = new AbortController();
   const request = {
     request: "retained finding",
     binding: { executionId: "operation", conversationId: "fixed" },
     budget: { maxRecords: 8, maxBytes: 12288 },
+    remainingMs: () => 5000,
     signal: controller.signal,
   };
   expect(() => client.prepare({ ...request, subject: { id: "forged" } } as never)).toThrow();
   const pending = client.prepare(request);
+  await new Promise((resolve) => setTimeout(resolve, 0));
   controller.abort();
   expect(await pending).toEqual({ kind: "cancelled", references: [], bytes: 0 });
   release();
-  expect(calls).toEqual(["knowledge.prepare", "knowledge.cancel-preparation"]);
+  expect(calls).toEqual(["knowledge.prepare", "knowledge.cancel-operation"]);
 });

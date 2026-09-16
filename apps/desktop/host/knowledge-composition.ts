@@ -4,17 +4,31 @@ import type {
   LocalTemporalRegistration,
 } from "@drawloom/temporal-orchestration";
 import { createKnowledgeActivity } from "./knowledge-activity.js";
-import { createKnowledgeHost, type KnowledgeService } from "./knowledge-host.js";
-import { createKnowledgeNightloom, isNightloomKnowledgeService } from "./knowledge-nightloom.js";
+import { createKnowledgeHost } from "./knowledge-host.js";
+import { createKnowledgeNightloom, createLocalLearningCuration } from "./knowledge-nightloom.js";
+import type { LearningService } from "@drawloom/knowledge/learning";
+import type { LocalKnowledgeClient } from "@drawloom/local-knowledge-runtime";
+import type { ContextPreparer } from "@drawloom/context";
+import {
+  createLocalLearningService,
+  createLocalLearningSetup,
+  createLocalLearningSetupHost,
+  type LocalLearningSetup,
+} from "./local-learning.js";
+import type { createLearningPermission } from "./learning-permission.js";
 import { createEvidenceReadReceipts, createKnowledgePlugin } from "./knowledge-tools.js";
 
 type KnowledgeHostOptions = Omit<
   Parameters<typeof createKnowledgeHost>[0],
-  "service" | "store" | "nightloom"
+  "service" | "store" | "context" | "permission"
 >;
 
 export function createKnowledgeComposition(options: {
-  service: KnowledgeService;
+  service?: LearningService;
+  local?: LocalKnowledgeClient;
+  context?: ContextPreparer;
+  setup?: LocalLearningSetup;
+  permission: ReturnType<typeof createLearningPermission>;
   store: JsonStore;
   manager: () => Promise<ReturnType<typeof createLocalTemporalManager>>;
   nightloomDirectory: string;
@@ -22,15 +36,16 @@ export function createKnowledgeComposition(options: {
   host: KnowledgeHostOptions;
 }) {
   const evidenceReadReceipts = createEvidenceReadReceipts();
-  const plugin = createKnowledgePlugin(options.service, evidenceReadReceipts);
   let registration: LocalTemporalRegistration | undefined;
   const activity = createKnowledgeActivity(() => registration);
-  const nightloom = isNightloomKnowledgeService(options.service)
+  const local = options.local;
+  const nightloom = local
     ? createKnowledgeNightloom({
-        service: options.service,
+        service: local,
+        permission: options.permission,
         store: options.store,
         packageDirectory: options.nightloomDirectory,
-        settings: async () => (await options.service.status()).configuration,
+        settings: async () => (await local.status()).configuration,
         prepareHost: async (owner) => {
           const prepared = await (await options.manager()).prepareHost(owner);
           registration = prepared;
@@ -39,11 +54,28 @@ export function createKnowledgeComposition(options: {
         ...(options.scheduleNightloomTick ? { scheduleTick: options.scheduleNightloomTick } : {}),
       })
     : undefined;
+  const service =
+    options.service ??
+    (local && nightloom
+      ? createLocalLearningService(
+          local,
+          createLocalLearningCuration(
+            nightloom,
+            async () => (await local.status()).maintenance.pendingUpdates,
+          ),
+        )
+      : undefined);
+  if (!service) throw Error("A learning implementation must be selected at startup");
+  const setup = createLocalLearningSetupHost(
+    options.setup ?? (local && nightloom ? createLocalLearningSetup(local, nightloom) : undefined),
+  );
+  const plugin = createKnowledgePlugin(service, evidenceReadReceipts);
   const host = createKnowledgeHost({
-    service: options.service,
+    service,
+    permission: options.permission,
+    ...((options.context ?? local) ? { context: options.context ?? local! } : {}),
     store: options.store,
     ...options.host,
-    ...(nightloom ? { nightloom } : {}),
   });
-  return { activity, evidenceReadReceipts, host, nightloom, plugin };
+  return { activity, evidenceReadReceipts, host, nightloom, plugin, service, setup };
 }

@@ -1,11 +1,413 @@
-import { test } from "node:test";
+import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createLocalKnowledgeRuntime } from "./dist/runtime.js";
-import { createManagedLocalKnowledgeClient } from "./dist/client.js";
+import { execFileSync } from "node:child_process";
+import { createLocalKnowledgeRuntime as createRuntime } from "./dist/runtime.js";
+import { createManagedLocalKnowledgeClient as createClient } from "./dist/client.js";
 import { KnownModelManifests } from "@drawloom/local-embeddings";
+import { createDesktopAuthorization } from "../../../apps/desktop/host/authorization.ts";
+const hostOwners: ReturnType<typeof createDesktopAuthorization>[] = [];
+const newHost = () => {
+  const host = createDesktopAuthorization();
+  hostOwners.push(host);
+  return host;
+};
+afterEach(() => {
+  for (const host of hostOwners.splice(0)) host.shutdown();
+});
+const createLocalKnowledgeRuntime = (
+  options: Omit<Parameters<typeof createRuntime>[0], "authorizer">,
+) => createRuntime({ ...options, authorizer: newHost().foreground });
+const createManagedLocalKnowledgeClient = (
+  options: Omit<Parameters<typeof createClient>[0], "authority"> &
+    Partial<Pick<Parameters<typeof createClient>[0], "authority">>,
+) => createClient({ ...options, authority: options.authority ?? newHost().knowledge() });
+
+const syntheticRef = {
+  type: "source" as const,
+  origin: "synthetic",
+  id: "private",
+  revision: "r1",
+};
+const syntheticAssessment = {
+  requestId: "synthetic-assessment",
+  payloadFingerprint: "synthetic-payload",
+  evidence: {
+    roots: [{ unitId: "unit-1", root: syntheticRef }],
+    complete: true,
+    records: [
+      {
+        ref: syntheticRef,
+        body: "synthetic assessment secret",
+        status: "active" as const,
+        confidence: {},
+        provenance: { producer: { type: "test", id: "fixture" }, inputs: [] },
+      },
+    ],
+    links: [],
+  },
+};
+
+for (const interruption of ["cancelled", "denied"] as const)
+  test(`spawned configure reconciles persisted destination after ${interruption} post-write status`, async () => {
+    const root = await mkdtemp(join(tmpdir(), "drawloom-configuration-authority-"));
+    const controller = new AbortController();
+    let interruptStatus = false;
+    const destinations: unknown[] = [];
+    const host = createDesktopAuthorization({
+      authorize: async (request) => {
+        if (interruptStatus && request.action.name === "knowledge.maintain") {
+          if (interruption === "cancelled") controller.abort();
+          else return { decision: false };
+        }
+        if (request.action.name === "assess") {
+          destinations.push(request.context?.destination);
+          return { decision: false };
+        }
+        return { decision: true };
+      },
+    });
+    const authority = host.knowledge();
+    const client = createClient({
+      root,
+      workingDirectory: root,
+      authority,
+      runtimeEntrypoint: join(import.meta.dirname, "test-support/assessment-sidecar.mjs"),
+    });
+    const old = authority.admit(
+      {
+        operationId: crypto.randomUUID(),
+        method: "knowledge.assess",
+        params: syntheticAssessment,
+        background: true,
+        assessmentDestination: "gpt-5.6-terra",
+      },
+      { signal: new AbortController().signal, remainingMs: () => 5000 },
+    );
+    try {
+      const status = await client.status();
+      interruptStatus = true;
+      await assert.rejects(
+        client.configure(
+          { ...status.configuration, assessmentModel: "synthetic-next" },
+          {
+            signal: controller.signal,
+            remainingMs: () => 5000,
+          },
+        ),
+      );
+      assert.equal(old.isCurrent(), false);
+      interruptStatus = false;
+      let result = await client.assess(syntheticAssessment);
+      for (
+        let attempt = 0;
+        result.kind === "failure" && result.code === "unavailable" && attempt < 100;
+        attempt++
+      ) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        result = await client.assess(syntheticAssessment);
+      }
+      assert.equal(result.kind, "denied");
+      assert.deepEqual(destinations, ["synthetic-next"]);
+      await assert.rejects(readFile(join(root, "native-calls.jsonl")), { code: "ENOENT" });
+      const refreshed = await client.status();
+      const unchanged = authority.admit(
+        {
+          operationId: crypto.randomUUID(),
+          method: "knowledge.assess",
+          params: syntheticAssessment,
+          background: true,
+          assessmentDestination: "synthetic-next",
+        },
+        { signal: new AbortController().signal, remainingMs: () => 5000 },
+      );
+      try {
+        await client.configure(refreshed.configuration);
+        assert.equal(unchanged.isCurrent(), true);
+      } finally {
+        unchanged.dispose();
+      }
+    } finally {
+      old.dispose();
+      await client.close();
+      host.shutdown();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+test("spawned assessment rechecks host disclosure after preflight and cannot submit after revocation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-assessment-authority-"));
+  let checks = 0;
+  const host = createDesktopAuthorization({
+    authorize: async () => {
+      if (++checks === 3) {
+        host.invalidate();
+        return { decision: true };
+      }
+      return { decision: true };
+    },
+  });
+  const client = createClient({
+    root,
+    workingDirectory: root,
+    authority: host.knowledge(),
+    runtimeEntrypoint: join(import.meta.dirname, "test-support/assessment-sidecar.mjs"),
+  });
+  try {
+    assert.deepEqual(await client.background.assess(syntheticAssessment), {
+      kind: "failure",
+      requestId: syntheticAssessment.requestId,
+      payloadFingerprint: syntheticAssessment.payloadFingerprint,
+      code: "cancelled",
+    });
+    const calls = await readFile(join(root, "native-calls.jsonl"), "utf8");
+    assert.match(calls, /thread\/memoryMode\/set/);
+    assert.doesNotMatch(calls, /turn\/start/);
+  } finally {
+    await client.close();
+    host.shutdown();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("spawned assessment cancellation after submission keeps uncertainty and never resubmits", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-assessment-uncertain-"));
+  await writeFile(join(root, "hang-submission"), "synthetic fixture");
+  const host = createDesktopAuthorization();
+  const client = createClient({
+    root,
+    workingDirectory: root,
+    authority: host.knowledge(),
+    runtimeEntrypoint: join(import.meta.dirname, "test-support/assessment-sidecar.mjs"),
+  });
+  try {
+    const controller = new AbortController();
+    const pending = client.background.assess(syntheticAssessment, {
+      signal: controller.signal,
+      remainingMs: () => 5000,
+    });
+    let calls = "";
+    const deadline = Date.now() + 3000;
+    while (!calls.includes("turn/start") && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      calls = await readFile(join(root, "native-calls.jsonl"), "utf8").catch(() => "");
+    }
+    assert.match(calls, /turn\/start/);
+    controller.abort();
+    assert.deepEqual(await pending, {
+      kind: "uncertain",
+      requestId: syntheticAssessment.requestId,
+      payloadFingerprint: syntheticAssessment.payloadFingerprint,
+    });
+    assert.equal((await client.background.assess(syntheticAssessment)).kind, "uncertain");
+    calls = await readFile(join(root, "native-calls.jsonl"), "utf8");
+    assert.equal(calls.split('"turn/start"').length - 1, 1);
+  } finally {
+    await client.close();
+    host.shutdown();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+for (const code of ["malformed_result", "rejected", "budget_exhausted"] as const) {
+  test(`spawned worker preserves ${code} without granting disclosure`, async () => {
+    const root = await mkdtemp(join(tmpdir(), "drawloom-policy-failure-"));
+    const host = createDesktopAuthorization({
+      authorize: async () => {
+        if (code === "malformed_result") return {} as never;
+        if (code === "rejected") throw Error("synthetic failure");
+        return new Promise(() => {});
+      },
+    });
+    const client = createClient({ root, workingDirectory: root, authority: host.knowledge() });
+    try {
+      const deadline = performance.now() + 500;
+      assert.deepEqual(
+        await client.search(
+          { query: "synthetic", mode: "lexical", limit: 10, maxBytes: 10000 },
+          { signal: new AbortController().signal, remainingMs: () => deadline - performance.now() },
+        ),
+        { kind: "failure", code },
+      );
+    } finally {
+      await client.close();
+      host.shutdown();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}
+
+test("spawned foreground context discards references when disclosure is revoked while awaiting policy", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-context-revoke-"));
+  const host = createDesktopAuthorization({
+    authorize: async (request) => {
+      if (request.action.name === "knowledge.disclose") host.invalidate("fixed-execution");
+      return { decision: true };
+    },
+  });
+  const client = createClient({ root, workingDirectory: root, authority: host.knowledge() });
+  try {
+    await client.ingest({
+      operation: "upsert",
+      expectedRevision: null,
+      record: syntheticAssessment.evidence.records[0]!,
+      links: [],
+    });
+    const status = await client.status();
+    await client.configure({ ...status.configuration, automaticContext: true });
+    assert.deepEqual(
+      await client.prepare({
+        request: "synthetic",
+        binding: { executionId: "fixed-execution", conversationId: "fixed-conversation" },
+        budget: { maxRecords: 8, maxBytes: 12288 },
+        signal: new AbortController().signal,
+        remainingMs: () => 5000,
+      }),
+      { kind: "cancelled", references: [], bytes: 0 },
+    );
+  } finally {
+    await client.close();
+    host.shutdown();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("spawned mixed reads retain host foreground and background capacities through shutdown", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-mixed-authority-"));
+  let entered = 0,
+    asked = 0,
+    allAsked!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    allAsked = resolve;
+  });
+  const host = createDesktopAuthorization({
+    authorize: async () => {
+      entered++;
+      return new Promise(() => {});
+    },
+  });
+  const authority = host.knowledge();
+  const client = createClient({
+    root,
+    workingDirectory: root,
+    authority: {
+      ...authority,
+      admit(request, operation) {
+        const lease = authority.admit(request, operation);
+        return {
+          ...lease,
+          authorizer: {
+            authorize(facts, evaluation) {
+              if (++asked === 48) allAsked();
+              return lease.authorizer.authorize(facts, evaluation);
+            },
+          },
+        };
+      },
+    },
+  });
+  try {
+    const query = { query: "synthetic", mode: "lexical" as const, limit: 10, maxBytes: 10000 };
+    const pending = [
+      ...Array.from({ length: 36 }, () => client.search(query)),
+      ...Array.from({ length: 12 }, () => client.background.search(query)),
+    ];
+    await ready;
+    assert.equal(entered, 16);
+    assert.deepEqual(await client.search(query), { kind: "failure", code: "overflow" });
+    assert.deepEqual(await client.background.search(query), { kind: "failure", code: "overflow" });
+    host.shutdown();
+    for (const result of await Promise.all(pending))
+      assert.deepEqual(result, { kind: "failure", code: "shutdown" });
+  } finally {
+    await client.close();
+    host.shutdown();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("death of the exact owned worker settles a read waiting on host policy", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-dead-worker-"));
+  let entered!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const host = createDesktopAuthorization({
+    authorize: async () => {
+      entered();
+      return new Promise(() => {});
+    },
+  });
+  const client = createClient({ root, workingDirectory: root, authority: host.knowledge() });
+  try {
+    const pending = client.search({
+      query: "synthetic",
+      mode: "lexical",
+      limit: 10,
+      maxBytes: 10000,
+    });
+    await ready;
+    const owned = execFileSync("ps", ["-axo", "pid=,command="], { encoding: "utf8" })
+      .split("\n")
+      .filter((line) => line.includes("sidecar.js") && line.includes(JSON.stringify(root)));
+    assert.equal(owned.length, 1);
+    const pid = Number(owned[0]!.trim().split(/\s+/, 1)[0]);
+    process.kill(pid, "SIGKILL");
+    assert.deepEqual(await pending, { kind: "failure", code: "unavailable" });
+  } finally {
+    await client.close().catch(() => undefined);
+    host.shutdown();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("spawned worker uses the host replacement and never returns a partially authorized page", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-host-policy-"));
+  let deny = false;
+  let failRecord = false;
+  const host = createDesktopAuthorization({
+    authorize: async (request) => {
+      if (failRecord && request.resource.type === "knowledge-record")
+        return { kind: "failure", code: "unavailable" };
+      return { decision: !deny };
+    },
+  });
+  const client = createManagedLocalKnowledgeClient({
+    root,
+    workingDirectory: root,
+    authority: host.knowledge(),
+  });
+  try {
+    assert.equal(
+      (
+        await client.ingest({
+          operation: "upsert",
+          expectedRevision: null,
+          record: {
+            ref: { type: "source", origin: "synthetic", id: "private", revision: "r1" },
+            body: "synthetic confidential phrase",
+            status: "active",
+            confidence: { value: "observed" },
+            provenance: { producer: { type: "test", id: "fixture" }, inputs: [] },
+          },
+          links: [],
+        })
+      ).kind,
+      "accepted",
+    );
+    deny = true;
+    const query = { query: "synthetic", mode: "lexical" as const, limit: 10, maxBytes: 10000 };
+    assert.deepEqual(await client.search(query), { kind: "denied" });
+    deny = false;
+    failRecord = true;
+    assert.deepEqual(await client.search(query), { kind: "failure", code: "unavailable" });
+  } finally {
+    await client.close();
+    host.shutdown();
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("the Node runtime owns one global lexical store and reports missing model prerequisites", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-knowledge-runtime-"));
@@ -46,10 +448,12 @@ test("the Node runtime owns one global lexical store and reports missing model p
       request: "knowledge",
       binding: { executionId: "execution", conversationId: "fixed-conversation" },
       budget: { maxRecords: 8, maxBytes: 12288 },
+      remainingMs: () => 5000,
       signal: new AbortController().signal,
     };
-    assert.equal((await runtime.prepare(preparation)).kind, "unavailable");
-    await runtime.configure({ ...initial.configuration, automaticContext: true });
+    // The trusted host now owns effective consent; the runtime retains its authorizer.
+    // Legacy preference storage cannot override a separately admitted preparation.
+    assert.equal((await runtime.prepare(preparation)).kind, "ready");
     const prepared = await runtime.prepare(preparation);
     assert.equal(prepared.kind, "ready");
     if (prepared.kind === "ready") {
@@ -101,6 +505,7 @@ test("the managed RPC process keeps SQLite and trusted identity outside the Bun 
       request: "boundary",
       binding: { executionId: "sidecar-operation", conversationId: "fixed" },
       budget: { maxRecords: 8, maxBytes: 12288 },
+      remainingMs: () => 5000,
       signal: new AbortController().signal,
     });
     assert.equal(prepared.kind, "ready");

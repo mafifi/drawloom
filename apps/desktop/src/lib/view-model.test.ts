@@ -18,6 +18,212 @@ Bun.plugin({
 });
 const { createDesktopViewModel } = await import("./view-model.svelte.js");
 const originalFetch = globalThis.fetch;
+for (const initialStop of ["card", "conversation"] as const) {
+  test(`native invalidation retires delayed ${initialStop} Stop before successor approval`, async () => {
+    const initial = snapshot();
+    initial.approvals = [
+      {
+        conversationId: "conversation-a",
+        presentationId: "first",
+        request: {
+          approvalId: "a",
+          operationId: "op",
+          summary: "Choose",
+          options: [{ optionId: "allow", label: "Allow" }],
+        },
+        surface: "pending",
+        submitting: false,
+        presentation: "desktop",
+      },
+    ];
+    const h = await harness(initial);
+    const base = globalThis.fetch;
+    const requests: { command: DesktopCommand; release: (response: Response) => void }[] = [];
+    globalThis.fetch = (async (url, options) => {
+      if (url === "/api/command") {
+        const command = JSON.parse(String(options?.body)) as DesktopCommand;
+        return new Promise<Response>((release) => requests.push({ command, release }));
+      }
+      return base(url, options);
+    }) as typeof fetch;
+    const first = h.vm.approvals[0]!.actions;
+    const oldChoice = first.choose("allow");
+    const oldStop =
+      initialStop === "card"
+        ? first.stop()
+        : h.vm.command({ kind: "stop", conversationId: "conversation-a" });
+    expect(requests).toHaveLength(2);
+    h.setState({ ...initial, approvals: [] });
+    await h.vm.start();
+    h.vm.stopPolling();
+    const successor = {
+      ...initial,
+      approvals: [
+        {
+          ...initial.approvals[0]!,
+          presentationId: "second",
+          request: { ...initial.approvals[0]!.request, approvalId: "b", operationId: "op2" },
+        },
+      ],
+    };
+    h.setState(successor);
+    await h.vm.start();
+    h.vm.stopPolling();
+    const second = h.vm.approvals[0]!.actions;
+    const newChoice = second.choose("allow");
+    const newStop = second.stop();
+    expect(requests).toHaveLength(4);
+    expect(requests[3]!.command).toMatchObject({
+      kind: "approval_surface",
+      action: "stop",
+      presentationId: "second",
+      approvalId: "b",
+    });
+    requests[1]!.release(Response.json({ error: "Old Stop failed" }, { status: 400 }));
+    requests[0]!.release(Response.json(initial));
+    await Promise.all([oldStop, oldChoice]);
+    expect(h.vm.error).toBe("");
+    expect(h.vm.pendingCommand).toMatchObject({ kind: "approval", presentationId: "second" });
+    expect(h.vm.approvals[0]!.presentation.stopping).toBe(true);
+    expect(await second.stop()).toBe(false);
+    expect(requests).toHaveLength(4);
+    requests[3]!.release(Response.json(successor));
+    requests[2]!.release(Response.json(successor));
+    await Promise.all([newStop, newChoice]);
+  });
+}
+test("polling unanswered or failed approvals never re-presents without an explicit recovery action", async () => {
+  const initial = snapshot();
+  initial.approvals = [
+    {
+      conversationId: "conversation-a",
+      presentationId: "first",
+      request: {
+        approvalId: "a",
+        operationId: "op",
+        summary: "Choose",
+        options: [{ optionId: "allow", label: "Allow" }],
+      },
+      surface: "pending",
+      submitting: false,
+      presentation: "desktop",
+    },
+  ];
+  const h = await harness(initial);
+  for (let i = 0; i < 3; i++) {
+    await h.vm.start();
+    h.vm.stopPolling();
+  }
+  expect(h.commands).toEqual([]);
+  expect(h.vm.approvals[0]!.presentation.reopen).toBe(false);
+  h.setState({ ...initial, approvals: [{ ...initial.approvals[0]!, surface: "failed" }] });
+  await h.vm.start();
+  h.vm.stopPolling();
+  expect(h.commands).toEqual([]);
+  expect(h.vm.approvals[0]!.presentation.reopen).toBe(true);
+  await h.vm.approvals[0]!.actions.reopen();
+  expect(h.commands).toEqual([
+    {
+      kind: "approval_surface",
+      conversationId: "conversation-a",
+      approvalId: "a",
+      presentationId: "first",
+      action: "reopen",
+    },
+  ]);
+});
+test("native invalidation releases pending approval UI and stale cleanup cannot clear new work", async () => {
+  const initial = snapshot();
+  initial.approvals = [
+    {
+      conversationId: "conversation-a",
+      presentationId: "first",
+      request: {
+        approvalId: "a",
+        operationId: "op",
+        summary: "Choose",
+        options: [{ optionId: "allow", label: "Allow" }],
+      },
+      surface: "pending",
+      submitting: false,
+      presentation: "desktop",
+    },
+  ];
+  const h = await harness(initial);
+  const old = h.vm.approvals[0]!.actions;
+  const base = globalThis.fetch;
+  let release!: (value: Response) => void;
+  globalThis.fetch = (async (url, options) => {
+    if (url === "/api/command" && JSON.parse(String(options?.body)).kind === "approval")
+      return new Promise<Response>((resolve) => {
+        release = resolve;
+      });
+    return base(url, options);
+  }) as typeof fetch;
+  const waiting = old.choose("allow");
+  await old.stop();
+  h.setState({ ...initial, approvals: [], activeOperation: undefined });
+  await h.vm.start();
+  h.vm.stopPolling();
+  expect(h.vm.pendingCommand).toBeUndefined();
+  const next = h.deferCommand();
+  const navigating = h.vm.select("conversation-b");
+  expect(h.vm.pendingCommand?.kind).toBe("select_conversation");
+  release(Response.json({ error: "Late failure" }, { status: 400 }));
+  await waiting;
+  expect(h.vm.pendingCommand?.kind).toBe("select_conversation");
+  expect(h.vm.error).toBe("");
+  next();
+  await navigating;
+});
+test("captured browser actions carry their original presentation identity", async () => {
+  const initial = snapshot();
+  initial.approvals = [
+    {
+      conversationId: "conversation-a",
+      presentationId: "first",
+      request: {
+        approvalId: "a",
+        operationId: "op",
+        summary: "Choose",
+        options: [{ optionId: "allow", label: "Allow" }],
+      },
+      surface: "pending",
+      submitting: false,
+      presentation: "desktop",
+    },
+  ];
+  const h = await harness(initial);
+  const old = h.vm.approvals[0]!.actions;
+  h.setState({ ...initial, approvals: [{ ...initial.approvals[0]!, presentationId: "second" }] });
+  await h.vm.start();
+  h.vm.stopPolling();
+  await old.choose("allow");
+  await old.dismiss();
+  await old.reopen();
+  await old.stop();
+  expect(h.commands).toHaveLength(4);
+  for (const command of h.commands) expect(command).toMatchObject({ presentationId: "first" });
+  expect(h.commands.at(-1)).toMatchObject({
+    kind: "approval_surface",
+    action: "stop",
+    approvalId: "a",
+  });
+});
+test("Stop reaches the host while an approval response is still pending", async () => {
+  const h = await harness();
+  const release = h.deferCommand();
+  const approval = h.vm.command({
+    kind: "approval",
+    conversationId: "conversation-a",
+    presentationId: "first",
+    resolution: { approvalId: "a", optionId: "allow" },
+  });
+  const stopping = h.vm.command({ kind: "stop", conversationId: "conversation-a" });
+  expect(h.commands.map((value) => value.kind)).toEqual(["approval", "stop"]);
+  release();
+  await Promise.all([approval, stopping]);
+});
 test("sharing a conversation selects context without navigation or execution", async () => {
   const initial = snapshot();
   initial.conversations.push({
@@ -482,6 +688,7 @@ test("provider sign-in uses a catalogue identity and discards a late URL after n
 
 function snapshot(): DesktopSnapshot {
   return {
+    approvals: [],
     mediaPolicy: { revision: "initial", sources: [] },
     archiveBlockedConversationIds: [],
     toolLabels: [],

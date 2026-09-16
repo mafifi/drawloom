@@ -1,8 +1,9 @@
 # ADR 0027: Bring retained learning into everyday conversations
 
-- Status: Accepted
+- Status: Accepted; context composition partially superseded by ADR 0028
 - Date: 2026-09-15
 - Accepted: 2026-09-15
+- Partial replacement: Accepted [ADR 0028](0028-replaceable-learning-context-and-decisions.md) makes context assembly and learning implementations replaceable while retaining the bounded preparation and disclosure safeguards below. Original decision text and evidence remain unchanged.
 - Partially supersedes: [ADR 0024](0024-local-knowledge-memory-and-retrieval.md), specifically tools-only context preparation.
 
 ## Purpose

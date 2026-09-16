@@ -1,4 +1,5 @@
-/** Explicit integration lane: actual desktop/SQLite/Temporal, scripted external models. */
+/** Learning journey through the orchestration contract: Temporal-backed desktop/SQLite,
+ * scripted external models. This is a concrete integration test, not a Temporal-only workflow. */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { cp, mkdtemp, mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
@@ -22,7 +23,12 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { z } from "zod";
 import { createDesktopApplication } from "../host/application.js";
 import { createInstallationStore } from "../host/plugin-installations.js";
-import { KnowledgeStatusSchema } from "../src/lib/knowledge-protocol.js";
+import { LearningStatusSchema } from "../src/lib/learning-protocol.js";
+import {
+  LocalLearningSetupStatusSchema,
+  LocalLearningConfigurationSchema,
+} from "../src/lib/local-knowledge-setup-protocol.js";
+import { confirmApplicationLearning } from "./learning-consent-fixture.js";
 import { createLearningApplicationFixture } from "./learning-journey-lifecycle.js";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -150,75 +156,80 @@ async function open() {
     { root: join(data, "knowledge"), workingDirectory: root },
     async (managedClient) => {
       client = managedClient;
+      const scripted: Pick<typeof managedClient, "assess" | "reconcile" | "cancelAssessment"> = {
+        async assess(request): Promise<AssessmentResult> {
+          assessments.push(structuredClone(request));
+          await heldAssessment;
+          if (uncertain)
+            return {
+              kind: "uncertain",
+              requestId: request.requestId,
+              payloadFingerprint: request.payloadFingerprint,
+            };
+          const proposals: ClaimProposal[] = [];
+          for (const record of request.evidence.records) {
+            const choice =
+              record.ref.type === "observation" &&
+              record.body === "The text inspection counted 3 words."
+                ? { ref: countRef, body: "The earlier text inspection counted three words." }
+                : record.ref.type === "source" && record.body.includes(sourceText)
+                  ? { ref: claimRef, body: claimText }
+                  : undefined;
+            if (!choice || published.has(choice.ref.id)) continue;
+            published.add(choice.ref.id);
+            proposals.push({
+              record: {
+                ...choice,
+                status: "active",
+                freshness: "current",
+                confidence: { value: "scripted acceptance only" },
+                provenance: {
+                  producer: { type: "scripted-assessor", id: "public-learning-test" },
+                  inputs: [record.ref],
+                },
+              },
+              expectedRevision: null,
+              links: [{ from: choice.ref, to: record.ref, relation: "support" }],
+            });
+          }
+          return {
+            kind: "completed",
+            requestId: request.requestId,
+            payloadFingerprint: request.payloadFingerprint,
+            proposals,
+          };
+        },
+        async reconcile(identity) {
+          return { kind: "uncertain", ...identity };
+        },
+        async cancelAssessment(identity) {
+          return { kind: "too_late", ...identity };
+        },
+      };
       return createDesktopApplication(data, {
         codex: { connect, store: createNodeJsonStore(join(data, "provider")) },
         knowledge: {
-          service: {
-            ...client,
-            async assess(request): Promise<AssessmentResult> {
-              assessments.push(structuredClone(request));
-              await heldAssessment;
-              if (uncertain)
-                return {
-                  kind: "uncertain",
-                  requestId: request.requestId,
-                  payloadFingerprint: request.payloadFingerprint,
-                };
-              const proposals: ClaimProposal[] = [];
-              for (const record of request.evidence.records) {
-                const choice =
-                  record.ref.type === "observation" &&
-                  record.body === "The text inspection counted 3 words."
-                    ? { ref: countRef, body: "The earlier text inspection counted three words." }
-                    : record.ref.type === "source" && record.body.includes(sourceText)
-                      ? { ref: claimRef, body: claimText }
-                      : undefined;
-                if (!choice || published.has(choice.ref.id)) continue;
-                published.add(choice.ref.id);
-                proposals.push({
-                  record: {
-                    ...choice,
-                    status: "active",
-                    freshness: "current",
-                    confidence: { value: "scripted acceptance only" },
-                    provenance: {
-                      producer: { type: "scripted-assessor", id: "public-learning-test" },
-                      inputs: [record.ref],
-                    },
-                  },
-                  expectedRevision: null,
-                  links: [{ from: choice.ref, to: record.ref, relation: "support" }],
-                });
-              }
-              return {
-                kind: "completed",
-                requestId: request.requestId,
-                payloadFingerprint: request.payloadFingerprint,
-                proposals,
-              };
-            },
-            async reconcile(identity) {
-              return { kind: "uncertain", ...identity };
-            },
-            async cancelAssessment(identity) {
-              return { kind: "too_late", ...identity };
-            },
+          local: {
+            ...managedClient,
+            ...scripted,
+            background: { ...managedClient.background, ...scripted },
           },
         },
       });
     },
   );
 }
-const status = async () =>
-  KnowledgeStatusSchema.parse(await app!.knowledgeCommand({ action: "status" }));
+const status = async () => ({
+  ...LearningStatusSchema.parse(await app!.knowledgeCommand({ action: "status" })),
+  local: LocalLearningSetupStatusSchema.parse(
+    await app!.localLearningSetupCommand({ action: "status" }),
+  ),
+});
 const configure = (automaticContext: boolean) =>
-  app!.knowledgeCommand({
-    action: "configure",
-    configuration: {
-      ...DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION,
-      automaticContext,
-      captureOutcomes: true,
-    },
+  confirmApplicationLearning(app!, {
+    automaticContext,
+    captureOutcomes: true,
+    automaticCuration: false,
   });
 async function grant(conversationId: string, toolName: string, allowed = true) {
   await app!.command({
@@ -276,12 +287,12 @@ async function curate(ref: RecordRef) {
     `curation ${ref.id}`,
   );
   await until(
-    async () => (await status()).maintenance.state === "idle",
+    async () => (await status()).curation!.state === "idle",
     `curation terminal status ${ref.id}`,
   );
   if (installedModels)
     await until(
-      async () => (await status()).indexing === "ready",
+      async () => (await status()).local.indexing === "ready",
       `installed semantic index ${ref.id}`,
     );
 }
@@ -317,7 +328,7 @@ try {
   await open();
   if (installedModels)
     assert.equal(
-      (await status()).models[0]!.state,
+      (await status()).local.models[0]!.state,
       "ready",
       "Supplied installed-model fixture must be ready",
     );
@@ -630,11 +641,11 @@ try {
         (record) => record.ref.id === hostileRef.id && record.body === hostileBody,
       ),
   );
-  assert.equal((await status()).maintenance.state, "running");
+  assert.equal((await status()).curation!.state, "running");
   await configure(false);
   const disabled = await send(sourceRecall, "earlier inspection counted");
   assert(!disabled.includes("The earlier text inspection counted three words."));
-  assert.equal((await status()).configuration.automaticContext, false);
+  assert.equal((await status()).consent.features.automaticContext.preferred, false);
   assert(
     deliveries.some((d) => JSON.stringify(d.input).includes(claimText)),
     "Previously sent input remains unchanged",
@@ -643,23 +654,23 @@ try {
   releaseAssessment();
   heldAssessment = undefined;
   await until(
-    async () => (await status()).maintenance.state === "uncertain",
+    async () => (await status()).curation!.state === "uncertain",
     "held uncertain curation is explicitly visible",
     10_000,
   );
   const priorSubmissions = assessments.length;
-  const priorOutcome = (await status()).maintenance;
+  const priorOutcome = (await status()).curation!;
   await app!.knowledgeCommand({ action: "pause", paused: true });
-  assert.equal((await status()).maintenance.paused, true);
-  assert.equal((await status()).maintenance.state, "uncertain");
-  assert.equal((await status()).maintenance.message, priorOutcome.message);
+  assert.equal((await status()).curation!.paused, true);
+  assert.equal((await status()).curation!.state, "uncertain");
+  assert.equal((await status()).curation!.message, priorOutcome.message);
   await app!.knowledgeCommand({ action: "pause", paused: false });
-  assert.equal((await status()).maintenance.paused, false);
-  assert.equal((await status()).maintenance.state, "uncertain");
-  assert.equal((await status()).maintenance.message, priorOutcome.message);
+  assert.equal((await status()).curation!.paused, false);
+  assert.equal((await status()).curation!.state, "uncertain");
+  assert.equal((await status()).curation!.message, priorOutcome.message);
   await app!.knowledgeCommand({ action: "run", overrideBudget: true });
   await until(
-    async () => (await status()).maintenance.state === "uncertain",
+    async () => (await status()).curation!.state === "uncertain",
     "reconciled curation remains explicitly uncertain",
     10_000,
   );

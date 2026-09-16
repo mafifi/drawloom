@@ -1,3 +1,4 @@
+import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 import { mkdtemp, mkdir, appendFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -90,7 +91,7 @@ async function run(name: string, role: 'reader' | 'collector' | 'maintainer' | '
         return { saved: true };
       } }),
   ].filter(tool => (role === 'weaver' ? ['memory.snapshot', 'memory.weave'] : role === 'organiser' ? ['memory.snapshot', 'memory.organise'] : role === 'reader' ? ['memory.search'] : role === 'collector' ? ['inspection.run'] : role === 'planner' ? ['memory.search', 'plan.save'] : role === 'fieldworker' ? ['inspection.run', 'memory.search', 'memory.publish'] : ['memory.evidence', 'memory.publish']).includes(tool.name));
-  const gateway = createLocalToolGateway({ tools, policy: (_operation, tool) => !(interruptAfterRead && tool === 'memory.organise'), nextInvocationId: () => crypto.randomUUID(),
+  const gateway = createLocalToolGateway({ tools, authorization: toolAuthorizationFixture({ authorize: async request => ({ decision: !(interruptAfterRead && request.resource.id === 'memory.organise') }) }), nextInvocationId: () => crypto.randomUUID(),
     evidence: { record: async record => { await appendFile(join(storage, 'execution.jsonl'), JSON.stringify(record) + '\n', { mode: 0o600 }); } },
   });
   const bridge = createCodexToolBridge(gateway);

@@ -122,11 +122,15 @@ and supporting tests in more detail.
   covers AI edit approval, and [ADR 0023](docs/adr/0023-knowledge-memory-authorization-boundaries.md)
   covers knowledge and memory access.
 
-These are capabilities, not ten independent services. Context provides shared
-instruction types and bounded knowledge preparation, not a general prompt
-compiler; memory uses the knowledge
-interfaces; sandboxing relies on the execution environment; and policy is
-enforced through the relevant agent, tool and knowledge interfaces.
+These are capabilities, not ten independent services. Memory and knowledge share
+one learning subsystem. Context has separate interfaces for assembling session
+and turn input and for selecting knowledge references. Access decisions use a
+shared asynchronous interface, while each protected operation still enforces
+permission independently. Sandboxing relies on the execution environment.
+Accepted [ADR 0028](docs/adr/0028-replaceable-learning-context-and-decisions.md)
+records these replacement boundaries, including approval presentation without
+transferring native approval authority. The
+[replacement guide](docs/reference/replacing-capabilities.md) shows developer setup.
 
 The original [ADR 0005](docs/adr/0005-partition-agent-platform-capabilities.md)
 listed 11 possible responsibilities, including model inference. Drawloom does

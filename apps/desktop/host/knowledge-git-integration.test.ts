@@ -4,7 +4,7 @@ import { cp, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createNodeJsonStore } from "@drawloom/node-host";
-import { createManagedLocalKnowledgeClient } from "@drawloom/local-knowledge-runtime";
+import { createAuthorizedKnowledgeFixture as createManagedLocalKnowledgeClient } from "../tests/knowledge-authority-fixture.js";
 import { SearchResultSchema } from "@drawloom/knowledge";
 import { createDesktopApplication } from "./application.js";
 import { createInstallationStore } from "./plugin-installations.js";
@@ -61,7 +61,7 @@ test("an installed standard Git package keeps revisions and withdrawals current 
         workingDirectory: repository,
       });
       knowledge = service;
-      return createDesktopApplication(data, { knowledge: { service } });
+      return createDesktopApplication(data, { knowledge: { local: service } });
     };
     app = await open();
     await app.command({ kind: "add_project", directory: repository });

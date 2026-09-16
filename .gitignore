@@ -7,6 +7,7 @@ node_modules/
 dist/
 coverage/
 .turbo/
+*.tsbuildinfo
 
 # Compiled MCP App; included in packages after build, not in source control.
 packages/examples/knowledge-evaluation/app.html
