@@ -25,6 +25,7 @@ const configuration = z
     entry: z.string().optional(),
     packageDirectory: z.string().optional(),
     destination: z.string().optional(),
+    bundleContext: z.string().refine(isAbsolute).optional(),
     address: z.string().optional(),
     taskQueue: z.string().optional(),
     bundle: z.string().optional(),
@@ -94,6 +95,7 @@ if (configuration.mode === "service") {
     workflowsPath: entry,
     logger: new DefaultLogger("ERROR", (entry) => console.error(entry.message)),
     webpackConfigHook: (config) => {
+      config.context = configuration.bundleContext!;
       config.resolve ??= {};
       config.resolve.modules = [
         ...(config.resolve.modules ?? ["node_modules"]),
@@ -222,11 +224,14 @@ if (configuration.mode === "service") {
         context.cancellationSignal.addEventListener("abort", cancel, { once: true });
         try {
           return {
-            value: await call(
-              "/dispatch",
-              { ...request, attempt: context.info.attempt },
-              context.info.attempt,
-            ),
+            value: await Promise.race([
+              call(
+                "/dispatch",
+                { ...request, attempt: context.info.attempt },
+                context.info.attempt,
+              ),
+              context.cancelled,
+            ]),
             attempt: context.info.attempt,
           };
         } finally {

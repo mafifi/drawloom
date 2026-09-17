@@ -23,6 +23,7 @@ updated: 2026-09-13
 
 - [Permissive runtime replacement evidence](evidence/adr-0026-gguf.md)
 - [Learning journey implementation checks](evidence/adr-0027-learning-journey.md)
+- [Plugin and workbench Settings evidence](evidence/adr-0029-plugin-settings.md)
 
 - [Supported evaluation implementation](evidence/adr-0025-supported-evaluation.md)
 

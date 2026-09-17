@@ -10,6 +10,7 @@ import {
 import { mkdir } from "node:fs/promises";
 import { z } from "zod";
 import { createInstallationStore } from "./plugin-installations.js";
+import { createPluginSettingsHost } from "./plugin-settings.js";
 import { createWorkflowAuthority } from "./workflow-authority.js";
 import { createWorkflowToolScope } from "./workflow-tools.js";
 import { createDesktopAuthorization } from "./authorization.js";
@@ -314,6 +315,16 @@ export async function createDesktopApplication(
     credentials: await createPluginCredentialStore(),
     redirectUrl: () => oauthRedirect,
   });
+  const pluginSettings = createPluginSettingsHost({
+    root,
+    installations: installations.list,
+    authProviderFor: (installation) => (server) =>
+      oauth.connection({
+        installationId: installation.id,
+        serverName: server.name,
+        serverUrl: server.config.url,
+      }).provider,
+  });
   async function oauthConnection(id: string, serverName: string) {
     const { packages } = await selectedRuntime();
     const server = packages.activeServer(id, serverName);
@@ -413,9 +424,13 @@ export async function createDesktopApplication(
     return runtimeFor(project.projects.find((p) => p.id === project.selectedProjectId));
   }
   async function disconnectPackageRuntimes(installationId: string, serverName: string) {
-    await projectRuntimes.retire((runtime) =>
-      runtime.packages.disconnect(installationId, serverName),
-    );
+    await cleanup([
+      () => pluginSettings.invalidate(installationId),
+      () =>
+        projectRuntimes.retire((runtime) =>
+          runtime.packages.disconnect(installationId, serverName),
+        ),
+    ]);
   }
   function runtimeForConversation(id: string) {
     const conversation = project.conversations.find((c) => c.id === id);
@@ -463,6 +478,7 @@ export async function createDesktopApplication(
     // Installing remains global. Only connections and working state are scoped.
     const packages = await loadInstalledPackages({
       root: runtimeRoot,
+      installationRoot: root,
       installations: available ? installations.startup : [],
       ...(binding ? { project: { id: binding.id, directory: binding.directory } } : {}),
       mediaPolicy,
@@ -1044,6 +1060,11 @@ export async function createDesktopApplication(
     remainingMs: operation?.remainingMs ?? (() => Number.MAX_SAFE_INTEGER),
   });
   const application = {
+    settingsPages: pluginSettings.list,
+    settingsOpen: pluginSettings.open,
+    settingsPresentation: pluginSettings.presentation,
+    settingsRequest: pluginSettings.request,
+    settingsClose: pluginSettings.closeMount,
     installations,
     workflowOwners: orchestration.owners,
     knowledgeActivityOwner: knowledgeActivity.owner,
@@ -1195,6 +1216,7 @@ export async function createDesktopApplication(
             }),
           () => installations.pendingRestart(action.id),
         );
+        await pluginSettings.invalidate(action.id);
       }
       return this.installedPackages();
     },
@@ -2394,6 +2416,7 @@ export async function createDesktopApplication(
         },
         () =>
           cleanup([
+            () => pluginSettings.close(),
             () => approvals.close(),
             () => schedulingStopped,
             () => nightloom?.close(),

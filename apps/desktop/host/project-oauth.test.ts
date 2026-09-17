@@ -18,12 +18,32 @@ function packageServer() {
         message.method === "initialize"
           ? {
               protocolVersion: "2025-03-26",
-              capabilities: { tools: {} },
+              capabilities: { tools: {}, resources: {} },
               serverInfo: { name: "project-oauth", version: "1" },
             }
           : message.method === "tools/list"
-            ? { tools: [] }
-            : {};
+            ? {
+                tools: [
+                  {
+                    name: "settings.open",
+                    inputSchema: { type: "object" },
+                    _meta: {
+                      ui: { visibility: ["app"], resourceUri: "ui://project-oauth/settings" },
+                    },
+                  },
+                ],
+              }
+            : message.method === "resources/read"
+              ? {
+                  contents: [
+                    {
+                      uri: "ui://project-oauth/settings",
+                      mimeType: "text/html;profile=mcp-app",
+                      text: "<p>Settings</p>",
+                    },
+                  ],
+                }
+              : {};
       return Response.json({ jsonrpc: "2.0", id: message.id, result });
     },
   });
@@ -37,6 +57,19 @@ async function installPackage(root: string, url: string) {
     JSON.stringify({
       $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
       name: "project-oauth",
+      extensions: {
+        "org.drawloom": {
+          version: 1,
+          settings: [
+            {
+              id: "preferences",
+              title: "Preferences",
+              openingTool: { server: "remote", tool: "settings.open" },
+              allowedTools: ["settings.open"],
+            },
+          ],
+        },
+      },
     }),
   );
   await writeFile(
@@ -85,6 +118,8 @@ test.each(["disconnect", "configure-client"] as const)(
         });
         expect((await app.packageStatuses())[0]?.servers[0]?.status).toBe("connected");
 
+        const settings = await app.settingsOpen({ installationId, pageId: "preferences" });
+        expect((await app.settingsPresentation(settings)).html).toContain("Settings");
         if (action === "disconnect") {
           await app.packageOAuth({ action, id: installationId, server: "remote" });
         } else {
@@ -102,6 +137,7 @@ test.each(["disconnect", "configure-client"] as const)(
             .packageOAuth({ action, id: installationId, server: "remote", registrationFile })
             .catch(() => undefined);
         }
+        await expect(app.settingsPresentation(settings)).rejects.toThrow();
         expect((await app.packageStatuses())[0]?.servers[0]).toMatchObject({
           status: "auth-required",
           code: "disconnected",

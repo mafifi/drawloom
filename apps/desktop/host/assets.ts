@@ -19,6 +19,7 @@ const supported = new Set([
   "text/markdown",
 ]);
 export const browserImportTypes: ReadonlySet<string> = supported;
+const managedTypes = new Set([...supported, "video/quicktime", "application/json"]);
 export const browserImportByteLimit = 256 * 1024 * 1024;
 export const nativeRpcMessageByteLimit = 32 * 1024 * 1024;
 const nativeImageByteLimit = 16 * 1024 * 1024;
@@ -30,8 +31,7 @@ export function createDesktopAssets(root: string) {
     mediaType: string,
     options: { signal?: AbortSignal } = {},
   ): Promise<Asset> {
-    if (!supported.has(mediaType) && mediaType !== "video/quicktime")
-      throw Error("Unsupported or oversized file");
+    if (!managedTypes.has(mediaType)) throw Error("Unsupported or oversized file");
     const base = resolve(root);
     await mkdir(base, { recursive: true });
     const rootInfo = await lstat(base);

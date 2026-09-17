@@ -12,6 +12,7 @@ import {
 import {
   getToolUiResourceUri,
   isToolVisibilityModelOnly,
+  isToolVisibilityAppOnly,
 } from "@modelcontextprotocol/ext-apps/app-bridge";
 import { RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
@@ -55,9 +56,10 @@ export async function connectMcpAppClient(
   toolName: string,
   uri: string,
   ownsClient = false,
+  settingsTools?: readonly string[],
 ): Promise<ConnectedMcpApp> {
   try {
-    const tools = [];
+    const tools: Tool[] = [];
     let cursor: string | undefined;
     const seen = new Set<string>();
     do {
@@ -69,6 +71,15 @@ export async function connectMcpAppClient(
       if (cursor) seen.add(cursor);
     } while (cursor);
     const opening = tools.find((tool) => tool.name === toolName);
+    if (
+      settingsTools &&
+      (!settingsTools.includes(toolName) ||
+        settingsTools.some((name) => {
+          const matches = tools.filter((tool) => tool.name === name);
+          return matches.length !== 1 || !isToolVisibilityAppOnly(matches[0]!);
+        }))
+    )
+      throw Error("Settings tools must be explicitly app-only and unambiguous");
     if (!opening || isToolVisibilityModelOnly(opening) || getToolUiResourceUri(opening) !== uri)
       throw Error("MCP opening tool does not expose the registered resource");
     const resource = await client.readResource({ uri });
@@ -80,7 +91,11 @@ export async function connectMcpAppClient(
       throw Error("Invalid MCP HTML resource");
     const resourceDomains = mediaPolicy(html._meta?.ui);
     const allowed = new Set(
-      tools.filter((tool) => !isToolVisibilityModelOnly(tool)).map((tool) => tool.name),
+      tools
+        .filter((tool) =>
+          settingsTools ? settingsTools.includes(tool.name) : !isToolVisibilityModelOnly(tool),
+        )
+        .map((tool) => tool.name),
     );
     const readable = new Set<string>();
     const resourceSupport = Boolean(client.getServerCapabilities()?.resources);

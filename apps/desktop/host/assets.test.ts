@@ -2,7 +2,22 @@ import { expect, test } from "bun:test";
 import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createDesktopAssets } from "./assets.js";
+import { browserImportTypes, createDesktopAssets } from "./assets.js";
+
+test("trusted managed JSON is retained byte-exact without becoming a browser import or native image", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-json-assets-"));
+  try {
+    const assets = createDesktopAssets(root);
+    const bytes = new TextEncoder().encode('{"words":[{"start":0,"end":1}]}');
+    const asset = await assets.put(bytes, "application/json");
+    expect(asset).toMatchObject({ mediaType: "application/json", size: bytes.length });
+    expect(await assets.read(asset.key)).toEqual(bytes);
+    expect(browserImportTypes.has("application/json")).toBe(false);
+    await expect(assets.imageInput(asset)).rejects.toThrow("other files remain viewable artifacts");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("streamed desktop assets retain content identity without buffering the input", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-stream-assets-"));

@@ -1,6 +1,6 @@
 import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 import { test, expect } from "bun:test";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm, realpath, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createNodeJsonStore } from "@drawloom/node-host";
@@ -24,6 +24,53 @@ function unusedAssets(): AssetLibrary {
   };
   return { open: unused, putStream: unused, read: unused, put: unused };
 }
+
+test("desktop package activation shares installation setup and binds each project independently", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "drawloom-installed-binding-")));
+  try {
+    const installation = await installedFixture(
+      root,
+      "shared-documents",
+      "https://example.com/mcp",
+    );
+    await writeFile(
+      join(installation.root, "mcp.json"),
+      JSON.stringify({
+        $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+        mcpServers: { remote: { type: "stdio", command: "bun", args: ["./server.mjs"] } },
+      }),
+    );
+    await writeFile(
+      join(installation.root, "server.mjs"),
+      `import { writeFileSync } from 'node:fs';
+import { createInterface } from 'node:readline';
+writeFileSync(process.env.PLUGIN_DATA + '/binding.json', JSON.stringify({ configuration: process.env.DRAWLOOM_PLUGIN_CONFIG_DIR, project: process.env.DRAWLOOM_PROJECT_DIR }));
+createInterface({input:process.stdin}).on('line', line => { const m=JSON.parse(line); if(m.id===undefined)return; const result=m.method==='initialize'?{protocolVersion:'2025-03-26',capabilities:{tools:{}},serverInfo:{name:'fixture',version:'1'}}:{tools:[]}; process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result})+'\\n'); });`,
+    );
+    for (const id of ["first", "second", "first"]) {
+      const directory = join(root, id);
+      await mkdir(directory, { recursive: true });
+      const loaded = await loadInstalledPackages({
+        root: directory,
+        installationRoot: root,
+        project: { id, directory },
+        installations: [installation],
+        host: packageHost(directory),
+      });
+      try {
+        expect(
+          JSON.parse(
+            await readFile(join(directory, "plugins", installation.id, "binding.json"), "utf8"),
+          ),
+        ).toEqual({ configuration: join(root, "plugins", installation.id), project: directory });
+      } finally {
+        await loaded.close();
+      }
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 function packageServer(
   label = "owner",

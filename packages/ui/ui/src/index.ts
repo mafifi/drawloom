@@ -18,6 +18,7 @@ export { default as PinIcon } from "@lucide/svelte/icons/pin";
 export { default as PinOffIcon } from "@lucide/svelte/icons/pin-off";
 export * as Tabs from "./components/tabs/index.js";
 export * as Collapsible from "./components/collapsible/index.js";
+export * as Accordion from "./components/accordion/index.js";
 export * as Alert from "./components/alert/index.js";
 export * as Empty from "./components/empty/index.js";
 export * as Avatar from "./components/avatar/index.js";

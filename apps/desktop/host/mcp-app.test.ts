@@ -95,6 +95,15 @@ test("standard App reaches plugin-owned data without OperatorSnapshot or control
     await bridge.connect(parent);
     await app.connect(child);
     expect(app.getHostContext()?.theme).toBe("light");
+    await expect(
+      app.updateModelContext({ structuredContent: { text: "Settings cannot update context" } }),
+    ).rejects.toThrow();
+    await expect(
+      app.sendMessage({
+        role: "user",
+        content: [{ type: "text", text: "Settings cannot start conversation work" }],
+      }),
+    ).rejects.toThrow();
     expect(
       (await app.callServerTool({ name: "counter.open", arguments: {} })).structuredContent,
     ).toEqual({ value: 3 });

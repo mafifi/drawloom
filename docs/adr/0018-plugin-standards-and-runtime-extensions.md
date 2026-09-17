@@ -8,6 +8,7 @@
 - **Date:** 2026-09-10
 - **Decision owners:** Drawloom maintainers
 - **Related:** ADRs 0008, 0012–0017
+- **Extended by:** [ADR 0029](0029-plugin-and-workbench-settings.md), installation-scoped Settings pages (2026-09-17).
 
 ## Context
 

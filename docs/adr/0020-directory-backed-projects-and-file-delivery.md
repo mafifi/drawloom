@@ -5,6 +5,7 @@
 - **Accepted:** 2026-09-11, following maintainer review of implementation and evidence
 - **Decision owners:** Drawloom maintainers
 - **Related:** ADRs 0013–0016, 0018–0019
+- **Extended by:** [ADR 0029](0029-plugin-and-workbench-settings.md), a separate installation-settings lifetime (2026-09-17).
 - **Delivery:** [implementation plan](../plans/0020-projects-and-file-delivery.md)
 - **Evidence:** [implementation, measurements and browser checks](../../knowledge/evidence/adr-0020-projects-file-delivery.md)
 

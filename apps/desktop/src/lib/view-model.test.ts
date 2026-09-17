@@ -18,6 +18,55 @@ Bun.plugin({
 });
 const { createDesktopViewModel } = await import("./view-model.svelte.js");
 const originalFetch = globalThis.fetch;
+test("Settings navigation groups named owners and distinguishes multiple pages", async () => {
+  const h = await harness();
+  const base = globalThis.fetch;
+  const multipleId = crypto.randomUUID();
+  const page = {
+    installationId: crypto.randomUUID(),
+    pageId: "prefs",
+    title: "Preferences",
+    ownerTitle: "Example plugin",
+    status: "available",
+  };
+  globalThis.fetch = (async (url, options) =>
+    url === "/api/settings/pages"
+      ? Response.json([
+          page,
+          {
+            ...page,
+            installationId: crypto.randomUUID(),
+            workbenchId: "studio",
+            ownerTitle: "Example studio",
+          },
+          { ...page, installationId: multipleId, ownerTitle: "Multiple pages" },
+          {
+            ...page,
+            installationId: multipleId,
+            ownerTitle: "Multiple pages",
+            pageId: "setup",
+            title: "Setup",
+          },
+        ])
+      : base(url, options)) as typeof fetch;
+  h.vm.primaryView = "settings";
+  await Bun.sleep(0);
+  expect(
+    h.vm.pluginSettingsGroups.map((group) => ({
+      title: group.title,
+      labels: group.entries.map((entry) => entry.label),
+    })),
+  ).toEqual([
+    { title: "Workbenches", labels: ["Example studio"] },
+    {
+      title: "Plugins",
+      labels: ["Example plugin", "Multiple pages · Preferences", "Multiple pages · Setup"],
+    },
+  ]);
+  const entry = h.vm.pluginSettingsGroups[0]!.entries[0]!;
+  h.vm.settingsSection = entry.key;
+  expect(h.vm.selectedSettingsPage?.workbenchId).toBe("studio");
+});
 for (const initialStop of ["card", "conversation"] as const) {
   test(`native invalidation retires delayed ${initialStop} Stop before successor approval`, async () => {
     const initial = snapshot();

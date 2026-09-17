@@ -383,6 +383,27 @@ export function serveDesktop(
             commandQueue = next.catch(() => {});
             return json(await next);
           }
+          if (url.pathname === "/api/settings/pages" && request.method === "GET")
+            return json(await app.settingsPages());
+          if (url.pathname === "/api/settings/open" && request.method === "POST")
+            return json(await app.settingsOpen(await request.json()));
+          if (url.pathname === "/api/settings/request" && request.method === "POST")
+            return json(await app.settingsRequest(await request.json()));
+          if (url.pathname === "/api/settings/close" && request.method === "POST")
+            return json(await app.settingsClose(await request.json()));
+          if (url.pathname === "/api/settings/page" && request.method === "GET") {
+            const presentation = await app.settingsPresentation({
+              mountId: url.searchParams.get("mountId"),
+            });
+            const sources = presentation.resourceDomains.join(" ");
+            return new Response(presentation.html, {
+              headers: {
+                ...secure,
+                "Content-Type": "text/html; charset=utf-8",
+                "Content-Security-Policy": `sandbox allow-scripts; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' ${sources}; font-src ${sources}; connect-src 'none'; img-src ${sources}; media-src ${sources}; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors ${origin}`,
+              },
+            });
+          }
           if (url.pathname === "/api/view-request" && request.method === "POST") {
             const raw: unknown = await request.json();
             // Validate captured parent routing at dispatch time, in the same queue as navigation.
@@ -515,9 +536,11 @@ export function serveDesktop(
             const disposition =
               asset.mediaType === "video/quicktime"
                 ? `attachment; filename="${asset.key}.mov"`
-                : url.searchParams.has("download")
-                  ? "attachment"
-                  : "inline";
+                : asset.mediaType === "application/json"
+                  ? `attachment; filename="${asset.key}.json"`
+                  : url.searchParams.has("download")
+                    ? "attachment"
+                    : "inline";
             return fileResponse(request, reader, {
               mediaType: asset.mediaType,
               immutable: true,

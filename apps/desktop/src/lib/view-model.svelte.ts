@@ -7,6 +7,7 @@ import {
   type DesktopCommand,
 } from "./protocol.js";
 import { createHistoryPager, type HistoryPresentation } from "./history-pager.js";
+import { SettingsPagesSchema, type SettingsPage } from "./plugin-settings-protocol.js";
 import {
   AssetSchema,
   JsonValueSchema,
@@ -137,9 +138,24 @@ export function createDesktopViewModel() {
     | "knowledge"
   >("conversation");
   let settingsReturnView: typeof primaryView = "conversation";
-  let settingsSection = $state<"general" | "workbench" | "permissions" | "media" | "integrations">(
-    "general",
-  );
+  let settingsSection = $state<string>("general");
+  let pluginSettingsPages = $state<SettingsPage[]>([]);
+  let pluginSettingsError = $state("");
+  let pluginSettingsLoading = $state(false);
+  async function refreshSettingsPages() {
+    if (pluginSettingsLoading) return;
+    pluginSettingsLoading = true;
+    pluginSettingsError = "";
+    try {
+      const response = await fetch("/api/settings/pages");
+      if (!response.ok) throw Error("Plugin settings could not be loaded.");
+      pluginSettingsPages = SettingsPagesSchema.parse(await response.json());
+    } catch {
+      pluginSettingsError = "Plugin settings could not be loaded. Reopen Settings to try again.";
+    } finally {
+      pluginSettingsLoading = false;
+    }
+  }
   let selectedWorkbenchId = $state("");
   let attachmentKeys = $state<string[]>([]),
     contextIds = $state<string[]>([]);
@@ -1334,9 +1350,49 @@ export function createDesktopViewModel() {
       primaryView = v;
       pickerOpen = false;
       if (v === "plugins") void refreshCatalogue();
+      if (v === "settings") void refreshSettingsPages();
     },
     get settingsSection() {
       return settingsSection;
+    },
+    get pluginSettingsPages() {
+      return pluginSettingsPages;
+    },
+    get pluginSettingsGroups() {
+      return [
+        { title: "Workbenches", workbench: true },
+        { title: "Plugins", workbench: false },
+      ]
+        .map((group) => ({
+          title: group.title,
+          entries: pluginSettingsPages
+            .filter((page) => Boolean(page.workbenchId) === group.workbench)
+            .map((page) => {
+              const multiple =
+                pluginSettingsPages.filter(
+                  (other) =>
+                    other.installationId === page.installationId &&
+                    other.workbenchId === page.workbenchId,
+                ).length > 1;
+              return {
+                page,
+                key: JSON.stringify([page.installationId, page.pageId]),
+                label: multiple ? `${page.ownerTitle} · ${page.title}` : page.ownerTitle,
+              };
+            }),
+        }))
+        .filter((group) => group.entries.length > 0);
+    },
+    get pluginSettingsLoading() {
+      return pluginSettingsLoading;
+    },
+    get pluginSettingsError() {
+      return pluginSettingsError;
+    },
+    get selectedSettingsPage() {
+      return pluginSettingsPages.find(
+        (page) => settingsSection === JSON.stringify([page.installationId, page.pageId]),
+      );
     },
     set settingsSection(v: typeof settingsSection) {
       settingsSection = v;

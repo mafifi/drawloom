@@ -35,7 +35,12 @@ const OwnerInput = z.strictObject({
   packageDirectory: z.string().min(1),
   entrypoint: z.string().min(1),
 });
-const OwnerRecordSchema = OwnerInput.extend({ bundleFingerprint: z.string(), owner: z.string() });
+const absolutePath = z.string().refine(isAbsolute, "Bundle context must be absolute");
+const OwnerRecordSchema = OwnerInput.extend({
+  bundleFingerprint: z.string(),
+  bundleContext: absolutePath.optional(),
+  owner: z.string(),
+});
 const HostOwnerInput = z.strictObject({
   capabilityId: z.string().min(1).max(256),
   packageDirectory: z.string().min(1),
@@ -43,6 +48,7 @@ const HostOwnerInput = z.strictObject({
 });
 const HostOwnerRecordSchema = HostOwnerInput.extend({
   bundleFingerprint: z.string(),
+  bundleContext: absolutePath.optional(),
   owner: z.string(),
 });
 const StoredOwnerRecordSchema = z.union([OwnerRecordSchema, HostOwnerRecordSchema]);
@@ -292,6 +298,11 @@ export function createLocalTemporalManager(options: LocalTemporalOptions) {
     const local = relative(packageDirectory, entry);
     if (local.startsWith("..") || isAbsolute(local) || !/\.(?:c|m)?js$/.test(entry))
       throw new Error("Workflow entrypoint containment failed");
+    const ownerPath = join(ownerDirectory, `${owner}.json`);
+    const old = await readJson(ownerPath);
+    const previous = old === undefined ? undefined : StoredOwnerRecordSchema.parse(old);
+    const bundleContext = previous?.bundleContext ?? process.cwd();
+    absolutePath.parse(bundleContext);
     await startService();
     const bundleDirectory = join(root, "bundles", owner);
     await mkdir(bundleDirectory, { recursive: true, mode: 0o700 });
@@ -303,6 +314,7 @@ export function createLocalTemporalManager(options: LocalTemporalOptions) {
       entry,
       packageDirectory,
       destination,
+      bundleContext,
       ...(hostOwned ? { hostCapability: true } : {}),
     });
     const output = await command(node, [sidecar, config], 45000);
@@ -311,9 +323,11 @@ export function createLocalTemporalManager(options: LocalTemporalOptions) {
     for (const [path, hash] of compiled.dependencies)
       if (digest(await readFile(path)) !== hash)
         throw new Error("Workflow dependency changed while preparing");
-    const old = await readJson(join(ownerDirectory, `${owner}.json`));
-    if (old !== undefined) {
-      const previous = StoredOwnerRecordSchema.parse(old);
+    if (previous !== undefined) {
+      if (!previous.bundleContext && previous.bundleFingerprint !== compiled.fingerprint)
+        throw new Error(
+          "Legacy workflow bundle context cannot be adopted because recompilation changed its fingerprint; restart from the original launch directory or finish and explicitly replace the retained owner",
+        );
       if (previous.bundleFingerprint !== compiled.fingerprint && (await unfinished(owner)))
         throw new Error("Workflow bundle changed with unfinished runs");
     }
@@ -328,8 +342,9 @@ export function createLocalTemporalManager(options: LocalTemporalOptions) {
       packageDirectory,
       owner,
       bundleFingerprint: compiled.fingerprint,
+      bundleContext,
     };
-    await writeJson(join(ownerDirectory, `${owner}.json`), record);
+    await writeJson(ownerPath, record);
     let ready = false;
     let disposed = false;
     let worker: ChildProcess | undefined;
@@ -539,7 +554,6 @@ export function createLocalTemporalManager(options: LocalTemporalOptions) {
       async cancel(runId) {
         const run = handle(runId);
         await checkBundle(runId);
-        dispatcher?.cancel(runId);
         await bounded(() => run.cancel());
       },
     };

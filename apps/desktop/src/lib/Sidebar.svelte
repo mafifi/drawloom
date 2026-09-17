@@ -140,6 +140,15 @@
             <Sidebar.MenuItem><Sidebar.MenuButton isActive={vm.settingsSection === section.id} aria-current={vm.settingsSection === section.id ? 'page' : undefined} onclick={() => { vm.settingsSection = section.id; sidebar.setOpenMobile(false); }}>{section.title}</Sidebar.MenuButton></Sidebar.MenuItem>
           {/each}
         </Sidebar.Menu></Sidebar.Group>
+        {#if vm.pluginSettingsLoading}<p class="px-4 text-sm text-muted-foreground" role="status">Loading plugin settings…</p>{/if}
+        {#if vm.pluginSettingsError}<p class="px-4 text-sm" role="alert">{vm.pluginSettingsError}</p>{/if}
+        {#each vm.pluginSettingsGroups as group}
+          <Sidebar.Group><Sidebar.GroupLabel>{group.title}</Sidebar.GroupLabel><Sidebar.Menu>
+            {#each group.entries as entry}
+            <Sidebar.MenuItem><Sidebar.MenuButton isActive={vm.settingsSection === entry.key} aria-current={vm.settingsSection === entry.key ? 'page' : undefined} onclick={() => { vm.settingsSection = entry.key; sidebar.setOpenMobile(false); }}>{entry.label}{entry.page.status !== 'available' ? ` · ${entry.page.status}` : ''}</Sidebar.MenuButton></Sidebar.MenuItem>
+            {/each}
+          </Sidebar.Menu></Sidebar.Group>
+        {/each}
       </Sidebar.Content>
     {:else}
       {@render navigation()}

@@ -27,6 +27,54 @@ async function until(read, predicate) {
 // Bun discovers .test.mjs too, but its node:test shim cannot reliably mix with
 // bun:test suites. These are explicitly Node-only opt-in checks.
 if (!process.versions.bun) {
+  test("active orchestration cancellation stays cancelled and preserves uncertainty", {
+    skip: process.env.DRAWLOOM_TEMPORAL_TEST !== "1",
+    timeout: 30000,
+  }, async () => {
+    const root = await mkdtemp(join(tmpdir(), "drawloom-orchestration-cancellation-"));
+    const manager = provider.createLocalTemporalManager({ dataDirectory: root });
+    try {
+      const registration = await manager.prepare({
+        projectId: "cancellation-project",
+        installationId: "cancellation-installation",
+        packageDirectory: resolve("packages/orchestration/temporal-orchestration"),
+        entrypoint: "fixtures/workflows.mjs",
+      });
+      let started = false;
+      await registration.attach(
+        registration.registry.tasks.map((task) => ({
+          id: task.id,
+          version: task.version,
+          async run(input, context) {
+            if (task.id !== "double") return taskHandler(task.id, input, context);
+            started = true;
+            await new Promise((resolve) =>
+              context.signal.addEventListener("abort", resolve, { once: true }),
+            );
+            return 4;
+          },
+        })),
+      );
+      const runId = await registration.orchestrator.start(
+        "active-cancellation",
+        workflows.arithmetic,
+        2,
+      );
+      await until(async () => started, Boolean);
+      await registration.orchestrator.cancel(runId);
+      await assert.rejects(registration.orchestrator.result(runId));
+      const snapshot = await registration.orchestrator.get(runId);
+      assert.equal(snapshot.status, "cancelled");
+      assert.equal(snapshot.cancellationRequested, true);
+      assert.equal(snapshot.steps.length, 1);
+      assert.equal(snapshot.steps[0].status, "failed");
+      assert.ok(snapshot.unresolvedEffects.includes(snapshot.steps[0].stepId));
+    } finally {
+      await manager.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   test("real local Temporal runs unchanged shared conformance in Node", {
     skip: process.env.DRAWLOOM_TEMPORAL_TEST !== "1",
     timeout: 120000,
@@ -224,6 +272,41 @@ if (!process.versions.bun) {
       );
       assert.equal(await manager.hasUnfinishedInstallation(owner.installationId), true);
       const before = writes;
+      await manager.close();
+      manager = provider.createLocalTemporalManager({ dataDirectory: root });
+      const originalCwd = process.cwd();
+      const retainedOwner = (await manager.listOwners()).find(
+        (value) => value.projectId === owner.projectId,
+      );
+      assert.ok(retainedOwner?.bundleContext);
+      const ownerPath = join(root, "orchestration", "owners", `${retainedOwner.owner}.json`);
+      const legacy = { ...retainedOwner };
+      delete legacy.bundleContext;
+      await writeFile(ownerPath, JSON.stringify(legacy));
+      const beforeMismatch = await readFile(ownerPath, "utf8");
+      const otherCwd = join(root, "other-cwd");
+      await mkdir(otherCwd);
+      try {
+        process.chdir(otherCwd);
+        await assert.rejects(
+          manager.prepare(owner),
+          /Legacy workflow bundle context cannot be adopted/,
+        );
+      } finally {
+        process.chdir(originalCwd);
+      }
+      assert.equal(
+        await readFile(ownerPath, "utf8"),
+        beforeMismatch,
+        "legacy mismatch must not mutate its owner record",
+      );
+      registration = await manager.prepare(owner);
+      assert.equal(
+        (await manager.listOwners()).find((value) => value.owner === retainedOwner.owner)
+          ?.bundleContext,
+        originalCwd,
+        "matching legacy bundle adopts the exact launch cwd spelling",
+      );
       await manager.close();
       manager = provider.createLocalTemporalManager({ dataDirectory: root });
       assert.equal((await manager.listOwners()).length, 2);

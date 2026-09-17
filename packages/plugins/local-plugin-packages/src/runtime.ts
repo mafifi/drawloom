@@ -61,6 +61,8 @@ const telemetryMethods = new Set([
 
 export interface ActivatePackageOptions {
   dataRoot: string;
+  /** Trusted desktop binding: shared setup is separate from project execution data. */
+  installationContext?: { configurationRoot: string; projectDirectory?: string };
   installationId: string;
   selectedServers: readonly string[];
   /** Selected non-SSE servers that must not advertise or present interactive forms. */
@@ -375,6 +377,27 @@ export async function activatePackage(
           const base = await realpath(options.dataRoot);
           await mkdir(join(base, options.installationId), { recursive: true, mode: 0o700 });
           const data = await containedPath(base, options.installationId);
+          const installationEnvironment: Record<string, string> = {};
+          if (options.installationContext) {
+            await mkdir(options.installationContext.configurationRoot, {
+              recursive: true,
+              mode: 0o700,
+            });
+            const configurationBase = await realpath(options.installationContext.configurationRoot);
+            await mkdir(join(configurationBase, options.installationId), {
+              recursive: true,
+              mode: 0o700,
+            });
+            installationEnvironment.DRAWLOOM_PLUGIN_CONFIG_DIR = await containedPath(
+              configurationBase,
+              options.installationId,
+            );
+            if (options.installationContext.projectDirectory) {
+              const project = await realpath(options.installationContext.projectDirectory);
+              if (!(await stat(project)).isDirectory()) throw Error("Expected project directory");
+              installationEnvironment.DRAWLOOM_PROJECT_DIR = project;
+            }
+          }
           const expand = (value: string) =>
             value.replace(/\$\{PLUGIN_(ROOT|DATA)\}/g, (_, key: string) =>
               key === "ROOT" ? root : data,
@@ -399,6 +422,7 @@ export async function activatePackage(
               ),
               PLUGIN_ROOT: root,
               PLUGIN_DATA: data,
+              ...installationEnvironment,
             },
             stderr: "pipe",
           });
@@ -473,11 +497,24 @@ export async function activatePackage(
   statuses.sort(
     (a, b) => options.selectedServers.indexOf(a.name) - options.selectedServers.indexOf(b.name),
   );
+  let closing: Promise<void> | undefined;
   return {
     servers,
     statuses,
-    async close() {
-      await Promise.allSettled([...servers.values()].map((server) => server.close()));
+    close() {
+      return (closing ??= (async () => {
+        const results = await Promise.allSettled(
+          [...servers.values()].map((server) => server.close()),
+        );
+        const failures = results.filter(
+          (result): result is PromiseRejectedResult => result.status === "rejected",
+        );
+        if (failures.length)
+          throw new AggregateError(
+            failures.map((result) => result.reason),
+            "Plugin connection shutdown failed",
+          );
+      })());
     },
   };
 }

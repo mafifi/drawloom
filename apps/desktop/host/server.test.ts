@@ -24,6 +24,32 @@ test("managed MOV export is authenticated, byte exact and offered as an attachme
     await server.close();
   }
 });
+test("managed JSON is authenticated, byte exact and always offered as a download", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-json-download-test-"));
+  const app = await installedMedia(root, false, true);
+  await app.command({
+    kind: "create_conversation",
+    workbenchId: "media-example",
+    provider: "synthetic",
+  });
+  const content = (await app.snapshot()).operator.artifacts[0]!.content;
+  if (content.kind !== "asset") throw Error("Expected managed JSON");
+  const server = serveDesktop(app, resolve("apps/desktop/build"));
+  try {
+    const boot = await fetch(server.url, { redirect: "manual" });
+    const cookie = boot.headers.get("set-cookie")!.split(";")[0]!;
+    const response = await fetch(server.origin + "/api/assets/" + content.asset.key, {
+      headers: { cookie },
+    });
+    expect(response.headers.get("content-type")).toBe("application/json");
+    expect(response.headers.get("content-disposition")).toBe(
+      `attachment; filename="${content.asset.key}.json"`,
+    );
+    expect(await response.text()).toBe('{"status":"managed"}');
+  } finally {
+    await server.close();
+  }
+});
 import { mkdtemp, readFile, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -57,7 +83,7 @@ test("cold native discovery may exceed the HTTP idle default without blocking st
     await server.close();
   }
 }, 30_000);
-async function installedMedia(root: string, mov = false) {
+async function installedMedia(root: string, mov = false, json = false) {
   const pkg = join(root, "media");
   await mkdir(join(pkg, "org.drawloom"), { recursive: true });
   // Build in a separate process, as package producers do. Repeated in-process
@@ -94,7 +120,7 @@ async function installedMedia(root: string, mov = false) {
     enabled: true,
     trustedBackend: true,
     servers: [],
-    configuration: { mov },
+    configuration: { mov, json },
   });
   return createDesktopApplication(root);
 }

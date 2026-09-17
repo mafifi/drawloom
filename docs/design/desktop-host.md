@@ -139,6 +139,10 @@ uses opened readers with at most 64 KiB per storage read. GET, HEAD and single o
 suffix byte ranges use the same validated file handle. Unknown formats can be
 downloaded; active content is not executed in the application's origin.
 
+Trusted components may also retain managed JSON documents. These keep their exact
+bytes and are served as authenticated downloads, not inline application content.
+This does not add JSON to browser uploads or native image input.
+
 Native image input and captured image results have a separate 16 MiB limit. Codex
 image results are captured from supplied bytes and matched to the originating
 turn, never fetched from a returned native path. A playable video is not therefore

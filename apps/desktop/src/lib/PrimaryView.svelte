@@ -2,6 +2,7 @@
   import { ChevronRightIcon, Sidebar, Button, Checkbox, Field, Input, Separator, StatefulButton, toast } from '@drawloom/ui';
   import { settingsSections } from './settings-navigation.js';
   import DiscoveryInventory from './DiscoveryInventory.svelte';
+  import PluginSettingsFrame from './PluginSettingsFrame.svelte';
   import Projects from './Projects.svelte';
   import Knowledge from './Knowledge.svelte';
   import CodexModelSelector from './CodexModelSelector.svelte';
@@ -67,6 +68,14 @@
     <ArchivedConversations presentation={archivePresentation} restore={async(id)=>{if(await vm.command({kind:'restore_conversation',conversationId:id}))toast.success('Conversation restored');}} />
   {:else}
     <section class="primary-view-content settings-content">
+      {#if vm.selectedSettingsPage}
+        <section class="settings-section">
+          <h2>{vm.selectedSettingsPage.ownerTitle} · {vm.selectedSettingsPage.title}</h2>
+          {#if vm.selectedSettingsPage.status === 'available'}
+            {#key vm.settingsSection}<PluginSettingsFrame page={vm.selectedSettingsPage} />{/key}
+          {:else}<p class="text-muted-foreground">{vm.selectedSettingsPage.status === 'disabled' ? 'Enable this plugin in Integrations to open its settings.' : 'Settings are unavailable. Check the plugin installation and selected servers in Integrations.'}</p>{/if}
+        </section>
+      {/if}
       {#if vm.settingsSection === 'general'}
       <section class="settings-section">
       <h2>Local profile</h2><p class="text-muted-foreground">Drawloom runs locally. Agent sign-in is managed separately by its provider.</p>

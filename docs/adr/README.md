@@ -71,6 +71,10 @@ Newest first. A decision remains binding until an ADR supersedes it.
 
 ### Plugins, projects and the desktop
 
+- **[0029: Give plugins and workbenches their own Settings pages](0029-plugin-and-workbench-settings.md)** —
+  Accepted. Retains MCP Apps while separating installation settings from project
+  and conversation lifetimes.
+
 - **[0020: Directory-backed projects and efficient file delivery](0020-directory-backed-projects-and-file-delivery.md)** —
   Accepted. Directory-backed projects, project-scoped activation and streamed
   file delivery. Remote storage and cross-machine synchronisation are excluded.

@@ -1,5 +1,23 @@
 import { test, expect } from "bun:test";
 import { z } from "zod";
+test("settings declarations require unique pages, exact tools and an owned workbench", () => {
+  const page = {
+    id: "preferences",
+    title: "Preferences",
+    openingTool: { server: "setup", tool: "open" },
+    allowedTools: ["open", "save"],
+  };
+  expect(DrawloomPackageExtensionSchema.safeParse({ version: 1, settings: [page] }).success).toBe(
+    true,
+  );
+  for (const settings of [
+    [page, page],
+    [{ ...page, allowedTools: ["save"] }],
+    [{ ...page, allowedTools: ["open", "open"] }],
+    [{ ...page, workbenchId: "foreign" }],
+  ])
+    expect(DrawloomPackageExtensionSchema.safeParse({ version: 1, settings }).success).toBe(false);
+});
 import {
   PackageManifestSchema,
   PackageServerConfigSchema,
@@ -113,6 +131,8 @@ test("stdio rejects shell commands, reserved environment and closed-variant mixi
     { command: "${PLUGIN_ROOT}/bin" },
     { command: "bun", url: "https://example.com" },
     { command: "bun", env: { PLUGIN_ROOT: "forged" } },
+    { command: "bun", env: { DRAWLOOM_PLUGIN_CONFIG_DIR: "forged" } },
+    { command: "bun", env: { drawloom_project_dir: "forged" } },
     { command: "bun", cwd: "/outside" },
   ]) {
     expect(PackageServerConfigSchema.safeParse({ type: "stdio", ...config }).success).toBe(false);

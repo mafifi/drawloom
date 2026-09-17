@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { mkdtemp, writeFile, readFile, rm, symlink, mkdir } from "node:fs/promises";
+import { mkdtemp, writeFile, readFile, rm, symlink, mkdir, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PLUGIN_SCHEMA, MCP_PACKAGE_SCHEMA } from "@drawloom/plugins";
@@ -35,6 +35,59 @@ let buffer = ''; process.stdin.on('data', chunk => { buffer += chunk; let newlin
  if (message.id !== undefined) { const result = message.method === 'initialize' ? { protocolVersion: '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'synthetic', version: '1' } } : { tools: [{ name: 'original.name', inputSchema: { type: 'object' } }] }; process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: message.id, result }) + '\\n'); }
 }}); process.stdin.on('end', () => process.exit(0));
 `;
+test("one installed configuration is shared while two project process stores remain isolated", async () => {
+  const local = await localFixture({
+    good: { type: "stdio", command: "bun", args: ["./server.mjs"] },
+  });
+  try {
+    const shared = join(local.root, "shared"),
+      first = join(local.root, "first"),
+      second = join(local.root, "second");
+    await mkdir(join(shared, "installed"), { recursive: true });
+    await mkdir(first);
+    await mkdir(second);
+    await writeFile(
+      join(shared, "installed", "config.json"),
+      JSON.stringify({ model: "configured-once" }),
+    );
+    await writeFile(
+      join(local.root, "server.mjs"),
+      serverScript.replace(
+        "const log =",
+        `writeFileSync(join(process.env.PLUGIN_DATA, 'binding.json'), JSON.stringify({config: process.env.DRAWLOOM_PLUGIN_CONFIG_DIR, project: process.env.DRAWLOOM_PROJECT_DIR}));\nconst log =`,
+      ),
+    );
+    const inventory = await inspectPackage(local.root);
+    for (const project of [first, second, first]) {
+      const active = await activatePackage(inventory, {
+        dataRoot: join(project, "data"),
+        installationId: "installed",
+        selectedServers: ["good"],
+        installationContext: { configurationRoot: shared, projectDirectory: project },
+      });
+      try {
+        expect(active.statuses[0]?.status).toBe("connected");
+        const binding = JSON.parse(
+          await readFile(join(project, "data/installed/binding.json"), "utf8"),
+        );
+        expect(binding).toEqual({
+          config: await realpath(join(shared, "installed")),
+          project: await realpath(project),
+        });
+      } finally {
+        await active.close();
+      }
+    }
+    expect(
+      JSON.parse(await readFile(join(first, "data/installed/launch.json"), "utf8")).count,
+    ).toBe(2);
+    expect(
+      JSON.parse(await readFile(join(second, "data/installed/launch.json"), "utf8")).count,
+    ).toBe(1);
+  } finally {
+    await local.dispose();
+  }
+});
 test("explicit stdio activation preserves data, opaque arguments, wire names and isolated failure", async () => {
   const local = await localFixture({
     good: {
@@ -347,6 +400,43 @@ test("overlapping active-server close calls wait for the same delayed subprocess
     await local.dispose();
   }
 });
+test("package shutdown retains close failure and still closes every real connection once", async () => {
+  const local = await localFixture({
+    first: { type: "stdio", command: "bun", args: ["./server.mjs"] },
+    second: { type: "stdio", command: "bun", args: ["./server.mjs"] },
+  });
+  let active: Awaited<ReturnType<typeof activatePackage>> | undefined;
+  try {
+    await writeFile(join(local.root, "server.mjs"), serverScript);
+    active = await activatePackage(await inspectPackage(local.root), {
+      dataRoot: join(local.root, "data"),
+      installationId: "one",
+      selectedServers: ["first", "second"],
+    });
+    expect(active.servers.size).toBe(2);
+    let attempts = 0;
+    for (const [name, handle] of active.servers) {
+      const close = handle.client.close.bind(handle.client);
+      handle.client.close = async () => {
+        attempts++;
+        await close();
+        if (name === "first") throw Error("fixture close failure");
+      };
+    }
+    const first = active.close(),
+      second = active.close();
+    const results = await Promise.allSettled([first, second]);
+    expect(results.map((result) => result.status)).toEqual(["rejected", "rejected"]);
+    expect(first).toBe(second);
+    expect(attempts).toBe(2);
+    await expect(active.close()).rejects.toThrow("Plugin connection shutdown failed");
+    expect(attempts).toBe(2);
+  } finally {
+    await active?.close().catch(() => {});
+    await local.dispose();
+  }
+});
+
 test("composition-selected client capabilities are present in MCP initialization", async () => {
   const local = await localFixture({
     good: { type: "stdio", command: "bun", args: ["./server.mjs"] },

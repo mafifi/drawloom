@@ -55,6 +55,7 @@ export async function loadInstalledPackages(options: {
   project?: { readonly id: string; readonly directory: string };
   mediaPolicy?: MediaPolicy;
   root: string;
+  installationRoot?: string;
   installations: readonly Installation[];
   host: DesktopCompositionContext;
   /** Composition-owned built-ins participate in collision checks, never package installation. */
@@ -144,6 +145,14 @@ export async function loadInstalledPackages(options: {
         async () => {
           const connections = await activatePackage(inventory, {
             dataRoot: join(options.root, "plugins"),
+            ...(options.project && options.installationRoot
+              ? {
+                  installationContext: {
+                    configurationRoot: join(options.installationRoot, "plugins"),
+                    projectDirectory: options.project.directory,
+                  },
+                }
+              : {}),
             installationId: installation.id,
             selectedServers: installation.servers,
             clientCapabilities: {

@@ -96,11 +96,15 @@ area you change.
   attributes. Do not turn diagnostic capture into transcript storage or execution
   authority; preserve the stated gaps when describing proof results.
 
-- Standard package loading and the trusted backend migration follow Proposed
+- Standard package loading and the trusted backend migration follow Accepted
   [ADR 0018](docs/adr/0018-plugin-standards-and-runtime-extensions.md). Consult the
   [package reference](docs/reference/plugin-packages.md) and linked evidence before
   changing authentication, installation or dependency resolution. Do not treat
   implementation progress as ADR acceptance or broaden the MCP Apps browser API.
+  Installation-scoped Settings follows Accepted
+  [ADR 0029](docs/adr/0029-plugin-and-workbench-settings.md) and its
+  [authoring reference](docs/reference/plugin-settings.md). Keep settings mounts
+  separate from project sessions; configuration is not a tool grant.
 
 - Working-material and AI edit boundaries are recorded in
   [ADR 0015](docs/adr/0015-working-material-ownership-and-edit-approval.md).

@@ -28,16 +28,32 @@ let Message;
 let Spinner;
 let Button;
 let DownloadProgress;
+let Accordion;
 
 beforeAll(async () => {
-  ({ Attachment, Bubble, Marker, Message, Spinner, Button, DownloadProgress } = await import(
-    "@drawloom/ui"
-  ));
+  ({ Attachment, Bubble, Marker, Message, Spinner, Button, DownloadProgress, Accordion } =
+    await import("@drawloom/ui"));
 });
 
 const children = (text) => createRawSnippet(() => ({ render: () => text }));
 
 describe("conversation primitive public boundary", () => {
+  test("exports the complete accordion with consumer-owned expansion and attributes", () => {
+    expect(Accordion).toBeDefined();
+    for (const part of ["Root", "Item", "Trigger", "Content"])
+      expect(Accordion[part]).toBeDefined();
+    const html = render(Accordion.Root, {
+      props: {
+        type: "multiple",
+        value: ["notes"],
+        "aria-label": "Document notes",
+        children: children("Consumer content"),
+      },
+    }).body;
+    expect(html).toContain('data-slot="accordion"');
+    expect(html).toContain('aria-label="Document notes"');
+    expect(html).toContain("Consumer content");
+  });
   test("download progress exposes measured current-file bytes and bounded accessible progress", () => {
     const html = render(DownloadProgress, {
       props: { received: 524288, total: 1048576, label: "Weights file" },

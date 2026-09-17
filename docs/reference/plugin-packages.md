@@ -55,12 +55,27 @@ Installation records hold identity, package root, non-secret configuration and
 activation choices. `PLUGIN_ROOT` points to the package; `PLUGIN_DATA` points to
 its data directory. Do not overwrite these reserved variables.
 
-Installation, trust, configuration and OAuth are global. Connections, backend
-instances and backend JSON storage are activated for a particular project.
+Installation, trust, configuration and OAuth are global. Working connections,
+backend instances and backend JSON storage are activated for a particular project.
 The backend receives a fixed `project: {id, directory}`. `PLUGIN_DATA` is scoped
 to the installation/project activation. The host does not silently rewrite a
 standard server's launch declaration to change its working folder; the author
 must configure that explicitly. See [ADR 0020](../adr/0020-directory-backed-projects-and-file-delivery.md).
+
+Installation Settings has a separate lifetime: its server receives shared
+configuration and installation data, but no project directory. It can therefore
+explain missing setup before a conversation or optional model exists. See
+[plugin and workbench Settings](plugin-settings.md) for registration, allowed
+tools and setup recovery. This does not change project-bound working views.
+
+For project-bound desktop activation, Drawloom also supplies two reserved
+environment variables: `DRAWLOOM_PLUGIN_CONFIG_DIR` is the installation's shared
+configuration directory, and `DRAWLOOM_PROJECT_DIR` is the conversation's fixed
+project directory. Servers can use these to share setup without sharing execution
+records or outputs. Neither variable changes the declared process working directory
+or grants permission to invoke tools. Keep project state under `PLUGIN_DATA`;
+do not copy configuration into each project. Other MCP hosts need to supply their
+own explicit configuration.
 
 ## Resources and credentials
 

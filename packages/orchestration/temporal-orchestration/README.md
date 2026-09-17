@@ -102,6 +102,14 @@ to remove an installation with saved work. The fingerprint includes
 emitted executable bytes as well as the source closure, so a bundler or
 runtime change cannot silently reuse an unfinished run's code identity.
 
+Each owner retains its initial compilation directory. Restarting the app from
+another working directory uses that saved context, so Webpack's generated module
+paths do not change the identity of otherwise identical code. Older records can
+adopt a context only when compilation reproduces their saved fingerprint. If
+adoption fails, restart from the original launch directory; the owner is not
+overwritten and no fingerprint check is bypassed. This does not make bundles
+portable between moved installations or different runtime versions.
+
 Receipts save intent before invoking a handler, and save output before
 acknowledging it. Repeated or concurrent completed deliveries return that
 same output rather than re-running the effect. Interrupted receipts call

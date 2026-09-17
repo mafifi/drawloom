@@ -8,11 +8,18 @@ const backend: PluginBackendFactory = async ({ capabilities, configuration }) =>
     configuration !== null &&
     "mov" in configuration &&
     configuration.mov === true;
+  const json =
+    typeof configuration === "object" &&
+    configuration !== null &&
+    "json" in configuration &&
+    configuration.json === true;
   const asset = await assets.put(
-    mov
-      ? new Uint8Array([0, 0, 0, 20, 102, 116, 121, 112, 113, 116, 32, 32])
-      : new Uint8Array(17 * 1024 * 1024),
-    mov ? "video/quicktime" : "video/mp4",
+    json
+      ? new TextEncoder().encode('{"status":"managed"}')
+      : mov
+        ? new Uint8Array([0, 0, 0, 20, 102, 116, 121, 112, 113, 116, 32, 32])
+        : new Uint8Array(17 * 1024 * 1024),
+    json ? "application/json" : mov ? "video/quicktime" : "video/mp4",
   );
   await controller.observeArtifact({ operationId: "media-operation", asset });
   return {

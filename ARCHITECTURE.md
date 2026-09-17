@@ -178,6 +178,10 @@ publishing.
   `extensions["org.drawloom"]`, with packaged extension files in `org.drawloom/`.
   [ADR 0018](docs/adr/0018-plugin-standards-and-runtime-extensions.md) and the
   [package reference](docs/reference/plugin-packages.md).
+- **Plugin and workbench settings:** Give each owner a page in Settings for
+  shared configuration and setup. These MCP Apps work without an open project
+  or conversation; saving preferences does not grant tool permission.
+  [ADR 0029](docs/adr/0029-plugin-and-workbench-settings.md).
 
 ### Conversations, projects and working files
 

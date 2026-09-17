@@ -62,7 +62,12 @@ export const PackageStdioConfigSchema = z.strictObject({
     .refine(
       (values) =>
         !Object.keys(values).some((key) =>
-          ["PLUGIN_ROOT", "PLUGIN_DATA"].includes(key.toUpperCase()),
+          [
+            "PLUGIN_ROOT",
+            "PLUGIN_DATA",
+            "DRAWLOOM_PLUGIN_CONFIG_DIR",
+            "DRAWLOOM_PROJECT_DIR",
+          ].includes(key.toUpperCase()),
         ),
     )
     .optional(),
@@ -123,23 +128,53 @@ export const PackageOptionalRequirementSchema = z.union([
   z.strictObject({ kind: z.literal("capability"), id: z.enum(["orchestration", "evaluation"]) }),
 ]);
 /** Metadata only. The composition root owns loading and granting backend access. */
-export const DrawloomPackageExtensionSchema = z.strictObject({
-  version: z.literal(1),
-  backend: z.strictObject({ entrypoint }).optional(),
-  workflows: z.strictObject({ entrypoint }).optional(),
-  requires: z.array(PluginRequirementSchema).optional(),
-  optional: z.array(PackageOptionalRequirementSchema).optional(),
-  workbenches: z
-    .array(
-      z.strictObject({
-        id: z.string().min(1),
-        title: z.string().min(1),
-        placement: z.literal("workbench").optional(),
-        openingTool: z.strictObject({ server: z.string().min(1), tool: z.string().min(1) }),
-      }),
-    )
-    .optional(),
-});
+export const PackageSettingsPageSchema = z
+  .strictObject({
+    id: z.string().min(1).max(200),
+    title: z.string().min(1).max(200),
+    workbenchId: z.string().min(1).optional(),
+    openingTool: z.strictObject({ server: z.string().min(1), tool: z.string().min(1) }),
+    /** Exact app-only tool names on the opening server, including the opening tool. */
+    allowedTools: z.array(z.string().min(1)).min(1).max(100),
+  })
+  .refine(
+    (page) =>
+      new Set(page.allowedTools).size === page.allowedTools.length &&
+      page.allowedTools.includes(page.openingTool.tool),
+    "Settings tools must be unique and include the opening tool",
+  );
+export type PackageSettingsPage = z.infer<typeof PackageSettingsPageSchema>;
+export const DrawloomPackageExtensionSchema = z
+  .strictObject({
+    version: z.literal(1),
+    backend: z.strictObject({ entrypoint }).optional(),
+    workflows: z.strictObject({ entrypoint }).optional(),
+    requires: z.array(PluginRequirementSchema).optional(),
+    optional: z.array(PackageOptionalRequirementSchema).optional(),
+    settings: z.array(PackageSettingsPageSchema).max(100).optional(),
+    workbenches: z
+      .array(
+        z.strictObject({
+          id: z.string().min(1),
+          title: z.string().min(1),
+          placement: z.literal("workbench").optional(),
+          openingTool: z.strictObject({ server: z.string().min(1), tool: z.string().min(1) }),
+        }),
+      )
+      .optional(),
+  })
+  .refine((extension) => {
+    const pages = extension.settings ?? [];
+    return (
+      new Set(pages.map((page) => page.id)).size === pages.length &&
+      pages.every(
+        (page) =>
+          !page.workbenchId ||
+          extension.workbenches?.filter((workbench) => workbench.id === page.workbenchId).length ===
+            1,
+      )
+    );
+  }, "Settings pages require unique identities and an owned workbench");
 /** Versioned JSON Schema emitted by public site builds from this contract-owned Zod definition. */
 export const DrawloomPackageExtensionJsonSchema = Object.freeze({
   ...z.toJSONSchema(DrawloomPackageExtensionSchema, { target: "draft-7" }),

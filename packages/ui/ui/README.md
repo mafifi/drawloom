@@ -224,6 +224,10 @@ the source, and generated controls retain their MIT notice in
 rather than reconstructed from generated output, and are deliberately
 narrow:
 
+- Accordion preserves the upstream Root, Item, Trigger and Content API for
+  related document disclosures. It supports single or multiple open sections,
+  controlled expansion and keyboard operation. Content animation respects
+  reduced motion; internal imports are package-relative.
 - Relative internal imports for standalone packaging, and shared
   theme/density tokens.
 - Sidebar active attributes are omitted when false, so Tailwind's presence
