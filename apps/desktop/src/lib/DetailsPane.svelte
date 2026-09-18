@@ -21,13 +21,14 @@
   let { presentation, actions, embedded = false }: { presentation: DetailsPanePresentation; actions: DetailsPaneActions; embedded?: boolean } = $props();
   const pluginView = $derived(presentation.pluginView);
   let pluginOpened = $state(false);
-  const showPluginView = $derived(presentation.workspaceMode === 'plugin');
+  const showPluginView = $derived(!!pluginView && presentation.workspaceMode === 'plugin');
+  $effect(() => { if (presentation.detailsOpen && showPluginView) pluginOpened = true; });
 </script>
 
-<aside class="details-pane" aria-label="Artifact and details">
+<aside class="details-pane" class:plugin-pane={showPluginView} aria-label="Artifact and details">
   {#if !embedded}<header>
     <h2>
-      {presentation.workspaceResource?.resource.title ?? presentation.artifact?.title ?? "Workspace"}
+      {showPluginView ? "Workspace" : presentation.workspaceResource?.resource.title ?? presentation.artifact?.title ?? "Workspace"}
     </h2>
     <Button
       variant="ghost"
@@ -45,11 +46,11 @@
     </div>
   </header>
   <Separator />{/if}
-  {#if pluginView}
-    <div class="px-5 pt-4"><Button variant="outline" onclick={() => { const mode = showPluginView ? 'shared' : 'plugin'; actions.setWorkspaceMode(mode); if (mode === 'plugin') pluginOpened = true; }}>{showPluginView ? 'Show shared viewer' : `Open ${pluginView.title}`}</Button></div>
+  {#if pluginView && !showPluginView}
+    <div class="px-5 pt-4"><Button variant="ghost" onclick={() => actions.setWorkspaceMode('plugin')}>Back to workbench</Button></div>
   {/if}
   {#if pluginOpened && pluginView}
-    <div class:workspace-content-hidden={!presentation.detailsOpen || !showPluginView} aria-hidden={!presentation.detailsOpen || !showPluginView} inert={!presentation.detailsOpen || !showPluginView}>
+    <div class="plugin-workspace" class:workspace-content-hidden={!presentation.detailsOpen || !showPluginView} aria-hidden={!presentation.detailsOpen || !showPluginView} inert={!presentation.detailsOpen || !showPluginView}>
       <PluginView view={pluginView} conversationId={presentation.conversationId} mediaRevision={presentation.mediaRevision} />
     </div>
   {/if}

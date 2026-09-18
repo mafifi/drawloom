@@ -82,7 +82,7 @@ export const DesktopSnapshotSchema = z.strictObject({
     )
     .default([]),
   selectedProjectId: id.optional(),
-  activity: z.array(ToolResultSchema),
+  activity: z.array(ToolResultSchema.extend({ toolName: z.string().optional() })),
   signals: z.array(AgentSessionSignalSchema),
   approvals: z
     .array(
@@ -153,6 +153,11 @@ export const DesktopCommandSchema = z.discriminatedUnion("kind", [
     name: z.string().min(1).max(120).optional(),
   }),
   z.strictObject({ kind: z.literal("select_project"), projectId: id }),
+  z.strictObject({
+    kind: z.literal("rename_project"),
+    projectId: id,
+    name: z.string().trim().min(1).max(120),
+  }),
   z.strictObject({ kind: z.literal("assign_project"), projectId: id, conversationId: id }),
   z.strictObject({
     kind: z.literal("create_conversation"),

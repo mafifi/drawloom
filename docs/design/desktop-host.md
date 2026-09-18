@@ -105,6 +105,42 @@ History failures do not repeat or rewrite an agent's outcome. Project JSON holds
 navigation, assets and review metadata rather than conversation text. See
 [conversation history](../reference/conversation-history.md).
 
+Opening or refreshing a conversation starts at its latest loaded message. The
+view follows new content and delayed media layout only while the reader remains
+at the bottom. Scrolling back, loading earlier entries or opening a search match
+keeps that reading position instead.
+
+The left-edge conversation rail marks user turns in the loaded window. Hover or
+keyboard focus reveals a bounded prompt/response preview and enlarges nearby
+marks; activating a mark scrolls to and focuses that message. It does not load
+the entire transcript: use **Load earlier** for older pages. The rail and
+conversation use the shared scroll-fade utility; reduced motion removes animated
+jumps and marker transitions. These are local presentation states, not changes
+to history, agent context or the workbench viewer.
+
+This follows the contextual-navigation and contextual-emphasis interaction
+patterns. There is no pending network operation for a loaded-message jump.
+DeepSeek's `TurnNavigator` and bounded turn previews were inspected at
+`c291e7961a515f6d7af9304e7fd1d257929aef26` as a behavior reference, not imported
+as a dependency or taken as evidence of Drawloom's tests.
+
+The desktop collapses navigation by default below 1024px. A split workspace
+protects 400px for the conversation and 300px for the document; when the actual
+available space cannot fit both, the document uses the workspace with a **Back
+to conversation** action. This accounts for open navigation, not just window
+width. Explicitly reopening navigation does not change its wider-window default.
+
+Tool results are collapsed into summaries beside the last loaded message with
+the same operation ID. Denied, failed, cancelled and uncertain counts remain
+visible. Results without a matching loaded operation appear separately as
+other activity; the UI does not invent a turn association. Expanding a summary
+reveals recorded tool names and outcomes, with raw details one level further in.
+
+When a workbench supplies a view, the conversation opens that view rather than
+promoting whichever artifact happens to be selected into the main workspace.
+Explicit file/resource inspection remains available. Project names can be
+changed through the project menu without moving folders or rebinding conversations.
+
 Tool starts and finishes are recorded in an ordered write queue. Outcomes become
 visible after storage acknowledges them. `start_failed` and `outcome_failed`
 identify recording failures separately from what the tool did; notices may remain

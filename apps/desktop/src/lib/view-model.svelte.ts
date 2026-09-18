@@ -122,9 +122,9 @@ export function createDesktopViewModel() {
   let projectDirectoryRequest: AbortController | undefined;
   let detailsOpen = $state(false),
     contextOpen = $state(false);
-  let detailsWidth = $state(360),
+  let detailsWidth = $state(480),
     detailsExpanded = $state(false);
-  let workspaceMode = $state<"shared" | "plugin">("shared");
+  let workspaceMode = $state<"shared" | "plugin">("plugin");
   let pane = $state<"preview" | "details">("preview");
   let primaryView = $state<
     | "conversation"
@@ -600,7 +600,7 @@ export function createDesktopViewModel() {
       resourceListings = {};
       openedResources = [];
       workspaceResource = undefined;
-      workspaceMode = "shared";
+      workspaceMode = "plugin";
       catalogueEpoch++;
       cataloguePending = false;
       catalogueError = "";

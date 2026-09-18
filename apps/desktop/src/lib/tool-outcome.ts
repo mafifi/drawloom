@@ -1,5 +1,20 @@
 import type { ToolResult } from "@drawloom/tools";
 
+export function groupToolActivity<T extends ToolResult>(
+  results: readonly T[],
+  entries: readonly { id: string; operationId?: string }[],
+) {
+  const anchors = new Map(entries.filter((e) => e.operationId).map((e) => [e.operationId!, e.id]));
+  const groups = new Map<string, T[]>();
+  for (const result of results) {
+    const anchor = result.operationId ? (anchors.get(result.operationId) ?? "") : "";
+    const group = groups.get(anchor) ?? [];
+    group.push(result);
+    groups.set(anchor, group);
+  }
+  return groups;
+}
+
 export type ToolOutcomePresentation = Readonly<{
   label: string;
   state: "completed" | "denied" | "cancelled" | "failed" | "uncertain";

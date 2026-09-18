@@ -1,5 +1,24 @@
 import { expect, test } from "bun:test";
-import { presentToolOutcome } from "./tool-outcome.js";
+import { presentToolOutcome, groupToolActivity } from "./tool-outcome.js";
+
+test("activity groups attach to their own operation without inventing old turn associations", () => {
+  const result = {
+    invocationId: "one",
+    operationId: "op",
+    evidence: "recorded" as const,
+    outcome: { status: "ok" as const, value: {}, text: "done" },
+  };
+  const groups = groupToolActivity(
+    [result, { ...result, invocationId: "two", operationId: "older" }],
+    [
+      { id: "first", operationId: "op" },
+      { id: "last", operationId: "op" },
+    ],
+  );
+  expect(groups.get("last")?.map((r) => r.invocationId)).toEqual(["one"]);
+  expect(groups.get("first")).toBeUndefined();
+  expect(groups.get("")?.map((r) => r.invocationId)).toEqual(["two"]);
+});
 
 test("tool outcomes preserve completed, denied, cancelled, and uncertain states", () => {
   expect(

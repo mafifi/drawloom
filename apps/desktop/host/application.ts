@@ -1804,14 +1804,15 @@ export async function createDesktopApplication(
           ...entry,
           presentation: options.approvalPresenter ? "external" : "desktop",
         })),
-        activity: (retained?.activity() ?? []).map((result) =>
-          result.outcome.status === "ok"
+        activity: (retained?.activity() ?? []).map((result) => ({
+          toolName: retained?.toolFor(result.invocationId),
+          ...(result.outcome.status === "ok"
             ? {
                 ...result,
                 outcome: { status: "ok", text: result.outcome.text, value: result.outcome.value },
               }
-            : result,
-        ),
+            : result),
+        })),
         pendingTools: retained?.pending() ?? [],
         elicitations: conversation ? elicitation.pending(conversation.id) : [],
         operator,
@@ -1889,6 +1890,11 @@ export async function createDesktopApplication(
           project.conversations.find((c) => c.projectId === selected.id)?.id ?? "";
         viewContext.clear();
         viewMount = undefined;
+        await persist();
+      } else if (command.kind === "rename_project") {
+        const existing = project.projects.find((p) => p.id === command.projectId);
+        if (!existing) throw Error("Project unavailable");
+        existing.name = command.name;
         await persist();
       } else if (command.kind === "select_project") {
         if (!project.projects.some((p) => p.id === command.projectId))

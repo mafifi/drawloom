@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
+  import ConversationRail from './ConversationRail.svelte';
+  import { ConversationScroll, conversationTurns } from './conversation-scroll.js';
   import {
     Alert,
     Badge,
@@ -25,12 +27,50 @@
   import ResourceCard from './ResourceCard.svelte';
   import ElicitationForm from './ElicitationForm.svelte';
   import ApprovalView from './ApprovalView.svelte';
-  import { presentToolOutcome } from './tool-outcome.js';
+  import { groupToolActivity } from './tool-outcome.js';
+  import ToolActivity from './ToolActivity.svelte';
   import type { DesktopViewModel } from "./view-model.svelte.js";
   let { vm }: { vm: DesktopViewModel } = $props();
   let inputValue = $state("{}");
   let assignmentProjectId = $state('');
   let scroll: HTMLDivElement;
+  let content: HTMLDivElement;
+  const reading = new ConversationScroll();
+  let activeTurn = $state('');
+  const turns = $derived(conversationTurns(vm.history.entries));
+  const activity = $derived(groupToolActivity(vm.state?.activity ?? [], vm.history.entries));
+  const workbenchView = $derived(vm.state?.views.find(view => view.workbenchId === vm.conversation?.workbenchId));
+  function syncScroll() {
+    reading.scrolled(scroll.scrollTop, scroll.clientHeight, scroll.scrollHeight);
+    const top = scroll.getBoundingClientRect().top + 48;
+    const anchors = Array.from(scroll.querySelectorAll<HTMLElement>('[data-user-turn]'));
+    activeTurn = anchors.findLast(element => element.getBoundingClientRect().top <= top)?.dataset.historyId ?? anchors[0]?.dataset.historyId ?? '';
+  }
+  function jump(id: string) {
+    reading.leaveTail();
+    const anchor = Array.from(scroll.querySelectorAll<HTMLElement>('[data-history-id]')).find(element => element.dataset.historyId === id);
+    if (!anchor) return;
+    const top = anchor.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop - 24;
+    scroll.scrollTo({ top, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    anchor.focus({ preventScroll: true });
+  }
+  $effect(() => {
+    const id = vm.conversation?.id ?? '';
+    const follow = reading.update(id, vm.history.loading, vm.history.entries.length > 0, !!vm.history.anchorId || !vm.history.atLatest);
+    if (!follow) return;
+    let cancelled = false;
+    void tick().then(() => { if (!cancelled && reading.following && scroll) { scroll.scrollTop = scroll.scrollHeight; syncScroll(); } });
+    return () => { cancelled = true; };
+  });
+  $effect(() => {
+    if (!scroll || !content) return;
+    const observer = new ResizeObserver(() => {
+      if (reading.following && !untrack(() => vm.history.loading)) scroll.scrollTop = scroll.scrollHeight;
+      syncScroll();
+    });
+    observer.observe(content); observer.observe(scroll);
+    return () => observer.disconnect();
+  });
   let focusedSearchAnchor = '';
   $effect(() => {
     const anchorId = vm.history.anchorId;
@@ -43,6 +83,7 @@
     });
   });
   async function earlier() {
+    reading.leaveTail();
     const anchor = [...scroll.querySelectorAll<HTMLElement>('[data-history-id]')].find(element => element.getBoundingClientRect().bottom >= scroll.getBoundingClientRect().top);
     const offset = anchor?.getBoundingClientRect().top;
     await vm.loadEarlier(); await tick();
@@ -77,12 +118,15 @@
       size="icon"
       aria-label="Toggle artifact pane"
       aria-expanded={vm.detailsOpen}
-      onclick={() => (vm.detailsOpen = !vm.detailsOpen)}
+      onclick={() => { if (!vm.detailsOpen) vm.workspaceMode = 'plugin'; vm.detailsOpen = !vm.detailsOpen; }}
       ><PanelIcon aria-hidden="true" /></Button
     >
   </header>
   <Separator />
-  <div class="conversation-scroll scroll-fade scroll-fade-4" bind:this={scroll} aria-live="polite">
+  <div class="conversation-body">
+  <ConversationRail items={turns} activeId={activeTurn} navigate={jump} />
+  <div class="conversation-scroll scroll-fade scroll-fade-4" bind:this={scroll} onscroll={syncScroll} aria-live="polite">
+  <div class="conversation-content" bind:this={content}>
     {#if vm.conversation && !vm.conversation.projectId}
       <div class="flex flex-col items-start gap-3 py-4">
         <p>This saved conversation has no project. Select a project to continue; its history remains available.</p>
@@ -95,7 +139,7 @@
     {/if}
     {#if vm.history.error || vm.history.status?.message}<Alert.Root role="status"><Alert.Description>{vm.history.error || vm.history.status?.message}</Alert.Description></Alert.Root>{/if}
     {#if vm.history.hasOlder}<StatefulButton variant="ghost" disabled={vm.history.loading} pending={vm.history.loading && vm.history.loadingEarlier} onclick={earlier}>Load earlier</StatefulButton>{/if}
-    {#if !vm.history.atLatest}<StatefulButton variant="ghost" disabled={vm.history.loading} pending={vm.history.loading && !vm.history.loadingEarlier} onclick={() => vm.loadLatest()}>Back to latest</StatefulButton>{/if}
+    {#if !vm.history.atLatest}<StatefulButton variant="ghost" disabled={vm.history.loading} pending={vm.history.loading && !vm.history.loadingEarlier} onclick={async () => { await vm.loadLatest(); reading.latest(); await tick(); scroll.scrollTop = scroll.scrollHeight; }}>Back to latest</StatefulButton>{/if}
     {#if vm.history.status?.sync === 'syncing'}<Marker.Root role="status"><Marker.Icon><Spinner /></Marker.Icon><Marker.Content>Synchronizing saved history…</Marker.Content></Marker.Root>{/if}
     {#if vm.history.loading}<Marker.Root role="status"><Marker.Icon><Spinner /></Marker.Icon><Marker.Content>Loading conversation…</Marker.Content></Marker.Root>{/if}
     {#if !vm.history.entries.length && !vm.history.loading}
@@ -119,7 +163,7 @@
       >
     {/if}
     {#each vm.history.entries as message (message.id)}
-      <Message.Root role="article" class={'mb-7 outline-none ' + (message.id === vm.history.anchorId ? 'bg-muted' : '')} data-history-id={message.id} data-search-anchor={message.id === vm.history.anchorId ? 'true' : undefined} tabindex={message.id === vm.history.anchorId ? -1 : undefined} align={message.role === 'user' ? 'end' : 'start'} aria-label={(message.role === 'user' ? 'Your message' : 'Drawloom message') + (message.id === vm.history.anchorId ? ' · Search match' : '')}>
+      <Message.Root role="article" class={'mb-7 outline-none ' + (message.id === vm.history.anchorId ? 'bg-muted' : '')} data-history-id={message.id} data-user-turn={message.role === 'user' ? '' : undefined} data-search-anchor={message.id === vm.history.anchorId ? 'true' : undefined} tabindex={-1} align={message.role === 'user' ? 'end' : 'start'} aria-label={(message.role === 'user' ? 'Your message' : 'Drawloom message') + (message.id === vm.history.anchorId ? ' · Search match' : '')}>
         <Message.Content>
           <h2 class="sr-only">{message.role === "user" ? "You" : "Drawloom"}</h2>
           {#if message.text}<Bubble.Root variant={message.role === 'user' ? 'default' : 'ghost'} align={message.role === 'user' ? 'end' : 'start'}><Bubble.Content><p class="conversation-text">{message.text}</p></Bubble.Content></Bubble.Root>{/if}
@@ -138,29 +182,11 @@
           {/each}
         </Message.Content>
       </Message.Root>
+      <ToolActivity results={activity.get(message.id) ?? []} />
     {/each}
-    {#each vm.state?.activity ?? [] as result}
-      {@const outcome = presentToolOutcome(result)}
-      <Collapsible.Root class="tool-row"
-        ><Collapsible.Trigger
-          >{#snippet child({ props })}<Button
-              {...props}
-              variant="ghost"
-              class="w-full justify-between"
-              ><Marker.Root class="flex-1"><Marker.Content
-                >{outcome.label}</Marker.Content></Marker.Root
-              ><Badge variant="secondary"
-                >{outcome.statusLabel}</Badge
-              ></Button
-            >{/snippet}</Collapsible.Trigger
-        ><Collapsible.Content>
-          <p class="text-sm text-muted-foreground">{outcome.description}</p>
-          <pre>{JSON.stringify(result, null, 2)}</pre>
-        </Collapsible.Content
-        ></Collapsible.Root
-      ><Separator />
-    {/each}
-    {#if vm.artifact}<Button
+    <ToolActivity results={activity.get('') ?? []} historical />
+    {#if workbenchView}<Button variant="outline" class="artifact-row mx-auto justify-between" onclick={() => { vm.workspaceMode = 'plugin'; vm.detailsOpen = true; }}><DocumentIcon aria-hidden="true" /><span>Open workbench</span></Button>
+    {:else if vm.artifact}<Button
         variant="outline"
         class="artifact-row mx-auto justify-between"
         onclick={() => {
@@ -237,6 +263,8 @@
       {:else if signal.kind === "operation.interrupted"}<Marker.Root><Marker.Content>Operation stopped.</Marker.Content></Marker.Root>{/if}
     {/each}
     {#if vm.state?.activeOperation}<Marker.Root role="status"><Marker.Content><span class="shimmer">Working…</span> You can continue editing your message.</Marker.Content></Marker.Root>{/if}
+  </div>
+  </div>
   </div>
   <Composer {vm} />
 </main>

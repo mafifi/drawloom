@@ -341,6 +341,11 @@ test("workspace presentation changes preserve draft and selected working materia
   h.vm.detailsWidth = 100;
   expect(h.vm.detailsWidth).toBe(320);
 });
+test("a reopened conversation prefers its installed workbench without opening it automatically", async () => {
+  const h = await harness();
+  expect(h.vm.workspaceMode).toBe("plugin");
+  expect(h.vm.detailsOpen).toBe(false);
+});
 test("opening shared working material explicitly leaves the installed app view", async () => {
   const h = await harness();
   const resource = {

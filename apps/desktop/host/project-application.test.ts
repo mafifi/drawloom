@@ -22,6 +22,48 @@ const unavailableOrchestration = async (): Promise<
   close: async () => {},
 });
 
+test("renaming a project preserves its directory, identity and conversation bindings across restart", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-project-name-"));
+  await mkdir(join(root, "working"));
+  const app = await createDesktopApplication(join(root, "data"), {
+    orchestration: { manager: unavailableOrchestration },
+  });
+  try {
+    const initial = await app.command({
+      kind: "add_project",
+      directory: join(root, "working"),
+      name: "Study",
+    });
+    const id = initial.selectedProjectId!;
+    const before = await app.command({
+      kind: "create_conversation",
+      workbenchId: "text",
+      provider: "synthetic",
+    });
+    const renamed = await app.command({
+      kind: "rename_project",
+      projectId: id,
+      name: "Treatment videos",
+    });
+    expect(renamed.projects.find((p) => p.id === id)).toEqual({
+      ...initial.projects.find((p) => p.id === id)!,
+      name: "Treatment videos",
+    });
+    expect(renamed.conversations).toEqual(before.conversations);
+  } finally {
+    await app.close();
+  }
+  const reopened = await createDesktopApplication(join(root, "data"), {
+    orchestration: { manager: unavailableOrchestration },
+  });
+  try {
+    expect((await reopened.snapshot()).projects[0]?.name).toBe("Treatment videos");
+  } finally {
+    await reopened.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("desktop foreground tools use the startup-selected authorizer", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-foreground-policy-"));
   await mkdir(join(root, "working"));

@@ -126,12 +126,12 @@ test("primary destinations are main-content views while artifact details remain 
 
   expect(page).toContain("<PrimaryView {vm}");
   expect(page).toContain("vm.primaryView === 'conversation'");
-  expect(page).toContain("class:workspace-pane-full={drawer.current || vm.detailsExpanded}");
+  expect(page).toContain("class:workspace-pane-full={drawer || vm.detailsExpanded}");
+  expect(page).toContain("bind:clientWidth={availableWidth}");
+  expect(page).toContain("workspaceNeedsFullWidth(availableWidth)");
   expect(page).toContain("class:workspace-conversation-hidden={vm.primaryView !== 'conversation'");
   expect(page).not.toContain("{#if vm.primaryView === 'conversation'}");
-  expect(page).toContain(
-    "detailsPanePresentation(vm, vm.primaryView === 'conversation', drawer.current)",
-  );
+  expect(page).toContain("detailsPanePresentation(vm, vm.primaryView === 'conversation', drawer)");
   expect(page).not.toContain("<Sheet.Root bind:open={vm.detailsOpen}");
   expect(details).not.toContain('vm.pane === "plugins"');
   expect(details).not.toContain('vm.pane === "settings"');
@@ -144,7 +144,7 @@ test("workspace presentation keeps one pane mounted across ordinary layout chang
   expect(page).toContain(
     "class:workspace-pane-hidden={vm.primaryView !== 'conversation' || !vm.detailsOpen}",
   );
-  expect(page).toContain("class:workspace-pane-full={drawer.current || vm.detailsExpanded}");
+  expect(page).toContain("class:workspace-pane-full={drawer || vm.detailsExpanded}");
   expect(details).toContain("Back to conversation");
   expect(details).toContain('aria-label="Workspace width"');
   expect(details).toContain("aria-pressed={presentation.detailsExpanded}");

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Avatar, UserIcon, Sidebar, Collapsible, ChevronRightIcon, StatefulButton, Button, DropdownMenu, toast } from '@drawloom/ui';
+  import { Avatar, UserIcon, Sidebar, Collapsible, ChevronRightIcon, StatefulButton, Button, DropdownMenu, Dialog, Input, Field, toast } from '@drawloom/ui';
   import { ActivityIcon, KnowledgeIcon, CloseIcon, PlusIcon, FolderIcon, FolderOpenIcon, SearchIcon, DocumentIcon, PlugIcon, SettingsIcon, MoreIcon, RenameIcon, ArchiveIcon } from "@drawloom/ui";
   import { settingsSections } from './settings-navigation.js';
   import ConversationNavItem from './ConversationNavItem.svelte';
@@ -8,6 +8,8 @@
   const sidebar = Sidebar.useSidebar();
   let collapsedProjects = $state<Record<string, boolean>>({});
   let creatingProject = $state('');
+  let renamingProject = $state('');
+  let projectName = $state('');
   async function newInProject(id: string) {
     if (vm.busy || creatingProject) return;
     creatingProject = id;
@@ -22,6 +24,17 @@
   async function archive(id: string) { if (await vm.command({ kind: 'archive_conversation', conversationId: id })) toast.success('Conversation archived'); }
   function archiveBlocked(id: string) { return vm.state?.archiveBlockedConversationIds.includes(id) ?? false; }
 </script>
+
+<Dialog.Root open={!!renamingProject} onOpenChange={(open) => { if (!open && !vm.busy) renamingProject = ''; }}>
+  <Dialog.Content>
+    <Dialog.Header><Dialog.Title>Rename project</Dialog.Title><Dialog.Description>Changes the display name only. Files and conversation bindings stay where they are.</Dialog.Description></Dialog.Header>
+    <form class="space-y-4" onsubmit={async event => { event.preventDefault(); if (await vm.command({ kind: 'rename_project', projectId: renamingProject, name: projectName.trim() })) { renamingProject = ''; toast.success('Project renamed'); } }}>
+      <Field.Field><Field.Label for="rename-project-name">Project name</Field.Label><Input id="rename-project-name" bind:value={projectName} maxlength={120} required /></Field.Field>
+      {#if vm.error}<p role="alert" class="text-destructive">{vm.error}</p>{/if}
+      <Dialog.Footer><Button type="button" variant="ghost" disabled={vm.busy} onclick={() => renamingProject = ''}>Cancel</Button><StatefulButton type="submit" pending={vm.pendingCommand?.kind === 'rename_project'} disabled={vm.busy || !projectName.trim()} pendingLabel="Renaming">Save name</StatefulButton></Dialog.Footer>
+    </form>
+  </Dialog.Content>
+</Dialog.Root>
 
 {#snippet navigation()}
   <Sidebar.Header class="p-3">
@@ -69,6 +82,7 @@
                   <DropdownMenu.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost" size="icon" class="sidebar-reveal size-7 shrink-0" aria-label={'Project actions for ' + project.name}><MoreIcon aria-hidden="true" /></Button>{/snippet}</DropdownMenu.Trigger>
                   <DropdownMenu.Content align="end">
                     <DropdownMenu.Item disabled={vm.busy} onclick={async () => { if (await vm.selectProject(project.id)) sidebar.setOpenMobile(false); }}><FolderOpenIcon aria-hidden="true" />Open project</DropdownMenu.Item>
+                    <DropdownMenu.Item disabled={vm.busy} onclick={() => { projectName = project.name; renamingProject = project.id; }}><RenameIcon aria-hidden="true" />Rename project</DropdownMenu.Item>
                   </DropdownMenu.Content>
                 </DropdownMenu.Root>
                 <StatefulButton variant="ghost" size="icon" class="sidebar-reveal size-7 shrink-0" aria-label={'New conversation in ' + project.name} disabled={vm.busy || !project.available} pending={creatingProject === project.id} pendingLabel="Creating conversation" onclick={() => newInProject(project.id)}><PlusIcon aria-hidden="true" /></StatefulButton>
