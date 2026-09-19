@@ -3,9 +3,92 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkUiSource, isMaintainedUiSource, scanUiPolicy } from "./ui-policy.ts";
+import {
+  checkUiSource,
+  checkSemanticMappings,
+  isMaintainedUiSource,
+  scanUiPolicy,
+} from "./ui-policy.ts";
 
 describe("shared UI boundary", () => {
+  test("shared controls map static dimensions to the scale too", () => {
+    expect(
+      checkUiSource(
+        "packages/ui/ui/src/components/example.svelte",
+        '<div class="rounded-[12px] min-h-[44px]"></div>',
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      checkUiSource(
+        "packages/ui/ui/src/components/example.svelte",
+        '<div class="rounded-xl min-h-11"></div>',
+      ),
+    ).toEqual([]);
+  });
+  test("every exposed semantic colour has explicit light and dark mappings", () => {
+    const styles = "@theme inline { --color-background: var(--background); }";
+    expect(checkSemanticMappings(":root { --background: var(--dl-white); }", styles)).toHaveLength(
+      1,
+    );
+    expect(
+      checkSemanticMappings(
+        ":root { --background: var(--dl-white); } @media (prefers-color-scheme: dark) { :root { --background: var(--dl-black); } }",
+        styles,
+      ),
+    ).toEqual([]);
+  });
+  test("component colour opacity belongs to semantic state mappings", () => {
+    expect(
+      checkUiSource("apps/demo/src/View.svelte", '<div class="from-primary/80 to-muted/50"></div>')
+        .length,
+    ).toBeGreaterThan(0);
+    expect(
+      checkUiSource(
+        "packages/ui/ui/src/components/example.svelte",
+        '<div class="bg-primary/80 ring-ring/50"></div>',
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      checkUiSource(
+        "packages/ui/ui/src/components/example.svelte",
+        '<div class="bg-control-background opacity-50"></div>',
+      ),
+    ).toEqual([]);
+  });
+  test("retired settings compositions cannot reintroduce local layout owners", () => {
+    for (const name of [
+      "settings-section",
+      "workbench-setting-row",
+      "workbench-setting-controls",
+    ]) {
+      expect(
+        checkUiSource("apps/demo/src/View.svelte", `<section class="${name}">Settings</section>`),
+      ).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "theme-token" })]));
+    }
+    expect(
+      checkUiSource(
+        "apps/demo/src/View.svelte",
+        '<section class="settings-group"><div class="settings-row">Settings</div></section>',
+      ),
+    ).toEqual([]);
+  });
+  test("derived colours belong to semantics even when expressions reference tokens", () => {
+    for (const source of [
+      '<p class="bg-[color-mix(in_oklch,var(--muted),var(--foreground)_5%)]">Text</p>',
+      "<style>p { color: oklch(from var(--primary) 0.3 c h); }</style>",
+      '<script lang="ts">const variants = { hover: "hover:bg-[color-mix(in_oklch,var(--muted),var(--foreground)_5%)]" };</script><p class={variants.hover}>Text</p>',
+    ]) {
+      expect(checkUiSource("packages/ui/ui/src/Example.svelte", source)).toEqual(
+        expect.arrayContaining([expect.objectContaining({ kind: "theme-token" })]),
+      );
+    }
+    expect(
+      checkUiSource(
+        "packages/ui/ui/src/theme/semantic.css",
+        ":root { --secondary-hover: color-mix(in oklch, var(--secondary), var(--foreground) 5%); }",
+      ),
+    ).toEqual([]);
+  });
   test("theme guidance rejects local raw colours and arbitrary typography without scanning content", () => {
     for (const source of [
       '<p class="bg-[#fff]">Hi</p>',
@@ -45,6 +128,12 @@ describe("shared UI boundary", () => {
     });
     expect(
       checkUiSource("packages/ui/ui/src/theme/primitives.css", ":root { --dl-white: #fff; }"),
+    ).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "theme-token" })]));
+    expect(
+      checkUiSource(
+        "packages/ui/ui/src/theme/primitives.css",
+        ":root { --dl-white: oklch(1 0 0); }",
+      ),
     ).toEqual([]);
     expect(
       checkUiSource(
@@ -57,14 +146,39 @@ describe("shared UI boundary", () => {
     ).toBe("theme-token");
     expect(
       checkUiSource("apps/demo/src/app.css", ".panel {color:var(--foreground);padding:17px;}"),
-    ).toEqual([]);
+    ).toEqual(expect.arrayContaining([expect.objectContaining({ kind: "theme-token" })]));
     expect(checkUiSource("publishing/site/src/app.css", ".panel {color:#fff;}")).toEqual([]);
+  });
+  test("Views cannot choose arbitrary layout measurements", () => {
+    for (const source of [
+      '<div class="gap-[17px]"></div>',
+      '<div style="padding: 17px"></div>',
+      "<style>.panel { margin: 1.4rem; }</style>",
+    ]) {
+      expect(checkUiSource("apps/demo/src/View.svelte", source)).toEqual(
+        expect.arrayContaining([expect.objectContaining({ kind: "theme-token" })]),
+      );
+    }
+    expect(
+      checkUiSource(
+        "apps/demo/src/View.svelte",
+        '<div class="gap-stack w-full" style="aspect-ratio:16/9"></div>',
+      ),
+    ).toEqual([]);
+  });
+  test("facts use the shared composition rather than competing local grids", () => {
+    for (const name of ["consent-facts", "model-facts"]) {
+      expect(
+        checkUiSource("apps/demo/src/View.svelte", `<dl class="${name}"></dl>`)[0]?.message,
+      ).toContain("facts-list");
+    }
+    expect(checkUiSource("apps/demo/src/View.svelte", '<dl class="facts-list"></dl>')).toEqual([]);
   });
   test("conversation primitives cannot be recreated as native data-slot markup in consumers", () => {
     for (const [slot, component] of [
       ["attachment", "Attachment"],
-      ["message", "Message"],
-      ["bubble", "Bubble"],
+      ["message", "ChatMessage"],
+      ["bubble", "ChatMessage"],
       ["marker", "Marker"],
     ]) {
       const issues = checkUiSource(
@@ -82,14 +196,14 @@ describe("shared UI boundary", () => {
     ).toEqual([]);
     expect(
       checkUiSource(
-        "packages/ui/ui/src/components/bubble/bubble.svelte",
+        "packages/ui/ui/src/components/prompt-kit/message/message.svelte",
         '<div data-slot="bubble">Content</div>',
       ),
     ).toEqual([]);
     expect(
       checkUiSource(
         "apps/example/src/View.svelte",
-        '<script>import { Bubble } from "@drawloom/ui";</script><Bubble.Root>Text</Bubble.Root>',
+        '<script>import { ChatMessage } from "@drawloom/ui";</script><ChatMessage.Root>Text</ChatMessage.Root>',
       ),
     ).toEqual([]);
   });

@@ -7,13 +7,12 @@
     Collapsible,
     Empty,
     Field,
-    Input,
     Select,
     Separator,
     Tabs,
     Textarea,
   } from "@drawloom/ui";
-  import { CloseIcon } from "@drawloom/ui";
+  import { CloseIcon, ExpandIcon, RestoreIcon } from "@drawloom/ui";
   import ArtifactViewer from "./ArtifactViewer.svelte";
   import PluginView from './PluginView.svelte';
   import WorkspaceResourceViewer from './WorkspaceResourceViewer.svelte';
@@ -26,24 +25,18 @@
 </script>
 
 <aside class="details-pane" class:plugin-pane={showPluginView} aria-label="Artifact and details">
-  {#if !embedded}<header>
-    <h2>
-      {showPluginView ? "Workspace" : presentation.workspaceResource?.resource.title ?? presentation.artifact?.title ?? "Workspace"}
-    </h2>
+  {#if !embedded}<header class="workspace-toolbar">
+    {#if !showPluginView}<h2>{presentation.workspaceResource?.resource.title ?? presentation.artifact?.title ?? "Workspace"}</h2>{/if}
+    {#if presentation.narrow}<Button variant="ghost" onclick={actions.close}>Back to conversation</Button>{/if}
+    <Button variant="ghost" size="icon" class="ml-auto" title={presentation.detailsExpanded ? 'Restore workspace' : 'Expand workspace'} aria-label={presentation.detailsExpanded ? 'Restore workspace' : 'Expand workspace'} aria-pressed={presentation.detailsExpanded} onclick={() => actions.setExpanded(!presentation.detailsExpanded)}>
+      {#if presentation.detailsExpanded}<RestoreIcon aria-hidden="true" />{:else}<ExpandIcon aria-hidden="true" />{/if}
+    </Button>
     <Button
       variant="ghost"
       size="icon"
       aria-label="Close artifact pane"
       onclick={actions.close}><CloseIcon aria-hidden="true" /></Button
     >
-    <div class="workspace-header-actions">
-      {#if presentation.narrow}<Button variant="ghost" onclick={actions.close}>Back to conversation</Button>{/if}
-      <div class="workspace-size-controls">
-        <Field.Label for="workspace-width" class="sr-only">Workspace width</Field.Label>
-        <Input id="workspace-width" aria-label="Workspace width" type="range" min="320" max="720" step="20" value={presentation.detailsWidth} oninput={(event) => actions.setWidth(Number(event.currentTarget.value))} />
-        <Button variant="ghost" aria-pressed={presentation.detailsExpanded} onclick={() => actions.setExpanded(!presentation.detailsExpanded)}>{presentation.detailsExpanded ? 'Restore workspace' : 'Expand workspace'}</Button>
-      </div>
-    </div>
   </header>
   <Separator />{/if}
   {#if pluginView && !showPluginView}
@@ -178,7 +171,7 @@
           <Badge variant="secondary"
             >{presentation.readiness.replaceAll("_", " ")}</Badge
           >
-          {#if presentation.artifact?.content.kind === "asset"}<dl>
+          {#if presentation.artifact?.content.kind === "asset"}<dl class="facts-list">
               <dt>Type</dt>
               <dd>{presentation.artifact.content.asset.mediaType}</dd>
               <dt>Size</dt>

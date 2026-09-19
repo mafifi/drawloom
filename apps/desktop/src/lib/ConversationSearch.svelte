@@ -21,16 +21,16 @@
 </script>
 
 <Dialog.Root open={presentation.open} onOpenChange={actions.setOpen}>
-  <Dialog.Content class="sm:max-w-xl max-h-[80dvh] overflow-hidden gap-0 p-1" showCloseButton={false}>
+  <Dialog.Content class="sm:max-w-xl search-dialog overflow-hidden gap-0 p-1" showCloseButton={false}>
     <Dialog.Header class="sr-only"><Dialog.Title>Search conversations</Dialog.Title><Dialog.Description>Search saved titles and cached messages, or choose a recent conversation.</Dialog.Description></Dialog.Header>
     <Command.Root shouldFilter={false} class="h-auto [&_.cn-command-item-indicator]:hidden">
       <Command.Input aria-label="Search conversations" placeholder="Search chats" bind:value={() => presentation.query, actions.setQuery} />
-      <Command.List class="max-h-[55dvh]" aria-label="Conversation search results">
+      <Command.List class="search-results" aria-label="Conversation search results">
         <Command.Group heading={presentation.query.trim() ? 'Search results' : 'Chats'}>
           {#each visibleResults as result (result.conversationId + ':' + (result.entryId ?? 'title'))}
             <Command.Item value={result.conversationId + ':' + (result.entryId ?? 'title')} onSelect={() => actions.openResult(result)} class="data-selected:bg-accent">
               <span class="min-w-0 flex-1">
-                <span class="flex min-w-0 items-center gap-3"><span class="min-w-0 flex-1 truncate">{result.title}</span><span class="max-w-[35%] truncate text-muted-foreground">{result.projectName ?? 'Unassigned'}{result.archived ? ' · Archived' : ''}</span></span>
+                <span class="flex min-w-0 items-center gap-3"><span class="min-w-0 flex-1 truncate">{result.title}</span><span class="search-context truncate text-muted-foreground">{result.projectName ?? 'Unassigned'}{result.archived ? ' · Archived' : ''}</span></span>
                 {#if result.match === 'message' && result.snippet}<span class="line-clamp-2 text-xs text-muted-foreground">{result.snippet}</span>{/if}
               </span>
             </Command.Item>

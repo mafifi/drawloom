@@ -3,14 +3,14 @@ version: alpha
 name: Drawloom desktop
 description: A calm, capable place to do useful work with AI. Purposeful, familiar and quietly confident; work first, supporting detail on request. Journal design is maintained separately.
 colors:
-  primary: "#2563eb"
-  effortAccent: "#8b5cf6"
-  ink: "#262626"
-  muted: "#666666"
-  surface: "#ffffff"
-  sidebar: "#f5f5f5"
-  rule: "#e5e5e5"
-  selection: "#e5e5e5"
+  primary: "oklch(0.5461497 0.2152077 262.88092)"
+  effortAccent: "oklch(0.6056308 0.2189151 292.71722)"
+  ink: "oklch(0.2686183 0 0)"
+  muted: "oklch(0.5102784 0 0)"
+  surface: "oklch(1 0 0)"
+  sidebar: "oklch(0.9701508 0 0)"
+  rule: "oklch(0.9219060 0 0)"
+  selection: "oklch(0.9219060 0 0)"
 typography:
   heading:
     fontFamily: -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif
@@ -122,11 +122,11 @@ The loom metaphor may explain knowledge connections, not rename ordinary control
 ## Colors
 
 Preserve the approved achromatic system-following theme and blue user messages.
-Light: white canvas, #f5f5f5 sidebar/composer, #262626 ink, #666666 secondary
-text, #e5e5e5 borders and selection. Dark: #181818 canvas, #383838 sidebar,
-#2a2a2a composer, #494949 selection, neutral-100 ink, neutral-400 secondary text.
-Blue #2563eb is reserved for primary actions, focus and user bubbles; assistant
-messages are unframed. Imported media keeps its own colours.
+The semantic map owns the approved neutral canvas, sidebar/composer, ink,
+secondary text, borders and selection in each system theme. The blue primary
+role is reserved for actions, focus and user bubbles; assistant messages are
+unframed. Dark secondary text must remain readable on selection as well as the
+canvas. Imported media keeps its own colours.
 
 Do not use coloured panels, gradients, decorative status colours or a new palette.
 Quiet badges supplement readable status; colour never carries the only meaning.
@@ -140,9 +140,19 @@ selection. Respect the OS theme; no separate preference is introduced.
 3. **Reusable presentation:** `styles.css` and shared components expose the roles.
 4. **Composition:** Views assemble layouts, not competing control themes.
 
-Raw colours stay in primitives. Application CSS owns layout. Use semantic type and
-colour utilities; do not turn every measurement into a new token. The journal has
-its own [design authority](publishing/DESIGN.md).
+The maintainer-approved consistency migration is recorded in proposed
+[ADR 0030](docs/adr/0030-consistent-ui-composition-and-history.md); acceptance of
+that record remains a separate review. Raw colours use OKLCH in primitives.
+Derived state colours belong in semantics, with explicit system light/dark maps.
+Shared compositions own repeated layout and expose semantic roles through Tailwind.
+Views select those compositions rather than independently choosing spacing,
+typography or colours. No one-off presentation measurements or arbitrary-value
+utilities in Views. Do not create a token for each old literal: consolidate onto
+the shared scale and its page, section, stack, row, message, form, viewer and panel
+roles. Runtime measurements, content aspect ratios and behavioural thresholds
+remain with documented owners, not inline presentation exceptions.
+The journal has its own [design authority](publishing/DESIGN.md); authored images,
+video graphics and document content retain their colours.
 
 ## Typography
 
@@ -223,7 +233,7 @@ technical diagnostics secondary. Denial, cancellation and uncertainty stay disti
 Success is quiet; errors are durable; toasts acknowledge small completed actions.
 No generic Retry for uncertain effects.
 
-Use Message/Bubble for conversation alignment, Attachment for file metadata,
+Use ChatMessage for conversation alignment, Attachment for file metadata,
 Marker for meaningful progress, and restrained shimmer only during real work.
 Keep native media controls, URL delivery, source-bound access and capture-once
 history. Opening a pane neither accepts output nor starts provider work.

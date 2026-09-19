@@ -57,6 +57,12 @@ export function createSessionSignalReader({
               id: key,
               role:
                 signal.kind === "message.completed" ? (signal.role ?? "assistant") : "assistant",
+              origin: {
+                kind:
+                  signal.kind === "message.completed" && signal.role === "user"
+                    ? "user"
+                    : "assistant",
+              },
               text: "",
               assets: signal.kind === "message.completed" ? (signal.assets ?? []) : [],
               operationId: signal.operationId,

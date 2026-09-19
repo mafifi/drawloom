@@ -17,7 +17,7 @@
     {#each p.status?.models ?? [] as model (model.id)}
       <article class="flex flex-col gap-3 py-4">
         <div class="flex flex-wrap justify-between gap-3"><ModelSelector label="Embedding model" options={[{id:model.id,title:model.title,provider:'Local embeddings',local:true,description:'Search only · not a chat model'}]} value={model.id} onSelect={()=>{}} /><Badge variant="outline">{!model.runtimeDownloadAvailable && model.state !== 'ready' ? 'Download unavailable' : model.state === 'missing' ? 'Not installed' : model.state.replace('_', ' ')}</Badge></div>
-        <dl class="model-facts text-sm">
+        <dl class="facts-list text-sm">
           <dt>{p.copy.modelWeights}</dt><dd>{(model.weightsBytes / 1048576).toFixed(1)} MiB · {model.licence}</dd>
           <dt>{p.copy.runtimeExtra}</dt><dd>{model.runtime.package} · {model.runtime.licence} · {(model.runtimeBytes / 1048576).toFixed(1)} MiB</dd>
           <dt>{p.copy.prerequisites}</dt><dd>{model.prerequisites}</dd>
@@ -49,7 +49,7 @@
   </section>
 
     {#if p.configuration}
-      <form class="knowledge-settings-form" onsubmit={event => {
+      <form class="form-stack" onsubmit={event => {
         event.preventDefault(); const data = new FormData(event.currentTarget);
         if (p.configuration) void a.configure({ ...p.configuration, assessmentModel, assessmentTimeoutMs: Number(data.get('timeout')) * 1000, maxAutomaticStartsPerDay: Number(data.get('starts')), maxAutomaticMillisecondsPerDay: Number(data.get('minutes')) * 60000 });
       }}>
@@ -62,11 +62,3 @@
         <StatefulButton type="submit" variant="outline" class="w-fit" pending={p.pendingAction === 'configure'} disabled={Boolean(p.pendingAction)}>{p.copy.save}</StatefulButton>
       </form>
     {/if}
-<style>
-  .knowledge-settings-form { display: flex; flex-direction: column; gap: 24px; margin-top: 24px; }
-  .model-facts { display: grid; grid-template-columns: minmax(100px, 150px) minmax(0, 1fr); gap: 12px 24px; padding-block: 12px; }
-  .model-facts dt { color: var(--muted-foreground); }
-  .model-facts dd { margin: 0; overflow-wrap: anywhere; }
-  .knowledge-settings-form :global([data-slot="field"]) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(100px, 180px); align-items: center; gap: 16px; }
-  @media (max-width: 480px) { .knowledge-settings-form :global([data-slot="field"]) { grid-template-columns: 1fr; } .model-facts { grid-template-columns: 1fr; gap: 4px; } .model-facts dd { margin-bottom: 12px; } }
-</style>

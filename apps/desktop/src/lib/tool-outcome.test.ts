@@ -1,5 +1,13 @@
 import { expect, test } from "bun:test";
-import { presentToolOutcome, groupToolActivity } from "./tool-outcome.js";
+import { presentToolOutcome, groupToolActivity, toolActivityTitle } from "./tool-outcome.js";
+
+test("tool activity uses admitted display titles and keeps opaque unknown aliases out of headings", () => {
+  expect(
+    toolActivityTitle("pkg_abc", [{ toolName: "pkg_abc", title: "Render motion graphics" }]),
+  ).toBe("Render motion graphics");
+  expect(toolActivityTitle("pkg_unknown", [])).toBe("Recorded tool call");
+  expect(toolActivityTitle("media.inspect", [])).toBe("media inspect");
+});
 
 test("activity groups attach to their own operation without inventing old turn associations", () => {
   const result = {
@@ -18,6 +26,20 @@ test("activity groups attach to their own operation without inventing old turn a
   expect(groups.get("last")?.map((r) => r.invocationId)).toEqual(["one"]);
   expect(groups.get("first")).toBeUndefined();
   expect(groups.get("")?.map((r) => r.invocationId)).toEqual(["two"]);
+});
+
+test("retained correlated tools own their outcome instead of duplicating live activity", () => {
+  const result = {
+    invocationId: "call",
+    operationId: "op",
+    evidence: "recorded" as const,
+    outcome: { status: "ok" as const, value: {}, text: "done" },
+  };
+  const groups = groupToolActivity(
+    [result],
+    [{ id: "tool", operationId: "op", origin: { kind: "tool", callId: "call" } }],
+  );
+  expect(groups.size).toBe(0);
 });
 
 test("tool outcomes preserve completed, denied, cancelled, and uncertain states", () => {
@@ -73,4 +95,22 @@ test("successful tool execution is not presented as business acceptance", () => 
   });
   expect(outcome.description).toContain("not acceptance or publication");
   expect(outcome.label).toBe("Tool activity");
+});
+
+test("unretained results do not anchor inside a collapsed retained process group", () => {
+  const result = {
+    invocationId: "missing",
+    operationId: "op",
+    evidence: "outcome_failed" as const,
+    outcome: {
+      status: "failed" as const,
+      code: "evidence_failed" as const,
+      execution: "unknown" as const,
+    },
+  };
+  const groups = groupToolActivity(
+    [result],
+    [{ id: "tool", operationId: "op", origin: { kind: "tool", callId: "retained" } }],
+  );
+  expect(groups.get("")).toEqual([result]);
 });

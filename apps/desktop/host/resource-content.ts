@@ -21,6 +21,7 @@ export function createResourceContent(options: {
     async capture(input: {
       id: string;
       source: string;
+      origin?: HistoryEntry["origin"];
       operationId?: string;
       content: unknown;
       readable?: (uri: string) => boolean;
@@ -36,7 +37,9 @@ export function createResourceContent(options: {
       const texts: string[] = [];
       for (const [index, block] of content.entries()) {
         if (block.type === "text") {
-          texts.push(block.text.slice(0, 4000));
+          // Presentation bounds belong to the viewer. Cutting stored text can
+          // corrupt explicitly structured output and discard execution evidence.
+          texts.push(block.text);
           continue;
         }
         const uri =
@@ -108,7 +111,8 @@ export function createResourceContent(options: {
       const entry: Entry = {
         id: input.id,
         role: "assistant",
-        text: texts.join("\n").slice(0, 8000) || "Returned resources",
+        origin: input.origin ?? { kind: "reference", source: input.source },
+        text: texts.join("\n") || "Returned resources",
         state: "complete",
         assets: [],
         resources,

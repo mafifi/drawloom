@@ -30,6 +30,7 @@ test("conversation resources keep one writer per conversation and close owned hi
     await resources.writer("one").write({
       id: "entry",
       role: "assistant",
+      origin: { kind: "assistant" },
       text: "saved",
       assets: [],
       state: "complete",
@@ -72,6 +73,7 @@ test("shutdown drains writers before project persistence and closes history last
     await resources.writer("one").write({
       id: "partial",
       role: "assistant",
+      origin: { kind: "assistant" },
       text: "pending",
       assets: [],
       state: "partial",

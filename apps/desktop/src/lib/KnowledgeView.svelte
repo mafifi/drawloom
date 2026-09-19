@@ -6,7 +6,7 @@
   let selectedTab=$state('search');
 </script>
 
-<div class="primary-view-content knowledge-content">
+<div class="primary-view-content layout-stack">
   <Tabs.Root bind:value={selectedTab} class="space-y-8">
   <Tabs.List aria-label="Knowledge sections"><Tabs.Trigger value="search">Search</Tabs.Trigger><Tabs.Trigger value="sources">Sources</Tabs.Trigger><Tabs.Trigger value="settings">Settings</Tabs.Trigger></Tabs.List>
   {#if p.error}<p role="alert" class="text-destructive">{p.error}</p>{/if}
@@ -23,11 +23,11 @@
   {#if p.searchStatus}<p role="status" class="text-muted-foreground">{p.searchStatus}</p>{/if}
   {#if !p.searched && !p.searchPending && !p.selected}<Empty.Root class="py-12"><Empty.Header><Empty.Media variant="icon"><SearchIcon /></Empty.Media><Empty.Title>What would you like to find?</Empty.Title><Empty.Description>{p.copy.introduction}</Empty.Description></Empty.Header></Empty.Root>{/if}
   {#if p.searched || p.searchPending || p.selected}
-  <div class="knowledge-columns">
+  <div class="layout-columns">
     <section class="flex flex-col gap-4" aria-label={p.copy.searchLabel}>
       {#if p.searched && !p.results.length && !p.searchPending}<Empty.Root class="py-8"><Empty.Header><Empty.Media variant="icon"><SearchIcon /></Empty.Media><Empty.Title>No matches yet</Empty.Title><Empty.Description>{p.copy.empty}</Empty.Description></Empty.Header></Empty.Root>{/if}
       {#each p.results as item (JSON.stringify(item.record.ref))}
-        <article class="knowledge-record">
+        <article class="collection-record">
           <p class="whitespace-pre-wrap break-words line-clamp-4">{item.record.body}</p>
           <p class="text-sm text-muted-foreground">{item.record.status}{'freshness' in item.record ? ` · ${item.record.freshness}` : ''}</p>
           <StatefulButton variant="ghost" class="w-fit" pending={p.evidencePending && JSON.stringify(p.selected) === JSON.stringify(item.record.ref)} pendingLabel={p.copy.loading} onclick={() => a.inspect(item.record.ref)}>{p.copy.inspect}</StatefulButton>
@@ -39,7 +39,7 @@
       <section class="flex flex-col gap-4 min-w-0" aria-label={p.copy.evidence}>
         <h2>{p.copy.evidence}</h2>
         {#each p.evidence?.records ?? [] as record (JSON.stringify(record.ref))}
-          <article class="knowledge-record">
+          <article class="collection-record">
             <p class="text-sm text-muted-foreground">{record.ref.type} · {record.status}{'freshness' in record ? ` · ${record.freshness}` : ''}</p>
             <p class="whitespace-pre-wrap break-words">{record.body}</p>
             <Collapsible.Root><Collapsible.Trigger>{#snippet child({props})}<Button {...props} variant="ghost" size="sm">Source & confidence <ChevronRightIcon class="size-4" /></Button>{/snippet}</Collapsible.Trigger><Collapsible.Content class="py-3 space-y-2"><p class="text-sm text-muted-foreground break-all">{record.ref.origin} · {record.ref.id} · {record.ref.revision}</p><p class="text-sm break-words">{p.copy.confidence}: {JSON.stringify(record.confidence)}</p></Collapsible.Content></Collapsible.Root>
@@ -112,7 +112,7 @@
     <section class="space-y-4" aria-label={request.title}>
       <h3>{request.title}: {p.copy.permissionNeeded}</h3>
       <p class="text-sm text-muted-foreground">{p.copy.permissionHelp}</p>
-      <dl class="consent-facts text-sm">
+      <dl class="facts-list text-sm">
         <dt>{p.copy.permissionPurpose}</dt><dd>{request.purpose}</dd>
         <dt>{p.copy.permissionData}</dt><dd>{request.data}</dd>
         <dt>{p.copy.permissionDestination}</dt><dd>{request.destinations}</dd>
@@ -137,12 +137,3 @@
   </Tabs.Content>
   </Tabs.Root>
 </div>
-
-<style>
-  .consent-facts { display: grid; grid-template-columns: minmax(80px, 120px) minmax(0,1fr); gap: 8px 16px; }
-  .consent-facts dt { color: var(--muted-foreground); }
-  .consent-facts dd { margin:0; overflow-wrap:anywhere; }
-  .knowledge-content { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
-  .knowledge-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 2rem; }
-  .knowledge-record { display: flex; flex-direction: column; gap: .65rem; border-bottom: 1px solid var(--border); padding-block: .75rem; }
-</style>

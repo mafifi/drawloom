@@ -30,6 +30,7 @@ test("10,000-entry public history uses bounded pages, no-body unchanged polls an
           id: `public-${i}`,
           position: [0, i] as const,
           role: "assistant" as const,
+          origin: { kind: "assistant" as const },
           text,
           assets: [],
           state: "complete" as const,

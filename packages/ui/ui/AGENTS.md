@@ -12,8 +12,9 @@ Read [README.md](README.md) before changing the component boundary and
   `src/` tree. Applications import its public exports.
 - Preserve upstream accessible behaviour, public prop types, event forwarding
   and binding support. Add shared primitives before adding a consumer.
-- Keep layout and commands with consumers; use the shared theme and component
-  variants for control styling. Do not introduce application-specific variants.
+- Keep content, commands and composition selection with consumers; shared
+  compositions own repeated layout rhythm. Use semantic theme roles and component
+  variants, not application-specific control themes or one-off View measurements.
 - Keep raw theme values in src/theme/primitives.css and map them in semantic.css.
   Components consume semantic names and reusable type utilities from styles.css;
   do not introduce a second palette or change appearance during token refactors.

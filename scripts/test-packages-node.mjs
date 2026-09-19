@@ -40,6 +40,7 @@ assert.equal(
     id: "portable",
     position: [-1, 0],
     role: "user",
+    origin: { kind: "user" },
     text: "Node contract smoke",
     assets: [],
     state: "complete",

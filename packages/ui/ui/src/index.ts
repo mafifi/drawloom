@@ -27,8 +27,6 @@ export * as Tooltip from "./components/tooltip/index.js";
 export * as Sidebar from "./components/sidebar/index.js";
 export * as Field from "./components/field/index.js";
 export * as Attachment from "./components/attachment/index.js";
-export * as Message from "./components/message/index.js";
-export * as Bubble from "./components/bubble/index.js";
 export * as Marker from "./components/marker/index.js";
 export { Spinner } from "./components/spinner/index.js";
 export {
@@ -54,6 +52,9 @@ export { default as SettingsIcon } from "@lucide/svelte/icons/settings";
 export { default as PlugIcon } from "@lucide/svelte/icons/plug";
 export { default as ArrowIcon } from "@lucide/svelte/icons/arrow-up";
 export { default as CloseIcon } from "@lucide/svelte/icons/x";
+export { default as RefreshIcon } from "@lucide/svelte/icons/refresh-cw";
+export { default as ExpandIcon } from "@lucide/svelte/icons/maximize-2";
+export { default as RestoreIcon } from "@lucide/svelte/icons/minimize-2";
 export { default as MoreIcon } from "@lucide/svelte/icons/ellipsis";
 export { default as RenameIcon } from "@lucide/svelte/icons/pencil";
 export { default as ArchiveIcon } from "@lucide/svelte/icons/archive";
@@ -67,3 +68,13 @@ export {
   type ModelOption,
 } from "./components/model-selector/model-selector.svelte";
 export { default as DownloadProgress } from "./components/download-progress/download-progress.svelte";
+export { default as Markdown } from "./Markdown.svelte";
+export * as Confirmation from "./components/ai-elements/confirmation/index.js";
+export * as Tool from "./components/ai-elements/tool/index.js";
+export * as Sources from "./components/ai-elements/sources/index.js";
+export * as PromptInput from "./components/prompt-kit/prompt-input/index.js";
+export * as ChatMessage from "./components/prompt-kit/message/index.js";
+export * as ChatContainer from "./components/prompt-kit/chat-container/index.js";
+export * as Steps from "./components/prompt-kit/steps/index.js";
+export { SystemMessage } from "./components/prompt-kit/system-message/index.js";
+export { PromptSuggestion } from "./components/prompt-kit/prompt-suggestion/index.js";

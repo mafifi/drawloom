@@ -5,6 +5,8 @@
   "license": "Apache-2.0",
   "files": [
     "dist",
+    "LICENSE.AI-Elements",
+    "LICENSE.Prompt-Kit",
     "LICENSE.shadcn-svelte"
   ],
   "sideEffects": [
@@ -29,6 +31,12 @@
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
+    "runed": "catalog:",
+    "streamdown-svelte": "catalog:",
+    "@streamdown-svelte/code": "catalog:",
+    "@shikijs/themes": "catalog:",
+    "stick-to-bottom-svelte": "catalog:",
+    "mdast-util-from-markdown": "catalog:",
     "@drawloom/evaluation-presentation": "workspace:*",
     "@drawloom/orchestration": "workspace:*",
     "@internationalized/date": "catalog:",

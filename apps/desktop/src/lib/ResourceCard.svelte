@@ -5,7 +5,7 @@
   const resource = $derived(presentation.resource);
 </script>
 
-<section class="flex flex-col gap-2 py-3" aria-label={resource.title || 'Resource'}>
+<section class="flex w-full min-w-0 max-w-full flex-col gap-2 py-3" aria-label={resource.title || 'Resource'}>
   <Attachment.Root class="w-full"><Attachment.Media><DocumentIcon /></Attachment.Media><Attachment.Content><Attachment.Title>{resource.title || 'Resource'}</Attachment.Title><Attachment.Description>{resource.source}{resource.mimeType ? ` · ${resource.mimeType}` : ''}</Attachment.Description></Attachment.Content><Badge variant="outline">{presentation.isWorkingFile ? 'working file' : resource.status}</Badge></Attachment.Root>
   {#if resource.uri}<Collapsible.Root><Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost" size="sm">Source reference</Button>{/snippet}</Collapsible.Trigger><Collapsible.Content><p class="break-all text-sm text-muted-foreground">{resource.uri}</p></Collapsible.Content></Collapsible.Root>{/if}
   {#if presentation.canOpen}<Button variant="outline" size="sm" onclick={actions.openWorkspace}>Open in workspace</Button>{/if}

@@ -5,6 +5,55 @@ import { createCodexHistoryReader } from "./src/history.js";
 import type { HistoryEntry } from "@drawloom/conversation-history";
 import { createCodexDiscovery } from "./src/discovery.js";
 
+test.each([false, true])(
+  "native text-only tool output retains its own failure state (%s)",
+  async (isError) => {
+    const reader = createCodexHistoryReader(
+      async (method) =>
+        method === "thread/turns/list"
+          ? { data: [{ id: "turn", status: "completed" }], nextCursor: null }
+          : {
+              data: [
+                {
+                  turnId: "turn",
+                  item: {
+                    type: "mcpToolCall",
+                    id: "call",
+                    server: "test",
+                    tool: "read",
+                    status: "completed",
+                    result: { isError, content: [{ type: "text", text: "result" }] },
+                  },
+                },
+              ],
+              nextCursor: null,
+            },
+      "thread",
+      { turn: "operation" },
+      undefined,
+      async (input) => ({
+        id: input.id,
+        role: "assistant",
+        origin: input.origin,
+        text: "result",
+        assets: [],
+        state: "complete",
+      }),
+    );
+    const batch = await reader.read(
+      { get: async () => undefined, checkpoint: async () => undefined },
+      { direction: "latest", limit: 20 },
+    );
+    expect(batch.entries).toHaveLength(1);
+    expect(batch.entries[0]?.origin).toMatchObject({
+      kind: "tool",
+      callId: "call",
+      outcome: isError ? "failed" : "completed",
+      format: "text",
+    });
+  },
+);
+
 test("returned-only native resource receipts survive restart and cannot authorise other sources", async () => {
   const saved = new Map<string, import("@drawloom/host").JsonValue>();
   const calls: unknown[] = [];
@@ -130,6 +179,7 @@ test("failed native content capture leaves coverage recoverable; settled content
       if (++captures === 1) throw Error("Disk unavailable");
       return {
         id: input.id,
+        origin: input.origin,
         role: "assistant",
         text: "A",
         assets: [],

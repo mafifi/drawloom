@@ -9,6 +9,36 @@ function assetsWith(overrides: Pick<AssetLibrary, "put" | "read">): AssetLibrary
   return { ...overrides, open: unused, putStream: unused };
 }
 
+test("structured tool output is retained intact rather than truncated into invalid JSON", async () => {
+  const text = JSON.stringify({ values: ["x".repeat(12_000)] });
+  const collector = createResourceContent({
+    assets: assetsWith({
+      put: async () => {
+        throw Error("unused");
+      },
+      read: async () => new Uint8Array(),
+    }),
+    existing: async () => undefined,
+    save: async () => {},
+    knownAsset: () => undefined,
+  });
+  const entry = await collector.capture({
+    id: "structured",
+    source: "fixture",
+    origin: {
+      kind: "tool",
+      source: "fixture",
+      callId: "call",
+      title: "Inspect",
+      outcome: "completed",
+      format: "json",
+    },
+    content: [{ type: "text", text }],
+  });
+  expect(entry.text).toBe(text);
+  expect(JSON.parse(entry.text)).toEqual(JSON.parse(text));
+});
+
 test("one result cannot multiply the inline capture allowance across content blocks", async () => {
   let writes = 0,
     bytesStored = 0;

@@ -27,13 +27,23 @@ test("search and earlier navigation override tail following, latest explicitly r
 test("rail groups user turns with bounded response previews, including attachment-only prompts", () => {
   expect(
     conversationTurns([
-      { id: "orphan", role: "assistant", text: "Earlier response" },
-      { id: "a", role: "user", text: "  First\n request " },
-      { id: "b", role: "assistant", text: "x".repeat(1000) },
-      { id: "c", role: "user", text: "" },
+      { id: "orphan", role: "assistant", origin: { kind: "assistant" }, text: "Earlier response" },
+      { id: "a", role: "user", origin: { kind: "user" }, text: "  First\n request " },
+      { id: "b", role: "assistant", origin: { kind: "assistant" }, text: "x".repeat(1000) },
+      { id: "c", role: "user", origin: { kind: "user" }, text: "" },
     ]),
   ).toEqual([
     { id: "a", prompt: "First request", response: `${"x".repeat(159)}…` },
     { id: "c", prompt: "Message with attachments", response: "" },
   ]);
+});
+
+test("rail response previews never substitute tool output for the assistant answer", () => {
+  expect(
+    conversationTurns([
+      { id: "u", role: "user", origin: { kind: "user" }, text: "Question" },
+      { id: "a", role: "assistant", origin: { kind: "assistant" }, text: "Answer" },
+      { id: "t", role: "assistant", origin: { kind: "tool" }, text: "Tool diagnostics" },
+    ])[0]?.response,
+  ).toBe("Answer");
 });

@@ -58,7 +58,6 @@ try {
     await message.getByText("research-notes.txt", { exact: true }).count(),
     "Sent attachment retains its file title",
   );
-  assert.equal(await message.getAttribute("data-slot"), "message");
   assert.equal(
     await message.getAttribute("role"),
     "article",
@@ -73,8 +72,8 @@ try {
   await page.screenshot({ path: root + "/light.png" });
   await page.reload();
   await message.getByText("research-notes.txt", { exact: true }).waitFor();
-  const userStyle = await message.locator('[data-slot="bubble-content"]').evaluate((el) => ({
-    background: getComputedStyle(el).backgroundColor,
+  const userStyle = await message.locator(".markdown-content").evaluate((el) => ({
+    background: getComputedStyle(el.parentElement).backgroundColor,
     font: getComputedStyle(el).fontSize,
   }));
   assert.equal(userStyle.background, "rgb(37, 99, 235)");
@@ -110,8 +109,8 @@ try {
     );
     await page.waitForFunction(
       (theme) =>
-        getComputedStyle(document.querySelector('[data-slot="input-group"]')).backgroundColor ===
-        (theme === "dark" ? "rgb(42, 42, 42)" : "rgb(245, 245, 245)"),
+        getComputedStyle(document.querySelector(".composer-area textarea").parentElement)
+          .backgroundColor === (theme === "dark" ? "rgb(42, 42, 42)" : "rgb(245, 245, 245)"),
       theme,
     );
     await page.screenshot({ path: root + `/${theme}.png` });

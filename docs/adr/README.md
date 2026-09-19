@@ -71,6 +71,10 @@ Newest first. A decision remains binding until an ADR supersedes it.
 
 ### Plugins, projects and the desktop
 
+- **[0030: Consistent UI composition and retained meaning](0030-consistent-ui-composition-and-history.md)** —
+  Proposed; implementation authorised. Tightens the four-layer theme boundary
+  and retains provenance for coherent live and historical conversation rendering.
+
 - **[0029: Give plugins and workbenches their own Settings pages](0029-plugin-and-workbench-settings.md)** —
   Accepted. Retains MCP Apps while separating installation settings from project
   and conversation lifetimes.

@@ -27,7 +27,7 @@ try {
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(url.origin);
     if (width === 390) await page.getByRole("button", { name: "Toggle navigation" }).click();
-    await page.getByRole("button", { name: "Local profile menu" }).click();
+    await page.getByRole("button", { name: "Settings and more" }).click();
     await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
     if (width === 390) {
       await page.getByRole("dialog").waitFor({ state: "hidden" });

@@ -72,16 +72,38 @@ export function createConversationResources(options: {
     if (!current) {
       current = evidenceFor(conversationId).then((sink) =>
         createResourceRecovery(sink.activity(), async (result) => {
-          if (result.outcome.status !== "ok" || !result.outcome.content) return;
           const packages = await options.packagesForConversation(conversationId);
           const tool = sink.toolFor(result.invocationId);
           const source = tool ? (packages.toolSources.get(tool) ?? "drawloom") : "drawloom";
           await collector(conversationId).capture({
             id: `tool-resource:${result.invocationId}`,
             source,
+            origin: {
+              kind: "tool",
+              source,
+              callId: result.invocationId,
+              title: tool ?? "Tool result",
+              outcome:
+                result.outcome.status === "ok"
+                  ? "completed"
+                  : result.outcome.execution === "unknown" || result.evidence === "outcome_failed"
+                    ? "unknown"
+                    : result.outcome.code === "denied"
+                      ? "denied"
+                      : "failed",
+              format: "text",
+            },
             readable: () => packages.canReadSource(source),
             ...(result.operationId ? { operationId: result.operationId } : {}),
-            content: result.outcome.content,
+            content:
+              result.outcome.status === "ok"
+                ? (result.outcome.content ?? [{ type: "text", text: result.outcome.text }])
+                : [
+                    {
+                      type: "text",
+                      text: `Tool ${result.outcome.code}. Execution: ${result.outcome.execution}. No automatic retry occurred.`,
+                    },
+                  ],
           });
         }),
       );

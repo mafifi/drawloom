@@ -1265,7 +1265,13 @@ export function createDesktopViewModel() {
     get approvals() {
       return (state?.approvals ?? []).map((entry) => ({
         id: entry.request.approvalId,
-        presentation: approvalCard(entry, pendingCommand, busy, stoppingApproval),
+        presentation: approvalCard(
+          entry,
+          pendingCommand,
+          busy,
+          stoppingApproval,
+          state?.toolLabels,
+        ),
         actions: {
           choose: (optionId: string) =>
             command({

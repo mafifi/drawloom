@@ -15,6 +15,8 @@ const approved = new Set([
 // Upstream v0.1.9 LICENSE-MIT and Linux npm metadata reviewed on 2026-09-14.
 // Exact versions only; optional platforms not inspected here remain subject to review.
 const selections: Readonly<Record<string, string>> = {
+  // Installed 3.4.15 LICENSE includes the Apache-2.0 alternative (2026-09-19).
+  "dompurify@3.4.15": "Apache-2.0",
   "sqlite-vec@0.1.9": "MIT",
   "sqlite-vec-darwin-arm64@0.1.9": "MIT",
   "sqlite-vec-linux-x64@0.1.9": "MIT",

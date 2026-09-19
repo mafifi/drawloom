@@ -2,9 +2,17 @@ import { expect, test } from "bun:test";
 
 const source = async (name: string) => Bun.file(new URL(name, import.meta.url)).text();
 
+test("utility menu describes its actions without implying a user account", async () => {
+  const sidebar = await source("./Sidebar.svelte");
+  expect(sidebar).toContain('aria-label="Settings and more"');
+  expect(sidebar).not.toContain("Local profile");
+  expect(sidebar).toContain("Archived conversations");
+});
+
 test("composer keeps one toolbar and moves secondary entry points into Add", async () => {
   const composer = await source("./Composer.svelte");
-  expect(composer).toContain("composer-toolbar gap-1 flex-nowrap");
+  expect(composer.match(/<PromptInput.Actions/g)).toHaveLength(1);
+  expect(composer).toContain('class="composer-toolbar gap-1"');
   expect(composer).toContain('aria-label="Add to message"');
   expect(composer).toContain("onclick={()=>void openAdd()}");
   expect(composer).toContain("<DiscoveryPicker");
@@ -146,7 +154,9 @@ test("workspace presentation keeps one pane mounted across ordinary layout chang
   );
   expect(page).toContain("class:workspace-pane-full={drawer || vm.detailsExpanded}");
   expect(details).toContain("Back to conversation");
-  expect(details).toContain('aria-label="Workspace width"');
+  expect(details).not.toContain('type="range"');
+  expect(details).toContain('class="workspace-toolbar"');
+  expect(details).toContain("ExpandIcon");
   expect(details).toContain("aria-pressed={presentation.detailsExpanded}");
   expect(details.match(/<PluginView /g)).toHaveLength(1);
   expect(details).toContain(
@@ -169,9 +179,9 @@ test("sent non-image references use compact closed previews and selection badges
   const attachment = await source("./AttachmentCard.svelte");
 
   expect(conversation).toContain("<AttachmentCard");
-  expect(conversation).toContain("<Message.Footer");
-  expect(conversation.indexOf("<Message.Footer")).toBeGreaterThan(
-    conversation.indexOf("</Bubble.Root>"),
+  expect(conversation).toContain("<ChatMessage.Actions");
+  expect(conversation.indexOf("<ChatMessage.Actions")).toBeGreaterThan(
+    conversation.indexOf("</ChatMessage.Content>"),
   );
   expect(attachment).toContain("<Collapsible.Root>");
   expect(attachment).toContain("Preview attachment");

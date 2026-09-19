@@ -12,6 +12,7 @@ function entry(index: number, overrides: Partial<HistoryEntry> = {}): HistoryEnt
     id: `entry-${index}`,
     position: [Math.floor(index / 100), index % 100],
     role: index % 2 ? "assistant" : "user",
+    origin: { kind: index % 2 ? "assistant" : "user" },
     text: `text-${index}`,
     assets: [],
     state: "complete",

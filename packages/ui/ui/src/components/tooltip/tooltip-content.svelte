@@ -37,11 +37,11 @@
 			{#snippet child({ props })}
 				<div
 					class={cn(
-						"size-2.5 translate-y-[calc(-50%-2px)] rotate-45 rounded-[2px] z-50 bg-foreground fill-foreground",
-						"data-[side=top]:translate-x-1/2 data-[side=top]:translate-y-[calc(-50%+2px)]",
-						"data-[side=bottom]:-translate-x-1/2 data-[side=bottom]:-translate-y-[calc(-50%+1px)]",
-						"data-[side=right]:translate-x-[calc(50%+2px)] data-[side=right]:translate-y-1/2",
-						"data-[side=left]:-translate-y-[calc(50%-3px)]",
+						"size-2.5 translate-y-[calc(-50%-var(--focus-width))] rotate-45 rounded-xs z-50 bg-foreground fill-foreground",
+						"data-[side=top]:translate-x-1/2 data-[side=top]:translate-y-[calc(-50%+var(--focus-width))]",
+						"data-[side=bottom]:-translate-x-1/2 data-[side=bottom]:-translate-y-[calc(-50%+var(--rule-width))]",
+						"data-[side=right]:translate-x-[calc(50%+var(--focus-width))] data-[side=right]:translate-y-1/2",
+						"data-[side=left]:-translate-y-[calc(50%-var(--focus-offset))]",
 						arrowClasses
 					)}
 					{...props}

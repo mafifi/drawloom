@@ -14,6 +14,19 @@ const entry = {
   submitting: false,
   presentation: "desktop" as const,
 };
+test("known native tool aliases get readable labels without altering the native question or choices", () => {
+  const request = {
+    ...entry.request,
+    summary: 'Allow the drawloom MCP server to run tool "pkg_123"?',
+  };
+  const card = approvalCard({ ...entry, request }, undefined, false, undefined, [
+    { toolName: "pkg_123", title: "Render graphics", origin: "motion" },
+  ]);
+  expect(card.summary).toBe('Allow the drawloom MCP server to run tool "Render graphics"?');
+  expect(card.details).toContain(request.summary);
+  expect(card.options[0]?.optionId).toBe("native");
+  expect(approvalCard({ ...entry, request }, undefined, false).summary).toBe(request.summary);
+});
 test("Stop feedback is scoped to the card lifetime for initial and overlapping actions", () => {
   const stop = {
     kind: "approval_surface" as const,

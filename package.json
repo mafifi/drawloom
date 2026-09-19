@@ -19,6 +19,12 @@
       "packages/*/*"
     ],
     "catalog": {
+      "runed": "0.37.1",
+      "streamdown-svelte": "3.0.6",
+      "@streamdown-svelte/code": "1.1.3",
+      "@shikijs/themes": "3.17.1",
+      "stick-to-bottom-svelte": "1.0.4",
+      "mdast-util-from-markdown": "2.0.3",
       "@biomejs/biome": "2.5.13",
       "promptfoo": "0.123.0",
       "braintrust": "3.32.0",
@@ -118,6 +124,7 @@
     "licenses:inventory": "bun run scripts/dependency-license-inventory.ts",
     "licenses:export": "bun run scripts/export-license-notices.ts",
     "check:ui-policy": "bun run scripts/check-ui-policy.ts",
+    "test:ui": "bun run scripts/test-ui-browser.ts",
     "check:architecture": "bun run check:ui-policy && depcruise --config .dependency-cruiser.mjs .",
     "check:dependency-policy": "bun run scripts/check-dependency-policy.ts",
     "check:design": "designmd lint DESIGN.md && designmd lint publishing/DESIGN.md",
@@ -170,6 +177,7 @@
     "@types/node": "catalog:",
     "dependency-cruiser": "catalog:",
     "typescript": "5.9.3",
+    "playwright": "catalog:",
     "zod": "catalog:"
   },
   "patchedDependencies": {

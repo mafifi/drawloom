@@ -22,22 +22,131 @@ plugin({
 });
 
 let Attachment;
-let Bubble;
 let Marker;
-let Message;
 let Spinner;
 let Button;
 let DownloadProgress;
 let Accordion;
+let Markdown;
+let Confirmation;
+let PromptInput;
+let ChatMessage;
+let SystemMessage;
+let PromptSuggestion;
+let Sources;
 
 beforeAll(async () => {
-  ({ Attachment, Bubble, Marker, Message, Spinner, Button, DownloadProgress, Accordion } =
-    await import("@drawloom/ui"));
+  ({
+    Attachment,
+    Marker,
+    Spinner,
+    Button,
+    DownloadProgress,
+    Accordion,
+    Markdown,
+    Confirmation,
+    PromptInput,
+    ChatMessage,
+    SystemMessage,
+    PromptSuggestion,
+    Sources,
+  } = await import("@drawloom/ui"));
 });
 
 const children = (text) => createRawSnippet(() => ({ render: () => text }));
 
 describe("conversation primitive public boundary", () => {
+  test("public conversation API has one message composition without legacy aliases", async () => {
+    const ui = await import("@drawloom/ui");
+    expect(ui.ChatMessage.Root).toBeTypeOf("function");
+    expect(ui.Message).toBeUndefined();
+    expect(ui.Bubble).toBeUndefined();
+  });
+  test("message composition exposes speaker and forwards Markdown accessibility attributes", () => {
+    const user = render(ChatMessage.Root, {
+      props: { speaker: "user", children: children("Question") },
+    }).body;
+    expect(user).toContain('data-speaker="user"');
+    const answer = render(ChatMessage.Root, {
+      props: { children: children("Answer") },
+    }).body;
+    expect(answer).toContain('data-speaker="assistant"');
+    const content = render(ChatMessage.Content, {
+      props: { markdown: true, content: "**Answer**", "aria-label": "Answer content" },
+    }).body;
+    expect(content).toContain('aria-label="Answer content"');
+    expect(content).toContain("<strong");
+  });
+  test("Markdown never embeds remote media or enables raw HTML", () => {
+    const html = render(Markdown, {
+      props: {
+        text: '![tracking](https://example.org/pixel.png)\n\n<iframe src="https://example.org"></iframe>\n\n[unresolved](/private/file.wav)',
+      },
+    }).body;
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("<iframe");
+    expect(html).not.toContain('href="/private/');
+  });
+  test("source links preserve the consumer evidence identity for keyboard navigation", () => {
+    const html = render(Sources.Item, {
+      props: {
+        href: "https://example.org/evidence",
+        "data-source": "claim-source",
+        title: "Retained evidence",
+      },
+    }).body;
+    expect(html).toContain('data-source="claim-source"');
+    expect(html).toContain('href="https://example.org/evidence"');
+    expect(html).toContain("Retained evidence");
+  });
+  test("AI presentation forwards consumer content and suggestion eligibility", () => {
+    expect(PromptInput?.Root).toBeTypeOf("function");
+    expect(ChatMessage?.Root).toBeTypeOf("function");
+    const message = render(ChatMessage.Root, {
+      props: { "aria-label": "Saved answer", children: children("Evidence available") },
+    }).body;
+    expect(message).toContain('aria-label="Saved answer"');
+    expect(message).toContain("Evidence available");
+    expect(
+      render(SystemMessage, {
+        props: { variant: "warning", role: "status", children: children("Connection lost") },
+      }).body,
+    ).toContain("Connection lost");
+    const suggestion = render(PromptSuggestion, {
+      props: { disabled: true, children: children("Inspect sources") },
+    }).body;
+    expect(suggestion).toContain("disabled");
+    expect(suggestion).toContain("Inspect sources");
+  });
+  test("confirmation preserves a long consumer question and hides pre-approval input states", () => {
+    expect(Confirmation?.Root).toBeTypeOf("function");
+    const props = {
+      approval: { id: "native-request" },
+      state: "approval-requested",
+      children: children("Review this long tool request"),
+      "aria-label": "Native approval",
+    };
+    const html = render(Confirmation.Root, { props }).body;
+    expect(html).toContain("Review this long tool request");
+    expect(html).toContain('aria-label="Native approval"');
+    expect(
+      render(Confirmation.Root, { props: { ...props, state: "input-streaming" } }).body,
+    ).not.toContain("Review this long tool request");
+  });
+  test("Markdown renders emphasis and lists while rejecting executable links and raw HTML", () => {
+    const html = render(Markdown, {
+      props: {
+        text: "Created **draft**.\n\n- One [recording](/work/audio.wav)\n- `code`\n\n<script>alert(1)</script>\n\n[unsafe](javascript:alert)\n\n[source](https://example.com)",
+        resolveFile: (url) => (url === "/work/audio.wav" ? "/api/files?path=audio.wav" : undefined),
+      },
+    }).body;
+    expect(html.replace(/<!--[\s\S]*?-->/g, "")).toContain("<strong>draft</strong>");
+    expect(html).toMatch(/<ul(?:\s|>)/);
+    expect(html).toContain("/api/files?path=audio.wav");
+    expect(html).toContain("https://example.com");
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain('href="javascript:');
+  });
   test("exports the complete accordion with consumer-owned expansion and attributes", () => {
     expect(Accordion).toBeDefined();
     for (const part of ["Root", "Item", "Trigger", "Content"])
@@ -69,23 +178,6 @@ describe("conversation primitive public boundary", () => {
       "aria-valuenow=",
     );
   });
-  test("semantic body sizes coexist with foreground colours and permit consumer size overrides", () => {
-    const coloured = render(Message.Root, {
-      props: { class: "text-primary", children: children("Text") },
-    }).body;
-    expect(coloured).toContain("text-body");
-    expect(coloured).toContain("text-primary");
-    const resized = render(Message.Root, {
-      props: { class: "text-base", children: children("Text") },
-    }).body;
-    expect(resized).toContain("text-base");
-    expect(resized).not.toContain("text-body");
-    const rounded = render(Bubble.Content, {
-      props: { class: "rounded-lg", children: children("Text") },
-    }).body;
-    expect(rounded).toContain("rounded-lg");
-    expect(rounded).not.toContain("rounded-bubble");
-  });
   test("small primary buttons preserve their foreground alongside semantic sizing", () => {
     const html = render(Button, { props: { size: "sm", children: children("Save") } }).body;
     expect(html).toContain("text-primary-foreground");
@@ -105,11 +197,9 @@ describe("conversation primitive public boundary", () => {
     ]) {
       expect(Attachment[name]).toBeTypeOf("function");
     }
-    for (const name of ["Content", "Group", "Reactions", "Root"])
-      expect(Bubble[name]).toBeTypeOf("function");
     for (const name of ["Content", "Icon", "Root"]) expect(Marker[name]).toBeTypeOf("function");
-    for (const name of ["Avatar", "Content", "Footer", "Group", "Header", "Root"]) {
-      expect(Message[name]).toBeTypeOf("function");
+    for (const name of ["Content", "Actions", "Root"]) {
+      expect(ChatMessage[name]).toBeTypeOf("function");
     }
     expect(Marker.markerVariants).toBeTypeOf("function");
     expect(Spinner).toBeTypeOf("function");
@@ -136,16 +226,8 @@ describe("conversation primitive public boundary", () => {
   });
 
   test("forwards conversation presentation props without owning message content", () => {
-    const bubble = render(Bubble.Root, {
-      props: {
-        variant: "secondary",
-        align: "end",
-        "data-consumer": "bubble",
-        children: children("Hello"),
-      },
-    }).body;
-    const message = render(Message.Root, {
-      props: { align: "end", "data-consumer": "message", children: children("Hello") },
+    const message = render(ChatMessage.Root, {
+      props: { speaker: "user", "data-consumer": "message", children: children("Hello") },
     }).body;
     const marker = render(Marker.Root, {
       props: {
@@ -156,10 +238,7 @@ describe("conversation primitive public boundary", () => {
       },
     }).body;
 
-    expect(bubble).toContain('data-variant="secondary"');
-    expect(bubble).toContain('data-align="end"');
-    expect(bubble).toContain('data-consumer="bubble"');
-    expect(message).toContain('data-align="end"');
+    expect(message).toContain('data-speaker="user"');
     expect(message).toContain('data-consumer="message"');
     expect(marker).toContain('data-variant="separator"');
     expect(marker).toContain('role="status"');

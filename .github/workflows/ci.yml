@@ -34,6 +34,12 @@ jobs:
       - name: Run canonical checks
         run: bun run check:ci
 
+      - name: Install pinned browser for public UI acceptance
+        run: bunx --no-install playwright install --with-deps chromium
+
+      - name: Verify public synthetic browser acceptance
+        run: bun run test:ui
+
       - name: Select publication changes
         id: publication
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')

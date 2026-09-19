@@ -10,4 +10,4 @@
 </script>
 {#if status === 'loading'}<p role="status" class="text-muted-foreground">Opening settings…</p>{/if}
 {#if status === 'failed'}<Alert.Root variant="destructive"><Alert.Description>Settings could not connect. Reopen this page to inspect current state.</Alert.Description></Alert.Root>{/if}
-<iframe bind:this={frame} title={`${page.ownerTitle}: ${page.title}`} sandbox="allow-scripts" referrerpolicy="no-referrer" class="min-h-[36rem] w-full border-0" hidden={status === 'failed'}></iframe>
+<iframe bind:this={frame} title={`${page.ownerTitle}: ${page.title}`} sandbox="allow-scripts" referrerpolicy="no-referrer" class="hosted-view-frame" hidden={status === 'failed'}></iframe>

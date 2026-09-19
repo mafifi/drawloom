@@ -12,7 +12,13 @@ export function approvalCard(
   pending: DesktopCommand | undefined,
   busy: boolean,
   stopping?: DesktopCommand,
+  toolLabels: DesktopSnapshot["toolLabels"] = [],
 ) {
+  const nativeSummary = entry.request.summary;
+  const summary = nativeSummary.replace(/tool "(pkg_[a-zA-Z0-9_]+)"/g, (match, name: string) => {
+    const tool = toolLabels.find((item) => item.toolName === name);
+    return tool ? `tool "${tool.title}"` : match;
+  });
   const visible = entry.surface === "pending" && entry.presentation === "desktop";
   const matches = (command: DesktopCommand | undefined) =>
     command?.kind === "approval_surface" &&
@@ -22,8 +28,11 @@ export function approvalCard(
     command.presentationId === entry.presentationId;
   return {
     title: "Execution approval",
-    summary: entry.request.summary,
-    details: entry.request.details ?? "",
+    approvalId: entry.request.approvalId,
+    summary,
+    details: [summary !== nativeSummary ? nativeSummary : "", entry.request.details ?? ""]
+      .filter(Boolean)
+      .join("\n\n"),
     detailsLabel: "Proposed action",
     message:
       entry.surface === "failed"

@@ -33,10 +33,11 @@ This guide applies under `apps/`.
 - Keep application views responsible for layout, content and command wiring.
   Follow DESIGN.md's four-layer theme contract: use semantic colours and shared
   type tokens, not raw palette values, primitive --dl-* tokens or repeated local
-  type scales. One-off layout measurements remain appropriate.
+  type scales. The maintainer-approved ADR 0030 migration replaces one-off layout
+  measurements with shared roles; keep runtime geometry with its explicit owner.
   Semantic HTML, ordinary links and native media viewers remain appropriate;
   reusable controls and their interaction behaviour belong to the shared UI.
-- Compose conversation rows with Message/Bubble, file cards with Attachment,
+- Compose conversation rows with ChatMessage, file cards with Attachment,
   and progress with Marker from `@drawloom/ui`. Use the shared scroll-fade and
   shimmer utilities only where they explain overflow or ongoing work. Keep real
   status text, keyboard access and reduced motion; do not replace approval forms,

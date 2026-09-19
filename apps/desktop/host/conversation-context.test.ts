@@ -28,6 +28,7 @@ test("conversation context is bounded, attributed cached text, not instructions 
             id: "entry",
             position: [0, 0] as const,
             role: "assistant" as const,
+            origin: { kind: "assistant" as const },
             text: "x".repeat(9000),
             state: "complete" as const,
             assets: [],

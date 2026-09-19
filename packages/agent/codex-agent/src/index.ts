@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nativeToolOutput } from "./native-tool-output.js";
 import { createReferenceDisplay, currentReferenceInput } from "./reference-display.js";
 import { readCodexModels, permitsModel } from "./models.js";
 export { readCodexModels, permitsModel } from "./models.js";
@@ -20,7 +21,7 @@ import {
 } from "@drawloom/agent";
 import type { JsonStore, RpcTransport, JsonValue } from "@drawloom/host";
 import type { ToolExposure, ToolGateway, ToolBinding } from "@drawloom/tools";
-import { ToolContentSchema, type ToolContent } from "@drawloom/tools";
+import type { ToolContent } from "@drawloom/tools";
 export type CodexDriverOptions = {
   /** Host-validated fixed project directory. Existing native continuity must match. */
   workingDirectory?: string;
@@ -582,24 +583,18 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                   result: item.result,
                 });
               }
-              if (
-                item.type === "mcpToolCall" &&
-                item.status === "completed" &&
-                captureToolContent
-              ) {
+              if (item.type === "mcpToolCall" && captureToolContent) {
                 const native = identifier.parse(item.id);
                 if (completedMessages.has(native)) return;
-                const result = record.safeParse(item.result);
-                const content = result.success
-                  ? ToolContentSchema.safeParse(result.data.content)
-                  : undefined;
-                if (!content?.success) return;
+                const result = nativeToolOutput(item);
+                if (!result) return;
                 completedMessages.add(native);
                 const pending = captureToolContent({
                   id: `${operationId}:${await messageId(native)}`,
                   operationId,
                   source: typeof item.server === "string" ? item.server.slice(0, 256) : "native",
-                  content: content.data,
+                  origin: result.origin,
+                  content: result.content,
                 }).then(
                   () => {},
                   () => {

@@ -1,5 +1,13 @@
 import { Database } from "bun:sqlite";
-import { chmodSync, existsSync, mkdirSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  writeFileSync,
+  fsyncSync,
+  closeSync,
+} from "node:fs";
 import { dirname } from "node:path";
 import { createHash } from "node:crypto";
 import {
@@ -7,6 +15,8 @@ import {
   HistoryChangeOptionsSchema,
   HistoryCommitInputSchema,
   HistoryEntrySchema,
+  HistoryOriginSchema,
+  type HistoryOrigin,
   HistoryPageOptionsSchema,
   HistorySearchOptionsSchema,
   HistoryAroundOptionsSchema,
@@ -21,14 +31,14 @@ import {
   type HistoryAroundResult,
 } from "@drawloom/conversation-history";
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 const DEFAULT_LIMIT = 50;
 const schema = {
   history_meta: "CREATE TABLE history_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
   history_conversations:
     "CREATE TABLE history_conversations (id TEXT PRIMARY KEY, revision INTEGER NOT NULL, sync TEXT NOT NULL, has_older INTEGER NOT NULL, message TEXT)",
   history_entries:
-    "CREATE TABLE history_entries (conversation_id TEXT NOT NULL, id TEXT NOT NULL, position_0 INTEGER NOT NULL, position_1 INTEGER NOT NULL, role TEXT NOT NULL, text TEXT NOT NULL, assets TEXT NOT NULL, operation_id TEXT, state TEXT NOT NULL, changed_sequence INTEGER NOT NULL, resources TEXT, selections TEXT, preparation TEXT, PRIMARY KEY (conversation_id, id))",
+    "CREATE TABLE history_entries (conversation_id TEXT NOT NULL, id TEXT NOT NULL, position_0 INTEGER NOT NULL, position_1 INTEGER NOT NULL, role TEXT NOT NULL, text TEXT NOT NULL, assets TEXT NOT NULL, operation_id TEXT, state TEXT NOT NULL, changed_sequence INTEGER NOT NULL, resources TEXT, selections TEXT, preparation TEXT, origin TEXT, PRIMARY KEY (conversation_id, id))",
   history_entries_position:
     "CREATE INDEX history_entries_position ON history_entries(conversation_id, position_0, position_1, id)",
   history_entries_changes:
@@ -41,6 +51,95 @@ const normalizeSql = (sql: string) =>
     .replace(/IF NOT EXISTS/gi, "")
     .replace(/\s+/g, "")
     .toLowerCase();
+
+/** Offline, one-time conversion. Call only after stopping the store's owner.
+ * The caller supplies provenance from retained producer evidence, never text heuristics.
+ * A failed conversion leaves the original schema intact and any completed backup retained.
+ */
+export function convertConversationHistory(
+  path: string,
+  backup: string,
+  provenance: readonly { conversationId: string; id: string; origin: HistoryOrigin }[],
+): { kind: "already_current" } | { kind: "converted"; entries: number; backup: string } {
+  const db = new Database(path, { strict: true, create: false });
+  try {
+    return db
+      .transaction(() => {
+        const version = (db.query("PRAGMA user_version").get() as { user_version: number })
+          .user_version;
+        if (version === SCHEMA_VERSION) return { kind: "already_current" as const };
+        if (![1, 2, 3, 4].includes(version))
+          throw new Error("Unsupported history conversion version");
+        for (const [name, expected] of Object.entries(schema)) {
+          let prior = expected.replace(", origin TEXT", "");
+          if (version < 4) prior = prior.replace(", preparation TEXT", "");
+          if (version === 1) prior = prior.replace(", resources TEXT, selections TEXT", "");
+          const found = db.query("SELECT sql FROM sqlite_master WHERE name=?").get(name) as {
+            sql: string;
+          } | null;
+          if (!found || normalizeSql(found.sql) !== normalizeSql(prior))
+            throw new Error("Invalid history conversion schema");
+        }
+        const rows = db.query("SELECT conversation_id,id,role FROM history_entries").all() as {
+          conversation_id: string;
+          id: string;
+          role: string;
+        }[];
+        const origins = new Map<string, HistoryOrigin>();
+        for (const item of provenance) {
+          const key = JSON.stringify([item.conversationId, item.id]);
+          if (origins.has(key)) throw new Error("Duplicate history provenance");
+          origins.set(key, HistoryOriginSchema.parse(item.origin));
+        }
+        if (
+          origins.size !== rows.length ||
+          rows.some((row) => {
+            const origin = origins.get(JSON.stringify([row.conversation_id, row.id]));
+            return !origin || (origin.kind === "user") !== (row.role === "user");
+          })
+        )
+          throw new Error(
+            "Complete matching history provenance is required; nothing was converted",
+          );
+
+        // Serialization includes WAL state. Exclusive creation prevents overwriting a backup.
+        const fd = openSync(backup, "wx", 0o600);
+        try {
+          const snapshot = db.serialize();
+          // SQLite's documented serialized-WAL conversion: the standalone copy
+          // has no WAL sidecars. Only the copy's journal-format bytes change.
+          // https://www.sqlite.org/c3ref/deserialize.html
+          snapshot[18] = 1;
+          snapshot[19] = 1;
+          writeFileSync(fd, snapshot);
+          fsyncSync(fd);
+        } finally {
+          closeSync(fd);
+        }
+        if (version === 1)
+          db.exec(
+            "ALTER TABLE history_entries ADD COLUMN resources TEXT; ALTER TABLE history_entries ADD COLUMN selections TEXT;",
+          );
+        if (version < 3)
+          db.exec(
+            "CREATE VIRTUAL TABLE history_entries_fts USING fts5(text, content='history_entries', content_rowid='rowid'); CREATE TRIGGER history_entries_fts_insert AFTER INSERT ON history_entries BEGIN INSERT INTO history_entries_fts(rowid,text) VALUES (new.rowid,new.text); END; CREATE TRIGGER history_entries_fts_delete AFTER DELETE ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); END; CREATE TRIGGER history_entries_fts_update AFTER UPDATE OF text ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); INSERT INTO history_entries_fts(rowid,text) VALUES(new.rowid,new.text); END; INSERT INTO history_entries_fts(history_entries_fts) VALUES('rebuild');",
+          );
+        if (version < 4) db.exec("ALTER TABLE history_entries ADD COLUMN preparation TEXT");
+        db.exec("ALTER TABLE history_entries ADD COLUMN origin TEXT");
+        for (const row of rows)
+          db.query("UPDATE history_entries SET origin=? WHERE conversation_id=? AND id=?").run(
+            JSON.stringify(origins.get(JSON.stringify([row.conversation_id, row.id]))),
+            row.conversation_id,
+            row.id,
+          );
+        db.exec(`PRAGMA user_version=${SCHEMA_VERSION}`);
+        return { kind: "converted" as const, entries: rows.length, backup };
+      })
+      .immediate();
+  } finally {
+    db.close();
+  }
+}
 type Cursor =
   | {
       generation: string;
@@ -63,6 +162,7 @@ type EntryRow = {
   position_0: number;
   position_1: number;
   role: "user" | "assistant";
+  origin: string;
   text: string;
   assets: string;
   resources: string | null;
@@ -175,6 +275,7 @@ function record(row: EntryRow): HistoryEntry {
       id: row.id,
       position: [row.position_0, row.position_1],
       role: row.role,
+      origin: JSON.parse(row.origin),
       text: row.text,
       assets: JSON.parse(row.assets),
       ...(row.resources ? { resources: JSON.parse(row.resources) } : {}),
@@ -209,10 +310,12 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
     const version = Number(
       (db.query("PRAGMA user_version").get() as { user_version: number } | null)?.user_version ?? 0,
     );
-    if (version > SCHEMA_VERSION)
+    if (version !== 0 && version !== SCHEMA_VERSION)
       throw new HistoryStoreError(
         "unsupported_version",
-        "Conversation history schema is newer than this provider supports",
+        version < SCHEMA_VERSION
+          ? "Conversation history requires an explicit provenance conversion before opening"
+          : "Conversation history schema is newer than this provider supports",
       );
     if (version >= 1 && version <= SCHEMA_VERSION) {
       // Validate before any PRAGMA that changes disk or any initialization DDL.
@@ -220,10 +323,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
         const row = db.query("SELECT sql FROM sqlite_master WHERE name=?").get(name) as {
           sql: string;
         } | null;
-        const prior = version < 4 ? expected.replace(", preparation TEXT", "") : expected;
-        const versioned =
-          version === 1 ? prior.replace(", resources TEXT, selections TEXT", "") : prior;
-        if (!row || normalizeSql(row.sql) !== normalizeSql(versioned))
+        if (!row || normalizeSql(row.sql) !== normalizeSql(expected))
           throw Error("Invalid history schema");
       }
       const meta = db
@@ -269,25 +369,6 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
         db.exec(
           "CREATE VIRTUAL TABLE history_entries_fts USING fts5(text, content='history_entries', content_rowid='rowid'); CREATE TRIGGER history_entries_fts_insert AFTER INSERT ON history_entries BEGIN INSERT INTO history_entries_fts(rowid,text) VALUES (new.rowid,new.text); END; CREATE TRIGGER history_entries_fts_delete AFTER DELETE ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); END; CREATE TRIGGER history_entries_fts_update AFTER UPDATE OF text ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); INSERT INTO history_entries_fts(rowid,text) VALUES(new.rowid,new.text); END;",
         );
-        db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
-      })();
-    if (version === 1)
-      db.transaction(() => {
-        db.exec(
-          "ALTER TABLE history_entries ADD COLUMN resources TEXT; ALTER TABLE history_entries ADD COLUMN selections TEXT;",
-        );
-        db.exec("PRAGMA user_version = 2");
-      })();
-    if (version <= 2 && version !== 0)
-      db.transaction(() => {
-        db.exec(
-          "CREATE VIRTUAL TABLE history_entries_fts USING fts5(text, content='history_entries', content_rowid='rowid'); CREATE TRIGGER history_entries_fts_insert AFTER INSERT ON history_entries BEGIN INSERT INTO history_entries_fts(rowid,text) VALUES (new.rowid,new.text); END; CREATE TRIGGER history_entries_fts_delete AFTER DELETE ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); END; CREATE TRIGGER history_entries_fts_update AFTER UPDATE OF text ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); INSERT INTO history_entries_fts(rowid,text) VALUES(new.rowid,new.text); END; INSERT INTO history_entries_fts(history_entries_fts) VALUES('rebuild');",
-        );
-        db.exec("PRAGMA user_version = 3");
-      })();
-    if (version > 0 && version < 4)
-      db.transaction(() => {
-        db.exec("ALTER TABLE history_entries ADD COLUMN preparation TEXT");
         db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
       })();
     chmodSync(path, 0o600);
@@ -651,12 +732,14 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
                 "An existing history entry position cannot change",
               );
             const assets = JSON.stringify(value.assets);
+            const origin = JSON.stringify(value.origin);
             const resources = value.resources ? JSON.stringify(value.resources) : null;
             const selections = value.selections ? JSON.stringify(value.selections) : null;
             const preparation = value.preparation ? JSON.stringify(value.preparation) : null;
             if (
               existing &&
               existing.role === value.role &&
+              existing.origin === origin &&
               existing.text === value.text &&
               existing.assets === assets &&
               existing.resources === resources &&
@@ -670,8 +753,8 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
             if (!Number.isSafeInteger(sequence))
               throw new HistoryStoreError("unavailable", "History change position is exhausted");
             changed = true;
-            db.query(`INSERT INTO history_entries(conversation_id,id,position_0,position_1,role,text,assets,operation_id,state,changed_sequence,resources,selections,preparation)
-              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(conversation_id,id) DO UPDATE SET role=excluded.role,text=excluded.text,assets=excluded.assets,operation_id=excluded.operation_id,state=excluded.state,changed_sequence=excluded.changed_sequence,resources=excluded.resources,selections=excluded.selections,preparation=excluded.preparation`).run(
+            db.query(`INSERT INTO history_entries(conversation_id,id,position_0,position_1,role,text,assets,operation_id,state,changed_sequence,resources,selections,preparation,origin)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(conversation_id,id) DO UPDATE SET role=excluded.role,text=excluded.text,assets=excluded.assets,operation_id=excluded.operation_id,state=excluded.state,changed_sequence=excluded.changed_sequence,resources=excluded.resources,selections=excluded.selections,preparation=excluded.preparation,origin=excluded.origin`).run(
               conversationId,
               value.id,
               value.position[0],
@@ -685,6 +768,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
               resources,
               selections,
               preparation,
+              origin,
             );
           }
           for (const checkpoint of parsed.checkpoints ?? []) {

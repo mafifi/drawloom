@@ -4,6 +4,7 @@ const entry = (i: number) => ({
   id: String(i),
   position: [i, 0],
   role: "assistant",
+  origin: { kind: "assistant" },
   text: String(i),
   assets: [],
   state: "complete",

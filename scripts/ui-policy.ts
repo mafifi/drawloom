@@ -64,8 +64,8 @@ const roleReplacements: Readonly<Record<string, string>> = {
 };
 const conversationSlots: Readonly<Record<string, string>> = {
   attachment: "Attachment",
-  message: "Message",
-  bubble: "Bubble",
+  message: "ChatMessage",
+  bubble: "ChatMessage",
   marker: "Marker",
 };
 
@@ -109,7 +109,40 @@ export async function scanUiPolicy(
   }
   await scan("apps");
   await scan("packages");
+  try {
+    const semantics = await readFile(join(root, "packages/ui/ui/src/theme/semantic.css"), "utf8");
+    const styles = await readFile(join(root, "packages/ui/ui/src/styles.css"), "utf8");
+    result.issues.push(...checkSemanticMappings(semantics, styles));
+  } catch (error) {
+    if (record(error)?.code !== "ENOENT") throw error;
+  }
   return result;
+}
+
+/** The shared theme deliberately has one root map and one system-dark map. */
+export function checkSemanticMappings(semantics: string, styles: string): UiPolicyIssue[] {
+  const clean = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, "");
+  const [light = "", dark = ""] = clean(semantics).split(
+    /@media\s*\(prefers-color-scheme:\s*dark\)/,
+  );
+  const declarations = (source: string) =>
+    new Set([...source.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1]));
+  const lightNames = declarations(light),
+    darkNames = declarations(dark);
+  return [
+    ...new Set(
+      [...clean(styles).matchAll(/--color-[\w-]+\s*:\s*var\((--[\w-]+)\)/g)].map(
+        (match) => match[1]!,
+      ),
+    ),
+  ]
+    .filter((name) => !lightNames.has(name) || !darkNames.has(name))
+    .map((name) => ({
+      path: "packages/ui/ui/src/theme/semantic.css",
+      line: 1,
+      kind: "theme-token" as const,
+      message: `${name} needs an explicit light and dark semantic mapping.`,
+    }));
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {
@@ -296,9 +329,9 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
 
 /** Narrow static guidance, not a CSS evaluator or a ban on authored media colours. */
 function checkThemeSource(path: string, source: string): UiPolicyIssue[] {
-  if (!/\.(svelte|css)$/.test(path) || path === "packages/ui/ui/src/theme/primitives.css")
-    return [];
+  if (!/\.(svelte|css)$/.test(path)) return [];
   const shared = path.startsWith("packages/ui/ui/src/");
+  const primitives = path === "packages/ui/ui/src/theme/primitives.css";
   const semantics = path === "packages/ui/ui/src/theme/semantic.css";
   const issues: UiPolicyIssue[] = [];
   const css = path.endsWith(".css");
@@ -318,35 +351,78 @@ function checkThemeSource(path: string, source: string): UiPolicyIssue[] {
       : [];
   }
   function check(value: string, start: unknown, property?: string): void {
-    const rawColour =
-      /#[\da-f]{3,8}\b/i.test(value) ||
-      (/\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color)\(/i.test(value) &&
-        !value.includes("var("));
+    const retiredComposition =
+      /\b(?:settings-section|workbench-setting-row|workbench-setting-controls|consent-facts|model-facts)\b/.test(
+        value,
+      );
+    const rawColour = primitives
+      ? /#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklab|lab|lch|color)\(/i.test(value)
+      : /#[\da-f]{3,8}\b/i.test(value) ||
+        (/\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color|color-mix)\(/i.test(value) &&
+          !(semantics && value.includes("var(")));
     const palette =
       /(?:^|[\s:])(?:bg|text|border|ring|fill|stroke|shadow|outline|decoration)-(?:white|black|(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3})(?:\b|\/)/.test(
         value,
       );
-    const primitiveBypass = !semantics && /(?:var\(|\()[\s]*--dl-/.test(value);
+    const primitiveBypass = !semantics && !primitives && /(?:var\(|\()[\s]*--dl-/.test(value);
+    const localColourOpacity =
+      /(?:^|[\s:])(?:bg|text|border|ring|fill|stroke|shadow|outline|decoration|from|via|to)-[a-z-]+\/\d+/.test(
+        value,
+      );
     const arbitraryType =
       !shared &&
       (/\b(?:text|leading|tracking)-\[[-.\d]/.test(value) ||
         (property !== undefined &&
           /^(font-size|font-family|font-weight|line-height|letter-spacing)$/.test(property) &&
           !/var\(|^(inherit|initial|unset|normal)$/.test(value)));
-    if (!rawColour && !palette && !primitiveBypass && !arbitraryType) return;
+    const arbitraryLayout =
+      /\[[^\]]*\d(?:px|rem|pt|em)[^\]]*\]/.test(value) ||
+      (!shared &&
+        (/(?:^|[\s:])(?:p[xysetbrl]?|m[xysetbrl]?|gap(?:-[xy])?|space-[xy]|w|h|min-w|max-w|min-h|max-h|size|inset(?:-[xy])?|top|left|right|bottom|rounded(?:-[\w]+)?)-\[/.test(
+          value,
+        ) ||
+          (property !== undefined &&
+            /^(?:(?:min-|max-)?(?:width|height)|padding(?:-[\w]+)?|margin(?:-[\w]+)?|gap|row-gap|column-gap|inset(?:-[\w]+)?|top|right|bottom|left|border-radius)$/.test(
+              property,
+            ) &&
+            /(?:\d|\.)+(?:px|rem|em|pt)\b/.test(value))));
+    if (
+      !rawColour &&
+      !palette &&
+      !primitiveBypass &&
+      !arbitraryType &&
+      !arbitraryLayout &&
+      !localColourOpacity &&
+      !retiredComposition
+    )
+      return;
     const offset = Math.max(0, (typeof start === "number" ? start : 0) - (css ? 7 : 0));
     issues.push({
       path,
       line: source.slice(0, offset).split("\n").length,
       kind: "theme-token",
-      message:
-        "Use semantic theme tokens or shared typography (for example bg-background, text-primary, text-body). Define raw values in packages/ui/ui/src/theme/primitives.css and map their purpose in theme/semantic.css; Views compose the system, not a local palette or type scale.",
+      message: retiredComposition
+        ? "Use shared settings-group, settings-row, settings-controls or facts-list compositions instead of retired local layouts."
+        : "Use semantic theme tokens and shared compositions (for example bg-background, text-body, gap-stack). Define raw values in packages/ui/ui/src/theme/primitives.css and map their purpose in theme/semantic.css; Views compose the system, not a local palette, layout or type scale.",
     });
   }
   visit(ast.css, (node) => {
     if (node.type === "Declaration" && typeof node.value === "string")
       check(node.value, node.start, String(node.property));
   });
+  // Variant maps hold presentation classes in scripts, not template attributes.
+  // Only inspect class-shaped values; ordinary user content remains content.
+  for (const script of [ast.instance, ast.module])
+    visit(script, (node) => {
+      if (
+        node.type === "Literal" &&
+        typeof node.value === "string" &&
+        /(?:(?:bg|text|border|ring|fill|stroke|shadow|outline|decoration|from|via|to|p[xysetbrl]?|m[xysetbrl]?|gap|w|h|size)-\[|(?:bg|text|border|ring|fill|stroke|shadow|outline|decoration|from|via|to)-[a-z-]+\/\d+)/.test(
+          node.value,
+        )
+      )
+        check(node.value, node.start);
+    });
   if (!css)
     visit(ast, (node) => {
       if (node.type === "Attribute" && ["class", "style"].includes(String(node.name)))
@@ -358,12 +434,7 @@ function checkThemeSource(path: string, source: string): UiPolicyIssue[] {
             if (node.name === "style")
               for (const declaration of value.split(";")) {
                 const colon = declaration.indexOf(":");
-                if (
-                  colon >= 0 &&
-                  /^(font-size|font-family|font-weight|line-height|letter-spacing)$/.test(
-                    declaration.slice(0, colon).trim(),
-                  )
-                )
+                if (colon >= 0)
                   check(
                     declaration.slice(colon + 1).trim(),
                     part.start,

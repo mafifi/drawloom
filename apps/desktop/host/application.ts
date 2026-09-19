@@ -887,8 +887,7 @@ export async function createDesktopApplication(
               },
               onToolContent: async (result) => {
                 // Our gateway already captured its correlated execution result.
-                if (result.source === "drawloom" || !result.content.some((c) => c.type !== "text"))
-                  return;
+                if (result.source === "drawloom") return;
                 try {
                   return await resourceCollector(conversationId).capture({
                     ...result,
@@ -2326,6 +2325,7 @@ export async function createDesktopApplication(
               await writer(conversation.id).write({
                 id: crypto.randomUUID(),
                 role: "user",
+                origin: { kind: "user" },
                 text: command.text,
                 assets: attachments,
                 operationId: op,

@@ -55,6 +55,7 @@ export function createHistoryCoordinator(store: ConversationHistoryStore, conver
                 ? { operationId: previous.operationId }
                 : {}),
               text: assetOnly && previous ? previous.text : content.text,
+              origin: assetOnly && previous ? previous.origin : content.origin,
               assets: mergeAssets(previous?.assets ?? [], content.assets),
               state: assetOnly && previous ? previous.state : content.state,
               position: previous?.position ?? [++rank, 0],
@@ -98,6 +99,7 @@ export function createHistoryCoordinator(store: ConversationHistoryStore, conver
               id,
               operationId,
               role: "assistant",
+              origin: { kind: "delivery", source: "agent" },
               text: "Image result",
               assets: [asset],
               state: "complete",

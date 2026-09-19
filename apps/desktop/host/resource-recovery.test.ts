@@ -8,6 +8,28 @@ import { createTestDesktopApplication as createDesktopApplication } from "./test
 import { createDesktopEvidence } from "./evidence.js";
 import { createNodeJsonStore } from "@drawloom/node-host";
 
+test("text-only and denied results retain presentation provenance too", async () => {
+  const captured: string[] = [];
+  await createResourceRecovery(
+    [
+      {
+        invocationId: "text",
+        evidence: "recorded",
+        outcome: { status: "ok", value: {}, text: "Read complete" },
+      },
+      {
+        invocationId: "denied",
+        evidence: "recorded",
+        outcome: { status: "failed", code: "denied", execution: "not_started" },
+      },
+    ],
+    async (result) => {
+      captured.push(result.invocationId);
+    },
+  ).recover();
+  expect(captured).toEqual(["text", "denied"]);
+});
+
 test("failed display capture retries retained evidence, not execution, and restart keeps the same identity", async () => {
   const result: ToolResult = {
     invocationId: "one",

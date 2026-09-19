@@ -93,7 +93,7 @@
 
   {#if presentation.error}<Alert.Root variant="destructive"><Alert.Title>Evaluation action needs attention</Alert.Title><Alert.Description>{presentation.error}</Alert.Description></Alert.Root>{/if}
 
-  <div class="grid min-w-0 gap-6 lg:grid-cols-[minmax(12rem,0.7fr)_minmax(0,1.3fr)]">
+  <div class="grid min-w-0 gap-6 lg:grid-cols-[minmax(var(--measure-control),0.7fr)_minmax(0,1.3fr)]">
     <div class="flex min-w-0 flex-col gap-6">
       <section class="flex flex-col gap-3" aria-labelledby="evaluation-definitions-heading">
         <header class="flex items-center justify-between gap-2"><h3 id="evaluation-definitions-heading" class="text-heading">{presentation.copy.definitionsHeading}</h3><Button variant="ghost" size="sm" disabled={presentation.definitionsLoading} onclick={() => actions.latestDefinitions()}>Refresh setup</Button></header>

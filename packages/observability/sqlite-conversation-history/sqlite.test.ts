@@ -4,7 +4,36 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync }
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { HistoryStoreError } from "@drawloom/conversation-history";
-import { createSqliteConversationHistory } from "./src/index.js";
+import * as historyProvider from "./src/index.js";
+const { createSqliteConversationHistory } = historyProvider;
+
+test("provenance conversion is explicit, complete, backed up and idempotent", async () => {
+  const file = path();
+  const store = createSqliteConversationHistory(file);
+  await store.commit("conversation", { expectedRevision: 0, entries: [entry()] });
+  await store.close();
+  const old = new Database(file);
+  old.exec("ALTER TABLE history_entries DROP COLUMN origin; PRAGMA user_version=4;");
+  old.close();
+  expect(() => createSqliteConversationHistory(file)).toThrow("explicit provenance conversion");
+  expect(historyProvider.convertConversationHistory).toBeFunction();
+  const backup = file + ".backup";
+  expect(() => historyProvider.convertConversationHistory(file, backup, [])).toThrow("provenance");
+  expect(
+    historyProvider.convertConversationHistory(file, backup, [
+      { conversationId: "conversation", id: "one", origin: { kind: "user" } },
+    ]),
+  ).toEqual({ kind: "converted", entries: 1, backup });
+  const saved = new Database(backup, { readonly: true });
+  expect(saved.query("PRAGMA user_version").get()).toEqual({ user_version: 4 });
+  saved.close();
+  expect(historyProvider.convertConversationHistory(file, backup, [])).toEqual({
+    kind: "already_current",
+  });
+  const reopened = createSqliteConversationHistory(file);
+  expect(await reopened.get("conversation", "one")).toMatchObject(entry());
+  await reopened.close();
+});
 
 const directories: string[] = [];
 function path() {
@@ -17,6 +46,7 @@ function entry(id = "one") {
     id,
     position: [-1, 0] as const,
     role: "user" as const,
+    origin: { kind: "user" as const },
     text: "hello",
     assets: [],
     state: "complete" as const,
@@ -39,9 +69,12 @@ test("version one migrates additively with records, checkpoints and cursors unch
   await store.close();
   const old = new Database(file);
   old.exec(
-    "DROP TRIGGER history_entries_fts_insert; DROP TRIGGER history_entries_fts_delete; DROP TRIGGER history_entries_fts_update; DROP TABLE history_entries_fts; ALTER TABLE history_entries DROP COLUMN resources; ALTER TABLE history_entries DROP COLUMN selections; ALTER TABLE history_entries DROP COLUMN preparation; PRAGMA user_version=1;",
+    "DROP TRIGGER history_entries_fts_insert; DROP TRIGGER history_entries_fts_delete; DROP TRIGGER history_entries_fts_update; DROP TABLE history_entries_fts; ALTER TABLE history_entries DROP COLUMN resources; ALTER TABLE history_entries DROP COLUMN selections; ALTER TABLE history_entries DROP COLUMN preparation; ALTER TABLE history_entries DROP COLUMN origin; PRAGMA user_version=1;",
   );
   old.close();
+  historyProvider.convertConversationHistory(file, file + ".backup", [
+    { conversationId: "conversation", id: "one", origin: { kind: "user" } },
+  ]);
   store = createSqliteConversationHistory(file);
   try {
     expect((await store.get("conversation", "one"))?.text).toBe("hello");
@@ -69,6 +102,7 @@ test("version two migration backfills full-text search without changing stored r
         id: "kept",
         position: [0, 0],
         role: "assistant",
+        origin: { kind: "assistant" as const },
         text: "Synthetic migration lighthouse",
         assets: [],
         state: "complete",
@@ -78,9 +112,12 @@ test("version two migration backfills full-text search without changing stored r
   await store.close();
   const old = new Database(file);
   old.exec(
-    "DROP TRIGGER history_entries_fts_insert; DROP TRIGGER history_entries_fts_delete; DROP TRIGGER history_entries_fts_update; DROP TABLE history_entries_fts; ALTER TABLE history_entries DROP COLUMN preparation; PRAGMA user_version=2;",
+    "DROP TRIGGER history_entries_fts_insert; DROP TRIGGER history_entries_fts_delete; DROP TRIGGER history_entries_fts_update; DROP TABLE history_entries_fts; ALTER TABLE history_entries DROP COLUMN preparation; ALTER TABLE history_entries DROP COLUMN origin; PRAGMA user_version=2;",
   );
   old.close();
+  historyProvider.convertConversationHistory(file, file + ".backup", [
+    { conversationId: "old", id: "kept", origin: { kind: "assistant" } },
+  ]);
   store = createSqliteConversationHistory(file);
   expect((await store.search({ query: "lighthouse" })).items).toEqual([
     expect.objectContaining({ conversationId: "old", entryId: "kept" }),
@@ -95,8 +132,13 @@ test("version three preserves originals and stores preparation references across
   await store.commit("conversation", { expectedRevision: 0, entries: [entry()] });
   await store.close();
   const old = new Database(file);
-  old.exec("ALTER TABLE history_entries DROP COLUMN preparation; PRAGMA user_version=3;");
+  old.exec(
+    "ALTER TABLE history_entries DROP COLUMN preparation; ALTER TABLE history_entries DROP COLUMN origin; PRAGMA user_version=3;",
+  );
   old.close();
+  historyProvider.convertConversationHistory(file, file + ".backup", [
+    { conversationId: "conversation", id: "one", origin: { kind: "user" } },
+  ]);
   store = createSqliteConversationHistory(file);
   const preparation = {
     kind: "ready" as const,
@@ -123,7 +165,7 @@ test("version three preserves originals and stores preparation references across
 });
 
 test.each([1, 2])(
-  "interrupted migration from version %s retains a resumable v3 boundary",
+  "interrupted migration from version %s rolls back atomically and retains a usable backup",
   async (version) => {
     const file = path();
     let store = createSqliteConversationHistory(file);
@@ -136,7 +178,7 @@ test.each([1, 2])(
     await store.close();
     const old = new Database(file);
     old.exec(
-      "DROP TRIGGER history_entries_fts_insert; DROP TRIGGER history_entries_fts_delete; DROP TRIGGER history_entries_fts_update; DROP TABLE history_entries_fts; ALTER TABLE history_entries DROP COLUMN preparation;",
+      "DROP TRIGGER history_entries_fts_insert; DROP TRIGGER history_entries_fts_delete; DROP TRIGGER history_entries_fts_update; DROP TABLE history_entries_fts; ALTER TABLE history_entries DROP COLUMN preparation; ALTER TABLE history_entries DROP COLUMN origin;",
     );
     if (version === 1)
       old.exec(
@@ -154,14 +196,21 @@ test.each([1, 2])(
       return original.call(this, sql);
     });
     try {
-      expect(() => createSqliteConversationHistory(file)).toThrow();
+      expect(() =>
+        historyProvider.convertConversationHistory(file, file + ".failed-backup", [
+          { conversationId: "conversation", id: "one", origin: { kind: "user" } },
+        ]),
+      ).toThrow();
     } finally {
       failure.mockRestore();
     }
     const interrupted = new Database(file);
     const boundary = interrupted.query("PRAGMA user_version").get();
     interrupted.close();
-    expect(boundary).toEqual({ user_version: 3 });
+    expect(boundary).toEqual({ user_version: version });
+    historyProvider.convertConversationHistory(file, file + ".backup", [
+      { conversationId: "conversation", id: "one", origin: { kind: "user" } },
+    ]);
     store = createSqliteConversationHistory(file);
     try {
       expect((await store.get("conversation", "one"))?.text).toBe("hello");

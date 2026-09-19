@@ -84,11 +84,26 @@ test("coalesced partial messages flush at completion and retain stable positions
   const store = createSqliteConversationHistory(join(root, "history.sqlite"));
   try {
     const writer = createHistoryCoordinator(store, "conversation");
-    await writer.write({ id: "one", role: "assistant", text: "a", assets: [], state: "partial" });
-    await writer.write({ id: "one", role: "assistant", text: "ab", assets: [], state: "partial" });
     await writer.write({
       id: "one",
       role: "assistant",
+      origin: { kind: "assistant" },
+      text: "a",
+      assets: [],
+      state: "partial",
+    });
+    await writer.write({
+      id: "one",
+      role: "assistant",
+      origin: { kind: "assistant" },
+      text: "ab",
+      assets: [],
+      state: "partial",
+    });
+    await writer.write({
+      id: "one",
+      role: "assistant",
+      origin: { kind: "assistant" },
       text: "abc",
       assets: [],
       state: "complete",
@@ -120,6 +135,7 @@ test("storage failure stays a history error, never invokes execution or advances
     await writer.write({
       id: "one",
       role: "assistant",
+      origin: { kind: "assistant" },
       text: "provider success",
       assets: [],
       state: "complete",
@@ -152,6 +168,7 @@ test("an unrelated successful write does not hide an earlier unsaved message", a
     await writer.write({
       id: "lost",
       role: "assistant",
+      origin: { kind: "assistant" },
       text: "unsaved",
       assets: [],
       state: "complete",
@@ -160,6 +177,7 @@ test("an unrelated successful write does not hide an earlier unsaved message", a
     await writer.write({
       id: "later",
       role: "assistant",
+      origin: { kind: "assistant" },
       text: "saved",
       assets: [],
       state: "complete",
@@ -183,6 +201,7 @@ test("text and artifact delivery merge in either order", async () => {
       writer.write({
         id,
         role: "assistant",
+        origin: { kind: "assistant" },
         text: "Useful caption",
         assets: [],
         state: "complete",

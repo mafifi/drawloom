@@ -92,4 +92,4 @@
 </script>
 
 {#if failed}<Alert.Root variant="destructive"><Alert.Description>The view navigated away and was disconnected. Reopen it to inspect current state.</Alert.Description></Alert.Root>{/if}
-<iframe bind:this={frame} out:teardown|global title={view.title} sandbox="allow-scripts" referrerpolicy="no-referrer" class="min-h-[32rem] w-full border-0" hidden={failed}></iframe>
+<iframe bind:this={frame} out:teardown|global title={view.title} sandbox="allow-scripts" referrerpolicy="no-referrer" class="hosted-view-frame" hidden={failed}></iframe>

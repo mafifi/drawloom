@@ -9,7 +9,7 @@
     Collapsible,
     Field,
     Input,
-    InputGroup,
+    PromptInput,
     StatefulButton,
     DropdownMenu,
     ShieldIcon,
@@ -71,13 +71,12 @@
   >
     <Collapsible.Root bind:open={vm.contextOpen}>
       <Field.Label for="message-draft" class="sr-only">Message</Field.Label>
-      <InputGroup.Root variant="filled" class="relative" bind:ref={anchor}>
-          <InputGroup.Textarea
+      <PromptInput.Root value={vm.draft} onValueChange={value => vm.draft = value} disabled={!vm.canExecute} class="relative bg-muted border-transparent" bind:ref={anchor}>
+          <PromptInput.Textarea
             id="message-draft"
             class="min-h-20 max-h-60 px-3 pt-3 scroll-fade scroll-fade-2"
             placeholder="Ask or make a change…"
             disabled={!vm.canExecute}
-            bind:value={vm.draft}
             bind:ref={messageInput}
             role="combobox"
             aria-autocomplete="list"
@@ -127,7 +126,7 @@
         {#each vm.selectedResources as resource}<Button variant="secondary" size="sm" aria-label={`Remove ${resource.title}`} onclick={() => vm.removeResource(resource.entryId, resource.resourceId)}>{resource.title} · {resource.source}<CloseIcon aria-hidden="true" /></Button>{/each}
       </div>
       {#if vm.state?.activeContext}<Collapsible.Root class="w-full px-3"><Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost" size="sm">Current app context</Button>{/snippet}</Collapsible.Trigger><Collapsible.Content><p class="whitespace-pre-wrap break-words text-sm text-muted-foreground">{vm.state.activeContext}</p></Collapsible.Content></Collapsible.Root>{/if}
-      <InputGroup.Addon align="block-end" class="composer-toolbar gap-1 flex-nowrap">
+      <PromptInput.Actions class="composer-toolbar gap-1">
         <Input
           class="hidden"
           aria-label="Choose attachments"
@@ -162,7 +161,7 @@
               </StatefulButton>
             {/snippet}
           </DropdownMenu.Trigger>
-          <DropdownMenu.Content side="top" align="end" sideOffset={8} class="w-96 max-w-[calc(100vw-2rem)] rounded-xl p-2">
+          <DropdownMenu.Content side="top" align="end" sideOffset={8} class="w-96 viewport-menu rounded-xl p-2">
             <DropdownMenu.Label class="px-2 py-2 font-normal text-muted-foreground">How should actions be reviewed?</DropdownMenu.Label>
             <DropdownMenu.RadioGroup value={vm.conversation?.reviewer ?? 'human'} onValueChange={(reviewer) => {
               if (vm.conversation && (reviewer === 'human' || reviewer === 'delegated'))
@@ -217,8 +216,8 @@
             Boolean(vm.state?.activeOperation && !vm.state.controls.steer)}
           ><ArrowIcon aria-hidden="true" /></StatefulButton
         >
-      </InputGroup.Addon>
-      </InputGroup.Root>
+      </PromptInput.Actions>
+      </PromptInput.Root>
     </Collapsible.Root>
   </form>
   <p class="composer-note text-muted-foreground">

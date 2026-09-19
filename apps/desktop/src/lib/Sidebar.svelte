@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Avatar, UserIcon, Sidebar, Collapsible, ChevronRightIcon, StatefulButton, Button, DropdownMenu, Dialog, Input, Field, toast } from '@drawloom/ui';
+  import { Sidebar, Collapsible, ChevronRightIcon, StatefulButton, Button, DropdownMenu, Dialog, Input, Field, toast } from '@drawloom/ui';
   import { ActivityIcon, KnowledgeIcon, CloseIcon, PlusIcon, FolderIcon, FolderOpenIcon, SearchIcon, DocumentIcon, PlugIcon, SettingsIcon, MoreIcon, RenameIcon, ArchiveIcon } from "@drawloom/ui";
   import { settingsSections } from './settings-navigation.js';
   import ConversationNavItem from './ConversationNavItem.svelte';
@@ -73,7 +73,7 @@
                   {#snippet child({ props })}
                     <Sidebar.MenuButton {...props} class="min-w-0 flex-1 justify-start" title={project.directory} aria-label={'Toggle conversations in ' + project.name}>
                       {#if collapsedProjects[project.id]}<FolderIcon aria-hidden="true" />{:else}<FolderOpenIcon aria-hidden="true" />{/if}
-                      <span class="max-w-[calc(100%-3rem)] truncate">{project.name}{project.available ? '' : ' · unavailable'}</span>
+                      <span class="min-w-0 flex-1 truncate">{project.name}{project.available ? '' : ' · unavailable'}</span>
                       <ChevronRightIcon class="sidebar-reveal size-3.5 shrink-0 transition-transform [[data-state=open]_&]:rotate-90 motion-reduce:transition-none" aria-hidden="true" />
                     </Sidebar.MenuButton>
                   {/snippet}
@@ -133,9 +133,9 @@
     {#if vm.error}<li class="px-2 text-sm text-destructive" role="alert">{vm.error}</li>{/if}
     <Sidebar.MenuItem>
       <DropdownMenu.Root>
-        <DropdownMenu.Trigger>{#snippet child({ props })}<Sidebar.MenuButton {...props} class="h-11" aria-label="Local profile menu"><Avatar.Root class="size-7"><Avatar.Fallback><UserIcon class="size-4" aria-hidden="true" /></Avatar.Fallback></Avatar.Root><span>Local profile</span></Sidebar.MenuButton>{/snippet}</DropdownMenu.Trigger>
+        <DropdownMenu.Trigger>{#snippet child({ props })}<Sidebar.MenuButton {...props} class="h-11" aria-label="Settings and more"><SettingsIcon aria-hidden="true" /><span>Settings &amp; more</span></Sidebar.MenuButton>{/snippet}</DropdownMenu.Trigger>
         <DropdownMenu.Content side="top" align="start" class="w-56">
-          <DropdownMenu.Label>Local profile</DropdownMenu.Label>
+          <DropdownMenu.Label>Settings &amp; more</DropdownMenu.Label>
           <DropdownMenu.Item onclick={() => showPane('archived')}><ArchiveIcon aria-hidden="true" />Archived conversations</DropdownMenu.Item>
           <DropdownMenu.Separator />
           <DropdownMenu.Item onclick={() => showPane('settings')}><SettingsIcon aria-hidden="true" />Settings</DropdownMenu.Item>

@@ -102,6 +102,7 @@ test("desktop real stdio captures a supported image above 4 MiB before completio
         await writer.write({
           id: event.operationId + ":" + event.messageId,
           role: "assistant",
+          origin: { kind: "assistant" },
           text: "Image result",
           assets: [event.asset],
           operationId: event.operationId,

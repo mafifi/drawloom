@@ -51,6 +51,7 @@ try {
     expectedRevision: 0,
     entries: [{
       id: 'message-1', position: [0, 0], role: 'user',
+      origin: {kind: 'user'},
       text: 'A synthetic message', state: 'complete', assets: [],
     }],
   });
@@ -64,7 +65,7 @@ try {
 ### Understand records and cursors
 
 Each record has a stable ID, a fixed two-integer chronological position, a
-user/assistant role, text, completion state and optional operation and asset
+user/assistant role, explicit origin, text, completion state and optional operation and asset
 references. It contains neither asset bytes nor hidden reasoning or raw provider
 messages. Equal positions sort by ID. Editing text does not move the record;
 importing older history can add records before it.
@@ -108,8 +109,39 @@ provider methods and invalid provider cursors.
 `createSqliteConversationHistory(databasePath)` uses Bun's SQLite API.
 The interface is portable, but this implementation is not supported under Node.
 
-The current database is schema version 3. Versions 1 and 2 migrate in a
-transaction; unknown or damaged schemas are rejected, not replaced.
+The current database is schema version 5. Earlier stores require an explicit,
+backed-up conversion; normal startup rejects them rather than guessing origin.
+Unknown or damaged schemas are rejected, not replaced.
+
+### Captured meaning and one-time conversion
+
+`origin` distinguishes user text, assistant prose, delivered media, inspected
+references and tool results. A tool origin includes its source, stable call ID,
+display title, its own outcome and declared text/JSON format. Native and live
+capture share the same parser. JSON-looking assistant prose remains prose;
+turn completion does not imply tool success. The desktop projects adjacent
+process records without moving the answers between them.
+
+Stop the owning desktop before conversion. Resolve every existing entry against
+retained native item identities or execution receipts, and create a JSON array
+of `{conversationId, id, origin}` records. Do not classify by wording, JSON shape
+or filenames. Then run:
+
+```sh
+bun scripts/convert-history.ts /path/history.sqlite /path/history-before-v5.sqlite /path/verified-provenance.json
+```
+
+The converter validates complete, unique coverage and speaker consistency before
+writing an exclusive new backup. It converts schema and origins atomically;
+repeating it against v5 is a no-op. Missing provenance fails without resetting
+anything. The backup is a standalone SQLite snapshot, including committed WAL
+content. Keep it until the converted installation has been reviewed. A rollback
+requires stopping the desktop and restoring both the previous software and its
+matching backup—not opening a v5 store with an old reader.
+
+If retained evidence cannot establish an origin, report the affected conversation
+and request a targeted reset before deleting anything. Project bindings and
+working files, including scripts and recordings, are outside this conversion.
 Full synchronous commits and SQLite's write-ahead log protect writes.
 Revision checks prevent one writer from silently overwriting another's update.
 Private checkpoints track import progress.

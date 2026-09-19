@@ -1,7 +1,10 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
   import ConversationRail from './ConversationRail.svelte';
-  import { ConversationScroll, conversationTurns } from './conversation-scroll.js';
+  import { messageFile } from './message-file.js';
+  import { structuredMessage } from './message-presentation.js';
+  import { projectConversation } from './conversation-presentation.js';
+  import { ConversationScroll, conversationTurns, conversationScrollGeometry } from './conversation-scroll.js';
   import {
     Alert,
     Badge,
@@ -14,10 +17,14 @@
     Textarea,
     Sidebar,
     Select,
-    Message,
-    Bubble,
+    ChatMessage,
+    ChatContainer,
+    SystemMessage,
+    PromptSuggestion,
     Marker,
     Spinner,
+    Markdown,
+    Tool,
   } from "@drawloom/ui";
   import { PanelIcon, DocumentIcon } from "@drawloom/ui";
   import Composer from "./Composer.svelte";
@@ -27,30 +34,33 @@
   import ResourceCard from './ResourceCard.svelte';
   import ElicitationForm from './ElicitationForm.svelte';
   import ApprovalView from './ApprovalView.svelte';
-  import { groupToolActivity } from './tool-outcome.js';
+  import { groupToolActivity, toolActivityTitle } from './tool-outcome.js';
   import ToolActivity from './ToolActivity.svelte';
   import type { DesktopViewModel } from "./view-model.svelte.js";
   let { vm }: { vm: DesktopViewModel } = $props();
   let inputValue = $state("{}");
   let assignmentProjectId = $state('');
-  let scroll: HTMLDivElement;
-  let content: HTMLDivElement;
+  let scroll = $state<HTMLDivElement>(null!);
+  let content = $state<HTMLDivElement>(null!);
+  let chat: { stopScroll(): void; scrollToBottom(options?: 'instant'): boolean | Promise<boolean> };
   const reading = new ConversationScroll();
   let activeTurn = $state('');
   const turns = $derived(conversationTurns(vm.history.entries));
+  const presentation = $derived(projectConversation(vm.history.entries, vm.history.anchorId));
   const activity = $derived(groupToolActivity(vm.state?.activity ?? [], vm.history.entries));
   const workbenchView = $derived(vm.state?.views.find(view => view.workbenchId === vm.conversation?.workbenchId));
   function syncScroll() {
     reading.scrolled(scroll.scrollTop, scroll.clientHeight, scroll.scrollHeight);
-    const top = scroll.getBoundingClientRect().top + 48;
+    const top = scroll.getBoundingClientRect().top + conversationScrollGeometry.activeTurnThreshold;
     const anchors = Array.from(scroll.querySelectorAll<HTMLElement>('[data-user-turn]'));
     activeTurn = anchors.findLast(element => element.getBoundingClientRect().top <= top)?.dataset.historyId ?? anchors[0]?.dataset.historyId ?? '';
   }
   function jump(id: string) {
     reading.leaveTail();
+    chat?.stopScroll();
     const anchor = Array.from(scroll.querySelectorAll<HTMLElement>('[data-history-id]')).find(element => element.dataset.historyId === id);
     if (!anchor) return;
-    const top = anchor.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop - 24;
+    const top = anchor.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop - conversationScrollGeometry.navigationInset;
     scroll.scrollTo({ top, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
     anchor.focus({ preventScroll: true });
   }
@@ -65,7 +75,6 @@
   $effect(() => {
     if (!scroll || !content) return;
     const observer = new ResizeObserver(() => {
-      if (reading.following && !untrack(() => vm.history.loading)) scroll.scrollTop = scroll.scrollHeight;
       syncScroll();
     });
     observer.observe(content); observer.observe(scroll);
@@ -75,6 +84,7 @@
   $effect(() => {
     const anchorId = vm.history.anchorId;
     if (!anchorId) { focusedSearchAnchor = ''; return; }
+    chat?.stopScroll();
     if (anchorId === focusedSearchAnchor) return;
     void tick().then(() => {
       const anchor = [...scroll.querySelectorAll<HTMLElement>('[data-history-id]')].find(element => element.dataset.historyId === anchorId);
@@ -84,6 +94,7 @@
   });
   async function earlier() {
     reading.leaveTail();
+    chat?.stopScroll();
     const anchor = [...scroll.querySelectorAll<HTMLElement>('[data-history-id]')].find(element => element.getBoundingClientRect().bottom >= scroll.getBoundingClientRect().top);
     const offset = anchor?.getBoundingClientRect().top;
     await vm.loadEarlier(); await tick();
@@ -125,8 +136,8 @@
   <Separator />
   <div class="conversation-body">
   <ConversationRail items={turns} activeId={activeTurn} navigate={jump} />
-  <div class="conversation-scroll scroll-fade scroll-fade-4" bind:this={scroll} onscroll={syncScroll} aria-live="polite">
-  <div class="conversation-content" bind:this={content}>
+  <ChatContainer.Root class="conversation-scroll flex-col scroll-fade scroll-fade-4" bind:this={chat} bind:ref={scroll} initial={false} resize="instant" onscroll={syncScroll} aria-live="polite">
+  <ChatContainer.Content class="conversation-content" bind:ref={content}>
     {#if vm.conversation && !vm.conversation.projectId}
       <div class="flex flex-col items-start gap-3 py-4">
         <p>This saved conversation has no project. Select a project to continue; its history remains available.</p>
@@ -137,7 +148,7 @@
     {:else if vm.conversation && !vm.conversationProject?.available}
       <Alert.Root><Alert.Description>This project folder is unavailable. Saved history remains readable; reconnect the folder to continue working.</Alert.Description></Alert.Root>
     {/if}
-    {#if vm.history.error || vm.history.status?.message}<Alert.Root role="status"><Alert.Description>{vm.history.error || vm.history.status?.message}</Alert.Description></Alert.Root>{/if}
+    {#if vm.history.error || vm.history.status?.message}<SystemMessage class="conversation-notice" variant={vm.history.error ? 'error' : 'warning'} role="status">{vm.history.error || vm.history.status?.message}</SystemMessage>{/if}
     {#if vm.history.hasOlder}<StatefulButton variant="ghost" disabled={vm.history.loading} pending={vm.history.loading && vm.history.loadingEarlier} onclick={earlier}>Load earlier</StatefulButton>{/if}
     {#if !vm.history.atLatest}<StatefulButton variant="ghost" disabled={vm.history.loading} pending={vm.history.loading && !vm.history.loadingEarlier} onclick={async () => { await vm.loadLatest(); reading.latest(); await tick(); scroll.scrollTop = scroll.scrollHeight; }}>Back to latest</StatefulButton>{/if}
     {#if vm.history.status?.sync === 'syncing'}<Marker.Root role="status"><Marker.Icon><Spinner /></Marker.Icon><Marker.Content>Synchronizing saved history…</Marker.Content></Marker.Root>{/if}
@@ -158,16 +169,35 @@
               : vm.canSend
                 ? "Synthetic mode saves your text as a draft without calling a model."
                 : "Local review is available. Synthetic agent messaging supports Text studio only."}
-          </p>{/if}</Empty.Content
+          </p><PromptSuggestion disabled={!vm.canSend} onclick={() => { vm.draft = 'Help me get started. What would you suggest we work on first?'; }}>Help me get started</PromptSuggestion>{/if}</Empty.Content
         ></Empty.Root
       >
     {/if}
-    {#each vm.history.entries as message (message.id)}
-      <Message.Root role="article" class={'mb-7 outline-none ' + (message.id === vm.history.anchorId ? 'bg-muted' : '')} data-history-id={message.id} data-user-turn={message.role === 'user' ? '' : undefined} data-search-anchor={message.id === vm.history.anchorId ? 'true' : undefined} tabindex={-1} align={message.role === 'user' ? 'end' : 'start'} aria-label={(message.role === 'user' ? 'Your message' : 'Drawloom message') + (message.id === vm.history.anchorId ? ' · Search match' : '')}>
-        <Message.Content>
+    {#each presentation as node (node.id)}
+      {#if node.kind === 'process'}
+        <Collapsible.Root open={node.expanded} class="conversation-process">
+          <Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost">Tool activity · {node.entries.length}{node.needsAttention ? ' · Needs attention' : ' completed'}</Button>{/snippet}</Collapsible.Trigger>
+          <Collapsible.Content>
+            {#each node.entries as message (message.id)}
+              {#if message.origin.kind === 'tool'}
+                <Tool.Root open={message.origin.outcome !== 'completed' || message.id === vm.history.anchorId} data-history-id={message.id} data-search-anchor={message.id === vm.history.anchorId ? 'true' : undefined} tabindex={-1}>
+                  <Tool.Header type={toolActivityTitle(message.origin.title, vm.state?.toolLabels ?? [])} state={message.origin.outcome === 'completed' ? 'output-available' : 'output-error'} statusLabel={message.origin.outcome === 'unknown' ? 'Outcome uncertain' : message.origin.outcome} />
+                  <Tool.Content>
+                    <div class="conversation-tool-output"><Markdown text={structuredMessage(message) ? '```json\n' + structuredMessage(message) + '\n```' : message.text} /></div>
+                    {#each message.assets as asset}<AttachmentCard {asset} title={vm.attachmentName(asset.key)} />{/each}
+                    {#each message.resources ?? [] as reference}<ResourceCard presentation={vm.resourceCardPresentation(message.id, reference)} actions={{ openWorkspace: () => vm.openResourceWorkspace(message.id, reference), read: () => void vm.readResource(message.id, reference), toggleContext: () => vm.toggleResource(message.id, reference) }} />{/each}
+                  </Tool.Content>
+                </Tool.Root>
+              {/if}
+            {/each}
+          </Collapsible.Content>
+        </Collapsible.Root>
+      {:else}
+      {@const message = node.entry}
+      <ChatMessage.Root role="article" speaker={message.role} class={message.id === vm.history.anchorId ? 'bg-muted' : ''} data-history-id={message.id} data-user-turn={message.role === 'user' ? '' : undefined} data-search-anchor={message.id === vm.history.anchorId ? 'true' : undefined} tabindex={-1} aria-label={(message.role === 'user' ? 'Your message' : 'Drawloom message') + (message.id === vm.history.anchorId ? ' · Search match' : '')}>
           <h2 class="sr-only">{message.role === "user" ? "You" : "Drawloom"}</h2>
-          {#if message.text}<Bubble.Root variant={message.role === 'user' ? 'default' : 'ghost'} align={message.role === 'user' ? 'end' : 'start'}><Bubble.Content><p class="conversation-text">{message.text}</p></Bubble.Content></Bubble.Root>{/if}
-          {#if message.selections?.length}<Message.Footer class="flex-wrap gap-2">{#each message.selections as selection}<Badge variant="outline">{selection.title} · {selection.source}</Badge>{/each}</Message.Footer>{/if}
+          {#if message.text}<ChatMessage.Content ><Markdown text={message.text} resolveFile={url => vm.conversationProject?.available ? messageFile(url, vm.conversation?.id ?? '', vm.conversationProject.directory)?.url : undefined}/></ChatMessage.Content>{/if}
+          {#if message.selections?.length}<ChatMessage.Actions class="flex-wrap gap-2">{#each message.selections as selection}<Badge variant="outline">{selection.title} · {selection.source}</Badge>{/each}</ChatMessage.Actions>{/if}
           {#if message.preparation}<KnowledgeDisclosure summary={message.preparation} />{/if}
           {#each message.assets as asset}<AttachmentCard {asset} title={vm.attachmentName(asset.key)} />{/each}
           {#each message.resources ?? [] as reference}
@@ -180,11 +210,11 @@
               }}
             />
           {/each}
-        </Message.Content>
-      </Message.Root>
-      <ToolActivity results={activity.get(message.id) ?? []} />
+      </ChatMessage.Root>
+      <ToolActivity results={activity.get(message.id) ?? []} toolLabels={vm.state?.toolLabels ?? []} />
+      {/if}
     {/each}
-    <ToolActivity results={activity.get('') ?? []} historical />
+    <ToolActivity results={activity.get('') ?? []} toolLabels={vm.state?.toolLabels ?? []} historical />
     {#if workbenchView}<Button variant="outline" class="artifact-row mx-auto justify-between" onclick={() => { vm.workspaceMode = 'plugin'; vm.detailsOpen = true; }}><DocumentIcon aria-hidden="true" /><span>Open workbench</span></Button>
     {:else if vm.artifact}<Button
         variant="outline"
@@ -255,16 +285,16 @@
         >
       {:else if signal.kind === 'provider.observation' && signal.name === 'approval-review'}
         <Marker.Root role="status"><Marker.Content>Automatic review: {signal.summary}</Marker.Content></Marker.Root>
-      {:else if signal.kind === "operation.failed"}<Alert.Root
-          variant="destructive"
-          ><Alert.Description>{signal.failure.summary}</Alert.Description
-          ></Alert.Root
+      {:else if signal.kind === "operation.failed"}<SystemMessage
+          variant="error"
+          >{signal.failure.summary}</SystemMessage
         >
       {:else if signal.kind === "operation.interrupted"}<Marker.Root><Marker.Content>Operation stopped.</Marker.Content></Marker.Root>{/if}
     {/each}
     {#if vm.state?.activeOperation}<Marker.Root role="status"><Marker.Content><span class="shimmer">Working…</span> You can continue editing your message.</Marker.Content></Marker.Root>{/if}
-  </div>
-  </div>
+  </ChatContainer.Content>
+  <ChatContainer.ScrollButton class="sticky bottom-3 ml-auto mr-2 my-3 shrink-0" onclick={() => reading.latest()} />
+  </ChatContainer.Root>
   </div>
   <Composer {vm} />
 </main>

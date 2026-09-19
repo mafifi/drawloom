@@ -7,11 +7,7 @@ export function createResourceRecovery(
 ) {
   const pending = new Map<string, ToolResult>();
   const add = (result: ToolResult) => {
-    if (
-      result.outcome.status === "ok" &&
-      result.outcome.content?.some((block) => block.type !== "text")
-    )
-      pending.set(result.invocationId, result);
+    pending.set(result.invocationId, result);
   };
   retained.forEach(add);
   let queue: Promise<void> = Promise.resolve();

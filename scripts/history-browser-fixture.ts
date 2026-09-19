@@ -19,6 +19,7 @@ for (let start = 0; start < 10000; start += 200) {
         id: `public-${i}`,
         position: [0, i] as const,
         role: i % 2 ? ("assistant" as const) : ("user" as const),
+        origin: { kind: i % 2 ? ("assistant" as const) : ("user" as const) },
         text: `Public synthetic message ${String(i).padStart(5, "0")}\nConversation history stays readable without a model connection.`,
         assets: [],
         state: "complete" as const,

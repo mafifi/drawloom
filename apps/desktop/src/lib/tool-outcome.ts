@@ -1,12 +1,36 @@
 import type { ToolResult } from "@drawloom/tools";
 
+export function toolActivityTitle(
+  name: string | undefined,
+  labels: readonly { toolName: string; title: string }[],
+) {
+  return (
+    labels.find((label) => label.toolName === name)?.title ??
+    (name && !name.startsWith("pkg_") ? name.replace(/[_.]/g, " ") : "Recorded tool call")
+  );
+}
+
 export function groupToolActivity<T extends ToolResult>(
   results: readonly T[],
-  entries: readonly { id: string; operationId?: string }[],
+  entries: readonly {
+    id: string;
+    operationId?: string;
+    origin?: { kind: string; callId?: string };
+  }[],
 ) {
-  const anchors = new Map(entries.filter((e) => e.operationId).map((e) => [e.operationId!, e.id]));
+  const retained = new Set(
+    entries.filter((entry) => entry.origin?.kind === "tool").map((entry) => entry.origin?.callId),
+  );
+  // A retained process row is collapsed independently and does not own the
+  // fallback activity slot. Uncaptured outcomes must stay visible outside it.
+  const anchors = new Map(
+    entries
+      .filter((e) => e.operationId && e.origin?.kind !== "tool")
+      .map((e) => [e.operationId!, e.id]),
+  );
   const groups = new Map<string, T[]>();
   for (const result of results) {
+    if (retained.has(result.invocationId)) continue;
     const anchor = result.operationId ? (anchors.get(result.operationId) ?? "") : "";
     const group = groups.get(anchor) ?? [];
     group.push(result);

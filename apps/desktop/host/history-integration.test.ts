@@ -67,6 +67,7 @@ test("cached Codex history opens without connecting, preserving project assets a
         id: "public-record",
         position: [0, 0],
         role: "assistant",
+        origin: { kind: "assistant" },
         text: "Readable while Codex is unavailable",
         assets: [asset],
         state: "complete",

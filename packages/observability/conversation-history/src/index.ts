@@ -8,20 +8,42 @@ const revision = safeInteger.nonnegative();
 export const HistoryPositionSchema = z.readonly(z.tuple([safeInteger, safeInteger]));
 export type HistoryPosition = z.infer<typeof HistoryPositionSchema>;
 
-export const HistoryEntrySchema = z.strictObject({
-  id: nonEmptyId,
-  position: HistoryPositionSchema,
-  role: z.enum(["user", "assistant"]),
-  text: z.string(),
-  assets: z.array(AssetSchema),
-  resources: z.array(ResourceReferenceSchema).optional(),
-  selections: z
-    .array(z.strictObject({ id: nonEmptyId, title: z.string(), source: nonEmptyId }))
-    .optional(),
-  preparation: ContextPreparationSummarySchema.optional(),
-  operationId: nonEmptyId.optional(),
-  state: z.enum(["partial", "complete", "interrupted"]),
-});
+/** Captured by the trusted producer, never inferred from displayed text. */
+export const HistoryOriginSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("user") }),
+  z.strictObject({ kind: z.literal("assistant") }),
+  z.strictObject({ kind: z.literal("delivery"), source: nonEmptyId }),
+  z.strictObject({ kind: z.literal("reference"), source: nonEmptyId }),
+  z.strictObject({
+    kind: z.literal("tool"),
+    source: nonEmptyId,
+    callId: nonEmptyId,
+    title: nonEmptyId,
+    outcome: z.enum(["completed", "failed", "denied", "unknown"]),
+    format: z.enum(["text", "json"]),
+  }),
+]);
+export type HistoryOrigin = z.infer<typeof HistoryOriginSchema>;
+
+export const HistoryEntrySchema = z
+  .strictObject({
+    id: nonEmptyId,
+    position: HistoryPositionSchema,
+    role: z.enum(["user", "assistant"]),
+    origin: HistoryOriginSchema,
+    text: z.string(),
+    assets: z.array(AssetSchema),
+    resources: z.array(ResourceReferenceSchema).optional(),
+    selections: z
+      .array(z.strictObject({ id: nonEmptyId, title: z.string(), source: nonEmptyId }))
+      .optional(),
+    preparation: ContextPreparationSummarySchema.optional(),
+    operationId: nonEmptyId.optional(),
+    state: z.enum(["partial", "complete", "interrupted"]),
+  })
+  .refine((entry) => (entry.origin.kind === "user") === (entry.role === "user"), {
+    message: "History speaker must match its captured origin",
+  });
 export type HistoryEntry = z.infer<typeof HistoryEntrySchema>;
 
 export const HistorySyncStateSchema = z.enum([

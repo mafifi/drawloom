@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nativeToolOutput } from "./native-tool-output.js";
 import {
   HistoryReadBatchSchema,
   HistoryReadError,
@@ -7,11 +8,12 @@ import {
   type HistoryReadContext,
 } from "@drawloom/conversation-history";
 import type { Asset } from "@drawloom/host";
-import { ToolContentSchema, type ToolContent } from "@drawloom/tools";
+import type { ToolContent } from "@drawloom/tools";
 export type CaptureToolContent = (input: {
   id: string;
   operationId?: string;
   source: string;
+  origin: Extract<HistoryEntry["origin"], { kind: "tool" }>;
   content: ToolContent;
   deferHistoryCommit?: boolean;
   resourceSelections?: Record<string, import("@drawloom/agent").DiscoverySelection>;
@@ -60,6 +62,7 @@ type NativeDisplay = {
   nativeId: string;
   id: string;
   role: "user" | "assistant";
+  origin: HistoryEntry["origin"];
   text: string;
   assets: Asset[];
   resources?: HistoryEntry["resources"];
@@ -154,7 +157,13 @@ export function createCodexHistoryReader(
           "error",
           "Native conversation history returned invalid item data.",
         );
-      return { ...common, role: "assistant", text: text.data, assets: [] };
+      return {
+        ...common,
+        role: "assistant",
+        origin: { kind: "assistant" },
+        text: text.data,
+        assets: [],
+      };
     }
     if (item.type === "userMessage") {
       const content = z.array(z.record(z.string(), z.unknown())).safeParse(item.content);
@@ -177,6 +186,7 @@ export function createCodexHistoryReader(
       return {
         ...common,
         role: "user",
+        origin: { kind: "user" },
         text: display.text,
         ...(display.preparation ? { preparation: display.preparation } : {}),
         assets: existing?.assets ?? [],
@@ -185,7 +195,13 @@ export function createCodexHistoryReader(
     if (item.type === "imageGeneration" && item.status === "completed" && captureImage) {
       const existing = await context.get(id);
       if (existing?.assets.some((asset) => asset.mediaType.startsWith("image/")))
-        return { ...common, role: "assistant", text: existing.text, assets: existing.assets };
+        return {
+          ...common,
+          role: "assistant",
+          origin: { kind: "delivery", source: "agent" },
+          text: existing.text,
+          assets: existing.assets,
+        };
       let asset = captured.get(id);
       if (!asset) {
         const result = z.string().safeParse(item.result);
@@ -201,6 +217,7 @@ export function createCodexHistoryReader(
         return {
           ...common,
           role: "assistant",
+          origin: { kind: "delivery", source: "agent" },
           text: existing?.text ?? "Image result",
           assets: [await asset],
         };
@@ -209,30 +226,33 @@ export function createCodexHistoryReader(
         throw new HistoryReadError("error", "Historical image capture failed.");
       }
     }
-    if (item.type === "mcpToolCall" && item.status === "completed" && captureToolContent) {
+    if (item.type === "mcpToolCall" && captureToolContent) {
       const existing = await context.get(id);
       if (existing?.resources)
         return {
           ...common,
           role: "assistant",
           text: existing.text,
+          origin: existing.origin,
           assets: existing.assets,
           resources: existing.resources,
         };
-      const result = z.object({ content: ToolContentSchema }).safeParse(item.result);
-      if (!result.success || !result.data.content.some((b) => b.type !== "text")) return undefined;
+      const result = nativeToolOutput(item);
+      if (!result) return undefined;
       try {
         const captured = await captureToolContent({
           id,
           ...(operationId ? { operationId } : {}),
           source: typeof item.server === "string" ? item.server.slice(0, 256) : "native",
-          content: result.data.content,
+          origin: result.origin,
+          content: result.content,
           deferHistoryCommit: true,
         });
         if (captured)
           return {
             ...common,
             role: "assistant",
+            origin: captured.origin,
             text: captured.text,
             assets: captured.assets,
             ...(captured.resources ? { resources: captured.resources } : {}),
@@ -276,6 +296,7 @@ export function createCodexHistoryReader(
           );
           if (
             updated.role !== existing.role ||
+            JSON.stringify(updated.origin) !== JSON.stringify(existing.origin) ||
             updated.text !== existing.text ||
             updated.state !== existing.state ||
             updated.operationId !== existing.operationId ||
