@@ -18,6 +18,65 @@ Bun.plugin({
 });
 const { createDesktopViewModel } = await import("./view-model.svelte.js");
 const originalFetch = globalThis.fetch;
+test("typed plan action selects native mode without submitting a turn", async () => {
+  const initial = snapshot();
+  initial.modes = ["default", "plan"];
+  const h = await harness(initial);
+  h.vm.draft = "/plan";
+  await h.vm.send();
+  expect(h.commands).toEqual([
+    { kind: "set_mode", conversationId: initial.selectedId, mode: "plan" },
+  ]);
+  expect(h.vm.draft).toBe("");
+});
+
+test("mode changes retain an existing composer draft", async () => {
+  const h = await harness(snapshot());
+  h.vm.draft = "Keep these words";
+  await h.vm.setMode("plan");
+  expect(h.vm.draft).toBe("Keep these words");
+  expect(h.commands[0]?.kind).toBe("set_mode");
+});
+test("active history delivery does not wait for the slower state refresh cadence and stops on disposal", async () => {
+  const initial = snapshot();
+  initial.activeOperation = "active-stream";
+  const h = await harness(initial);
+  await h.vm.start();
+  const before = h.historyRequests.length;
+  await Bun.sleep(350);
+  const during = h.historyRequests.length;
+  h.vm.stopPolling();
+  expect(during).toBeGreaterThan(before);
+  await Bun.sleep(200);
+  expect(h.historyRequests.length).toBe(during);
+});
+test("typed goal command uses native goal control, not message submission", async () => {
+  const initial = snapshot();
+  initial.goal = { supported: true, snapshot: null };
+  const h = await harness(initial);
+  h.vm.draft = "/goal Inspect the project without changing files.";
+  await h.vm.send();
+  expect(h.commands).toEqual([
+    {
+      kind: "goal",
+      conversationId: initial.selectedId,
+      command: { action: "create", objective: "Inspect the project without changing files." },
+    },
+  ]);
+  expect(h.vm.draft).toBe("");
+});
+test("rejected typed goal preserves its objective and never falls back to sending", async () => {
+  const initial = snapshot();
+  initial.goal = { supported: true, snapshot: null };
+  const h = await harness(initial);
+  const settle = h.deferCommand();
+  h.vm.draft = "/goal Inspect without edits";
+  const pending = h.vm.send();
+  settle(Response.json({ error: "provider unavailable" }, { status: 503 }));
+  await pending;
+  expect(h.vm.draft).toBe("/goal Inspect without edits");
+  expect(h.commands.map((c) => c.kind)).toEqual(["goal"]);
+});
 test("Settings navigation groups named owners and distinguishes multiple pages", async () => {
   const h = await harness();
   const base = globalThis.fetch;
@@ -746,6 +805,7 @@ test("provider sign-in uses a catalogue identity and discards a late URL after n
 
 function snapshot(): DesktopSnapshot {
   return {
+    modes: [],
     approvals: [],
     mediaPolicy: { revision: "initial", sources: [] },
     archiveBlockedConversationIds: [],

@@ -173,7 +173,7 @@ async function fixture(
               };
             if (method === "thread/start" || method === "thread/resume")
               return { thread: { id: native, cwd }, approvalsReviewer: "user" };
-            if (method === "thread/read") return { thread: { cwd } };
+            if (method === "thread/read") return { thread: { id: native, cwd, turns: [] } };
             if (method === "thread/turns/list") return { data: [], nextCursor: null };
             if (method === "turn/start" || method === "turn/steer") {
               const p = params as { input: unknown[] };

@@ -7,10 +7,24 @@ const safeInteger = z.number().int().safe();
 const revision = safeInteger.nonnegative();
 export const HistoryPositionSchema = z.readonly(z.tuple([safeInteger, safeInteger]));
 export type HistoryPosition = z.infer<typeof HistoryPositionSchema>;
+/** Ordered full snapshot; providers need not supply stable step identities. */
+export const PlanSnapshotSchema = z.strictObject({
+  explanation: z.string().optional(),
+  steps: z.array(
+    z.strictObject({ text: z.string(), status: z.enum(["pending", "in_progress", "completed"]) }),
+  ),
+});
+export type PlanSnapshot = z.infer<typeof PlanSnapshotSchema>;
 
 /** Captured by the trusted producer, never inferred from displayed text. */
 export const HistoryOriginSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("user") }),
+  z.strictObject({ kind: z.literal("proposal") }),
+  z.strictObject({ kind: z.literal("plan"), plan: PlanSnapshotSchema }),
+  z.strictObject({
+    kind: z.literal("user"),
+    mode: z.enum(["default", "plan"]).optional(),
+    implementsProposalId: nonEmptyId.optional(),
+  }),
   z.strictObject({ kind: z.literal("assistant") }),
   z.strictObject({ kind: z.literal("delivery"), source: nonEmptyId }),
   z.strictObject({ kind: z.literal("reference"), source: nonEmptyId }),
@@ -40,6 +54,9 @@ export const HistoryEntrySchema = z
     preparation: ContextPreparationSummarySchema.optional(),
     operationId: nonEmptyId.optional(),
     state: z.enum(["partial", "complete", "interrupted"]),
+  })
+  .refine((entry) => !["plan", "proposal"].includes(entry.origin.kind) || !!entry.operationId, {
+    message: "Plan history requires operation ownership",
   })
   .refine((entry) => (entry.origin.kind === "user") === (entry.role === "user"), {
     message: "History speaker must match its captured origin",

@@ -1,6 +1,10 @@
 import { basename, join } from "node:path";
 import { cleanup } from "./cleanup.js";
 import { createSessionSignalReader } from "./session-signals.js";
+import { controlGoal } from "./goal-control.js";
+import { createContinuationAdmission } from "./continuation-admission.js";
+import { assertPlanningIdle, assertGoalActivation } from "./planning-control.js";
+import { reservePlanImplementation } from "./plan-implementation.js";
 import { createApplicationLifecycle, guardDesktopApplication } from "./application-lifecycle.js";
 import {
   createDesktopSessions,
@@ -240,6 +244,8 @@ export async function createDesktopApplication(
     string,
     {
       displayId: string;
+      mode?: "default" | "plan";
+      implementsProposalId?: string;
       text: string;
       assets: Asset[];
       selections: NonNullable<HistoryEntry["selections"]>;
@@ -331,7 +337,11 @@ export async function createDesktopApplication(
     if (!server) throw Error("Activate this installation and restart before connecting");
     if (server.config.type !== "streamable-http")
       throw Error("This server does not use Drawloom HTTP authentication");
-    return oauth.connection({ installationId: id, serverName, serverUrl: server.config.url });
+    return oauth.connection({
+      installationId: id,
+      serverName,
+      serverUrl: server.config.url,
+    });
   }
   const elicitation = createElicitationPresenter(
     (operationId) => project.conversations.find((c) => live.get(c.id)?.active === operationId)?.id,
@@ -680,7 +690,9 @@ export async function createDesktopApplication(
           }),
         ),
       ...(options.knowledge?.schedulePreparationDeadline
-        ? { schedulePreparationDeadline: options.knowledge.schedulePreparationDeadline }
+        ? {
+            schedulePreparationDeadline: options.knowledge.schedulePreparationDeadline,
+          }
         : {}),
       selectedProjectId: () => project.selectedProjectId,
       sourceForProject: async (projectId) => {
@@ -941,6 +953,11 @@ export async function createDesktopApplication(
                 const key = JSON.stringify([thread, turn]);
                 const operationId = turnOperations.get(key);
                 if (operationId) {
+                  const current = live.get(conversationId);
+                  if (current?.active === operationId) {
+                    approvals.invalidate(conversationId);
+                    delete current.active;
+                  }
                   operationBindings.delete(operationId);
                   turnOperations.delete(key);
                   authorization.invalidate(operationId);
@@ -955,16 +972,36 @@ export async function createDesktopApplication(
           skills: registry.skills
             .filter((s) => workbench.skills.includes(s.id))
             .map((s) => ({ text: s.instructions, sources: [s.id] })),
-          guidance: [{ text: KNOWLEDGE_RETRIEVAL_GUIDANCE, sources: ["host:knowledge-guidance"] }],
+          guidance: [
+            {
+              text: KNOWLEDGE_RETRIEVAL_GUIDANCE,
+              sources: ["host:knowledge-guidance"],
+            },
+          ],
         });
-        const result = await driver.openSession({
-          sessionId: conversationId,
-          context,
-          tools:
-            conversation.provider === "synthetic"
-              ? { id: "synthetic-no-agent-tools", tools: [] }
-              : gateway.exposure,
-        });
+        const result = await driver.openSession(
+          {
+            sessionId: conversationId,
+            context,
+            tools:
+              conversation.provider === "synthetic"
+                ? { id: "synthetic-no-agent-tools", tools: [] }
+                : gateway.exposure,
+          },
+          {
+            admitContinuation: createContinuationAdmission({
+              running: () =>
+                lifecycle.state === "running" &&
+                conversation.mode !== "plan" &&
+                !conversation.defaultModeRequired,
+              state: () => live.get(conversationId),
+              verify: async () => {
+                await verifyProjectDirectory(binding, root);
+              },
+              begin: (operationId) => operationTelemetry.begin(operationId),
+            }),
+          },
+        );
         if (result.status !== "ok") observeOutcome("error");
         return result;
       });
@@ -987,6 +1024,11 @@ export async function createDesktopApplication(
           }
         },
       };
+      if (session.goals) {
+        const current = await session.goals.read();
+        if (current.status === "ok") state.goal = current.value;
+        else state.goalError = current.failure.message;
+      }
       // Start the reader only after connect publishes this session.
       const reader = createSessionSignalReader({
         conversationId,
@@ -1155,7 +1197,10 @@ export async function createDesktopApplication(
       }
       if ([...live.values()].some((session) => session.active))
         throw Error("Wait for current work to finish before reconnecting");
-      return { ...connection.status(), ...(await packages.reconnect(input.id, input.server)) };
+      return {
+        ...connection.status(),
+        ...(await packages.reconnect(input.id, input.server)),
+      };
     },
     packageStatuses: async () => (await selectedRuntime()).packages.statuses,
     async installedPackages() {
@@ -1169,7 +1214,10 @@ export async function createDesktopApplication(
           }));
           try {
             availableServers = (await installations.inspect(installation.root)).servers.map(
-              (server) => ({ name: server.name, transport: server.config.type }),
+              (server) => ({
+                name: server.name,
+                transport: server.config.type,
+              }),
             );
           } catch {
             /* Retain selected identities and existing readiness errors if metadata is inaccessible. */
@@ -1198,7 +1246,10 @@ export async function createDesktopApplication(
           version: inventory.version,
           backend: Boolean(inventory.drawloom?.backend),
           skills: inventory.skills.map((s) => s.name),
-          servers: inventory.servers.map((s) => ({ name: s.name, transport: s.config.type })),
+          servers: inventory.servers.map((s) => ({
+            name: s.name,
+            transport: s.config.type,
+          })),
           diagnostics: inventory.diagnostics.map((d) => `${d.component}: ${d.code}`),
         });
       }
@@ -1329,7 +1380,10 @@ export async function createDesktopApplication(
             });
             if (result?.status === "ok") {
               entries.push(
-                ...result.value.entries.map((e) => ({ ...e, revision: result.value.revision })),
+                ...result.value.entries.map((e) => ({
+                  ...e,
+                  revision: result.value.revision,
+                })),
               );
               categories = result.value.categories;
               nextCursor = result.value.nextCursor;
@@ -1404,7 +1458,10 @@ export async function createDesktopApplication(
         return resourceCollector(conversationId).capture({
           id,
           source: entry.origin,
-          content: result.contents.map((resource) => ({ type: "resource" as const, resource })),
+          content: result.contents.map((resource) => ({
+            type: "resource" as const,
+            resource,
+          })),
         });
       }
       const result = await (await connect(conversationId)).session.discovery?.readResource?.(
@@ -1441,7 +1498,10 @@ export async function createDesktopApplication(
       observeCache(cacheHit, page.entries.length);
       const error = writer(conversationId).error;
       return error
-        ? { ...page, status: { ...page.status, sync: "error" as const, message: error } }
+        ? {
+            ...page,
+            status: { ...page.status, sync: "error" as const, message: error },
+          }
         : writer(conversationId).syncing
           ? { ...page, status: { ...page.status, sync: "syncing" as const } }
           : page;
@@ -1452,9 +1512,19 @@ export async function createDesktopApplication(
       const changes = await history.changes(conversationId, HistoryChangeOptionsSchema.parse(raw));
       const error = writer(conversationId).error;
       return error
-        ? { ...changes, status: { ...changes.status, sync: "error" as const, message: error } }
+        ? {
+            ...changes,
+            status: {
+              ...changes.status,
+              sync: "error" as const,
+              message: error,
+            },
+          }
         : writer(conversationId).syncing
-          ? { ...changes, status: { ...changes.status, sync: "syncing" as const } }
+          ? {
+              ...changes,
+              status: { ...changes.status, sync: "syncing" as const },
+            }
           : changes;
     },
     async historyAround(conversationId: string, raw: HistoryAroundOptions) {
@@ -1550,7 +1620,11 @@ export async function createDesktopApplication(
         ...(hasMore
           ? {
               cursor: Buffer.from(
-                JSON.stringify({ scope, titleOffset, ...(historyCursor ? { historyCursor } : {}) }),
+                JSON.stringify({
+                  scope,
+                  titleOffset,
+                  ...(historyCursor ? { historyCursor } : {}),
+                }),
               ).toString("base64url"),
             }
           : {}),
@@ -1559,12 +1633,18 @@ export async function createDesktopApplication(
     },
     async viewSession(raw: unknown) {
       const input = DesktopViewSessionSchema.parse(raw);
-      const target = { conversationId: input.conversationId, viewId: input.viewId };
+      const target = {
+        conversationId: input.conversationId,
+        viewId: input.viewId,
+      };
       if (input.action === "open") {
         await viewTarget(target);
         viewContext.clear();
         viewMount = { ...target, mountId: crypto.randomUUID() };
-        return { mountId: viewMount.mountId, mediaRevision: mediaPolicy.snapshot().revision };
+        return {
+          mountId: viewMount.mountId,
+          mediaRevision: mediaPolicy.snapshot().revision,
+        };
       }
       // A late teardown must not clear a replacement mount's reference material.
       if (
@@ -1699,7 +1779,11 @@ export async function createDesktopApplication(
       });
       const ready = captured.resources?.find((r) => r.asset && r.uri === resource.uri);
       if (!ready) throw Error("Resource unavailable");
-      const updated = { ...resource, asset: ready.asset, status: "ready" as const };
+      const updated = {
+        ...resource,
+        asset: ready.asset,
+        status: "ready" as const,
+      };
       await writer(conversationId).write({
         ...entry,
         resources: entry.resources!.map((r) => (r.id === resourceId ? updated : r)),
@@ -1777,7 +1861,11 @@ export async function createDesktopApplication(
         mediaPolicy: mediaPolicy.snapshot(),
         toolLabels: [...packages.toolPresentation]
           .filter(([, tool]) => tool.available)
-          .map(([toolName, tool]) => ({ toolName, title: tool.name, origin: tool.origin })),
+          .map(([toolName, tool]) => ({
+            toolName,
+            title: tool.name,
+            origin: tool.origin,
+          })),
         workspace:
           project.projects.find((p) => p.id === project.selectedProjectId)?.name ??
           "Choose a project",
@@ -1799,6 +1887,12 @@ export async function createDesktopApplication(
         views: registry.views,
         selectedId: project.selectedId,
         signals: state?.signals ?? [],
+        modes: [...(state?.session.modes ?? [])],
+        goal: {
+          supported: state ? !!state.session.goals : conversation?.provider === "codex",
+          ...(state?.goal !== undefined ? { snapshot: state.goal } : {}),
+          ...(state?.goalError ? { error: state.goalError } : {}),
+        },
         approvals: approvals.pending(project.selectedId).map((entry) => ({
           ...entry,
           presentation: options.approvalPresenter ? "external" : "desktop",
@@ -1808,7 +1902,11 @@ export async function createDesktopApplication(
           ...(result.outcome.status === "ok"
             ? {
                 ...result,
-                outcome: { status: "ok", text: result.outcome.text, value: result.outcome.value },
+                outcome: {
+                  status: "ok",
+                  text: result.outcome.text,
+                  value: result.outcome.value,
+                },
               }
             : result),
         })),
@@ -1869,7 +1967,38 @@ export async function createDesktopApplication(
       }
     },
     async command(raw: unknown) {
-      const command = DesktopCommandSchema.parse(raw);
+      let implementsProposalId: string | undefined;
+      const command = await (async () => {
+        const requested = DesktopCommandSchema.parse(raw);
+        if (requested.kind !== "implement_plan") return requested;
+        const state = await connect(requested.conversationId);
+        if (!state.session.modes?.includes("default"))
+          throw Error("Native default mode unavailable.");
+        const goal = state.session.goals
+          ? await state.session.goals.read()
+          : { status: "ok" as const, value: null };
+        if (goal.status !== "ok") throw Error(goal.failure.message);
+        assertPlanningIdle(state.active, goal.value);
+        const text = await reservePlanImplementation(
+          history,
+          requested.conversationId,
+          requested.proposalId,
+        );
+        implementsProposalId = requested.proposalId;
+        const conversation = project.conversations.find((c) => c.id === requested.conversationId)!;
+        conversation.mode = "default";
+        await persist();
+        return {
+          kind: "send" as const,
+          conversationId: requested.conversationId,
+          text: `Implement the following plan:\n\n${text}`,
+          attachmentKeys: [],
+          contextArtifactIds: [],
+          conversationContextIds: [],
+          selections: [],
+          resourceSelections: [],
+        };
+      })();
       if (command.kind === "add_project") {
         const binding = await bindProjectDirectory(command.directory, root);
         const existing = project.projects.find(
@@ -2098,7 +2227,10 @@ export async function createDesktopApplication(
           const selected = new Set(knowledgeGrants[command.workbenchId] ?? []);
           if (command.command.allowed) selected.add(command.command.toolName);
           else selected.delete(command.command.toolName);
-          const next = { ...knowledgeGrants, [command.workbenchId]: [...selected] };
+          const next = {
+            ...knowledgeGrants,
+            [command.workbenchId]: [...selected],
+          };
           await runtime.store.set("knowledge-tool-grants", next);
           Object.assign(knowledgeGrants, next);
           await refreshGrants(command.workbenchId, runtime);
@@ -2112,7 +2244,10 @@ export async function createDesktopApplication(
           const selected = new Set(packageGrants[command.workbenchId] ?? []);
           if (command.command.allowed) selected.add(command.command.toolName);
           else selected.delete(command.command.toolName);
-          const next = { ...packageGrants, [command.workbenchId]: [...selected] };
+          const next = {
+            ...packageGrants,
+            [command.workbenchId]: [...selected],
+          };
           await runtime.store.set("package-grants", next);
           Object.assign(packageGrants, next);
           await refreshGrants(command.workbenchId, runtime);
@@ -2138,7 +2273,47 @@ export async function createDesktopApplication(
         const conversation = project.conversations.find((c) => c.id === command.conversationId)!;
         const runtime = await runtimeForConversation(conversation.id);
         const { registry } = runtime;
-        if (command.kind === "set_reviewer") {
+        if (command.kind === "goal") {
+          if (command.command.action === "create" || command.command.action === "resume")
+            assertGoalActivation(conversation);
+          try {
+            state.goal = await controlGoal(state.session.goals, command.command);
+            delete state.goalError;
+          } catch (error) {
+            if (state.session.goals) {
+              const current = await state.session.goals.read();
+              if (current.status === "ok") {
+                state.goal = current.value;
+                delete state.goalError;
+              } else {
+                delete state.goal;
+                state.goalError = current.failure.message;
+              }
+            }
+            throw error;
+          }
+        } else if (command.kind === "set_mode") {
+          if (state.active)
+            throw Error("Wait for outstanding work to settle before changing mode.");
+          if (!state.session.modes?.includes(command.mode)) throw Error("Native mode unavailable.");
+          if (command.mode === "plan") {
+            const goal = state.session.goals
+              ? await state.session.goals.read()
+              : { status: "ok" as const, value: null };
+            if (goal.status !== "ok") throw Error(goal.failure.message);
+            state.goal = goal.value;
+            assertPlanningIdle(state.active, goal.value);
+          }
+          const previous = conversation.mode;
+          conversation.mode = command.mode;
+          try {
+            await persist();
+          } catch (error) {
+            if (previous === undefined) delete conversation.mode;
+            else conversation.mode = previous;
+            throw error;
+          }
+        } else if (command.kind === "set_reviewer") {
           if (state.active) throw Error("Review mode can change only while idle");
           if (!state.session.reviewerModes.includes(command.reviewer))
             throw Error("This provider does not support the selected review mode");
@@ -2180,6 +2355,13 @@ export async function createDesktopApplication(
           const result = await state.session.respondToInput(command.resolution);
           if (result.status !== "ok") throw Error(result.failure.message);
         } else {
+          if (
+            (conversation.mode === "plan" || conversation.defaultModeRequired) &&
+            !state.session.modes?.includes("default")
+          )
+            throw Error(
+              "Native planning state cannot be reconciled. Refresh the provider before submitting.",
+            );
           let op = state.active ?? crypto.randomUUID();
           let preparationTarget = state.active;
           const operator = await refreshGrants(conversation.workbenchId, runtime);
@@ -2211,6 +2393,9 @@ export async function createDesktopApplication(
             displayId: crypto.randomUUID(),
             referenceSignal: knowledge.referenceSignal,
             reviewer: conversation.reviewer,
+            ...(state.session.modes?.length
+              ? { mode: conversation.mode ?? ("default" as const) }
+              : {}),
             ...(!state.active && conversation.modelSelection
               ? { modelSelection: conversation.modelSelection }
               : {}),
@@ -2248,7 +2433,9 @@ export async function createDesktopApplication(
             op = crypto.randomUUID();
             input.operationId = op;
             if (conversation.modelSelection)
-              Object.assign(input, { modelSelection: conversation.modelSelection });
+              Object.assign(input, {
+                modelSelection: conversation.modelSelection,
+              });
             return true;
           };
           let prepared: Awaited<ReturnType<typeof knowledge.prepare>>;
@@ -2271,7 +2458,9 @@ export async function createDesktopApplication(
           }
           input.text = assembled.text;
           if (assembled.additionalContext)
-            Object.assign(input, { additionalContext: assembled.additionalContext });
+            Object.assign(input, {
+              additionalContext: assembled.additionalContext,
+            });
           else delete input.additionalContext;
           if (
             input.text.length +
@@ -2288,14 +2477,29 @@ export async function createDesktopApplication(
                   preparation: prepared.summary,
                   ...(prepared.references ? { references: prepared.references } : {}),
                 }
-              : { ...input, preparation: { kind: "cancelled" as const, references: [] } };
+              : {
+                  ...input,
+                  preparation: { kind: "cancelled" as const, references: [] },
+                };
           lifecycle.assertRunning();
+          if (implementsProposalId && state.active)
+            throw Error(
+              "Outstanding work changed during preparation. Inspect the conversation; no retry occurred.",
+            );
+          if (input.mode && input.mode !== (conversation.mode ?? "default"))
+            throw Error("Mode changed during preparation. Submit again using the current mode.");
           const starting = !state.active;
           const submitted = {
             displayId: input.displayId,
+            ...(input.mode ? { mode: input.mode } : {}),
+            ...(implementsProposalId ? { implementsProposalId } : {}),
             text: command.text,
             assets: attachments,
-            selections: selected.map((e) => ({ id: e.id, title: e.name, source: e.origin })),
+            selections: selected.map((e) => ({
+              id: e.id,
+              title: e.name,
+              source: e.origin,
+            })),
             resources: selectedResources,
           };
           if (conversation.provider === "codex") {
@@ -2306,9 +2510,19 @@ export async function createDesktopApplication(
           // Command serialization does not drain the asynchronous signal/history
           // pump. Lock the chosen reviewer before execute can accept this turn.
           if (starting) {
+            if (input.mode === "plan") {
+              const goal = state.session.goals
+                ? await state.session.goals.read()
+                : { status: "ok" as const, value: null };
+              if (goal.status !== "ok") throw Error(goal.failure.message);
+              assertPlanningIdle(state.active, goal.value);
+              conversation.defaultModeRequired = true;
+              await persist();
+            }
             state.active = op;
             operationTelemetry.begin(op);
           }
+          let accepted = false;
           try {
             const result = starting
               ? await operationTelemetry.run(op, () =>
@@ -2321,6 +2535,12 @@ export async function createDesktopApplication(
               : await (state.session.steer?.(preparedInput()) ??
                   Promise.reject(Error("Steering unavailable")));
             if (result.status !== "ok") throw Error(result.failure.message);
+            accepted = true;
+            if (starting && input.mode) {
+              conversation.lastSubmittedMode = input.mode;
+              if (input.mode === "default") conversation.defaultModeRequired = false;
+              await persist();
+            }
             if (conversation.provider === "synthetic")
               await writer(conversation.id).write({
                 id: crypto.randomUUID(),
@@ -2331,10 +2551,17 @@ export async function createDesktopApplication(
                 operationId: op,
                 state: "complete",
                 preparation: preparedInput().preparation,
-                selections: selected.map((e) => ({ id: e.id, title: e.name, source: e.origin })),
+                selections: selected.map((e) => ({
+                  id: e.id,
+                  title: e.name,
+                  source: e.origin,
+                })),
                 resources: selectedResources,
               });
           } catch (error) {
+            // A persistence failure after acceptance cannot undo native execution.
+            // Keep its ownership and pending echo until the signal pump settles it.
+            if (accepted) throw error;
             const pending = submissions.get(op);
             if (pending)
               submissions.set(
@@ -2393,7 +2620,9 @@ export async function createDesktopApplication(
       const workbenchId = project.conversations.find((c) => c.id === conversationId)?.workbenchId;
       if (!workbenchId) throw Error("Conversation unavailable");
       if (!browserImportTypes.has(mediaType)) throw Error("Unsupported or oversized file");
-      const asset = await assets.putStream(chunks, mediaType, { ...(signal ? { signal } : {}) });
+      const asset = await assets.putStream(chunks, mediaType, {
+        ...(signal ? { signal } : {}),
+      });
       if (!project.assets.some((a) => a.key === asset.key)) project.assets.push(asset);
       await persist();
       if (workbenchId === "text") await text.addAsset(asset, name);

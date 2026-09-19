@@ -1,4 +1,4 @@
-import type { AgentSession } from "@drawloom/agent";
+import type { AgentSession, AgentGoalSnapshot } from "@drawloom/agent";
 import type { DesktopSnapshot } from "../src/lib/protocol.js";
 import { cleanup } from "./cleanup.js";
 import { DesktopClosedError } from "./application-lifecycle.js";
@@ -7,6 +7,8 @@ export type DesktopSession = {
   session: AgentSession;
   signals: DesktopSnapshot["signals"];
   active?: string;
+  goal?: AgentGoalSnapshot | null;
+  goalError?: string;
   close(): Promise<void>;
 };
 
@@ -76,21 +78,23 @@ export function createDesktopSessions() {
       read: () => Promise<void>,
       unavailable: () => Promise<void>,
     ): Promise<void> {
-      const pump = Promise.resolve()
-        .then(read)
-        .catch(async () => {
-          try {
-            await cleanup([
-              () => state.close(),
-              () => {
-                if (live.get(id) === state) live.delete(id);
-              },
-              unavailable,
-            ]);
-          } catch (error) {
-            failures.push(error);
-          }
-        });
+      const retire = async () => {
+        // A provider may end its stream cleanly on connection loss. Both
+        // settlement paths retire the session; shutdown owns its own cleanup.
+        if (stopped) return;
+        try {
+          await cleanup([
+            () => state.close(),
+            () => {
+              if (live.get(id) === state) live.delete(id);
+            },
+            unavailable,
+          ]);
+        } catch (error) {
+          failures.push(error);
+        }
+      };
+      const pump = Promise.resolve().then(read).then(retire, retire);
       pumps.add(pump);
       // Both branches are observed; no discarded rejecting finally() promise.
       void pump.then(

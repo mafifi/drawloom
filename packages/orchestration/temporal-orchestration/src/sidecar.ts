@@ -143,13 +143,22 @@ if (configuration.mode === "service") {
                       /[/\\]node_modules[/\\](?:\.bun[/\\][^/\\]+[/\\]node_modules[/\\])?@drawloom[/\\]knowledge[/\\]/.test(
                         path,
                       ));
+                  // Agent plan snapshots reuse the portable history contract.
+                  const historyContract =
+                    /[/\\]packages[/\\]observability[/\\]conversation-history[/\\]dist[/\\]/.test(
+                      path,
+                    ) ||
+                    /[/\\]node_modules[/\\](?:\.bun[/\\][^/\\]+[/\\]node_modules[/\\])?@drawloom[/\\]conversation-history[/\\]/.test(
+                      path,
+                    );
                   if (
                     !generated &&
                     !inside(packageRoot, path) &&
                     !inside(runtimeRoot, path) &&
                     !dependency &&
                     !publicContract &&
-                    !hostKnowledgeContract
+                    !hostKnowledgeContract &&
+                    !historyContract
                   )
                     throw new Error(`Workflow dependency containment rejected: ${path}`);
                   dependencies.set(path, digest(await readFile(path)));

@@ -1,6 +1,7 @@
 import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
 import { test, expect } from "bun:test";
 import { agentConformance } from "../agent/src/conformance.js";
+import { agentGoalsConformance } from "@drawloom/agent/goals-conformance";
 import { createCodexDriver, createCodexToolBridge } from "./src/index.js";
 import type { RpcTransport, RpcMessage, JsonValue } from "@drawloom/host";
 import { defineTool } from "@drawloom/tools";
@@ -44,9 +45,353 @@ test("explicit model selection applies to the same native thread and rejects uns
   expect(f.requests.filter((r) => r.method === "thread/start")).toHaveLength(1);
   await s.close();
 });
+test("Codex goals read fresh snapshots and reject a stale mutation without writing", async () => {
+  const f = recorded({
+    goal: {
+      objective: "Finish the map",
+      status: "active",
+      createdAt: 1,
+      updatedAt: 2,
+      timeUsedSeconds: 3,
+      tokensUsed: 4,
+      tokenBudget: 5,
+    },
+  });
+  const opened = await f.driver.openSession({
+    sessionId: "goals",
+    context: { text: "" },
+    tools: { id: "none", tools: [] },
+  });
+  if (opened.status !== "ok" || !opened.value.goals) throw Error("goals unavailable");
+  const first = await opened.value.goals.read();
+  if (first.status !== "ok" || !first.value) throw Error("goal unreadable");
+  f.goal!.tokensUsed = 9;
+  const accounting = await opened.value.goals.read();
+  expect(accounting).toMatchObject({
+    status: "ok",
+    value: { revision: first.value.revision },
+  });
+  f.goal!.objective = "Changed goal";
+  expect(await opened.value.goals.pause({ revision: first.value.revision })).toMatchObject({
+    status: "rejected",
+    failure: { code: "invalid_state" },
+  });
+  expect(f.requests.filter((request) => request.method === "thread/goal/set")).toHaveLength(0);
+  await opened.value.close();
+});
+test("ambiguous goal mutation responses never repeat the write and remain readable", async () => {
+  for (const mode of ["lost-response", "malformed-response"] as const) {
+    const f = recorded();
+    const request = f.transport.request.bind(f.transport);
+    f.transport.request = async (method, params) => {
+      const result = await request(method, params);
+      if (method === "thread/goal/set") {
+        if (mode === "lost-response") throw Error("Response lost after native mutation");
+        return { malformed: true };
+      }
+      return result;
+    };
+    const opened = await f.driver.openSession({
+      sessionId: mode,
+      context: { text: "" },
+      tools: { id: "none", tools: [] },
+    });
+    if (opened.status !== "ok" || !opened.value.goals) throw Error("goals unavailable");
+    expect((await opened.value.goals.create("A single native mutation")).status).toBe("rejected");
+    expect(await opened.value.goals.read()).toMatchObject({
+      status: "ok",
+      value: { objective: "A single native mutation", status: "active" },
+    });
+    expect(f.requests.filter((r) => r.method === "thread/goal/set")).toHaveLength(1);
+    await opened.value.close();
+  }
+});
+test("Codex exposes goal and exact active-turn plan snapshots as session signals", async () => {
+  const f = recorded();
+  const opened = await f.driver.openSession({
+    sessionId: "goal-signals",
+    context: { text: "" },
+    tools: { id: "none", tools: [] },
+  });
+  if (opened.status !== "ok") throw Error("open");
+  const iterator = opened.value.signals()[Symbol.asyncIterator]();
+  f.emit({
+    method: "thread/goal/updated",
+    params: {
+      threadId: "private-thread",
+      goal: {
+        threadId: "private-thread",
+        objective: "Finish the map",
+        status: "active",
+        createdAt: 1,
+        updatedAt: 2,
+        timeUsedSeconds: 3,
+        tokensUsed: 4,
+      },
+    },
+  });
+  expect(await iterator.next()).toMatchObject({
+    value: {
+      kind: "goal.updated",
+      goal: { objective: "Finish the map", status: "active" },
+    },
+  });
+  await opened.value.execute({ operationId: "op", text: "work" });
+  await iterator.next();
+  f.emit({
+    method: "turn/plan/updated",
+    params: {
+      threadId: "private-thread",
+      turnId: "private-turn",
+      explanation: "First inspect.",
+      plan: [{ step: "Inspect", status: "inProgress" }],
+    },
+  });
+  expect(await iterator.next()).toMatchObject({
+    value: {
+      kind: "plan.updated",
+      operationId: "op",
+      plan: {
+        explanation: "First inspect.",
+        steps: [{ text: "Inspect", status: "in_progress" }],
+      },
+    },
+  });
+  await opened.value.close();
+});
+test("Codex adopts a discovered native turn only after host continuation admission", async () => {
+  const f = recorded();
+  const opened = await f.driver.openSession(
+    {
+      sessionId: "native-turn",
+      context: { text: "" },
+      tools: { id: "none", tools: [] },
+    },
+    {
+      admitContinuation: async () => ({
+        status: "ok",
+        value: { operationId: "adopted" },
+      }),
+    },
+  );
+  if (opened.status !== "ok") throw Error("open");
+  const iterator = opened.value.signals()[Symbol.asyncIterator]();
+  f.emit({
+    method: "turn/started",
+    params: {
+      threadId: "private-thread",
+      turn: { id: "native-turn", status: "inProgress", items: [] },
+    },
+  });
+  expect(await iterator.next()).toMatchObject({
+    value: { kind: "operation.started", operationId: "adopted" },
+  });
+  await opened.value.close();
+});
+test("closing during pending native-turn admission does not publish a stale operation", async () => {
+  const f = recorded();
+  let resolve!: (value: { status: "ok"; value: { operationId: string } }) => void;
+  const pending = new Promise<{ status: "ok"; value: { operationId: string } }>((done) => {
+    resolve = done;
+  });
+  let accepted = 0;
+  const driver = createCodexDriver({
+    connect: async () => f.transport,
+    store: {
+      async get() {
+        return undefined;
+      },
+      async set() {},
+    },
+    onTurnAccepted() {
+      accepted++;
+    },
+  });
+  const opened = await driver.openSession(
+    {
+      sessionId: "close-race",
+      context: { text: "" },
+      tools: { id: "none", tools: [] },
+    },
+    { admitContinuation: async () => pending },
+  );
+  if (opened.status !== "ok") throw Error("open");
+  f.emit({
+    method: "turn/started",
+    params: {
+      threadId: "private-thread",
+      turn: { id: "native-turn", status: "inProgress", items: [] },
+    },
+  });
+  await Promise.resolve();
+  await opened.value.close();
+  resolve({ status: "ok", value: { operationId: "late" } });
+  await Promise.resolve();
+  expect(accepted).toBe(0);
+});
+test("a terminal queued during continuation admission retains exact operation association", async () => {
+  const f = recorded();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const opened = await f.driver.openSession(
+    {
+      sessionId: "queued-terminal",
+      context: { text: "" },
+      tools: { id: "none", tools: [] },
+    },
+    {
+      admitContinuation: async () => {
+        await gate;
+        return { status: "ok", value: { operationId: "continued" } };
+      },
+    },
+  );
+  if (opened.status !== "ok") throw Error("open");
+  const iterator = opened.value.signals()[Symbol.asyncIterator]();
+  f.emit({
+    method: "turn/started",
+    params: { threadId: "private-thread", turn: { id: "continuation" } },
+  });
+  f.emit({
+    method: "turn/completed",
+    params: {
+      threadId: "private-thread",
+      turn: { id: "continuation", status: "completed" },
+    },
+  });
+  release();
+  expect((await iterator.next()).value).toEqual({
+    kind: "operation.started",
+    operationId: "continued",
+  });
+  expect((await iterator.next()).value).toEqual({
+    kind: "operation.completed",
+    operationId: "continued",
+  });
+  await opened.value.close();
+  const reopened = await f.driver.openSession({
+    sessionId: "queued-terminal",
+    context: { text: "" },
+    tools: { id: "none", tools: [] },
+  });
+  expect(f.requests.some((request) => request.method === "thread/resume")).toBe(true);
+  if (reopened.status === "ok") await reopened.value.close();
+});
+for (const lostResponse of [false, true]) {
+  test(`goal before first turn survives reopen (lost response: ${lostResponse})`, async () => {
+    const f = recorded();
+    const request = f.transport.request.bind(f.transport);
+    let starts = 0;
+    f.transport.request = async (method, params) => {
+      // A newly started thread has no goal; resuming retains the old one.
+      if (method === "thread/start" && ++starts > 1) await request("thread/goal/clear", {});
+      const result = await request(method, params);
+      if (lostResponse && method === "thread/goal/set") throw Error("Response lost");
+      return result;
+    };
+    const input = {
+      sessionId: "early-goal",
+      context: { text: "" },
+      tools: { id: "none", tools: [] },
+    };
+    const opened = await f.driver.openSession(input);
+    if (opened.status !== "ok" || !opened.value.goals) throw Error("open");
+    expect((await opened.value.goals.create("Retain this goal")).status).toBe(
+      lostResponse ? "rejected" : "ok",
+    );
+    const current = await opened.value.goals.read();
+    if (current.status !== "ok" || !current.value) throw Error("read");
+    await opened.value.goals.pause({ revision: current.value.revision });
+    await opened.value.close();
+    const reopened = await f.driver.openSession(input);
+    if (reopened.status !== "ok" || !reopened.value.goals) throw Error("reopen");
+    try {
+      expect(await reopened.value.goals.read()).toMatchObject({
+        status: "ok",
+        value: { objective: "Retain this goal", status: "paused" },
+      });
+      expect(f.requests.filter((r) => r.method === "thread/start")).toHaveLength(1);
+      expect(f.requests.filter((r) => r.method === "thread/goal/set")).toHaveLength(2);
+      expect(f.requests.filter((r) => r.method === "turn/start")).toHaveLength(0);
+    } finally {
+      await reopened.value.close();
+    }
+  });
+}
+test("restart fences unresolved execution and explicit read reconciles without resume mutation", async () => {
+  for (const status of ["active", "paused", "blocked", "complete"]) {
+    const f = recorded({
+      goal: {
+        objective: "Retained",
+        status,
+        createdAt: 1,
+        updatedAt: 1,
+        timeUsedSeconds: 0,
+        tokensUsed: 0,
+      },
+    });
+    let terminal = false;
+    const driver = createCodexDriver({
+      connect: async () => ({
+        ...f.transport,
+        async request(method, params) {
+          if (method === "thread/read")
+            return {
+              thread: {
+                id: "private-thread",
+                turns: [{ status: terminal ? "completed" : "inProgress" }],
+              },
+            };
+          return f.transport.request(method, params);
+        },
+      }),
+      store: {
+        async get(key) {
+          return key === "codex:restored"
+            ? { threadId: "private-thread", materialized: true }
+            : undefined;
+        },
+        async set() {},
+      },
+    });
+    const opened = await driver.openSession({
+      sessionId: "restored",
+      context: { text: "" },
+      tools: { id: "none", tools: [] },
+    });
+    if (opened.status !== "ok" || !opened.value.goals) throw Error("open");
+    opened.value.signals();
+    expect((await opened.value.goals.read()).status).toBe("rejected");
+    expect(
+      (
+        await opened.value.execute({
+          operationId: "new",
+          text: "Must not execute",
+        })
+      ).status,
+    ).toBe("rejected");
+    terminal = true;
+    expect(await opened.value.goals.read()).toMatchObject({
+      status: "ok",
+      value: { status },
+    });
+    expect(
+      f.requests.filter(
+        (request) => request.method === "thread/goal/set" || request.method === "turn/start",
+      ),
+    ).toHaveLength(0);
+    await opened.value.close();
+  }
+});
 test("Codex bridge preserves standard returned media beside canonical typed output", async () => {
   const content = [
-    { type: "resource_link" as const, uri: "reference://sample", name: "Sample" },
+    {
+      type: "resource_link" as const,
+      uri: "reference://sample",
+      name: "Sample",
+    },
     { type: "image" as const, data: "AA==", mimeType: "image/png" },
   ];
   const gateway = createLocalToolGateway({
@@ -72,7 +417,10 @@ test("Codex bridge preserves standard returned media beside canonical typed outp
     "canonical",
     new AbortController().signal,
   );
-  expect(result).toMatchObject({ content, structuredContent: { value: "canonical" } });
+  expect(result).toMatchObject({
+    content,
+    structuredContent: { value: "canonical" },
+  });
 });
 test("native Other input accepts custom text and presents option descriptions", async () => {
   const f = recorded();
@@ -216,9 +564,18 @@ test("fresh exclusive operation reports the latest cumulative turn usage once", 
       modelContextWindow: 200000,
     },
   });
-  f.emit({ method: "thread/tokenUsage/updated", params: usage(100, 40, 20, 5, 120) });
-  f.emit({ method: "thread/tokenUsage/updated", params: usage(250, 100, 50, 10, 300) });
-  f.emit({ method: "thread/tokenUsage/updated", params: usage(250, 100, 50, 10, 300) });
+  f.emit({
+    method: "thread/tokenUsage/updated",
+    params: usage(100, 40, 20, 5, 120),
+  });
+  f.emit({
+    method: "thread/tokenUsage/updated",
+    params: usage(250, 100, 50, 10, 300),
+  });
+  f.emit({
+    method: "thread/tokenUsage/updated",
+    params: usage(250, 100, 50, 10, 300),
+  });
   await f.complete();
   await session.close();
   await drain;
@@ -276,7 +633,10 @@ test("opt-in dedicated fresh session archives after exact native failure or inte
     });
     if (opened.status !== "ok") throw Error("open");
     opened.value.signals();
-    await opened.value.execute({ operationId: "judge", text: "Do not use tools" });
+    await opened.value.execute({
+      operationId: "judge",
+      text: "Do not use tools",
+    });
     await fixture.complete(status);
     expect(await opened.value.close()).toMatchObject({ status: "ok" });
     expect(fixture.requests.filter((request) => request.method === "thread/archive")).toEqual([
@@ -446,11 +806,26 @@ test("MCP failure projection retains unknown execution", async () => {
     ),
   ).toMatchObject({ isError: true, _meta: { execution: "unknown" } });
 });
-export function recorded(options: { archiveOnClose?: boolean } = {}) {
+export function recorded(
+  options: {
+    archiveOnClose?: boolean;
+    goal?: {
+      objective: string;
+      status: string;
+      createdAt: number;
+      updatedAt: number;
+      timeUsedSeconds: number;
+      tokensUsed: number;
+      tokenBudget?: number | null;
+    };
+  } = {},
+) {
   let receive: (m: RpcMessage) => void = () => {};
   let failure: () => void = () => {};
   const requests: { method: string; params: unknown }[] = [];
   const replies: unknown[] = [];
+  let goal = options.goal;
+  let goalVersion = 0;
   const transport: RpcTransport = {
     async request(method, params) {
       requests.push({ method, params });
@@ -468,7 +843,28 @@ export function recorded(options: { archiveOnClose?: boolean } = {}) {
         };
       if (method === "thread/start" || method === "thread/resume")
         return { thread: { id: "private-thread" }, approvalsReviewer: "user" };
+      if (method === "thread/read") return { thread: { id: "private-thread", turns: [] } };
       if (method === "turn/start") return { turn: { id: "private-turn" } };
+      if (method === "thread/goal/get")
+        return {
+          goal: goal ? { threadId: "private-thread", ...goal } : null,
+        };
+      if (method === "thread/goal/set") {
+        const change = params as { objective?: string; status?: string };
+        goal = {
+          objective: change.objective ?? goal?.objective ?? "",
+          status: change.status ?? goal?.status ?? "active",
+          createdAt: goal?.createdAt ?? ++goalVersion,
+          updatedAt: ++goalVersion,
+          timeUsedSeconds: goal?.timeUsedSeconds ?? 0,
+          tokensUsed: goal?.tokensUsed ?? 0,
+        };
+        return { goal: { threadId: "private-thread", ...goal } };
+      }
+      if (method === "thread/goal/clear") {
+        goal = undefined;
+        return { cleared: true };
+      }
       return {};
     },
     notify() {},
@@ -503,6 +899,7 @@ export function recorded(options: { archiveOnClose?: boolean } = {}) {
     transport,
     requests,
     replies,
+    goal: options.goal,
     emit: (m: RpcMessage) => receive(m),
     fail: () => failure(),
     complete: async (status: "completed" | "interrupted" | "failed" = "completed") => {
@@ -516,6 +913,39 @@ export function recorded(options: { archiveOnClose?: boolean } = {}) {
     },
   };
 }
+test("scripted Codex goal implementation runs the shared conformance suite", async () => {
+  const f = recorded();
+  const opened = await f.driver.openSession({
+    sessionId: "goal-conformance",
+    context: { text: "" },
+    tools: { id: "none", tools: [] },
+  });
+  if (opened.status !== "ok" || !opened.value.goals) throw Error("No goals");
+  try {
+    await agentGoalsConformance(() => opened.value.goals!);
+  } finally {
+    await opened.value.close();
+  }
+});
+test("concurrent goal creation serializes and does not replace the first goal", async () => {
+  const f = recorded();
+  const opened = await f.driver.openSession({
+    sessionId: "goal-race",
+    context: { text: "" },
+    tools: { id: "none", tools: [] },
+  });
+  if (opened.status !== "ok" || !opened.value.goals) throw Error("No goals");
+  try {
+    const results = await Promise.all([
+      opened.value.goals.create("One"),
+      opened.value.goals.create("Two"),
+    ]);
+    expect(results.map((result) => result.status)).toEqual(["ok", "rejected"]);
+    expect(f.requests.filter((request) => request.method === "thread/goal/set")).toHaveLength(1);
+  } finally {
+    await opened.value.close();
+  }
+});
 test("recorded Codex transport shared agent conformance", () =>
   agentConformance(codexAgentFixture));
 test("Codex preserves private continuity, fresh context, approval choices and input validation", async () => {
@@ -580,7 +1010,10 @@ test("Codex preserves private continuity, fresh context, approval choices and in
   if (approval?.kind !== "approval.requested" || elicitation?.kind !== "input.requested")
     throw Error("Missing interactions");
   expect(
-    await s.resolveApproval({ approvalId: approval.request.approvalId, optionId: "option-1" }),
+    await s.resolveApproval({
+      approvalId: approval.request.approvalId,
+      optionId: "option-1",
+    }),
   ).toMatchObject({ status: "ok" });
   expect(f.replies[0]).toEqual({
     id: 10,

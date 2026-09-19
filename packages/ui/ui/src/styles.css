@@ -7,6 +7,65 @@
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
 /* Layer 3: reusable semantic utilities and shared component styling. */
+/* Clock geometry is functional: integer seconds, 60 seconds/minute and 60
+   minutes/hour. CSS owns ticking; the consumer owns anchors and play state.
+   The signed integer horizon is ~68 years, not a goal budget or deadline. */
+@property --goal-ticks {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: true;
+}
+@keyframes goal-clock-tick {
+  from {
+    --goal-ticks: 0;
+  }
+  to {
+    --goal-ticks: 2147483647;
+  }
+}
+.composer-dock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.composer-attached-strip {
+  @apply mx-6 flex min-w-0 flex-col gap-1 rounded-t-lg rounded-b-none border border-b-0 bg-muted-surface px-3 py-1 text-chrome;
+}
+.composer-attached-strip + .composer-attached-strip {
+  @apply rounded-t-none;
+}
+.composer-feedback {
+  margin-bottom: var(--space-stack);
+}
+.goal-clock-digits {
+  display: none;
+}
+@supports (width: calc(mod(5, 2) * 1px)) {
+  .goal-clock {
+    animation: goal-clock-tick 2147483647s steps(2147483647, end) both;
+    animation-delay: calc(-1s * var(--goal-start));
+    counter-reset: goal-hours round(down, calc(var(--goal-ticks) / 3600)) goal-minutes
+      mod(round(down, calc(var(--goal-ticks) / 60)), 60) goal-seconds mod(var(--goal-ticks), 60);
+  }
+  .goal-clock-digits {
+    display: inline;
+  }
+  .goal-clock-digits::after {
+    content: counter(goal-hours) ":" counter(goal-minutes, decimal-leading-zero) ":"
+      counter(goal-seconds, decimal-leading-zero);
+  }
+  .goal-clock-fallback {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .goal-clock.goal-clock {
+    animation-duration: 2147483647s !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+/* Discrete digit changes convey time; no rolling, fading or per-second JS.
+   They remain functional when decorative motion is reduced. */
 @theme inline {
   --color-focus-ring: var(--focus-ring);
   --color-invalid-ring: var(--invalid-ring);

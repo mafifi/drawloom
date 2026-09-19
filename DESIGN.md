@@ -208,6 +208,9 @@ icon for unrelated destinations, emoji as product identity, or decorative avatar
 Compose its Sidebar, InputGroup, Command, Tabs, Dialog, DropdownMenu, ContextMenu,
 Collapsible, Field and Empty primitives. Do not hand-roll their keyboard or
 dismissal behaviour. StatefulButton marks only the action actually pending.
+Choose shadcn-svelte first; use Prompt Kit and then AI Elements for a demonstrated
+missing composition. Keep these adaptations in the shared package. Native media
+controls remain the playback interface, rather than a bespoke player toolbar.
 
 ### Approved screen compositions
 

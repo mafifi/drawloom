@@ -32,9 +32,11 @@ const savedTurn = z
   .object({
     id: z.string().min(1),
     status: z.string().optional(),
-    completedAt: timestamp.optional(),
-    startedAt: timestamp.optional(),
-    durationMs: z.number().finite().nonnegative().optional(),
+    // Native timing is nullable, including terminal interrupted turns. Unknown
+    // timing is not malformed history and must not block other retained turns.
+    completedAt: timestamp.nullish(),
+    startedAt: timestamp.nullish(),
+    durationMs: z.number().finite().nonnegative().nullish(),
   })
   .strip();
 const backfillSchema = z.object({
@@ -150,6 +152,18 @@ export function createCodexHistoryReader(
             ? ("interrupted" as const)
             : ("partial" as const),
     };
+    if (item.type === "plan") {
+      if (!operationId) return undefined;
+      const text = z.string().safeParse(item.text);
+      if (!text.success) throw new HistoryReadError("error", "Invalid native plan text.");
+      return {
+        ...common,
+        role: "assistant",
+        origin: { kind: "proposal" },
+        text: text.data,
+        assets: [],
+      };
+    }
     if (item.type === "agentMessage") {
       const text = z.string().safeParse(item.text);
       if (!text.success)
@@ -186,7 +200,7 @@ export function createCodexHistoryReader(
       return {
         ...common,
         role: "user",
-        origin: { kind: "user" },
+        origin: existing?.origin.kind === "user" ? existing.origin : { kind: "user" },
         text: display.text,
         ...(display.preparation ? { preparation: display.preparation } : {}),
         assets: existing?.assets ?? [],

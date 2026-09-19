@@ -7,6 +7,13 @@ import {
 import { ToolExposureSchema, type ToolContent } from "@drawloom/tools";
 import { AssetSchema } from "@drawloom/host";
 import type { ConversationHistoryReader } from "@drawloom/conversation-history";
+import {
+  AgentGoalSnapshotSchema,
+  AgentPlanSnapshotSchema,
+  type AgentGoals,
+  type AgentSessionOpenOptions,
+} from "./goals.js";
+export * from "./goals.js";
 
 const AbortSignalSchema = z.custom<AbortSignal>((value) => {
   if (!value || typeof value !== "object") return false;
@@ -82,6 +89,9 @@ export const AgentSessionOpenInputSchema = z.strictObject({
 export type AgentSessionOpenInput = z.infer<typeof AgentSessionOpenInputSchema>;
 export const AgentReviewerSchema = z.enum(["human", "delegated"]);
 export type AgentReviewer = z.infer<typeof AgentReviewerSchema>;
+/** Provider-native behaviour, not a permission or sandbox policy. */
+export const AgentModeSchema = z.enum(["default", "plan"]);
+export type AgentMode = z.infer<typeof AgentModeSchema>;
 export const AgentModelSelectionSchema = z.strictObject({
   model: z.string().min(1).max(256),
   effort: z.string().min(1).max(64).optional(),
@@ -96,6 +106,7 @@ export const AgentModelSchema = z.strictObject({
 export type AgentModel = z.infer<typeof AgentModelSchema>;
 export const AgentOperationInputSchema = z.strictObject({
   operationId: id,
+  mode: AgentModeSchema.optional(),
   text: z.string(),
   selections: z.array(DiscoverySelectionSchema).max(32).optional(),
   attachments: z.array(AssetSchema).max(16).optional(),
@@ -201,6 +212,19 @@ export const AgentOperationUsageSchema = z
 export type AgentOperationUsage = z.infer<typeof AgentOperationUsageSchema>;
 export const AgentSessionSignalSchema = z.discriminatedUnion("kind", [
   z.strictObject({
+    kind: z.literal("plan.proposed"),
+    operationId: id,
+    proposalId: id,
+    text: z.string(),
+    state: z.enum(["partial", "complete"]),
+  }),
+  z.strictObject({ kind: z.literal("goal.updated"), goal: AgentGoalSnapshotSchema.nullable() }),
+  z.strictObject({
+    kind: z.literal("plan.updated"),
+    operationId: id,
+    plan: AgentPlanSnapshotSchema,
+  }),
+  z.strictObject({
     kind: z.literal("artifact.available"),
     operationId: id,
     asset: AssetSchema,
@@ -272,9 +296,15 @@ export const AgentSessionSignalSchema = z.discriminatedUnion("kind", [
 export type AgentSessionSignal = z.infer<typeof AgentSessionSignalSchema>;
 export interface AgentDriver {
   readonly driverId: string;
-  openSession(input: AgentSessionOpenInput): Promise<AgentResult<AgentSession>>;
+  openSession(
+    input: AgentSessionOpenInput,
+    options?: AgentSessionOpenOptions,
+  ): Promise<AgentResult<AgentSession>>;
 }
 export interface AgentSession {
+  /** Absent means mode selection is unsupported. */
+  readonly modes?: readonly AgentMode[];
+  readonly goals?: AgentGoals;
   readonly discovery?: AgentDiscovery;
   readonly reviewerModes: readonly AgentReviewer[];
   readonly history?: ConversationHistoryReader;

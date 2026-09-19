@@ -71,6 +71,9 @@ Newest first. A decision remains binding until an ADR supersedes it.
 
 ### Plugins, projects and the desktop
 
+- **[0031: Integrate native goals and structured plans](0031-native-goals-and-structured-plans.md)** —
+  Accepted. Provider-owned goals, correlated continuation and retained plan presentation.
+
 - **[0030: Consistent UI composition and retained meaning](0030-consistent-ui-composition-and-history.md)** —
   Proposed; implementation authorised. Tightens the four-layer theme boundary
   and retains provenance for coherent live and historical conversation rendering.

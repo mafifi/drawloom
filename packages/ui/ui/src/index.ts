@@ -1,6 +1,7 @@
 export { Button, buttonVariants, type ButtonProps } from "./components/button/index.js";
 export { StatefulButton, type StatefulButtonProps } from "./components/stateful-button/index.js";
 export { Input } from "./components/input/index.js";
+export { default as ComposerStrip } from "./components/composer-strip.svelte";
 export { Textarea } from "./components/textarea/index.js";
 export { Checkbox } from "./components/checkbox/index.js";
 export { Label } from "./components/label/index.js";
@@ -72,6 +73,16 @@ export { default as Markdown } from "./Markdown.svelte";
 export * as Confirmation from "./components/ai-elements/confirmation/index.js";
 export * as Tool from "./components/ai-elements/tool/index.js";
 export * as Sources from "./components/ai-elements/sources/index.js";
+export * as Plan from "./components/ai-elements/plan/index.js";
+export * as Task from "./components/ai-elements/task/index.js";
+export {
+  GoalBar,
+  type GoalBarProps,
+  type GoalBarPresentation,
+  type GoalBarActions,
+  type GoalBarLabels,
+  type GoalBarStatus,
+} from "./components/goal-bar/index.js";
 export * as PromptInput from "./components/prompt-kit/prompt-input/index.js";
 export * as ChatMessage from "./components/prompt-kit/message/index.js";
 export * as ChatContainer from "./components/prompt-kit/chat-container/index.js";

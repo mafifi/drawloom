@@ -30,7 +30,49 @@ Session and operation IDs are non-empty strings checked by the package schemas.
 Codex's own thread, turn and request IDs stay inside its adapter. Do not use
 them in place of Drawloom IDs or infer relationships from message timing.
 
-## Follow the result, not just the submission
+## Native goals and structured plans
+
+Optional `session.modes` advertises native `plan` and `default` submission modes.
+Selection alone does not submit a turn. `plan.proposed` carries an operation-bound
+proposal identity, text and partial/complete state; completed text supersedes
+partial text. This is distinct from the execution checklist in `plan.updated`.
+The desktop uses the shared Plan composition for proposals and its Task details
+for checklists. Implement plan reserves the latest complete retained proposal
+before explicitly submitting its exact text in default mode. An uncertain
+submission is never repeated automatically. Mode guidance is not a sandbox or
+tool grant. See the [Plan mode delivery record](../plans/0031-native-plan-mode.md).
+
+The optional `session.goals` interface exposes provider-owned goals. Absence means
+unsupported, not an empty goal. `read()` returns a validated snapshot or `null`;
+create, edit, pause, resume and clear return explicit results. Mutations other
+than creation carry the displayed snapshot's opaque revision. Refresh after a
+rejection or ambiguous response; never automatically repeat a mutation that may
+have activated work. The revision protects against stale local controls, not an
+atomic lock against another native writer.
+
+`goal.updated` is session-scoped and can arrive between operations. Accounting is
+reported by the provider; elapsed wall time is not active execution time. Pausing
+goal pursuit does not undo external effects or replace active-operation Stop.
+Goal completion is not business acceptance.
+
+`plan.updated` carries a complete ordered snapshot for one operation. Steps have
+no invented cross-update identities. Retain each update through conversation
+history, including empty replacements, and render it through the shared Plan
+composition. Existing conversations acquire no fabricated plans. Changes to a
+plan are requested in the conversation, not through a competing plan editor.
+
+Hosts that support native continuation supply `admitContinuation` when opening a
+session. Admission establishes a fresh Drawloom operation before publishing tool
+authority. It is not a veto on native effects that occurred before notification.
+The desktop verifies its lifecycle and fixed project binding, and keeps existing
+tool authorization and approval checks. Hosts without admission support do not
+silently attach continuation to the previous operation. Restart reconciles native
+execution before enabling pursuit; it does not send an implicit resume.
+
+See [Accepted ADR 0031](../adr/0031-native-goals-and-structured-plans.md) for
+ownership, reference evidence and verification status.
+
+## Follow operation results
 
 Attach the signal stream **before** submitting the first operation. A session
 allows one stream consumer and one starting or active operation at a time.

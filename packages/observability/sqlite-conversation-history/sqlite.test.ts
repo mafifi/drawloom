@@ -7,6 +7,29 @@ import { HistoryStoreError } from "@drawloom/conversation-history";
 import * as historyProvider from "./src/index.js";
 const { createSqliteConversationHistory } = historyProvider;
 
+test("structured plans reopen without changing prior entries or requiring a schema migration", async () => {
+  const file = path();
+  let store = createSqliteConversationHistory(file);
+  await store.commit("conversation", { expectedRevision: 0, entries: [entry()] });
+  const plan = {
+    ...entry("plan"),
+    position: [1, 0] as const,
+    role: "assistant" as const,
+    operationId: "op",
+    origin: {
+      kind: "plan" as const,
+      plan: { steps: [{ text: "Inspect", status: "completed" as const }] },
+    },
+    text: "Inspect",
+  };
+  await store.commit("conversation", { expectedRevision: 1, entries: [plan] });
+  await store.close();
+  store = createSqliteConversationHistory(file);
+  expect(await store.get("conversation", "one")).toMatchObject(entry());
+  expect(await store.get("conversation", "plan")).toMatchObject(plan);
+  await store.close();
+});
+
 test("provenance conversion is explicit, complete, backed up and idempotent", async () => {
   const file = path();
   const store = createSqliteConversationHistory(file);

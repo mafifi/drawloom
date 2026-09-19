@@ -31,8 +31,15 @@
 	function bindScrollElement(node: HTMLDivElement) {
 		ref = node;
 		context.setScrollElement(node);
+		// Upward wheel events normally originate on message descendants. The
+		// underlying follower only handles a wheel targeted at the scrollport.
+		const leaveTail = (event: WheelEvent) => {
+			if (event.deltaY < 0) context.stopScroll();
+		};
+		node.addEventListener("wheel", leaveTail, { passive: true });
 
 		return () => {
+			node.removeEventListener("wheel", leaveTail);
 			ref = null;
 			context.setScrollElement(null);
 		};

@@ -7,6 +7,8 @@ import type { createApprovalPresentationHost } from "./approval-presentation.js"
 import type { createOperationTelemetry } from "./telemetry.js";
 
 type Submission = {
+  mode?: "default" | "plan";
+  implementsProposalId?: string;
   displayId: string;
   text: string;
   assets: Asset[];
@@ -49,7 +51,33 @@ export function createSessionSignalReader({
     async read() {
       for await (const signal of session.signals()) {
         operationTelemetry.signal(signal);
-        if (signal.kind === "message.delta" || signal.kind === "message.completed") {
+        if (signal.kind === "plan.proposed") {
+          const key = `${signal.operationId}:${signal.proposalId}`;
+          const entry: Omit<HistoryEntry, "position"> = {
+            id: key,
+            operationId: signal.operationId,
+            role: "assistant",
+            origin: { kind: "proposal" },
+            text: signal.text,
+            assets: [],
+            state: signal.state,
+          };
+          if (signal.state === "partial") messages.set(key, entry);
+          else messages.delete(key);
+          await historyWriter.write(entry);
+        } else if (signal.kind === "plan.updated") {
+          await historyWriter.write({
+            id: `${signal.operationId}:plan:${crypto.randomUUID()}`,
+            operationId: signal.operationId,
+            role: "assistant",
+            origin: { kind: "plan", plan: signal.plan },
+            text: signal.plan.steps.map((step) => step.text).join("\n"),
+            assets: [],
+            state: "complete",
+          });
+        } else if (signal.kind === "goal.updated") {
+          state.goal = signal.goal;
+        } else if (signal.kind === "message.delta" || signal.kind === "message.completed") {
           const key = signal.operationId + ":" + signal.messageId;
           let message = messages.get(key);
           if (!message) {
@@ -81,8 +109,13 @@ export function createSessionSignalReader({
             const index = pending?.findIndex((value) => value.displayId === signal.displayId) ?? -1;
             const submission = index >= 0 ? pending?.splice(index, 1)[0] : undefined;
             if (submission) {
-              const { displayId: _, ...visible } = submission;
+              const { displayId: _, mode, implementsProposalId, ...visible } = submission;
               Object.assign(message, visible);
+              message.origin = {
+                kind: "user",
+                ...(mode ? { mode } : {}),
+                ...(implementsProposalId ? { implementsProposalId } : {}),
+              };
             }
           }
           await historyWriter.write({ ...message });

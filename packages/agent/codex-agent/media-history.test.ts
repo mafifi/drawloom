@@ -25,6 +25,99 @@ test("native display identity is the Web Crypto SHA-256 digest", async () => {
   );
 });
 
+test.each(["interrupted", "failed", "completed", "inProgress"])(
+  "nullable native turn timing does not block %s history or duplicate it on reopen",
+  async (status) => {
+    const state = memoryContext();
+    const request = async (method: string) => {
+      if (method === "thread/turns/list")
+        return {
+          data: [
+            {
+              id: "turn",
+              status,
+              items: [],
+              itemsView: "notLoaded",
+              error: null,
+              startedAt: null,
+              completedAt: null,
+              durationMs: null,
+            },
+          ],
+          nextCursor: null,
+        };
+      return {
+        data: [
+          {
+            turnId: "turn",
+            item: {
+              id: "answer",
+              type: "agentMessage",
+              text: "Retained answer",
+            },
+          },
+        ],
+        nextCursor: null,
+      };
+    };
+    const reader = createCodexHistoryReader(request, "thread", { turn: "operation" });
+    state.commit(await reader.read(state.context, { direction: "latest", limit: 50 }));
+    expect([...state.entries.values()]).toMatchObject([
+      {
+        text: "Retained answer",
+        operationId: "operation",
+        state:
+          status === "completed" ? "complete" : status === "inProgress" ? "partial" : "interrupted",
+      },
+    ]);
+    const reopened = createCodexHistoryReader(request, "thread", { turn: "operation" });
+    state.commit(await reopened.read(state.context, { direction: "latest", limit: 50 }));
+    expect(state.entries.size).toBe(1);
+  },
+);
+
+test("native proposal history reconciles the same live item and preserves submission provenance", async () => {
+  const state = memoryContext();
+  const id = `op:${await nativeMessageId("proposal")}`;
+  state.entries.set(id, {
+    id,
+    position: [1, 0],
+    operationId: "op",
+    role: "assistant",
+    origin: { kind: "proposal" },
+    text: "Partial",
+    assets: [],
+    state: "partial",
+  });
+  const reader = createCodexHistoryReader(
+    async (method) =>
+      method === "thread/turns/list"
+        ? { data: [{ id: "turn", status: "completed" }], nextCursor: null }
+        : {
+            data: [
+              {
+                turnId: "turn",
+                item: { id: "proposal", type: "plan", text: "Authoritative final plan" },
+              },
+            ],
+            nextCursor: null,
+          },
+    "thread",
+    { turn: "op" },
+  );
+  const batch = await reader.read(state.context, { direction: "latest", limit: 50 });
+  expect(batch.entries).toHaveLength(1);
+  expect(batch.entries[0]).toMatchObject({
+    id,
+    operationId: "op",
+    origin: { kind: "proposal" },
+    text: "Authoritative final plan",
+    state: "complete",
+  });
+  state.commit(batch);
+  expect(state.entries.size).toBe(1);
+});
+
 test("native chronology inserts an unseen user before its already-stored live assistant", async () => {
   const calls: { method: string; params: Record<string, unknown> }[] = [];
   const request = async (method: string, raw: unknown) => {

@@ -62,6 +62,60 @@ function fixture(signals: AgentSessionSignal[]) {
   return { options, state, written, events };
 }
 
+test("proposed plan updates replace one retained item without becoming assistant prose", async () => {
+  const f = fixture([
+    {
+      kind: "plan.proposed",
+      operationId: "op",
+      proposalId: "proposal",
+      text: "Draft",
+      state: "partial",
+    },
+    {
+      kind: "plan.proposed",
+      operationId: "op",
+      proposalId: "proposal",
+      text: "Final",
+      state: "complete",
+    },
+  ]);
+  await createSessionSignalReader(f.options).read();
+  expect(f.written).toHaveLength(2);
+  expect(f.written.map((e) => e.id)).toEqual(["op:proposal", "op:proposal"]);
+  expect(f.written[1]).toMatchObject({
+    origin: { kind: "proposal" },
+    text: "Final",
+    state: "complete",
+  });
+});
+
+test("plan snapshots retain chronology and empty replacement without fabricated messages", async () => {
+  const f = fixture([
+    {
+      kind: "plan.updated",
+      operationId: "op",
+      plan: { steps: [{ text: "Inspect", status: "pending" }] },
+    },
+    { kind: "message.completed", operationId: "op", messageId: "answer", text: "Found it" },
+    { kind: "plan.updated", operationId: "op", plan: { steps: [] } },
+  ]);
+  await createSessionSignalReader(f.options).read();
+  expect(f.written.map((e) => e.origin.kind)).toEqual(["plan", "assistant", "plan"]);
+  expect(f.written[2]?.origin).toEqual({ kind: "plan", plan: { steps: [] } });
+  expect(f.written[0]?.operationId).toBe("op");
+});
+
+test("returning to an earlier plan snapshot creates a later retained update", async () => {
+  const first = { steps: [{ text: "Inspect", status: "pending" as const }] };
+  const f = fixture([
+    { kind: "plan.updated", operationId: "op", plan: first },
+    { kind: "plan.updated", operationId: "op", plan: { steps: [] } },
+    { kind: "plan.updated", operationId: "op", plan: first },
+  ]);
+  await createSessionSignalReader(f.options).read();
+  expect(new Set(f.written.map((entry) => entry.id)).size).toBe(3);
+});
+
 test("completed native user messages retain the matching original display receipt", async () => {
   const f = fixture([
     {

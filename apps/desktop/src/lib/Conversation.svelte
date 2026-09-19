@@ -25,9 +25,12 @@
     Spinner,
     Markdown,
     Tool,
+    Plan,
+    Task,
   } from "@drawloom/ui";
   import { PanelIcon, DocumentIcon } from "@drawloom/ui";
   import Composer from "./Composer.svelte";
+  import GoalControls from "./GoalControls.svelte";
   import KnowledgeDisclosure from './KnowledgeDisclosure.svelte';
   import ArtifactViewer from "./ArtifactViewer.svelte";
   import AttachmentCard from "./AttachmentCard.svelte";
@@ -39,6 +42,8 @@
   import type { DesktopViewModel } from "./view-model.svelte.js";
   let { vm }: { vm: DesktopViewModel } = $props();
   let inputValue = $state("{}");
+  let goalControls: { createGoal(): Promise<void> } | undefined = $state();
+  let composer: { focus(): void } | undefined = $state();
   let assignmentProjectId = $state('');
   let scroll = $state<HTMLDivElement>(null!);
   let content = $state<HTMLDivElement>(null!);
@@ -174,7 +179,30 @@
       >
     {/if}
     {#each presentation as node (node.id)}
-      {#if node.kind === 'process'}
+      {#if node.kind === 'proposal'}
+        <ChatMessage.Root><ChatMessage.Content>
+        <Plan.Root open={node.latest} data-history-id={node.id} tabindex={-1}>
+          <Plan.Header><Plan.Title>{node.latest ? 'Proposed plan' : 'Earlier proposal'}</Plan.Title><Plan.Action><Plan.Trigger /></Plan.Action></Plan.Header>
+          <Plan.Content><Markdown text={node.entry.text} />
+            {#if node.entry.state === 'partial'}<p class="text-muted-foreground" role="status">Preparing proposal…</p>
+            {:else if node.entry.state === 'interrupted'}<p class="text-muted-foreground">Proposal interrupted. Ask to continue in the conversation.</p>{/if}
+          </Plan.Content>
+          {#if node.implementable}<Plan.Footer><StatefulButton pending={vm.pendingCommand?.kind === 'implement_plan'} disabled={vm.busy || !!vm.state?.activeOperation || !vm.state?.modes.includes('default')} onclick={()=>void vm.implementPlan(node.id)}>Implement plan</StatefulButton></Plan.Footer>{/if}
+        </Plan.Root>
+        </ChatMessage.Content></ChatMessage.Root>
+      {:else if node.kind === 'plan' && node.entry.origin.kind === 'plan'}
+        <ChatMessage.Root><ChatMessage.Content>
+        <Plan.Root open={node.expanded} data-history-id={node.id} tabindex={-1}>
+          <Plan.Header><Plan.Title>{node.latest ? 'Plan' : 'Earlier plan'}</Plan.Title><Plan.Action><Plan.Trigger /></Plan.Action></Plan.Header>
+          <Plan.Content>
+            {#if node.entry.origin.plan.explanation}<Markdown text={node.entry.origin.plan.explanation} />{/if}
+            {#if node.entry.origin.plan.steps.length}
+              <Task.Root open><Task.Trigger title="Task progress" /><Task.Content><ol class="layout-stack">{#each node.entry.origin.plan.steps as step}<li><Task.Item><Badge variant="outline">{step.status === 'in_progress' ? 'In progress' : step.status === 'completed' ? 'Completed' : 'Pending'}</Badge> <span>{step.text}</span></Task.Item></li>{/each}</ol></Task.Content></Task.Root>
+            {:else}<p class="text-muted-foreground">No steps in this plan update.</p>{/if}
+          </Plan.Content>
+        </Plan.Root>
+        </ChatMessage.Content></ChatMessage.Root>
+      {:else if node.kind === 'process'}
         <Collapsible.Root open={node.expanded} class="conversation-process">
           <Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost">Tool activity · {node.entries.length}{node.needsAttention ? ' · Needs attention' : ' completed'}</Button>{/snippet}</Collapsible.Trigger>
           <Collapsible.Content>
@@ -196,7 +224,7 @@
       {@const message = node.entry}
       <ChatMessage.Root role="article" speaker={message.role} class={message.id === vm.history.anchorId ? 'bg-muted' : ''} data-history-id={message.id} data-user-turn={message.role === 'user' ? '' : undefined} data-search-anchor={message.id === vm.history.anchorId ? 'true' : undefined} tabindex={-1} aria-label={(message.role === 'user' ? 'Your message' : 'Drawloom message') + (message.id === vm.history.anchorId ? ' · Search match' : '')}>
           <h2 class="sr-only">{message.role === "user" ? "You" : "Drawloom"}</h2>
-          {#if message.text}<ChatMessage.Content ><Markdown text={message.text} resolveFile={url => vm.conversationProject?.available ? messageFile(url, vm.conversation?.id ?? '', vm.conversationProject.directory)?.url : undefined}/></ChatMessage.Content>{/if}
+          {#if message.text}<ChatMessage.Content ><Markdown text={message.text} streaming={message.role === 'assistant' && message.state === 'partial' && message.operationId === vm.state?.activeOperation} resolveFile={url => vm.conversationProject?.available ? messageFile(url, vm.conversation?.id ?? '', vm.conversationProject.directory)?.url : undefined}/></ChatMessage.Content>{/if}
           {#if message.selections?.length}<ChatMessage.Actions class="flex-wrap gap-2">{#each message.selections as selection}<Badge variant="outline">{selection.title} · {selection.source}</Badge>{/each}</ChatMessage.Actions>{/if}
           {#if message.preparation}<KnowledgeDisclosure summary={message.preparation} />{/if}
           {#each message.assets as asset}<AttachmentCard {asset} title={vm.attachmentName(asset.key)} />{/each}
@@ -296,5 +324,7 @@
   <ChatContainer.ScrollButton class="sticky bottom-3 ml-auto mr-2 my-3 shrink-0" onclick={() => reading.latest()} />
   </ChatContainer.Root>
   </div>
-  <Composer {vm} />
+  <Composer {vm} bind:this={composer} onCreateGoal={() => void goalControls?.createGoal()}>
+    {#snippet goal()}{#key vm.conversation?.id}<GoalControls {vm} bind:this={goalControls} onDismiss={() => composer?.focus()} />{/key}{/snippet}
+  </Composer>
 </main>

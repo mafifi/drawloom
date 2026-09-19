@@ -11,6 +11,11 @@
     "src"
   ],
   "exports": {
+    "./planning-conformance": {
+      "bun": "./src/planning-conformance.ts",
+      "types": "./dist/planning-conformance.d.ts",
+      "import": "./dist/planning-conformance.js"
+    },
     ".": {
       "bun": "./src/index.ts",
       "types": "./dist/index.d.ts",
@@ -30,6 +35,11 @@
       "bun": "./src/conformance.ts",
       "types": "./dist/conformance.d.ts",
       "import": "./dist/conformance.js"
+    },
+    "./goals-conformance": {
+      "bun": "./src/goals-conformance.ts",
+      "types": "./dist/goals-conformance.d.ts",
+      "import": "./dist/goals-conformance.js"
     }
   },
   "drawloom": {

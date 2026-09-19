@@ -12,13 +12,15 @@
 
 	type Props = {
 		content: string;
+    streaming?: boolean;
  resolveFile?: ((url: string) => string | undefined) | undefined;
 		id?: string;
 		class?: string;
 	} & Omit<StreamdownProps, "content" | "class"> &
 		Omit<HTMLAttributes<HTMLDivElement>, "content">;
 
-	let { content, id, class: className, resolveFile, ...restProps }: Props = $props();
+	let { content, id, class: className, resolveFile, streaming = false, ...restProps }: Props = $props();
+	const reducedMotion = new MediaQuery("(prefers-reduced-motion: reduce)");
 	const dark = new MediaQuery("(prefers-color-scheme: dark)");
  let currentTheme = $derived(
 		dark.current ? "github-dark-default" : "github-light-default"
@@ -28,6 +30,8 @@
 <div {id} class={cn(className)} {...restProps}>
 	<Streamdown
 		{content}
+    isAnimating={streaming && !reducedMotion.current}
+    animated={{ animation: "fadeIn", stagger: 0 }}
 		class="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
 		shikiTheme={currentTheme}
 		baseTheme="shadcn"

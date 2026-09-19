@@ -16,7 +16,7 @@ test("unsupported native history is explicit over real stdio without disabling e
   const writer = createHistoryCoordinator(stored, "session");
   const script = `let buffer='';const send=m=>process.stdout.write(JSON.stringify(m)+'\\n');process.stdin.on('data',d=>{buffer+=d;let n;while((n=buffer.indexOf('\\n'))>=0){const m=JSON.parse(buffer.slice(0,n));buffer=buffer.slice(n+1);if(!m.id)continue;
     if(m.method==='thread/turns/list'){send({id:m.id,error:{code:-32601,message:'SECRET native diagnostic'}});continue;}
-    let result={};if(m.method==='initialize')result={userAgent:'fixture'};if(m.method==='thread/resume')result={thread:{id:'thread'}};if(m.method==='turn/start')result={turn:{id:'turn'}};send({id:m.id,result});
+    let result={};if(m.method==='initialize')result={userAgent:'fixture'};if(m.method==='thread/read')result={thread:{id:'thread',turns:[]}};if(m.method==='thread/resume')result={thread:{id:'thread'}};if(m.method==='turn/start')result={turn:{id:'turn'}};send({id:m.id,result});
     if(m.method==='turn/start'){send({method:'item/completed',params:{threadId:'thread',turnId:'turn',item:{id:'answer',type:'agentMessage',text:'Still works'}}});send({method:'turn/completed',params:{threadId:'thread',turn:{id:'turn',status:'completed'}}});}
   }});`;
   const driver = createCodexDriver({

@@ -21,9 +21,11 @@ The shared Svelte control boundary for Drawloom applications. Read this
 before building a screen, adding a new control, or importing anything that
 looks like a shadcn-svelte or Bits UI component directly.
 
-Controls come from shadcn-svelte, including its Bits UI behaviour where
-applicable. AI compositions use Prompt Kit predominantly and AI Elements as
-the fallback below, all following [DESIGN.md](../../../DESIGN.md).
+Start with shadcn-svelte, including its Bits UI behaviour where applicable.
+Use Prompt Kit, then AI Elements, when shadcn does not supply the required
+composition. All use [DESIGN.md](../../../DESIGN.md); do not replace an existing
+approved composition merely to change its library label. Native media controls
+remain appropriate for playback, seeking, volume and fullscreen.
 This package exposes reusable controls without workbench commands, provider
 dependencies or business policy: a desktop conversation composer and a
 separate settings form can compose the same controls while owning their own,
@@ -31,9 +33,16 @@ different state and commands.
 
 ## Consumer contract
 
+Native planning uses `Plan` for the proposed approach and `Task` for the agent's
+ordered checklist, not a separate editable task database. Task source was imported
+from the [Svelte AI Elements registry](https://svelte-ai-elements.vercel.app/r/task.json)
+on 2026-09-19 under the existing MIT notice. Adaptations are package-relative
+imports, removal of an unused random ID, and reduced-motion-aware transitions.
+Mode selection belongs to the composer; implementation is an explicit host action.
+
 ### AI conversation compositions
 
-Svelte Prompt Kit is the primary AI presentation source. `PromptInput`,
+The currently adopted AI compositions use Svelte Prompt Kit: `PromptInput`,
 `ChatMessage`, `ChatContainer` (including `ScrollButton`), `SystemMessage`,
 `Steps`, `PromptSuggestion` and the `Markdown` facade use its source.
 Svelte AI Elements supplies `Confirmation`, `Tool` and `Sources` where the
@@ -382,7 +391,10 @@ images. Web links allow HTTP(S) only, without embedded credentials. Consumers
 may supply `resolveFile(url)` for project-bound local links; the callback must
 use the host's independently enforced file access. An unresolved destination
 remains readable text. Rendering does not import files, approve work or send it
-to a model. Both settled and streaming text use the same presentation.
+to a model. Both settled and streaming text use the same presentation. Set
+`streaming` only for the active operation's partial assistant text to use the
+library's CSS word reveal, without a stagger queue or custom typewriter timer.
+Reduced motion disables the reveal; retained history defaults to static text.
 
 This replaces the earlier local mdast renderer with the attributed upstream
 composition described above, including code highlighting. Drawloom retains
@@ -390,13 +402,44 @@ the safe-link and host-authorized local-file boundary.
 
 Interaction recipe: contextual navigation. Links retain native keyboard/focus
 behaviour and open a separate browser surface without replacing the conversation.
-No animation or automatic fetch occurs; unavailable files retain the host's
+Links do not trigger animation or automatic fetch; unavailable files retain the host's
 normal error response. Repeated rendering never changes the stored message.
 
 The root Bun catalog owns dependency versions. When adding a component, use
 the Svelte CLI (not the React CLI), preserve existing sources, convert newly
 added dependencies to catalog references and internal aliases to relative
 imports, then run the package build/check and the root gate.
+
+### Goals and plans
+
+`ComposerStrip` owns attached-row geometry for composer accessories. Place strips
+inside the same `composer-dock` immediately before the prompt; the shared inset
+clears the prompt's rounded shoulders, and adjacent strips share square seams.
+Goal content and future queued-message content must use this composition rather
+than duplicate its margins or radii. It has no queue or goal execution authority.
+
+`GoalBar` consumes presentation and actions from a ViewModel. It uses shared
+shadcn controls, exposes the full objective on keyboard focus, and never runs a
+local accounting timer or decides whether work should continue. Place it directly
+in the composer's attached dock: its inset strip has rounded top corners and
+square bottom corners. Optional `clock` input enables a CSS-only elapsed display,
+anchored to native seconds and paused by the consumer on disconnect or suspension.
+It is approximate, never a source of accounting. Native read/reconciliation errors must disable goal
+mutations until authoritative state is available.
+Do not render an empty-goal row. The desktop offers creation in its existing
+composer + picker and `/` actions menu; an explicit selection opens the objective editor. Cancelling
+creation removes it without a native mutation. The shared component also suppresses
+an idle `mode: "create"` presentation.
+The same shadcn-backed `MentionPicker` handles actions and skills. The + picker
+orders Add actions before Plugins, Skills, Files and Conversations. Slash input
+shows Actions then Skills, not attachment or plugin inventories. Reuse its
+scroll-fade utility; do not create another command surface or inert action list.
+
+`Plan` exposes the AI Elements Root, Header, Title, Description, Action, Trigger,
+Content and Footer composition. Supply complete provider snapshots; retain earlier
+updates in history and do not infer stable step identities. Plan editing belongs
+in the conversation. Neither a completed plan nor a native completed goal grants
+business acceptance. See [Proposed ADR 0031](../../../docs/adr/0031-native-goals-and-structured-plans.md).
 
 Consumers import `@drawloom/ui/styles.css` once and configure Tailwind v4's
 Vite plugin. The stylesheet scans the packaged component source; the

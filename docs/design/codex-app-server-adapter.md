@@ -180,7 +180,43 @@ Retain that host limitation alongside the successful app-server tests.
 Do not describe it as universal form support or as a requirement that Drawloom's
 own app-server client must inherit the limitation.
 
-## Compared integrations
+## Goals and plans
+
+Native Plan mode is discovered through `collaborationMode/list`, not assumed from
+provider identity. Explicit submissions use the returned mode/model settings in
+`turn/start.collaborationMode`. `developer_instructions: null` selects the pinned
+protocol's built-in mode instructions; it does not erase them. Native plan items
+and deltas become `plan.proposed`, while checklist notifications remain
+`plan.updated`. Final item text replaces partial deltas and native history uses
+the same public correlation identity.
+
+The desktop requires goal pursuit to be paused and outstanding execution settled
+before entering Plan mode. After a plan submission, goal activation requires a
+confirmed default-mode submission; removing the composer indicator alone does
+not change the native thread's last mode. Accepted native execution remains
+owned even if saving desktop metadata subsequently fails.
+
+The pinned protocol provides `thread/goal/get`, `thread/goal/set` and
+`thread/goal/clear`. The adapter maps these to the optional portable goal
+interface and observes native goal changes between operations. It serializes
+mutations and compares a fresh native snapshot against the displayed revision.
+Codex provides no compare-and-swap request, so this does not guarantee atomicity
+against an independent native writer. Accounting updates do not invalidate an
+otherwise unchanged goal editor.
+
+`turn/plan/updated` becomes a complete operation-scoped plan snapshot.
+`turn/started` can discover native continuation; the desktop must admit a fresh
+operation before the adapter publishes Drawloom tool correlation. Tools arriving
+without that correlation remain unavailable. This is not a claim that notification
+precedes all provider-native effects.
+
+Resumed sessions reconcile native execution. Unresolved or unreadable execution
+must not silently enable another operation or resume goal pursuit. Native goal
+completion is advisory to the workbench, not publication or business acceptance.
+See the [delivery record](../plans/0031-native-goals-and-plans.md) for executed
+verification separately from protocol inspection.
+
+## Reference integrations
 
 The original work compared Codex app-server integration with Open Design's
 multi-provider runtime. Both informed how to keep connection handling, provider

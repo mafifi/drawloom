@@ -2,6 +2,7 @@ import { z } from "zod";
 import { nativeToolOutput } from "./native-tool-output.js";
 import { createReferenceDisplay, currentReferenceInput } from "./reference-display.js";
 import { readCodexModels, permitsModel } from "./models.js";
+import { readPlanningModes, planningSettings } from "./planning.js";
 export { readCodexModels, permitsModel } from "./models.js";
 import { createCodexDiscovery } from "./discovery.js";
 import { createCodexHistoryReader, nativeMessageId, type CaptureToolContent } from "./history.js";
@@ -18,6 +19,9 @@ import {
   type AgentInputResolution,
   type AgentReviewer,
   type AgentOperationUsage,
+  type AgentGoals,
+  type AgentGoalSnapshot,
+  type AgentSessionOpenOptions,
 } from "@drawloom/agent";
 import type { JsonStore, RpcTransport, JsonValue } from "@drawloom/host";
 import type { ToolExposure, ToolGateway, ToolBinding } from "@drawloom/tools";
@@ -67,6 +71,43 @@ const tokenUsageNotification = z.object({
   last: tokenUsageBreakdown.optional(),
   modelContextWindow: tokenCount.optional(),
 });
+const nativeGoalStatus = z.enum([
+  "active",
+  "paused",
+  "blocked",
+  "usageLimited",
+  "budgetLimited",
+  "complete",
+]);
+const nativeGoal = z.strictObject({
+  threadId: identifier,
+  objective: z.string().min(1),
+  status: nativeGoalStatus,
+  createdAt: z.number().int().safe(),
+  updatedAt: z.number().int().safe(),
+  timeUsedSeconds: tokenCount,
+  tokensUsed: tokenCount,
+  tokenBudget: tokenCount.nullable().optional(),
+});
+const nativeGoalGet = z.strictObject({ goal: nativeGoal.nullable() });
+const nativeGoalSet = z.strictObject({ goal: nativeGoal });
+const nativeGoalUpdated = z.strictObject({
+  threadId: identifier,
+  goal: nativeGoal,
+  turnId: identifier.nullable().optional(),
+});
+const nativeGoalCleared = z.strictObject({ threadId: identifier });
+const nativePlanUpdated = z.strictObject({
+  threadId: identifier,
+  turnId: identifier,
+  explanation: z.string().nullable().optional(),
+  plan: z.array(
+    z.strictObject({
+      step: z.string(),
+      status: z.enum(["pending", "inProgress", "completed"]),
+    }),
+  ),
+});
 const reject = (
   code: "invalid_state" | "invalid_interaction" | "provider_unavailable" | "provider_rejected",
   message = code.replaceAll("_", " "),
@@ -79,7 +120,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
   const sessions = new Set<string>();
   return {
     driverId: "codex-app-server",
-    async openSession(raw) {
+    async openSession(raw, openOptions?: AgentSessionOpenOptions) {
       const parsed = AgentSessionOpenInputSchema.safeParse(raw);
       if (!parsed.success) return reject("invalid_state");
       const input = parsed.data;
@@ -118,9 +159,13 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           saved === undefined
             ? undefined
             : z
-                .strictObject({ threadId: identifier, materialized: z.boolean().optional() })
+                .strictObject({
+                  threadId: identifier,
+                  materialized: z.boolean().optional(),
+                })
                 .parse(saved);
         const resume = previous && previous.materialized !== false;
+        let executionFence = Boolean(resume);
         if (resume && options.workingDirectory) {
           const metadata = z.object({ thread: z.object({ cwd: z.string() }) }).parse(
             await rpc.request("thread/read", {
@@ -137,11 +182,36 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             );
           }
         }
+        if (resume) {
+          try {
+            const state = z
+              .object({
+                thread: z.object({
+                  id: identifier,
+                  turns: z.array(z.object({ status: z.string() })),
+                }),
+              })
+              .parse(
+                await rpc.request("thread/read", {
+                  threadId: previous.threadId,
+                  includeTurns: true,
+                }),
+              );
+            executionFence =
+              state.thread.id !== previous.threadId ||
+              state.thread.turns.some(
+                (turn) => !["completed", "interrupted", "failed"].includes(turn.status),
+              );
+          } catch {
+            executionFence = true;
+          }
+        }
         const config = {
           mcp_servers: options.projection?.(input.tools) ?? {},
           plugins: {},
           apps: {},
           "features.memories": false,
+          "tools.update_plan.enabled": true,
           ...(nativeReview ? { "features.tool_call_mcp_elicitation": true } : {}),
         };
         const opened = await rpc.request(resume ? "thread/resume" : "thread/start", {
@@ -154,6 +224,32 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           config,
         });
         const threadId = z.object({ thread: z.object({ id: identifier }) }).parse(opened).thread.id;
+        const planningModes = await readPlanningModes(rpc, opened);
+        const reconcileExecution = async () => {
+          try {
+            const state = z
+              .object({
+                thread: z.object({
+                  id: identifier,
+                  turns: z.array(z.object({ status: z.string() })),
+                }),
+              })
+              .parse(
+                await rpc.request("thread/read", {
+                  threadId,
+                  includeTurns: true,
+                }),
+              );
+            executionFence =
+              state.thread.id !== threadId ||
+              state.thread.turns.some(
+                (turn) => !["completed", "interrupted", "failed"].includes(turn.status),
+              );
+          } catch {
+            executionFence = true;
+          }
+          return !executionFence;
+        };
         if (
           options.workingDirectory &&
           z.object({ thread: z.object({ cwd: z.string() }) }).parse(opened).thread.cwd !==
@@ -179,7 +275,10 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           mode: "disabled",
         });
         let materialized = Boolean(resume);
-        await options.store.set("codex:" + input.sessionId, { threadId, materialized });
+        await options.store.set("codex:" + input.sessionId, {
+          threadId,
+          materialized,
+        });
         const operationKey = "codex-operations:" + input.sessionId;
         const operations = z
           .record(z.string(), z.string())
@@ -222,6 +321,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         const buffered: import("@drawloom/host").RpcMessage[] = [];
         const used = new Set<string>();
         const messageIds = new Map<string, string>();
+        const proposals = new Map<string, { text: string; complete: boolean }>();
         const completedMessages = new Set<string>();
         const approvals = new Map<
           string,
@@ -241,6 +341,169 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           queue.push(AgentSessionSignalSchema.parse(signal));
           wake?.();
           wake = undefined;
+        };
+        const goalSnapshot = async (
+          value: z.infer<typeof nativeGoal>,
+        ): Promise<AgentGoalSnapshot> => {
+          const digest = await crypto.subtle.digest(
+            "SHA-256",
+            new TextEncoder().encode(
+              JSON.stringify({
+                createdAt: value.createdAt,
+                objective: value.objective,
+                status: value.status,
+                tokenBudget: value.tokenBudget,
+              }),
+            ),
+          );
+          const revision = Array.from(new Uint8Array(digest), (byte) =>
+            byte.toString(16).padStart(2, "0"),
+          ).join("");
+          return {
+            revision: `codex-goal:${revision}`,
+            objective: value.objective,
+            status:
+              value.status === "usageLimited"
+                ? "usage_limited"
+                : value.status === "budgetLimited"
+                  ? "budget_limited"
+                  : value.status,
+            timeUsedSeconds: value.timeUsedSeconds,
+            tokensUsed: value.tokensUsed,
+            ...(value.tokenBudget === null || value.tokenBudget === undefined
+              ? {}
+              : { tokenBudget: value.tokenBudget }),
+          };
+        };
+        const readGoal = async (): Promise<AgentResult<AgentGoalSnapshot | null>> => {
+          if (executionFence && !(await reconcileExecution()))
+            return reject(
+              "provider_unavailable",
+              "Native execution reconciliation is required before goal controls.",
+            );
+          try {
+            const result = nativeGoalGet.parse(await rpc.request("thread/goal/get", { threadId }));
+            if (!result.goal) return { status: "ok", value: null };
+            if (result.goal.threadId !== threadId) return reject("provider_rejected");
+            return { status: "ok", value: await goalSnapshot(result.goal) };
+          } catch {
+            return reject("provider_unavailable");
+          }
+        };
+        const setGoal = async (
+          params: Record<string, unknown>,
+        ): Promise<AgentResult<AgentGoalSnapshot>> => {
+          if (closed) return reject("invalid_state");
+          try {
+            // Retain the native identity before dispatch: even a lost response
+            // can leave a persisted goal (and native pursuit) on this thread.
+            if (!materialized) {
+              await options.store.set("codex:" + input.sessionId, {
+                threadId,
+                materialized: true,
+              });
+              materialized = true;
+            }
+            const result = nativeGoalSet.parse(
+              await rpc.request("thread/goal/set", { threadId, ...params }),
+            );
+            if (result.goal.threadId !== threadId) return reject("provider_rejected");
+            return { status: "ok", value: await goalSnapshot(result.goal) };
+          } catch {
+            return reject("provider_unavailable");
+          }
+        };
+        const goals: AgentGoals = {
+          read: readGoal,
+          async create(objective) {
+            if (executionFence)
+              return reject(
+                "provider_unavailable",
+                "Native execution reconciliation is required before goal controls.",
+              );
+            if (!identifier.safeParse(objective).success) return reject("invalid_state");
+            const current = await readGoal();
+            if (current.status !== "ok") return current;
+            if (current.value) return reject("invalid_state");
+            return setGoal({ objective, status: "active" });
+          },
+          async edit(change) {
+            if (executionFence)
+              return reject(
+                "provider_unavailable",
+                "Native execution reconciliation is required before goal controls.",
+              );
+            const current = await readGoal();
+            if (current.status !== "ok") return current;
+            if (
+              !current.value ||
+              current.value.revision !== change.revision ||
+              !identifier.safeParse(change.objective).success
+            )
+              return reject("invalid_state");
+            return setGoal({ objective: change.objective });
+          },
+          async pause(change) {
+            if (executionFence)
+              return reject(
+                "provider_unavailable",
+                "Native execution reconciliation is required before goal controls.",
+              );
+            const current = await readGoal();
+            if (current.status !== "ok") return current;
+            return !current.value || current.value.revision !== change.revision
+              ? reject("invalid_state")
+              : setGoal({ status: "paused" });
+          },
+          async resume(change) {
+            if (executionFence)
+              return reject(
+                "provider_unavailable",
+                "Native execution reconciliation is required before goal controls.",
+              );
+            const current = await readGoal();
+            if (current.status !== "ok") return current;
+            return !current.value || current.value.revision !== change.revision
+              ? reject("invalid_state")
+              : setGoal({ status: "active" });
+          },
+          async clear(change) {
+            if (executionFence)
+              return reject(
+                "provider_unavailable",
+                "Native execution reconciliation is required before goal controls.",
+              );
+            const current = await readGoal();
+            if (current.status !== "ok") return current;
+            if (!current.value || current.value.revision !== change.revision)
+              return reject("invalid_state");
+            if (closed) return reject("invalid_state");
+            try {
+              const result = z
+                .strictObject({ cleared: z.boolean() })
+                .parse(await rpc.request("thread/goal/clear", { threadId }));
+              return result.cleared ? { status: "ok", value: null } : reject("provider_rejected");
+            } catch {
+              return reject("provider_unavailable");
+            }
+          },
+        };
+        let goalMutations: Promise<unknown> = Promise.resolve();
+        const mutateGoal = <T>(action: () => Promise<AgentResult<T>>): Promise<AgentResult<T>> => {
+          const pending = goalMutations.then(() => (closed ? reject("invalid_state") : action()));
+          goalMutations = pending.then(
+            () => undefined,
+            () => undefined,
+          );
+          return pending;
+        };
+        const serializedGoals: AgentGoals = {
+          read: () => (closed ? Promise.resolve(reject("invalid_state")) : goals.read()),
+          create: (objective) => mutateGoal(() => goals.create(objective)),
+          edit: (input) => mutateGoal(() => goals.edit(input)),
+          pause: (input) => mutateGoal(() => goals.pause(input)),
+          resume: (input) => mutateGoal(() => goals.resume(input)),
+          clear: (input) => mutateGoal(() => goals.clear(input)),
         };
         const finish = (
           kind: "operation.completed" | "operation.interrupted" | "operation.failed",
@@ -282,7 +545,11 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                   },
                   ...(usage ? { usage } : {}),
                 }
-              : { kind, operationId: last.operationId, ...(usage ? { usage } : {}) },
+              : {
+                  kind,
+                  operationId: last.operationId,
+                  ...(usage ? { usage } : {}),
+                },
           );
         };
         const fail = () => {
@@ -301,13 +568,111 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           }
           return id;
         };
+        const nativeTurnAdmissions = new Map<
+          string,
+          Promise<AgentResult<{ operationId: string }>>
+        >();
+        let nativeAdmissionPending = false;
+        const admitNativeTurn = (turnId: string) => {
+          const key = JSON.stringify([threadId, turnId]);
+          const previous = nativeTurnAdmissions.get(key);
+          if (previous) return previous;
+          nativeAdmissionPending = true;
+          const admission = Promise.resolve()
+            .then(async () => {
+              if (closed || executionFence || active || !openOptions?.admitContinuation)
+                return reject("invalid_state");
+              const admitted = await openOptions.admitContinuation();
+              if (
+                admitted.status !== "ok" ||
+                closed ||
+                active ||
+                used.has(admitted.value.operationId)
+              )
+                return admitted.status === "ok" ? reject("invalid_state") : admitted;
+              try {
+                options.onTurnAccepted?.(threadId, turnId, admitted.value.operationId);
+                active = { operationId: admitted.value.operationId, turnId };
+                used.add(admitted.value.operationId);
+                operations[turnId] = admitted.value.operationId;
+                await options.store.set(operationKey, operations);
+                materialized = true;
+                await options.store.set("codex:" + input.sessionId, {
+                  threadId,
+                  materialized,
+                });
+                emit({
+                  kind: "operation.started",
+                  operationId: admitted.value.operationId,
+                });
+                return admitted;
+              } catch {
+                finish("operation.failed", "provider_unavailable");
+                try {
+                  options.onTurnFinished?.(threadId, turnId);
+                  await rpc.request("turn/interrupt", { threadId, turnId });
+                } catch {
+                  /* A native turn may already have settled or the provider may be unavailable. */
+                }
+                return reject("provider_unavailable");
+              }
+            })
+            .finally(() => {
+              nativeAdmissionPending = false;
+            });
+          nativeTurnAdmissions.set(key, admission);
+          return admission;
+        };
         const processMessage = async (message: import("@drawloom/host").RpcMessage) => {
           if (closed) return;
           if (starting && !active) {
             buffered.push(message);
             return;
           }
+          if (message.method === "turn/started") {
+            try {
+              const params = z
+                .object({
+                  threadId: identifier,
+                  turn: z.object({ id: identifier }),
+                })
+                .parse(message.params);
+              if (params.threadId !== threadId || active?.turnId === params.turn.id) return;
+              // Unreconciled execution may belong to another client. Do not
+              // adopt it or interrupt it merely because this session reopened.
+              if (executionFence) return;
+              const admitted = await admitNativeTurn(params.turn.id);
+              if (admitted.status !== "ok")
+                await rpc.request("turn/interrupt", {
+                  threadId,
+                  turnId: params.turn.id,
+                });
+            } catch {
+              /* Provider work may already have begun; failure to interrupt cannot be reported as prevention. */
+            }
+            return;
+          }
           if (!active) {
+            try {
+              const params = record.parse(message.params);
+              if (params.threadId === threadId && message.method === "thread/goal/updated") {
+                const update = nativeGoalUpdated.parse(params);
+                if (update.goal.threadId !== threadId) throw Error("Foreign native goal");
+                emit({
+                  kind: "goal.updated",
+                  goal: await goalSnapshot(update.goal),
+                });
+                return;
+              }
+              if (params.threadId === threadId && message.method === "thread/goal/cleared") {
+                nativeGoalCleared.parse(params);
+                emit({ kind: "goal.updated", goal: null });
+                return;
+              }
+            } catch {
+              fail();
+              return;
+            }
             if (message.method === "thread/tokenUsage/updated") {
               const source = z.object({ threadId: identifier }).safeParse(message.params);
               if (source.success && source.data.threadId === threadId) usageEligible = false;
@@ -317,6 +682,20 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           try {
             const params = record.parse(message.params);
             if (params.threadId !== threadId) return;
+            if (message.method === "thread/goal/updated") {
+              const update = nativeGoalUpdated.parse(params);
+              if (update.goal.threadId !== threadId) throw Error("Foreign native goal");
+              emit({
+                kind: "goal.updated",
+                goal: await goalSnapshot(update.goal),
+              });
+              return;
+            }
+            if (message.method === "thread/goal/cleared") {
+              nativeGoalCleared.parse(params);
+              emit({ kind: "goal.updated", goal: null });
+              return;
+            }
             if (message.method === "thread/compacted") {
               options.onContextInvalidated?.(active.operationId);
               return;
@@ -340,6 +719,46 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               return;
             }
             const operationId = active.operationId;
+            const planItem =
+              message.method === "item/started" || message.method === "item/completed"
+                ? record.safeParse(params.item).data
+                : undefined;
+            if (message.method === "item/plan/delta" || planItem?.type === "plan") {
+              const nativeId = identifier.parse(planItem?.id ?? params.itemId);
+              const key = `${operationId}:${nativeId}`;
+              const previous = proposals.get(key);
+              if (previous?.complete) return;
+              const complete = message.method === "item/completed";
+              const text = planItem
+                ? z.string().parse(planItem.text)
+                : (previous?.text ?? "") + z.string().parse(params.delta);
+              proposals.set(key, { text, complete });
+              emit({
+                kind: "plan.proposed",
+                operationId,
+                proposalId: await messageId(nativeId),
+                text,
+                state: complete ? "complete" : "partial",
+              });
+              return;
+            }
+            if (message.method === "turn/plan/updated") {
+              const update = nativePlanUpdated.parse(params);
+              emit({
+                kind: "plan.updated",
+                operationId,
+                plan: {
+                  ...(update.explanation === null || update.explanation === undefined
+                    ? {}
+                    : { explanation: update.explanation }),
+                  steps: update.plan.map((step) => ({
+                    text: step.step,
+                    status: step.status === "inProgress" ? "in_progress" : step.status,
+                  })),
+                },
+              });
+              return;
+            }
             if (
               (message.method === "item/started" || message.method === "item/completed") &&
               record.safeParse(params.item).data?.type === "contextCompaction"
@@ -758,6 +1177,9 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           receiveChain = receiveChain.then(() => processMessage(message));
         };
         const unsubscribe = rpc.subscribe(receive, fail);
+        // Resume can change native execution after the earlier metadata read.
+        // Reconcile with notifications attached before exposing controls.
+        if (resume) await reconcileExecution();
         const nativeHistory = createCodexHistoryReader(
           (method, params) => rpc.request(method, params),
           threadId,
@@ -770,6 +1192,10 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           status: "ok",
           value: {
             sessionId: input.sessionId,
+            goals: serializedGoals,
+            modes: (["default", "plan"] as const).filter((mode) =>
+              planningModes.some((p) => p.mode === mode),
+            ),
             discovery: catalog.discovery,
             reviewerModes: Object.freeze<AgentReviewer[]>(
               nativeReview ? ["human", "delegated"] : ["human"],
@@ -805,6 +1231,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               const p = AgentOperationInputSchema.safeParse(rawOperation);
               if (
                 !p.success ||
+                executionFence ||
                 closed ||
                 !attached ||
                 active ||
@@ -813,6 +1240,11 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               )
                 return reject("invalid_state");
               const operation = p.data;
+              const collaborationMode = operation.mode
+                ? planningSettings(planningModes, operation.mode, operation.modelSelection)
+                : undefined;
+              if (operation.mode && !collaborationMode)
+                return reject("provider_rejected", "The selected native mode is unavailable.");
               if (operation.reviewer === "delegated" && !nativeReview)
                 return reject(
                   "provider_rejected",
@@ -854,6 +1286,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 used.add(operation.operationId);
                 const result = await rpc.request("turn/start", {
                   threadId,
+                  ...(collaborationMode ? { collaborationMode } : {}),
                   ...(operation.modelSelection
                     ? {
                         model: operation.modelSelection.model,
@@ -900,7 +1333,10 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                   options.onTurnAccepted?.(threadId, turnId, operation.operationId);
                   await options.store.set(operationKey, operations);
                   materialized = true;
-                  await options.store.set("codex:" + input.sessionId, { threadId, materialized });
+                  await options.store.set("codex:" + input.sessionId, {
+                    threadId,
+                    materialized,
+                  });
                 } catch {
                   finish("operation.failed", "provider_unavailable");
                 }
@@ -1032,7 +1468,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             },
             async close() {
               if (!closed) {
-                await receiveChain;
+                if (!nativeAdmissionPending) await receiveChain;
                 finish("operation.interrupted");
                 closed = true;
                 unsubscribe();

@@ -178,7 +178,7 @@ export function createDesktopViewModel() {
     integrationUrls = $state<Record<string, string>>({}),
     integrationErrors = $state<Record<string, string>>({});
   let pickerOpen = $state(false),
-    pickerKind = $state<"skill" | "context">("skill"),
+    pickerKind = $state<"skill" | "context" | "action">("skill"),
     pickerQuery = $state(""),
     pickerActiveId = $state("");
   const discoveryPageSize = 100;
@@ -197,7 +197,7 @@ export function createDesktopViewModel() {
   const pickerMatches = $derived(
     catalogue?.entries.filter(
       (entry) =>
-        (pickerKind === "skill"
+        (pickerKind === "skill" || pickerKind === "action"
           ? entry.kind === "skill"
           : ["app", "plugin", "skill"].includes(entry.kind)) &&
         [entry.name, entry.description, entry.origin]
@@ -304,6 +304,7 @@ export function createDesktopViewModel() {
     attachmentVersion = 0,
     contextVersion = 0;
   let timer: ReturnType<typeof setInterval> | undefined;
+  let streamTimer: ReturnType<typeof setInterval> | undefined;
   const conversation = $derived(state?.conversations.find((c) => c.id === state?.selectedId));
   const selectedProject = $derived(
     state?.projects.find((item) => item.id === state?.selectedProjectId),
@@ -487,7 +488,10 @@ export function createDesktopViewModel() {
       if (epoch === catalogueEpoch) cataloguePending = false;
     }
   }
-  function openPicker(kind: "skill" | "context", token?: { start: number; end: number }) {
+  function openPicker(
+    kind: "skill" | "context" | "action",
+    token?: { start: number; end: number },
+  ) {
     pickerLimit = discoveryPageSize;
     nativeResourceLimit = discoveryPageSize;
     pickerKind = kind;
@@ -831,6 +835,18 @@ export function createDesktopViewModel() {
     }
   }
   return {
+    async setMode(mode: "default" | "plan") {
+      if (!state?.selectedId) return false;
+      return command({ kind: "set_mode", conversationId: state.selectedId, mode });
+    },
+    async implementPlan(proposalId: string) {
+      if (!state?.selectedId) return false;
+      return command({ kind: "implement_plan", conversationId: state.selectedId, proposalId });
+    },
+    async goalCommand(goal: Extract<DesktopCommand, { kind: "goal" }>["command"]) {
+      if (!state?.selectedId) return false;
+      return command({ kind: "goal", conversationId: state.selectedId, command: goal });
+    },
     get catalogueQuery() {
       return catalogueQuery;
     },
@@ -1571,6 +1587,13 @@ export function createDesktopViewModel() {
     async start() {
       void initializeUiTelemetry();
       await refresh();
+      // Match host partial-message coalescing; the pager prevents overlapping
+      // reads and invalidates stale responses when navigation changes identity.
+      clearInterval(streamTimer);
+      streamTimer = setInterval(() => {
+        if (state?.activeOperation && (!busy || pendingCommand?.kind === "approval"))
+          void pager.poll();
+      }, 100);
       timer = setInterval(() => {
         if (!busy || pendingCommand?.kind === "approval") void refresh();
         if (
@@ -1582,6 +1605,7 @@ export function createDesktopViewModel() {
     },
     stopPolling() {
       clearInterval(timer);
+      clearInterval(streamTimer);
       cancelUploads();
       cancelDirectoryChooser();
       navigation.dispose();
@@ -1640,6 +1664,50 @@ export function createDesktopViewModel() {
       )
         return;
       if (attachments.some((item) => item.status !== "ready") || pickerOpen) return;
+      if (draft.trim() === "/plan") {
+        const owner = state.selectedId;
+        const version = draftVersion;
+        if (await command({ kind: "set_mode", conversationId: owner, mode: "plan" })) {
+          if (draftVersion === version && state.selectedId === owner) {
+            draft = "";
+            localStorage.removeItem("drawloom-composer:" + owner);
+          }
+        }
+        return;
+      }
+      const goalCommand = /^\/goal(?:\s+([\s\S]*))?$/.exec(draft.trim());
+      if (goalCommand) {
+        if (busy) return;
+        const objective = goalCommand[1]?.trim();
+        if (!state.goal?.supported) {
+          error = "Goals are unavailable with this agent.";
+          return;
+        }
+        if (!objective) {
+          error = "Enter an objective after /goal, or select Goal from the menu.";
+          return;
+        }
+        if (attachments.length) {
+          error =
+            "Remove attachments before creating a goal. Goal creation does not submit a message.";
+          return;
+        }
+        const submittedVersion = draftVersion;
+        const owner = state.selectedId;
+        if (
+          await command({
+            kind: "goal",
+            conversationId: owner,
+            command: { action: "create", objective },
+          })
+        ) {
+          if (draftVersion === submittedVersion && state.selectedId === owner) {
+            draft = "";
+            localStorage.removeItem("drawloom-composer:" + owner);
+          }
+        }
+        return;
+      }
       const submitted = {
         draftVersion,
         attachmentVersion,

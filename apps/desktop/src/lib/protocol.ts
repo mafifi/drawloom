@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { AgentModelSelectionSchema } from "@drawloom/agent";
+import {
+  AgentModelSelectionSchema,
+  AgentGoalSnapshotSchema,
+  AgentModeSchema,
+} from "@drawloom/agent";
 import {
   ApprovalPresentationRequestSchema,
   ApprovalSurfaceStateSchema,
@@ -68,6 +72,9 @@ export const ConversationSchema = z.strictObject({
   provider: z.enum(["synthetic", "codex"]),
   reviewer: AgentReviewerSchema.default("human"),
   modelSelection: AgentModelSelectionSchema.optional(),
+  mode: AgentModeSchema.optional(),
+  lastSubmittedMode: AgentModeSchema.optional(),
+  defaultModeRequired: z.boolean().optional(),
 });
 export const DesktopSnapshotSchema = z.strictObject({
   mediaPolicy: MediaPolicySnapshotSchema.default({ revision: "initial", sources: [] }),
@@ -84,6 +91,14 @@ export const DesktopSnapshotSchema = z.strictObject({
   selectedProjectId: id.optional(),
   activity: z.array(ToolResultSchema.extend({ toolName: z.string().optional() })),
   signals: z.array(AgentSessionSignalSchema),
+  modes: z.array(AgentModeSchema).default([]),
+  goal: z
+    .strictObject({
+      supported: z.boolean(),
+      snapshot: AgentGoalSnapshotSchema.nullable().optional(),
+      error: z.string().optional(),
+    })
+    .optional(),
   approvals: z
     .array(
       ApprovalPresentationRequestSchema.extend({
@@ -142,6 +157,25 @@ export const DesktopStateUpdateSchema = z.strictObject({
   removed: z.array(z.string()),
 });
 export const DesktopCommandSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("implement_plan"), conversationId: id, proposalId: id }),
+  z.strictObject({ kind: z.literal("set_mode"), conversationId: id, mode: AgentModeSchema }),
+  z.strictObject({
+    kind: z.literal("goal"),
+    conversationId: id,
+    command: z.discriminatedUnion("action", [
+      z.strictObject({ action: z.literal("read") }),
+      z.strictObject({
+        action: z.literal("create"),
+        objective: z.string().trim().min(1).max(8192),
+      }),
+      z.strictObject({
+        action: z.literal("edit"),
+        revision: id,
+        objective: z.string().trim().min(1).max(8192),
+      }),
+      z.strictObject({ action: z.enum(["pause", "resume", "clear"]), revision: id }),
+    ]),
+  }),
   z.strictObject({
     kind: z.literal("set_model"),
     conversationId: id,

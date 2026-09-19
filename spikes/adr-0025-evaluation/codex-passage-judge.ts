@@ -99,7 +99,7 @@ function operationIdOf(signal: AgentSessionSignal): string | undefined {
   if (signal.kind === "approval.resolved" || signal.kind === "input.resolved") {
     return undefined;
   }
-  return signal.operationId;
+  return "operationId" in signal ? signal.operationId : undefined;
 }
 
 export function createCodexPassageScorer(options: CodexPassageScorerOptions): Scorer {

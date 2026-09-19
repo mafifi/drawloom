@@ -5,7 +5,9 @@
 	import TooltipPortal from "./tooltip-portal.svelte";
 	import type { ComponentProps } from "svelte";
 
+	const contentId = $props.id();
 	let {
+		id = contentId,
 		ref = $bindable(null),
 		class: className,
 		sideOffset = 0,
@@ -23,6 +25,8 @@
 <TooltipPortal {...portalProps}>
 	<TooltipPrimitive.Content
 		bind:ref
+		{id}
+		role="tooltip"
 		data-slot="tooltip-content"
 		{sideOffset}
 		{side}

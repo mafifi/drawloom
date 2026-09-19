@@ -2,6 +2,34 @@ import { expect, test } from "bun:test";
 import { createDesktopSessions } from "./desktop-sessions.js";
 import type { AgentSession } from "@drawloom/agent";
 
+test("an ended signal stream retires its session before the next connection", async () => {
+  const sessions = createDesktopSessions();
+  let closed = 0;
+  let unavailable = 0;
+  const start = async () => ({
+    session: {} as AgentSession,
+    signals: [],
+    close: async () => {
+      closed++;
+    },
+  });
+  const first = await sessions.connect("one", start);
+  await sessions.watch(
+    "one",
+    first,
+    async () => {},
+    async () => {
+      unavailable++;
+    },
+  );
+  expect(sessions.get("one")).toBeUndefined();
+  expect(closed).toBe(1);
+  expect(unavailable).toBe(1);
+  expect(await sessions.connect("one", start)).not.toBe(first);
+  await sessions.close();
+  expect(closed).toBe(2);
+});
+
 test("session startup shares ownership and rolls back resources after failure", async () => {
   const sessions = createDesktopSessions();
   const released: string[] = [];
@@ -26,6 +54,36 @@ test("session startup shares ownership and rolls back resources after failure", 
   expect(sessions.get("one")).toBeUndefined();
   await sessions.close();
   expect(released).toEqual(["transport"]);
+});
+
+test("shutdown owns a normally ending reader without reporting connection loss", async () => {
+  const sessions = createDesktopSessions();
+  let finish!: () => void;
+  const reading = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  let closed = 0;
+  let unavailable = 0;
+  const state = await sessions.connect("one", async () => ({
+    session: {} as AgentSession,
+    signals: [],
+    close: async () => {
+      closed++;
+      finish();
+    },
+  }));
+  const pump = sessions.watch(
+    "one",
+    state,
+    () => reading,
+    async () => {
+      unavailable++;
+    },
+  );
+  await sessions.close();
+  await pump;
+  expect(closed).toBe(1);
+  expect(unavailable).toBe(0);
 });
 
 test("shutdown retires a resource returned by interrupted startup without publishing it", async () => {

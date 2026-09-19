@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, type Snippet } from 'svelte';
   import { mentionToken } from './mention-token.js';
   import ComposerResources from './ComposerResources.svelte';
   import CodexModelSelector from './CodexModelSelector.svelte';
@@ -22,13 +22,14 @@
   import type { DesktopViewModel } from "./view-model.svelte.js";
   import DiscoveryPicker from './DiscoveryPicker.svelte';
   import ArtifactViewer from './ArtifactViewer.svelte';
-  let { vm }: { vm: DesktopViewModel } = $props();
+  let { vm, onCreateGoal, goal }: { vm: DesktopViewModel; onCreateGoal(): void; goal?: Snippet } = $props();
   let fileInput = $state<HTMLInputElement | null>(null);
   let messageInput = $state<HTMLTextAreaElement | null>(null);
   let anchor = $state<HTMLDivElement|null>(null);
   let picker: {keydown(event:KeyboardEvent):void};
   let tokenStart:number|undefined;
   let resourcesOpen=$state(false);
+  export function focus() { messageInput?.focus(); }
   function updateToken(){
     if(!messageInput)return;
     const token=mentionToken(messageInput.value,messageInput.selectionStart,messageInput.selectionEnd);
@@ -38,10 +39,8 @@
   async function selected(){await tick();messageInput?.focus();if(tokenStart!==undefined)messageInput?.setSelectionRange(tokenStart,tokenStart);tokenStart=undefined;}
   async function openAdd(){
     if(vm.pickerOpen){vm.pickerOpen=false;messageInput?.focus();return;}
-    const start=messageInput?.selectionStart??vm.draft.length,end=messageInput?.selectionEnd??start;
-    const prefix=start>0&&!/\s/.test(vm.draft[start-1]!)?' ':'';
-    vm.draft=vm.draft.slice(0,start)+prefix+'@'+vm.draft.slice(end);
-    await tick();messageInput?.focus();messageInput?.setSelectionRange(start+prefix.length+1,start+prefix.length+1);updateToken();
+    vm.openPicker('context');
+    await tick();messageInput?.focus();
   }
   function typedReference(event: Event) {
     const input = event.currentTarget as HTMLTextAreaElement;
@@ -51,6 +50,7 @@
 </script>
 
 <div class="composer-area">
+  <div class="layout-stack">
   {#if resourcesOpen}<section class="max-h-72 overflow-auto rounded-xl border bg-popover"><Button variant="ghost" onclick={()=>resourcesOpen=false}>Close resources</Button><ComposerResources {vm}/></section>{/if}
   {#if vm.error}<Alert.Root variant="destructive"
       ><Alert.Description>{vm.error}</Alert.Description></Alert.Root
@@ -60,6 +60,8 @@
       remain available. Select Codex for a model conversation; sending uses your
       account.
     </p>{/if}
+  <div class="composer-dock">
+  {@render goal?.()}
   <form
     class="composer"
     ondragover={(event) => { if (event.dataTransfer?.types.includes('Files')) event.preventDefault(); }}
@@ -72,6 +74,9 @@
     <Collapsible.Root bind:open={vm.contextOpen}>
       <Field.Label for="message-draft" class="sr-only">Message</Field.Label>
       <PromptInput.Root value={vm.draft} onValueChange={value => vm.draft = value} disabled={!vm.canExecute} class="relative bg-muted border-transparent" bind:ref={anchor}>
+          {#if vm.conversation?.mode === 'plan'}
+            <div class="layout-row px-3 pt-3"><Button type="button" size="sm" variant="secondary" disabled={vm.busy || !!vm.state?.activeOperation} aria-label="Leave Plan mode" onclick={()=>void vm.setMode('default')}>Plan mode <CloseIcon aria-hidden="true" /></Button></div>
+          {/if}
           <PromptInput.Textarea
             id="message-draft"
             class="min-h-20 max-h-60 px-3 pt-3 scroll-fade scroll-fade-2"
@@ -101,7 +106,7 @@
               }
             }}
           />
-      <DiscoveryPicker bind:this={picker} {vm} input={messageInput} {anchor} onSelected={selected} onAttach={()=>fileInput?.click()} onBrowse={()=>resourcesOpen=true}/>
+      <DiscoveryPicker bind:this={picker} {vm} input={messageInput} {anchor} onSelected={selected} onAttach={()=>fileInput?.click()} onBrowse={()=>resourcesOpen=true} {onCreateGoal}/>
       {#if vm.attachments.length}<Attachment.Group class="w-full px-3" role="list" aria-label="Attachments" tabindex={0}>
         {#each vm.attachments as attachment (attachment.id)}<div role="listitem" class="flex w-56 shrink-0 snap-start flex-col gap-2">
           <Attachment.Root state={attachment.status === 'pending' ? 'uploading' : attachment.status === 'failed' ? 'error' : 'done'} class="w-full" aria-busy={attachment.status === 'pending'}>
@@ -220,6 +225,8 @@
       </PromptInput.Root>
     </Collapsible.Root>
   </form>
+  </div>
+  </div>
   <p class="composer-note text-muted-foreground">
     {vm.conversation?.reviewer === 'delegated' ? 'Codex reviews actions within your permissions. Review the work before using it.' : 'You review actions when required. Saving work does not accept it as finished.'}
   </p>
