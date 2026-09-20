@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "identifier": "org.drawloom.desktop",
   "build": {
-    "beforeBuildCommand": "bun run build && bun run bundle:host",
+    "beforeBuildCommand": "bun run bundle:icon && bun run build && bun run bundle:host",
     "frontendDist": "../build"
   },
   "app": {
@@ -18,7 +18,9 @@
   "bundle": {
     "active": true,
     "targets": ["app"],
+    "icon": ["icons/Drawloom.icns"],
     "resources": {
+      "icons/Assets.car": "Assets.car",
       "../build/": "web/",
       "binaries/drawloom-host": "host/drawloom-host",
       "binaries/orchestration/": "orchestration/",

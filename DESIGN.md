@@ -78,6 +78,11 @@ components:
 
 ## Overview
 
+The default product identity is the selected
+[Drawloom](publishing/site/public/artwork/drawloom/README.md) artwork.
+The native icon, website and repository share that source; retained earlier
+logo explorations are not default identity references.
+
 Drawloom is a calm, capable place to do useful work with AI. It should feel
 considered, familiar and dependable to a developer or individual professional:
 a working application, never an engineering dashboard dressed as one.

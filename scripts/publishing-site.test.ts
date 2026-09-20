@@ -148,7 +148,7 @@ test("the product landing page uses static Svelte composition and selected Synap
   expect(vectorLogo).toContain('aria-labelledby="logo-title logo-description"');
   expect(vectorLogo).not.toMatch(/<(script|foreignObject|image)\b|\bon\w+=|@import/i);
   expect(vectorLogo.replace("http://www.w3.org/2000/svg", "")).not.toMatch(/https?:/i);
-  expect(landingPage).toContain("`${artwork}/logo.svg`");
+  expect(landingPage).toContain("`${base}/artwork/drawloom/mark.png`");
 });
 
 test("production excludes draft routes and media; explicit preview renders accessible static articles", async () => {
@@ -225,7 +225,7 @@ test("production excludes draft routes and media; explicit preview renders acces
         expect(home).toContain("people can understand<br");
         expect(home).toContain('id="decision-map"');
         expect(home).toContain("/artwork/synaptic-shuttle/hero.png");
-        expect(home).toContain("/artwork/synaptic-shuttle/logo.svg");
+        expect(home).toContain("/artwork/drawloom/mark.png");
         expect(home).not.toContain("/artwork/synaptic-shuttle/logo.png");
         expect(home).toContain('<svg class="decision-map"');
         expect(home).toContain('viewBox="0 0 1672 941"');

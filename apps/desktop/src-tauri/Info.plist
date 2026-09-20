@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
+  <key>CFBundleIconName</key>
+  <string>Drawloom</string>
   <key>NSCameraUsageDescription</key>
   <string>Use your camera on websites you explicitly allow in the browser panel.</string>
   <key>NSMicrophoneUsageDescription</key>

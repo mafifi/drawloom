@@ -4,16 +4,16 @@
     {
       "layers": [
         {
-          "image-name": "logo.svg",
-          "name": "logo"
+          "image-name": "mark.png",
+          "name": "Drawloom"
         }
       ],
       "shadow": {
         "kind": "neutral",
-        "opacity": 0.5
+        "opacity": 0.25
       },
       "translucency": {
-        "enabled": true,
+        "enabled": false,
         "value": 0.5
       }
     }

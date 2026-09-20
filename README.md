@@ -1,5 +1,7 @@
 # Drawloom
 
+<img src="publishing/site/public/artwork/drawloom/mark.png" width="128" height="128" alt="Drawloom" />
+
 Drawloom is an open-source harness for building AI workbenches: tools and
 workflows tailored to a particular use case. It brings your tools together to
 help you instruct, control and manage an AI agent.

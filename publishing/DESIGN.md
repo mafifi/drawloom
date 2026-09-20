@@ -105,14 +105,13 @@ The hero artwork is decorative. The decision map is meaningful and requires a
 text alternative. Svelte components are server-rendered by Astro without client
 hydration, so the final page remains usable as ordinary static HTML.
 
-The primary Drawloom mark is the maintained `logo.svg`: a transparent,
-compact brain/shuttle outline crossed by copper and violet woven
-threads. It is deliberately a clean vector interpretation rather than an
-autotrace of the generated source. Keep the original `logo.png` beside it as
-provenance and visual reference, but use the SVG in product surfaces so the mark
-stays crisp at masthead, footer and future high-density sizes. Its bone-white
-structure, copper craft thread and violet cognition thread use the same semantic
-palette as the landing page.
+The primary Drawloom mark is [Drawloom](site/public/artwork/drawloom/README.md),
+selected on 2026-09-20: substantial pearlescent lobes crossed by copper and violet
+ribbons. Use its transparent `mark.png` for the website and repository identity;
+the native icon build imports that same source into Icon Composer. Its broad
+silhouette replaces the earlier thin outline for small-size legibility. Preserve
+the Synaptic Shuttle artwork and vector as historical sources, not the default
+logo. The existing hero and decision-map illustrations remain unchanged.
 
 Compose the decision network as a transparent raster `<image>` within a semantic
 SVG using its native 1672×941 view box. Place real SVG text anchors in that same

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import drawloomIcon from '../../../../publishing/site/public/artwork/drawloom/mark.png';
   import { onMount } from 'svelte';
   import { MediaQuery } from 'svelte/reactivity';
   import { workspaceNeedsFullWidth } from '$lib/workspace-layout.js';
@@ -59,7 +60,11 @@
   });
 </script>
 
-<svelte:head><title>Drawloom — Local workbench</title></svelte:head>
+<svelte:head>
+  <title>Drawloom — Local workbench</title>
+  <link rel="icon" type="image/png" href={drawloomIcon} />
+  <link rel="apple-touch-icon" href={drawloomIcon} />
+</svelte:head>
 <Toaster />
 <ConversationSearch presentation={searchPresentation} actions={searchActions} />
 <BrowserPermissionPrompt request={vm.browser.snapshot.requests[0]} pending={vm.browser.pending==='decide'?vm.browser.pendingKey:''} error={vm.browser.error} decide={(requestId,choice)=>vm.browser.command({kind:'decide',requestId,choice})}/>
