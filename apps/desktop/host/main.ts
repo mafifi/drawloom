@@ -29,7 +29,7 @@ async function main() {
   const web = resolve(process.env.DRAWLOOM_WEB_ROOT ?? resolve(import.meta.dir, "../build"));
   const knowledgeRuntime = process.env.DRAWLOOM_KNOWLEDGE_RUNTIME;
   const app = await createDesktopApplication(root, {
-    experimentalPluginDiscovery: process.env.DRAWLOOM_EXPERIMENTAL_PLUGIN_DISCOVERY === "1",
+    experimentalPluginDiscovery: process.env.DRAWLOOM_EXPERIMENTAL_PLUGIN_DISCOVERY !== "0",
     mediaOrigins: (process.env.DRAWLOOM_MEDIA_ORIGINS ?? "")
       .split(",")
       .map((s) => s.trim())

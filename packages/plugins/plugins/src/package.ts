@@ -144,9 +144,19 @@ export const PackageSettingsPageSchema = z
     "Settings tools must be unique and include the opening tool",
   );
 export type PackageSettingsPage = z.infer<typeof PackageSettingsPageSchema>;
+const presentationAsset = z
+  .string()
+  .max(512)
+  .regex(/^\.\/(?:[A-Za-z0-9_-]+\/)*[A-Za-z0-9_.-]+\.(?:svg|png|jpg|jpeg|webp)$/)
+  .refine((path) => !path.split("/").includes(".."));
+export const PackagePresentationSchema = z.strictObject({
+  displayName: z.string().trim().min(1).max(120).optional(),
+  icon: z.strictObject({ light: presentationAsset, dark: presentationAsset.optional() }).optional(),
+});
 export const DrawloomPackageExtensionSchema = z
   .strictObject({
     version: z.literal(1),
+    presentation: PackagePresentationSchema.optional(),
     backend: z.strictObject({ entrypoint }).optional(),
     workflows: z.strictObject({ entrypoint }).optional(),
     requires: z.array(PluginRequirementSchema).optional(),

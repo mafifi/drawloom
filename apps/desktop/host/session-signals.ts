@@ -37,7 +37,10 @@ export function createSessionSignalReader({
     "write" | "writeAsset" | "flush" | "reportStorageFailure" | "unavailable"
   >;
   submissions: Map<string, Submission[]>;
-  approvals: Pick<ReturnType<typeof createApprovalPresentationHost>, "admit" | "invalidate">;
+  approvals: Pick<
+    ReturnType<typeof createApprovalPresentationHost>,
+    "admit" | "invalidate" | "invalidateOperation"
+  >;
   operationTelemetry: Pick<ReturnType<typeof createOperationTelemetry>, "signal">;
   project: { assets: Asset[] };
   persist(): Promise<void>;
@@ -47,11 +50,24 @@ export function createSessionSignalReader({
 }) {
   const { session, signals } = state;
   const messages = new Map<string, Omit<HistoryEntry, "position">>();
+  const childOperations = new Set<string>();
   return {
     async read() {
       for await (const signal of session.signals()) {
         operationTelemetry.signal(signal);
-        if (signal.kind === "plan.proposed") {
+        if (signal.kind === "delegation.updated") {
+          state.delegations ??= new Map();
+          state.delegations.set(signal.child.id, signal.child);
+          await historyWriter.write({
+            id: `delegation:${signal.child.id}`,
+            ...(signal.child.operationId ? { operationId: signal.child.operationId } : {}),
+            role: "assistant",
+            origin: { kind: "delegation", child: signal.child },
+            text: signal.child.label,
+            assets: [],
+            state: "complete",
+          });
+        } else if (signal.kind === "plan.proposed") {
           const key = `${signal.operationId}:${signal.proposalId}`;
           const entry: Omit<HistoryEntry, "position"> = {
             id: key,
@@ -146,8 +162,10 @@ export function createSessionSignalReader({
           }
         } else {
           signals.push(signal);
-          if (signal.kind === "operation.started" && !state.active)
-            state.active = signal.operationId;
+          if (signal.kind === "operation.started") {
+            if (signal.delegationId) childOperations.add(signal.operationId);
+            else if (!state.active) state.active = signal.operationId;
+          }
           if (signal.kind === "approval.requested")
             approvals.admit({ conversationId, request: signal.request });
           else if (signal.kind === "approval.resolved")
@@ -157,15 +175,20 @@ export function createSessionSignalReader({
               signal.kind,
             )
           ) {
-            if ("operationId" in signal && state.active === signal.operationId) {
-              approvals.invalidate(conversationId);
-              delete state.active;
+            if ("operationId" in signal) {
+              approvals.invalidateOperation(conversationId, signal.operationId);
+              if (state.active === signal.operationId) delete state.active;
             }
-            for (const message of messages.values())
+            for (const [key, message] of messages) {
+              if (!("operationId" in signal) || message.operationId !== signal.operationId)
+                continue;
               await historyWriter.write({ ...message, state: "interrupted" });
-            messages.clear();
+              messages.delete(key);
+            }
             await historyWriter.flush();
-            if (session.history) await synchronizeHistory(conversationId, session.history);
+            const child = "operationId" in signal && childOperations.delete(signal.operationId);
+            if (session.history && !child)
+              await synchronizeHistory(conversationId, session.history);
           }
         }
       }

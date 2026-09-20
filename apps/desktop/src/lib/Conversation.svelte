@@ -216,6 +216,22 @@
                     {#each message.resources ?? [] as reference}<ResourceCard presentation={vm.resourceCardPresentation(message.id, reference)} actions={{ openWorkspace: () => vm.openResourceWorkspace(message.id, reference), read: () => void vm.readResource(message.id, reference), toggleContext: () => vm.toggleResource(message.id, reference) }} />{/each}
                   </Tool.Content>
                 </Tool.Root>
+              {:else if message.origin.kind === 'delegation'}
+                {@const child = vm.delegationCard(message.origin.child)}
+                <Tool.Root open={child.expanded || message.id === vm.history.anchorId} data-history-id={message.id} tabindex={-1}>
+                  <Tool.Header type={child.label} state={child.state} statusLabel={child.statusLabel} />
+                  <Tool.Content>
+                    <div class="layout-stack">
+                      {#if child.result}<div class="conversation-tool-output"><Markdown text={child.result} /></div>{/if}
+                      <p class="text-muted-foreground">{child.note}</p>
+                      <div class="layout-row">
+                        <StatefulButton variant="outline" size="sm" pending={vm.pendingCommand?.kind === 'inspect_delegation' && vm.pendingCommand.childId === child.id} disabled={vm.busy || !child.inspect} onclick={()=>void vm.inspectDelegation(child.id)}>Refresh task</StatefulButton>
+                        <Button variant="outline" size="sm" disabled={vm.busy || !child.followUp} onclick={()=>{vm.prepareDelegation(child.id);composer?.focus();}}>Follow up</Button>
+                        {#if child.interrupt}<StatefulButton variant="outline" size="sm" pending={vm.pendingCommand?.kind === 'interrupt_delegation' && vm.pendingCommand.child.id === child.id} disabled={vm.busy} onclick={()=>void vm.interruptDelegation(child.id)}>Interrupt task</StatefulButton>{/if}
+                      </div>
+                    </div>
+                  </Tool.Content>
+                </Tool.Root>
               {/if}
             {/each}
           </Collapsible.Content>

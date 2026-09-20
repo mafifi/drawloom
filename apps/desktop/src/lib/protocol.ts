@@ -3,6 +3,8 @@ import {
   AgentModelSelectionSchema,
   AgentGoalSnapshotSchema,
   AgentModeSchema,
+  AgentDelegationSchema,
+  AgentDelegationRefSchema,
 } from "@drawloom/agent";
 import {
   ApprovalPresentationRequestSchema,
@@ -75,6 +77,7 @@ export const ConversationSchema = z.strictObject({
   mode: AgentModeSchema.optional(),
   lastSubmittedMode: AgentModeSchema.optional(),
   defaultModeRequired: z.boolean().optional(),
+  forkedFromId: id.optional(),
 });
 export const DesktopSnapshotSchema = z.strictObject({
   mediaPolicy: MediaPolicySnapshotSchema.default({ revision: "initial", sources: [] }),
@@ -99,6 +102,14 @@ export const DesktopSnapshotSchema = z.strictObject({
       error: z.string().optional(),
     })
     .optional(),
+  delegation: z
+    .strictObject({
+      supported: z.boolean(),
+      children: z.array(AgentDelegationSchema),
+      error: z.string().optional(),
+    })
+    .optional(),
+  forking: z.strictObject({ supported: z.boolean() }).optional(),
   approvals: z
     .array(
       ApprovalPresentationRequestSchema.extend({
@@ -199,6 +210,7 @@ export const DesktopCommandSchema = z.discriminatedUnion("kind", [
     provider: z.enum(["synthetic", "codex"]),
   }),
   z.strictObject({ kind: z.literal("select_conversation"), conversationId: id }),
+  z.strictObject({ kind: z.literal("fork_conversation"), conversationId: id, requestId: id }),
   z.strictObject({
     kind: z.literal("rename_conversation"),
     conversationId: id,
@@ -220,6 +232,7 @@ export const DesktopCommandSchema = z.discriminatedUnion("kind", [
     kind: z.literal("send"),
     conversationId: id,
     text: z.string().min(1).max(100000),
+    delegationReferences: z.array(id).max(16).optional(),
     attachmentKeys: z.array(id).max(16),
     contextArtifactIds: z.array(id).max(16),
     conversationContextIds: z.array(id).max(4).default([]),
@@ -230,6 +243,12 @@ export const DesktopCommandSchema = z.discriminatedUnion("kind", [
       .default([]),
   }),
   z.strictObject({ kind: z.literal("stop"), conversationId: id }),
+  z.strictObject({ kind: z.literal("inspect_delegation"), conversationId: id, childId: id }),
+  z.strictObject({
+    kind: z.literal("interrupt_delegation"),
+    conversationId: id,
+    child: AgentDelegationRefSchema,
+  }),
   z.strictObject({
     kind: z.literal("operator"),
     conversationId: id,

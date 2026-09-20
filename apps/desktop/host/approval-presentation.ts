@@ -41,6 +41,11 @@ export function createApprovalPresentationHost(options: {
   stop(conversationId: string, operationId: string): Promise<AgentResult<void>>;
 }) {
   const entries = new Map<string, Entry>();
+  const retire = (id: string, entry: Entry, resolved = false) => {
+    entries.delete(id);
+    entry.retire?.(resolved ? { status: "ok", value: undefined } : rejected());
+    entry.lifetime.abort();
+  };
   const key = (conversationId: string, approvalId: string) =>
     JSON.stringify([conversationId, approvalId]);
   const current = (entry: Entry, lifetime = entry.lifetime) =>
@@ -196,10 +201,16 @@ export function createApprovalPresentationHost(options: {
           (approvalId !== undefined && entry.input.request.approvalId !== approvalId)
         )
           continue;
-        entries.delete(id);
-        entry.retire?.(resolved ? { status: "ok", value: undefined } : rejected());
-        entry.lifetime.abort();
+        retire(id, entry, resolved);
       }
+    },
+    invalidateOperation(conversationId: string, operationId: string) {
+      for (const [id, entry] of entries)
+        if (
+          entry.input.conversationId === conversationId &&
+          entry.input.request.operationId === operationId
+        )
+          retire(id, entry);
     },
     close() {
       const active = [...entries.values()];

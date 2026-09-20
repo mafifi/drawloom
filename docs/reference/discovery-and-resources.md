@@ -22,7 +22,9 @@ tool can actually be called.
 
 The Codex adapter reads skills, apps and MCP status through `skills/list`,
 `app/list` and `mcpServerStatus/list`. Experimental `plugin/list` is read-only
-and disabled unless the host explicitly enables it. These provider methods stay
+and enabled by default. Hosts may explicitly disable it (the desktop accepts
+`DRAWLOOM_EXPERIMENTAL_PLUGIN_DISCOVERY=0`). Discovery grants no execution permission.
+These provider methods stay
 inside the adapter; browser code uses the shared discovery interface.
 
 Registered Drawloom contributions appear immediately, even while native discovery

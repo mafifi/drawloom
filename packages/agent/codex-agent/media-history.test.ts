@@ -25,6 +25,45 @@ test("native display identity is the Web Crypto SHA-256 digest", async () => {
   );
 });
 
+test("fork history preserves source-prefix identities and passes the exact turn to display recovery", async () => {
+  const request = async (method: string) =>
+    method === "thread/turns/list"
+      ? { data: [{ id: "old-turn", status: "completed" }], nextCursor: null }
+      : {
+          data: [
+            {
+              turnId: "old-turn",
+              item: {
+                id: "question",
+                type: "userMessage",
+                content: [{ type: "text", text: "Sent payload" }],
+              },
+            },
+          ],
+          nextCursor: null,
+        };
+  const sourceState = memoryContext();
+  const source = createCodexHistoryReader(request, "source-native", {});
+  const sourceBatch = await source.read(sourceState.context, { direction: "latest", limit: 50 });
+  const recoveredTurns: string[] = [];
+  const fork = createCodexHistoryReader(
+    request,
+    "fork-native",
+    {},
+    undefined,
+    undefined,
+    async (_text, turnId) => {
+      recoveredTurns.push(turnId);
+      return { text: "Original user text" };
+    },
+    (turnId) => (turnId === "old-turn" ? "source-native" : "fork-native"),
+  );
+  const forkBatch = await fork.read(memoryContext().context, { direction: "latest", limit: 50 });
+  expect(forkBatch.entries[0]?.id).toBe(sourceBatch.entries[0]?.id);
+  expect(forkBatch.entries[0]?.text).toBe("Original user text");
+  expect(recoveredTurns).toEqual(["old-turn"]);
+});
+
 test.each(["interrupted", "failed", "completed", "inProgress"])(
   "nullable native turn timing does not block %s history or duplicate it on reopen",
   async (status) => {

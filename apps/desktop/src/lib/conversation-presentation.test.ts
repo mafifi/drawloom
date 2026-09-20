@@ -94,3 +94,26 @@ test("a searched tool result opens its owning process group without claiming a f
     needsAttention: false,
   });
 });
+
+test("native child activity shares process composition without hiding uncertain outcomes", () => {
+  const child = {
+    id: "child",
+    parentId: null,
+    revision: "r",
+    label: "Review",
+    status: "unknown" as const,
+    result: { state: "unknown" as const },
+    controls: { interrupt: "unknown" as const },
+  };
+  const nodes = projectConversation([
+    tool("1"),
+    entry("2", { kind: "delegation", child }),
+    entry("3", { kind: "assistant" }),
+  ]);
+  expect(nodes.map((node) => node.kind)).toEqual(["process", "message"]);
+  expect(nodes[0]).toMatchObject({
+    expanded: true,
+    needsAttention: true,
+    entries: [{ id: "1" }, { id: "2" }],
+  });
+});

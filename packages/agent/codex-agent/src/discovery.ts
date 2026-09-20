@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   DiscoverySnapshotSchema,
+  DiscoveryPresentationSchema,
   type AgentDiscovery,
   type AgentResult,
   type DiscoveryEntry,
@@ -34,6 +35,10 @@ const plugin = z.object({
   availability: z.enum(["AVAILABLE", "DISABLED_BY_ADMIN"]),
   interface: z
     .object({
+      displayName: z.string().nullable().optional(),
+      composerIcon: z.string().nullable().optional(),
+      logo: z.string().nullable().optional(),
+      logoDark: z.string().nullable().optional(),
       longDescription: z.string().nullable(),
       shortDescription: z.string().nullable(),
     })
@@ -77,8 +82,9 @@ export function createCodexDiscovery(
   rpc: RpcTransport,
   threadId: string,
   isClosed: () => boolean,
-  experimentalPlugins = false,
+  experimentalPlugins = true,
   store?: JsonStore,
+  readPluginIcon?: (path: string) => Promise<string | undefined>,
 ) {
   let generation = 0;
   let explicitRevision = 0;
@@ -428,6 +434,30 @@ export function createCodexDiscovery(
           if (result.marketplaceLoadErrors.length) throw Error("Incomplete plugin scan");
           for (const marketplace of result.marketplaces)
             for (const item of marketplace.plugins) {
+              const branding = item.interface;
+              const icon = async (path: string | null | undefined) => {
+                try {
+                  return path && readPluginIcon ? await readPluginIcon(path) : undefined;
+                } catch {
+                  return undefined;
+                }
+              };
+              const light = item.installed
+                ? ((await icon(branding?.composerIcon)) ?? (await icon(branding?.logo)))
+                : undefined;
+              const dark = light ? await icon(branding?.logoDark) : undefined;
+              const displayName = DiscoveryPresentationSchema.shape.displayName.safeParse(
+                branding?.displayName,
+              );
+              const image = DiscoveryPresentationSchema.shape.icon.safeParse(
+                light ? { light, ...(dark ? { dark } : {}) } : undefined,
+              );
+              const presentation = {
+                ...(displayName.success && displayName.data
+                  ? { displayName: displayName.data }
+                  : {}),
+                ...(image.success && image.data ? { icon: image.data } : {}),
+              };
               const available = item.installed && item.enabled && item.availability === "AVAILABLE";
               await add(
                 item.id,
@@ -435,6 +465,7 @@ export function createCodexDiscovery(
                   origin: `codex:plugin:${marketplace.name}`,
                   kind: "plugin",
                   name: item.name,
+                  presentation,
                   description:
                     item.interface?.shortDescription ?? item.interface?.longDescription ?? "",
                   scope: "session",

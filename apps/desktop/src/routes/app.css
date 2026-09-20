@@ -107,6 +107,7 @@
   }
   .workspace-conversation {
     display: flex;
+    overflow: clip;
   }
   .workspace-conversation > .conversation {
     flex: 1;

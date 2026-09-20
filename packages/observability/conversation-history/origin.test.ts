@@ -36,3 +36,24 @@ test("tool provenance requires identity and an explicit execution outcome", () =
     HistoryEntrySchema.safeParse({ ...entry, role: "user", origin: { kind: "assistant" } }).success,
   ).toBe(false);
 });
+
+test("native child snapshots retain lineage separately from tool calls", () => {
+  const child = {
+    id: "child",
+    parentId: null,
+    revision: "r1",
+    label: "Review",
+    status: "unknown",
+    result: { state: "unknown" },
+    controls: { interrupt: "unknown" },
+  };
+  expect(
+    HistoryEntrySchema.safeParse({ ...entry, origin: { kind: "delegation", child } }).success,
+  ).toBe(true);
+  expect(
+    HistoryEntrySchema.safeParse({
+      ...entry,
+      origin: { kind: "delegation", child: { ...child, parentId: "child" } },
+    }).success,
+  ).toBe(false);
+});

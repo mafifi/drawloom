@@ -808,6 +808,15 @@ test("MCP failure projection retains unknown execution", async () => {
 });
 export function recorded(
   options: {
+    connect?: () => Promise<RpcTransport>;
+    onToolContent?: import("./src/history.js").CaptureToolContent;
+    onToolResultDelivered?: NonNullable<
+      import("./src/index.js").CodexDriverOptions["onToolResultDelivered"]
+    >;
+    onContextInvalidated?: (operationId: string) => void;
+    onTurnAccepted?: NonNullable<import("./src/index.js").CodexDriverOptions["onTurnAccepted"]>;
+    onTurnFinished?: NonNullable<import("./src/index.js").CodexDriverOptions["onTurnFinished"]>;
+    store?: import("@drawloom/host").JsonStore;
     archiveOnClose?: boolean;
     goal?: {
       objective: string;
@@ -1122,4 +1131,53 @@ test("Codex origin bridge cannot borrow a later operation binding", async () => 
     _meta: { operationId: "b" },
   });
   expect(count).toBe(1);
+});
+
+test("child bridge authority is independent, current and revoked without borrowing the parent grant", async () => {
+  let allowed = true,
+    executions = 0,
+    sequence = 0;
+  const evidence: unknown[] = [];
+  const gateway = createLocalToolGateway({
+    tools: [
+      defineTool({
+        name: "inspect",
+        description: "Synthetic read",
+        input: z.string(),
+        output: z.number(),
+        execute: () => ++executions,
+      }),
+    ],
+    authorization: toolAuthorizationFixture({ authorize: async () => ({ decision: allowed }) }),
+    evidence: {
+      record: async (event) => {
+        evidence.push(event);
+      },
+    },
+    nextInvocationId: () => `invocation-${++sequence}`,
+  });
+  const bridge = createCodexToolBridge(gateway);
+  bridge.publish("parent", "parent-turn", gateway.bind("parent-operation"));
+  const call = () =>
+    bridge.call(
+      {
+        callId: `call-${sequence}`,
+        "x-codex-turn-metadata": { thread_id: "child", turn_id: "child-turn" },
+      },
+      "inspect",
+      "read",
+      new AbortController().signal,
+    );
+  expect(await call()).toMatchObject({ isError: true });
+  expect(executions).toBe(0);
+  bridge.publish("child", "child-turn", gateway.bind("child-operation"));
+  expect(await call()).toMatchObject({ isError: false, _meta: { operationId: "child-operation" } });
+  allowed = false;
+  expect(await call()).toMatchObject({ isError: true, _meta: { operationId: "child-operation" } });
+  expect(executions).toBe(1);
+  bridge.retire("child", "child-turn");
+  allowed = true;
+  expect(await call()).toMatchObject({ isError: true });
+  expect(executions).toBe(1);
+  expect(evidence.length).toBeGreaterThan(0);
 });

@@ -53,12 +53,15 @@ export function projectConversation(
       });
       continue;
     }
-    if (entry.origin.kind !== "tool") {
+    if (entry.origin.kind !== "tool" && entry.origin.kind !== "delegation") {
       nodes.push({ kind: "message", id: entry.id, entry });
       continue;
     }
     const previous = nodes.at(-1);
-    const needsAttention = entry.origin.outcome !== "completed" || entry.state !== "complete";
+    const needsAttention =
+      (entry.origin.kind === "delegation"
+        ? entry.origin.child.status !== "completed"
+        : entry.origin.outcome !== "completed") || entry.state !== "complete";
     const expanded = needsAttention || entry.id === anchorId;
     if (
       previous?.kind === "process" &&

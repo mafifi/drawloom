@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { Alert, Badge, Button, Collapsible, Empty, Field, Input, StatefulButton, Tabs, PlugIcon, ChevronRightIcon, SearchIcon } from '@drawloom/ui';
+  import { Alert, Badge, Button, Collapsible, Empty, Field, Input, StatefulButton, Tabs, PlugIcon, ChevronRightIcon, SearchIcon, PresentationIcon } from '@drawloom/ui';
   import type { DesktopViewModel } from './view-model.svelte.js';
   import PackageInstallations from './PackageInstallations.svelte';
-  import { pluginGroups, readableName, pluginDescription } from './screen-language.js';
+  import { pluginGroups, discoveryName, readableName, pluginDescription } from './screen-language.js';
   let { vm }: { vm: DesktopViewModel } = $props();
   let selectedId = $state(''), limit = $state(30);
   const groups = $derived(pluginGroups(vm.catalogue?.entries ?? [], vm.catalogueQuery));
@@ -24,8 +24,8 @@
     <section class="item-list" aria-label="Your plugins">
       {#each groups.slice(0,limit) as group (group.entry.id)}
         <Button variant="ghost" class="collection-row" aria-pressed={selectedId === group.entry.id} onclick={() => selectedId = group.entry.id}>
-          <PlugIcon class="size-5 shrink-0 text-muted-foreground" />
-          <span class="min-w-0 flex-1 text-left"><span class="block truncate">{readableName(group.entry.name)}</span><span class="block truncate text-sm text-muted-foreground">{pluginDescription(group.entry)}</span></span>
+          <PresentationIcon icon={group.entry.presentation?.icon} class="size-5 shrink-0 text-muted-foreground" />
+          <span class="min-w-0 flex-1 text-left"><span class="block truncate">{discoveryName(group.entry)}</span><span class="block truncate text-sm text-muted-foreground">{pluginDescription(group.entry)}</span></span>
           <Badge variant="outline">{group.entry.availability === 'available' ? 'Available' : group.entry.availability.replaceAll('_',' ')}</Badge>
           <ChevronRightIcon class="size-4 shrink-0 text-muted-foreground" />
         </Button>
@@ -35,8 +35,8 @@
     </section>
     {#if selected}
       {@const entry=selected.entry}
-      <section class="selected-detail space-y-6" aria-label={'About ' + readableName(entry.name)}>
-        <header class="flex items-center justify-between gap-3"><h2>{readableName(entry.name)}</h2><Button variant="ghost" size="sm" onclick={() => selectedId=''}>Close</Button></header>
+      <section class="selected-detail space-y-6" aria-label={'About ' + discoveryName(entry)}>
+        <header class="flex items-center justify-between gap-3"><h2>{discoveryName(entry)}</h2><Button variant="ghost" size="sm" onclick={() => selectedId=''}>Close</Button></header>
         <p class="text-muted-foreground">{pluginDescription(entry)}</p>
         <p class="text-sm text-muted-foreground">{entry.origin}</p>
         {#if entry.authenticationOwner === 'provider'}

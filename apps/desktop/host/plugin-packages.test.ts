@@ -25,6 +25,51 @@ function unusedAssets(): AssetLibrary {
   return { open: unused, putStream: unused, read: unused, put: unused };
 }
 
+test("installed package branding reaches discovery without replacing plugin identity", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-package-branding-"));
+  let app = await createDesktopApplication(root);
+  try {
+    const pkg = join(root, "branded");
+    await mkdir(pkg);
+    await writeFile(
+      join(pkg, "icon.svg"),
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>',
+    );
+    await writeFile(
+      join(pkg, "plugin.json"),
+      JSON.stringify({
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        name: "test-brand",
+        extensions: {
+          "org.drawloom": {
+            version: 1,
+            presentation: { displayName: "Public Test Plugin", icon: { light: "./icon.svg" } },
+          },
+        },
+      }),
+    );
+    await app.packageAction({ action: "add", root: pkg });
+    const installed = (await app.installedPackages()).find((item) => item.name === "test-brand")!;
+    await app.packageAction({
+      action: "configure",
+      id: installed.id,
+      settings: { enabled: true, trustedBackend: false, servers: [] },
+    });
+    await app.close();
+    app = await createDesktopApplication(root);
+    const catalogue = await app.discover((await app.snapshot()).selectedId);
+    const entry = catalogue.entries.find(
+      (e) => e.presentation?.displayName === "Public Test Plugin",
+    );
+    expect(entry?.presentation?.icon?.light).toStartWith("data:image/svg+xml;base64,");
+    expect(entry?.name).toStartWith("package:");
+    expect(entry?.selectable).toBe(false);
+  } finally {
+    await app.close();
+    await rm(root, { recursive: true });
+  }
+});
+
 test("desktop package activation shares installation setup and binds each project independently", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "drawloom-installed-binding-")));
   try {
@@ -503,6 +548,10 @@ test("desktop supplies scoped saved evaluation to installed backends across rest
       const snapshot = await app.snapshot();
       projectId = snapshot.projects[0]!.id;
       const catalogue = await app.discover(snapshot.selectedId);
+      expect(
+        catalogue.entries.find((e) => e.name === `package:${installation.id}:backend`)?.presentation
+          ?.displayName,
+      ).toBe("Evaluation reader services");
       expect(catalogue.entries.some((e) => e.kind === "skill" && e.name === "Saved checks 0")).toBe(
         true,
       );

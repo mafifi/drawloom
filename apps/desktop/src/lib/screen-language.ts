@@ -8,6 +8,11 @@ const labels: Record<string, string> = {
   "knowledge.contribute": "Contribute knowledge",
 };
 export const readableName = (name: string): string => labels[name] ?? name;
+/** Author metadata takes precedence; fallback formatting never changes selection identity. */
+export const discoveryName = (entry: PluginListEntry): string =>
+  entry.presentation?.displayName ??
+  labels[entry.name] ??
+  entry.name.replaceAll(/[-_.]+/g, " ").replace(/^\p{L}/u, (c) => c.toUpperCase());
 export const archiveCopy = {
   introduction: "Bring a conversation back to its project whenever you need it.",
   search: "Search archived conversations",
@@ -32,6 +37,7 @@ export interface PluginListEntry {
   description?: string;
   origin: string;
   ownerId?: string;
+  presentation?: { displayName?: string };
 }
 export interface PluginGroup<T extends PluginListEntry> {
   entry: T;
@@ -50,7 +56,10 @@ export function pluginGroups<T extends PluginListEntry>(
     .map((entry) => ({ entry, children: entries.filter((e) => e.ownerId === entry.id) }))
     .filter((group) =>
       [group.entry, ...group.children].some((e) =>
-        [readableName(e.name), e.description, e.origin].join(" ").toLowerCase().includes(needle),
+        [discoveryName(e), e.name, e.description, e.origin]
+          .join(" ")
+          .toLowerCase()
+          .includes(needle),
       ),
     );
 }

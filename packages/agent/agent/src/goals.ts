@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AgentResult } from "./index.js";
 import { PlanSnapshotSchema } from "@drawloom/conversation-history";
+import type { AgentChildAdmission } from "./delegation.js";
 
 export const AgentGoalSnapshotSchema = z.strictObject({
   /** Opaque snapshot token; stale-view protection, not a cross-writer lock. */
@@ -26,6 +27,9 @@ export const AgentPlanSnapshotSchema = PlanSnapshotSchema;
 export type AgentPlanSnapshot = z.infer<typeof AgentPlanSnapshotSchema>;
 
 export interface AgentSessionOpenOptions {
+  /** Establish exact child-operation ownership before publishing tool authority.
+   * Absence denies admission; never substitutes the parent's binding. */
+  admitChild?(input: AgentChildAdmission): Promise<AgentResult<{ operationId: string }>>;
   /** Host establishes a new operation before adapter publishes tool correlation.
    * Does not prevent native effects already started by the provider. Absence
    * denies adoption; never borrow the previous operation's authority. */

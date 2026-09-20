@@ -5,6 +5,7 @@
   import CodexModelSelector from './CodexModelSelector.svelte';
   import {
     Alert,
+    Dialog,
     Button,
     Collapsible,
     Field,
@@ -39,7 +40,7 @@
   async function selected(){await tick();messageInput?.focus();if(tokenStart!==undefined)messageInput?.setSelectionRange(tokenStart,tokenStart);tokenStart=undefined;}
   async function openAdd(){
     if(vm.pickerOpen){vm.pickerOpen=false;messageInput?.focus();return;}
-    vm.openPicker('context');
+    vm.openPicker('add');
     await tick();messageInput?.focus();
   }
   function typedReference(event: Event) {
@@ -74,6 +75,17 @@
     <Collapsible.Root bind:open={vm.contextOpen}>
       <Field.Label for="message-draft" class="sr-only">Message</Field.Label>
       <PromptInput.Root value={vm.draft} onValueChange={value => vm.draft = value} disabled={!vm.canExecute} class="relative bg-muted border-transparent" bind:ref={anchor}>
+          {#if vm.delegationReferences.length}
+            <div class="layout-row px-3 pt-3">
+              {#each vm.delegationReferences as reference (reference.id)}
+                <Button type="button" variant="secondary" size="sm"
+                  aria-label={'Remove task reference ' + reference.label}
+                  onclick={() => vm.removeDelegationReference(reference.id)}>
+                  Follow up: {reference.label}<CloseIcon aria-hidden="true" />
+                </Button>
+              {/each}
+            </div>
+          {/if}
           {#if vm.conversation?.mode === 'plan'}
             <div class="layout-row px-3 pt-3"><Button type="button" size="sm" variant="secondary" disabled={vm.busy || !!vm.state?.activeOperation} aria-label="Leave Plan mode" onclick={()=>void vm.setMode('default')}>Plan mode <CloseIcon aria-hidden="true" /></Button></div>
           {/if}
@@ -227,7 +239,24 @@
   </form>
   </div>
   </div>
-  <p class="composer-note text-muted-foreground">
-    {vm.conversation?.reviewer === 'delegated' ? 'Codex reviews actions within your permissions. Review the work before using it.' : 'You review actions when required. Saving work does not accept it as finished.'}
-  </p>
 </div>
+<Dialog.Root bind:open={vm.forkRequested}>
+  <Dialog.Content onCloseAutoFocus={(event) => { event.preventDefault(); messageInput?.focus(); }}>
+    <Dialog.Header>
+      <Dialog.Title>Fork conversation</Dialog.Title>
+      <Dialog.Description>
+        Create an independent conversation from completed history. Project files remain shared;
+        this does not create a worktree. No goal or first message is submitted.
+      </Dialog.Description>
+    </Dialog.Header>
+    {#if vm.error}
+      <Alert.Root variant="destructive"><Alert.Description>{vm.error}</Alert.Description></Alert.Root>
+    {/if}
+    <Dialog.Footer>
+      <Button variant="outline" disabled={vm.busy} onclick={() => vm.forkRequested = false}>Cancel</Button>
+      <StatefulButton pending={vm.pendingCommand?.kind === 'fork_conversation'}
+        pendingLabel="Creating fork" disabled={vm.busy || !!vm.state?.activeOperation}
+        onclick={() => void vm.forkConversation()}>Fork conversation</StatefulButton>
+    </Dialog.Footer>
+  </Dialog.Content>
+</Dialog.Root>

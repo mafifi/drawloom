@@ -6,8 +6,33 @@ import type {
 } from "@drawloom/agent/approval-presentation";
 import { createApprovalPresentationHost } from "./approval-presentation.js";
 
+test("retiring a parent operation preserves a concurrent child's approval", async () => {
+  const host = createApprovalPresentationHost({
+    presenter: { present() {} },
+    owns: () => true,
+    resolve: async () => ({ status: "ok", value: undefined }),
+    stop: async () => ({ status: "ok", value: undefined }),
+  });
+  for (const operationId of ["parent", "child"])
+    host.admit({
+      conversationId: "c",
+      request: {
+        operationId,
+        approvalId: operationId,
+        summary: "Permission",
+        options: [{ optionId: "deny", label: "Deny" }],
+      },
+    });
+  host.invalidateOperation("c", "parent");
+  expect(host.pending("c").map((entry) => entry.request.operationId)).toEqual(["child"]);
+  host.close();
+});
+
 function fixture(resolve?: () => Promise<AgentResult<void>>) {
-  const surfaces: { actions: ApprovalPresentationActions; signal: AbortSignal }[] = [];
+  const surfaces: {
+    actions: ApprovalPresentationActions;
+    signal: AbortSignal;
+  }[] = [];
   let calls = 0;
   let stops = 0;
   let fail = false;
@@ -161,7 +186,10 @@ for (const outcome of ["ok", "rejected", "thrown"] as const) {
     stale.actions.failed();
     expect(stale.signal.aborted).toBe(true);
     expect(current.signal.aborted).toBe(false);
-    expect(f.host.pending("c1")[0]).toMatchObject({ surface: "pending", submitting: true });
+    expect(f.host.pending("c1")[0]).toMatchObject({
+      surface: "pending",
+      submitting: true,
+    });
     expect((await current.actions.choose("native-allow")).status).toBe("rejected");
     expect((await stale.actions.stop()).status).toBe("rejected");
     expect(f.calls()).toBe(2);

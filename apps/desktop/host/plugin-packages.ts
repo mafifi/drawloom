@@ -16,6 +16,8 @@ import {
   type ActivatePackageOptions,
 } from "@drawloom/local-plugin-packages";
 import { observed, observeOutcome } from "./telemetry.js";
+import { packagePresentation } from "./plugin-presentation.js";
+import type { DiscoveryPresentation } from "@drawloom/agent";
 import type { DesktopCompositionContext, PluginBackendCapabilities } from "@drawloom/desktop-host";
 import type { RegisteredTaskHandler } from "@drawloom/orchestration";
 import type { OperatorController } from "@drawloom/workbench";
@@ -104,6 +106,7 @@ export async function loadInstalledPackages(options: {
   const mcpApps = new Map<string, ConnectedMcpApp>();
   const viewConnections = new Set<string>();
   const statuses: InstalledPackageStatus[] = [];
+  const pluginPresentation = new Map<string, DiscoveryPresentation>();
   const active: ActivePackage[] = [];
   const backendClients: Client[] = [];
   const backends = createBackendLoader();
@@ -247,6 +250,16 @@ export async function loadInstalledPackages(options: {
         }
       }
       const contribution = { tools, skills };
+      const presentation = await packagePresentation(
+        inventory.root,
+        inventory.drawloom?.presentation,
+      );
+      pluginPresentation.set(`package:${installation.id}`, {
+        displayName: inventory.name
+          .replaceAll(/[-_.]+/g, " ")
+          .replace(/^\p{L}/u, (c) => c.toUpperCase()),
+        ...presentation,
+      });
       standardTools.push(...tools);
       installs.push({
         config: {},
@@ -426,6 +439,11 @@ export async function loadInstalledPackages(options: {
                 }
               : {}),
           };
+          const ownerPresentation = pluginPresentation.get(`package:${installation.id}`)!;
+          pluginPresentation.set(`package:${installation.id}:backend`, {
+            ...ownerPresentation,
+            displayName: `${ownerPresentation.displayName?.slice(0, 111)} services`,
+          });
           const preparedInstalls = [
             {
               config: {},
@@ -548,6 +566,7 @@ export async function loadInstalledPackages(options: {
     toolIds,
     toolSources,
     toolPresentation,
+    pluginPresentation,
     discoverResources: resources.discover,
     readDiscoveredResource: resources.read,
     activeServer(installationId: string, name: string) {

@@ -2,13 +2,15 @@ import { basename, join } from "node:path";
 import { cleanup } from "./cleanup.js";
 import { createSessionSignalReader } from "./session-signals.js";
 import { controlGoal } from "./goal-control.js";
-import { createContinuationAdmission } from "./continuation-admission.js";
+import { createConversationForks } from "./conversation-forks.js";
+import { createContinuationAdmission, createChildAdmission } from "./continuation-admission.js";
 import { assertPlanningIdle, assertGoalActivation } from "./planning-control.js";
 import { reservePlanImplementation } from "./plan-implementation.js";
 import { createApplicationLifecycle, guardDesktopApplication } from "./application-lifecycle.js";
 import {
   createDesktopSessions,
   closeAgentSession,
+  ownsSessionOperation,
   type DesktopSession as Live,
 } from "./desktop-sessions.js";
 import { mkdir } from "node:fs/promises";
@@ -62,6 +64,7 @@ import {
   createMcpToolServer,
 } from "@drawloom/node-host";
 import { createCodexDriver, createCodexToolBridge } from "@drawloom/codex-agent";
+import { nativePluginIcon } from "./plugin-presentation.js";
 import { createSyntheticDriver } from "@drawloom/synthetic-agent";
 import { desktopModels } from "./models.js";
 import { resolveTurnMaterial } from "./turn-preparation.js";
@@ -213,7 +216,8 @@ export async function createDesktopApplication(
   const approvals = createApprovalPresentationHost({
     // The default surface reads the host snapshot; presenting does not resolve it.
     presenter: options.approvalPresenter ?? { present() {} },
-    owns: (conversationId, operationId) => live.get(conversationId)?.active === operationId,
+    owns: (conversationId, operationId) =>
+      ownsSessionOperation(live.get(conversationId), operationId),
     async resolve(conversationId, resolution) {
       const session = live.get(conversationId)?.session;
       if (!session)
@@ -227,7 +231,27 @@ export async function createDesktopApplication(
       return session.resolveApproval(resolution);
     },
     async stop(conversationId, operationId) {
-      const session = live.get(conversationId)?.session;
+      const state = live.get(conversationId);
+      const session = state?.session;
+      const child = [...(state?.childOperations ?? [])].find(
+        ([, execution]) => execution.operationId === operationId,
+      );
+      if (child && session?.delegations) {
+        const snapshot = await session.delegations.read(child[0]);
+        if (snapshot.status !== "ok") return snapshot;
+        if (!ownsSessionOperation(live.get(conversationId), operationId))
+          return {
+            status: "rejected",
+            failure: {
+              code: "invalid_interaction",
+              message: "This child execution is no longer available.",
+            },
+          };
+        return session.delegations.interrupt({
+          id: snapshot.value.id,
+          revision: snapshot.value.revision,
+        });
+      }
       if (!session?.interrupt)
         return {
           status: "rejected",
@@ -344,7 +368,8 @@ export async function createDesktopApplication(
     });
   }
   const elicitation = createElicitationPresenter(
-    (operationId) => project.conversations.find((c) => live.get(c.id)?.active === operationId)?.id,
+    (operationId) =>
+      project.conversations.find((c) => ownsSessionOperation(live.get(c.id), operationId))?.id,
   );
   function archiveBlocked(conversationId: string) {
     const state = live.get(conversationId);
@@ -359,6 +384,7 @@ export async function createDesktopApplication(
     );
     return Boolean(
       state?.active ||
+        state?.childOperations?.size ||
         pendingSignal ||
         approvals.pending(conversationId).length ||
         elicitation.pending(conversationId).length,
@@ -562,8 +588,8 @@ export async function createDesktopApplication(
           workbenchIds,
           grants,
           ownerForOperation: (operationId) => {
-            const conversation = project.conversations.find(
-              (candidate) => live.get(candidate.id)?.active === operationId,
+            const conversation = project.conversations.find((candidate) =>
+              ownsSessionOperation(live.get(candidate.id), operationId),
             );
             return conversation
               ? {
@@ -784,6 +810,16 @@ export async function createDesktopApplication(
       const historyWriter = writer(conversationId);
       const operationBindings = new Map<string, ToolBinding>();
       const turnOperations = new Map<string, string>();
+      const childAdmission = createChildAdmission({
+        store,
+        conversationId,
+        running: () => lifecycle.state === "running",
+        state: () => live.get(conversationId),
+        verify: async () => {
+          await verifyProjectDirectory(binding, root);
+        },
+        begin: (operationId) => operationTelemetry.begin(operationId),
+      });
       const sink = await evidenceFor(conversationId);
       const capture = await outcomeCaptureFor(conversationId);
       await capture.recover();
@@ -856,7 +892,8 @@ export async function createDesktopApplication(
             })
           : createCodexDriver({
               workingDirectory: binding.directory,
-              experimentalPluginDiscovery: options.experimentalPluginDiscovery === true,
+              experimentalPluginDiscovery: options.experimentalPluginDiscovery ?? true,
+              readPluginIcon: nativePluginIcon,
               onContextInvalidated: (operationId) => evidenceReadReceipts.invalidate(operationId),
               onToolResultDelivered: (delivery) => {
                 if (delivery.server !== "drawloom" || delivery.tool !== "knowledge.evidence")
@@ -948,14 +985,15 @@ export async function createDesktopApplication(
                 authorization.invalidate(operation);
                 bridge.publish(thread, turn, binding);
               },
-              onTurnFinished: (thread, turn) => {
+              onTurnFinished: (thread: string, turn: string, admittedOperationId?: string) => {
                 bridge.retire(thread, turn);
                 const key = JSON.stringify([thread, turn]);
-                const operationId = turnOperations.get(key);
+                const operationId = turnOperations.get(key) ?? admittedOperationId;
                 if (operationId) {
                   const current = live.get(conversationId);
+                  approvals.invalidateOperation(conversationId, operationId);
+                  childAdmission.retire(operationId);
                   if (current?.active === operationId) {
-                    approvals.invalidate(conversationId);
                     delete current.active;
                   }
                   operationBindings.delete(operationId);
@@ -989,6 +1027,7 @@ export async function createDesktopApplication(
                 : gateway.exposure,
           },
           {
+            admitChild: childAdmission.admit,
             admitContinuation: createContinuationAdmission({
               running: () =>
                 lifecycle.state === "running" &&
@@ -1018,6 +1057,8 @@ export async function createDesktopApplication(
           for (const operationId of operationBindings.keys())
             evidenceReadReceipts.invalidate(operationId);
           if (state.active) operationTelemetry.end(state.active, "unknown");
+          for (const child of state.childOperations?.values() ?? [])
+            operationTelemetry.end(child.operationId, "unknown");
           for (const [operationId, binding] of operationBindings) {
             gateway.revoke(binding);
             authorization.invalidate(operationId);
@@ -1074,10 +1115,72 @@ export async function createDesktopApplication(
     if (read) {
       readers.delete(state);
       void read();
+      if (state.session.delegations) {
+        const result = await state.session.delegations.list();
+        if (result.status === "ok")
+          state.delegations = new Map(result.value.map((child) => [child.id, child]));
+        else state.delegationError = result.failure.message;
+      }
     }
     return state;
   }
   const readers = new WeakMap<Live, () => Promise<void>>();
+  const conversationForks = createConversationForks({
+    store,
+    async source(id) {
+      const conversation = project.conversations.find((entry) => entry.id === id);
+      if (!conversation || conversation.archived) throw Error("Conversation unavailable");
+      return conversation;
+    },
+    async ready(id) {
+      await requireProject(id);
+      const state = await connect(id);
+      if (archiveBlocked(id)) throw Error("Finish or stop the current work before forking.");
+      if (!state.session.forks) throw Error("This agent does not support conversation forks.");
+      return state.session.forks;
+    },
+    async copyHistory(sourceId, targetId) {
+      await writer(sourceId).flush();
+      if (writer(sourceId).error) throw Error("Resolve history synchronization before forking.");
+      let before: string | undefined;
+      const cursors = new Set<string>();
+      do {
+        const page = await history.page(sourceId, { limit: 200, ...(before ? { before } : {}) });
+        const target = await history.status(targetId);
+        await history.commit(targetId, {
+          expectedRevision: target.revision,
+          entries: page.entries,
+        });
+        before = page.olderCursor;
+        if (!page.hasOlder) break;
+        if (!before || cursors.has(before))
+          throw Error("Fork history could not be read completely.");
+        cursors.add(before);
+      } while (before);
+    },
+    async register(conversation) {
+      const existing = project.conversations.find((entry) => entry.id === conversation.id);
+      if (existing) {
+        if (
+          existing.projectId !== conversation.projectId ||
+          existing.forkedFromId !== conversation.forkedFromId
+        )
+          throw Error("Fork registration conflicts with an existing conversation.");
+        return;
+      }
+      project.conversations.push(conversation);
+      project.metadataRevision++;
+      try {
+        await persist();
+      } catch (error) {
+        project.conversations = project.conversations.filter(
+          (entry) => entry.id !== conversation.id,
+        );
+        project.metadataRevision--;
+        throw error;
+      }
+    },
+  });
   const syntheticInvoke = new Map<string, (operation: string, input: string) => Promise<void>>();
   const unavailable = {
     artifacts: [],
@@ -1285,6 +1388,9 @@ export async function createDesktopApplication(
         origin: "drawloom",
         kind: "plugin",
         name: p.id,
+        ...(packages.pluginPresentation.get(p.id)
+          ? { presentation: packages.pluginPresentation.get(p.id) }
+          : {}),
         description: `Version ${p.version}. Registered at startup; permissions remain separate.`,
         scope: "startup",
         availability: "available",
@@ -1414,7 +1520,7 @@ export async function createDesktopApplication(
         entries,
         categories,
         ...(nextCursor ? { nextCursor } : {}),
-        experimentalPluginDiscovery: options.experimentalPluginDiscovery === true,
+        experimentalPluginDiscovery: options.experimentalPluginDiscovery ?? true,
       });
     },
     async authenticateIntegration(
@@ -1893,6 +1999,12 @@ export async function createDesktopApplication(
           ...(state?.goal !== undefined ? { snapshot: state.goal } : {}),
           ...(state?.goalError ? { error: state.goalError } : {}),
         },
+        delegation: {
+          supported: Boolean(state?.session.delegations && !state.delegationError),
+          children: [...(state?.delegations?.values() ?? [])],
+          ...(state?.delegationError ? { error: state.delegationError } : {}),
+        },
+        forking: { supported: Boolean(state?.session.forks) },
         approvals: approvals.pending(project.selectedId).map((entry) => ({
           ...entry,
           presentation: options.approvalPresenter ? "external" : "desktop",
@@ -1997,6 +2109,7 @@ export async function createDesktopApplication(
           conversationContextIds: [],
           selections: [],
           resourceSelections: [],
+          delegationReferences: [],
         };
       })();
       if (command.kind === "add_project") {
@@ -2101,6 +2214,28 @@ export async function createDesktopApplication(
           throw error;
         }
         if (command.provider === "codex") await this.restore();
+      } else if (command.kind === "inspect_delegation" || command.kind === "interrupt_delegation") {
+        const state = await connect(command.conversationId);
+        const capability = state.session.delegations;
+        if (!capability) throw Error("Native delegation is unavailable.");
+        const result =
+          command.kind === "inspect_delegation"
+            ? await capability.read(command.childId)
+            : await capability.interrupt(command.child);
+        if (result.status !== "ok") throw Error(result.failure.message);
+      } else if (command.kind === "fork_conversation") {
+        const result = await conversationForks.create(command.conversationId, command.requestId);
+        if (result.state !== "created")
+          throw Error(
+            "Fork outcome is uncertain. The recovery receipt is retained; no second fork will be submitted.",
+          );
+        const fork = project.conversations.find((entry) => entry.id === result.sessionId)!;
+        project.selectedId = fork.id;
+        project.selectedProjectId = fork.projectId;
+        viewContext.clear();
+        viewMount = undefined;
+        await persist();
+        await this.restore();
       } else if (command.kind === "select_conversation") {
         if (!project.conversations.some((c) => c.id === command.conversationId))
           throw Error("Conversation unavailable");
@@ -2390,6 +2525,7 @@ export async function createDesktopApplication(
           const input = {
             operationId: op,
             originalDisplayText: command.text,
+            delegationReferences: command.delegationReferences,
             displayId: crypto.randomUUID(),
             referenceSignal: knowledge.referenceSignal,
             reviewer: conversation.reviewer,

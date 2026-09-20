@@ -20,18 +20,45 @@ async function fixture(presenter?: ApprovalPresenter) {
   const responses: unknown[] = [];
   const calls: string[] = [];
   let turn = 0;
+  let completed = false;
   const app = await createDesktopApplication(join(root, "data"), {
     ...(presenter ? { approvalPresenter: presenter } : {}),
     codex: {
       async connect(cwd) {
         const rpc: RpcTransport = {
-          async request(method) {
+          async request(method, params) {
             calls.push(method);
             if (method === "initialize") return { userAgent: "codex/0.153.4" };
             if (method === "model/list") return { data: [], nextCursor: null };
             if (method === "thread/start")
               return { thread: { id: "native", cwd }, approvalsReviewer: "user" };
-            if (method === "thread/read") return { thread: { cwd } };
+            if (method === "thread/fork") return { thread: { id: "native-fork", cwd } };
+            if (method === "thread/resume")
+              return {
+                thread: { id: (params as { threadId: string }).threadId, cwd },
+                approvalsReviewer: "user",
+              };
+            if (method === "thread/read") {
+              if ((params as { threadId?: string }).threadId === "native-child")
+                return {
+                  thread: {
+                    id: "native-child",
+                    parentThreadId: "native",
+                    canAcceptDirectInput: false,
+                    status: { type: "active" },
+                    turns: [{ id: "child-turn", status: "inProgress", items: [] }],
+                  },
+                };
+              return {
+                thread: {
+                  id: (params as { threadId: string }).threadId,
+                  cwd,
+                  turns: [
+                    { id: "turn", status: completed ? "completed" : "inProgress", items: [] },
+                  ],
+                },
+              };
+            }
             if (method === "thread/turns/list") return { data: [], nextCursor: null };
             if (method === "turn/start")
               return { turn: { id: ++turn === 1 ? "turn" : `turn-${turn}` } };
@@ -73,6 +100,7 @@ async function fixture(presenter?: ApprovalPresenter) {
     id,
     responses,
     calls,
+    emit: (message: RpcMessage) => receive(message),
     settle,
     async request() {
       receive({
@@ -89,6 +117,7 @@ async function fixture(presenter?: ApprovalPresenter) {
       await settle();
     },
     async complete() {
+      completed = true;
       receive({
         method: "turn/completed",
         params: { threadId: "native", turn: { id: "turn", status: "completed" } },
@@ -101,6 +130,79 @@ async function fixture(presenter?: ApprovalPresenter) {
     },
   };
 }
+
+test("desktop routes child approvals independently after parent completion", async () => {
+  const f = await fixture();
+  try {
+    f.emit({
+      method: "turn/started",
+      params: { threadId: "native-child", turn: { id: "child-turn" } },
+    });
+    f.emit({
+      id: "child-review",
+      method: "item/commandExecution/requestApproval",
+      params: {
+        threadId: "native-child",
+        turnId: "child-turn",
+        reason: "Synthetic child review",
+        availableDecisions: ["decline"],
+      },
+    });
+    await f.settle();
+    const before = (await f.app.snapshot()).approvals;
+    expect(before).toHaveLength(1);
+    await f.complete();
+    const after = await f.app.snapshot();
+    expect(after.activeOperation).toBeUndefined();
+    expect(after.approvals).toHaveLength(1);
+    expect(after.approvals[0]?.request.operationId).toBe(before[0]?.request.operationId);
+    const pending = after.approvals[0]!;
+    await f.app.command({
+      kind: "approval",
+      conversationId: f.id,
+      resolution: { approvalId: pending.request.approvalId, optionId: "option-0" },
+      presentationId: pending.presentationId,
+    });
+    expect(f.responses).toContainEqual({ id: "child-review", result: { decision: "decline" } });
+  } finally {
+    await f.close();
+  }
+});
+
+test("desktop registers and opens an independent fork only after native confirmation", async () => {
+  const f = await fixture();
+  try {
+    await f.complete();
+    const source = (await f.app.snapshot()).conversations.find(
+      (conversation) => conversation.id === f.id,
+    )!;
+    const forked = await f.app.command({
+      kind: "fork_conversation",
+      conversationId: f.id,
+      requestId: "fork-once",
+    });
+    const target = forked.conversations.find(
+      (conversation) => conversation.id === forked.selectedId,
+    )!;
+    expect(target.id).not.toBe(source.id);
+    expect(target).toMatchObject({
+      projectId: source.projectId,
+      forkedFromId: source.id,
+      workbenchId: source.workbenchId,
+    });
+    expect(f.calls.filter((call) => call === "thread/fork")).toHaveLength(1);
+    expect(f.calls.filter((call) => call === "turn/start")).toHaveLength(1);
+    const repeated = await f.app.command({
+      kind: "fork_conversation",
+      conversationId: f.id,
+      requestId: "fork-once",
+    });
+    expect(repeated.selectedId).toBe(target.id);
+    expect(f.calls.filter((call) => call === "thread/fork")).toHaveLength(1);
+  } finally {
+    await f.close();
+  }
+});
 
 test("desktop approval can be dismissed and reopened without resolving native request", async () => {
   const f = await fixture();

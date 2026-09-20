@@ -315,9 +315,167 @@ try {
     }
     await page.unroute("**/api/state*");
   }
+  // Native task controls use only synthetic snapshots and intercepted commands.
+  // The fixture must never start provider work or mutate the installed app.
+  const child = {
+    id: "synthetic-child",
+    parentId: null,
+    revision: "current-child",
+    label: "Documentation reviewer",
+    status: "running" as const,
+    result: { state: "available" as const, text: "**Review result:** one bounded finding." },
+    controls: { interrupt: "available" as const },
+  };
+  await append({
+    id: "native-child",
+    position: [94, 0],
+    role: "assistant",
+    origin: { kind: "delegation", child },
+    operationId: "child-operation",
+    text: child.label,
+    assets: [],
+    state: "complete",
+  });
+  const taskSnapshot = await app.snapshot();
+  taskSnapshot.delegation = { supported: true, children: [child] };
+  taskSnapshot.forking = { supported: true };
+  const taskCommands: unknown[] = [];
+  const brandIcon =
+    "data:image/svg+xml;base64," +
+    Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="orange"/></svg>',
+    ).toString("base64");
+  await page.route("**/api/discovery?*", (route) =>
+    route.fulfill({
+      json: {
+        entries: [
+          {
+            id: "branded-plugin",
+            name: "technical-plugin-name",
+            origin: "synthetic",
+            kind: "plugin",
+            description: "Public branding fixture",
+            scope: "session",
+            availability: "available",
+            selectable: true,
+            revision: "branding",
+            presentation: {
+              displayName: "Friendly Plugin",
+              icon: { light: brandIcon, dark: brandIcon },
+            },
+          },
+        ],
+        categories: [],
+        experimentalPluginDiscovery: false,
+      },
+    }),
+  );
+  await page.route("**/api/state*", (route) =>
+    route.fulfill({
+      json: {
+        kind: "snapshot",
+        token: "task-presentation",
+        sections: taskSnapshot,
+        removed: [],
+      },
+    }),
+  );
+  await page.route("**/api/command", (route) => {
+    taskCommands.push(route.request().postDataJSON());
+    return route.fulfill({ json: taskSnapshot });
+  });
+  await page.reload();
+  const task = page.locator('[data-history-id="native-child"]');
+  await task.getByRole("button", { name: "Follow up", exact: true }).waitFor();
+  const composer = page.locator("form.composer textarea");
+  for (const colorScheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await composer.fill("Preserve this draft.");
+      await task.getByRole("button", { name: "Follow up", exact: true }).click();
+      assert.match(
+        await composer.inputValue(),
+        /^Preserve this draft\.\n\nPlease follow up with Documentation reviewer:/,
+      );
+      assert.equal(await composer.evaluate((el) => el === document.activeElement), true);
+      assert.equal(taskCommands.length, 0, "Preparing delegation never sends a command");
+      assert.equal(await scroll.evaluate((el) => el.scrollWidth <= el.clientWidth + 1), true);
+      await composer.fill("/fork");
+      await page.getByRole("option").filter({ hasText: "Fork conversation" }).waitFor();
+      await composer.press("Enter");
+      const dialog = page.getByRole("dialog");
+      await dialog.getByRole("heading", { name: "Fork conversation" }).waitFor();
+      assert.equal(await dialog.getByText(/Project files remain shared/).isVisible(), true);
+      await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+      assert.equal(taskCommands.length, 0, "Cancelling fork never submits");
+      await composer.fill("Keep these notes.");
+      await page.getByRole("button", { name: "Add to message", exact: true }).click();
+      const branded = page.getByRole("option").filter({ hasText: "Friendly Plugin" });
+      await branded.waitFor();
+      await page.waitForFunction(() =>
+        [...document.querySelectorAll('[role="option"] img')].some(
+          (el) => el instanceof HTMLImageElement && el.complete && el.naturalWidth > 0,
+        ),
+      );
+      assert.equal(
+        await page.getByRole("option").filter({ hasText: "technical-plugin-name" }).count(),
+        0,
+      );
+      assert.equal(await page.getByRole("option").filter({ hasText: "Delegate task" }).count(), 0);
+      assert.equal(
+        await page
+          .locator(
+            '[role="option"][id^="mention-document"], [role="option"][id^="mention-conversation"]',
+          )
+          .count(),
+        0,
+      );
+      assert.equal(await page.getByText("Files and chats", { exact: true }).isVisible(), true);
+      assert.equal(
+        await page.getByText("Type to search files or chats", { exact: true }).isVisible(),
+        true,
+      );
+      assert.equal(
+        await page
+          .getByText(
+            "You review actions when required. Saving work does not accept it as finished.",
+          )
+          .count(),
+        0,
+      );
+      await page.getByRole("option").filter({ hasText: "Type to search files or chats" }).click();
+      await page.getByRole("listbox", { name: "Files and chats", exact: true }).waitFor();
+      assert.equal(await composer.inputValue(), "Keep these notes. @");
+      assert.equal(await composer.evaluate((el) => el === document.activeElement), true);
+      assert.equal(await page.getByRole("option").count(), 0);
+      assert.equal(
+        await page.getByText("Type to search files or chats", { exact: true }).isVisible(),
+        true,
+      );
+      await composer.fill("Keep these notes. @no-such-context-9281");
+      await page.getByText("No matching items", { exact: true }).waitFor();
+      assert.equal(await page.getByRole("option").count(), 0);
+      await composer.press("Escape");
+      assert.equal(await composer.inputValue(), "Keep these notes. @no-such-context-9281");
+      assert.equal(
+        await page.locator(".workspace-conversation").evaluate((el) => {
+          el.scrollTop = 108;
+          return el.scrollTop;
+        }),
+        0,
+        "the outer conversation must not scroll and leave a gap below the composer",
+      );
+      await composer.fill("/");
+      await page.getByRole("option").filter({ hasText: "Fork conversation" }).waitFor();
+      assert.equal(await page.getByRole("option").filter({ hasText: "Delegate task" }).count(), 0);
+      await composer.press("Escape");
+      assert.equal(taskCommands.length, 0, "Inspecting action menus never submits");
+    }
+  }
   assert.deepEqual(errors, []);
   console.log(
-    "Public UI acceptance: light/dark, narrow layouts, JSON expansion, chronology, initial/reload tail and 200% zoom passed.",
+    "Public UI acceptance: themes, narrow layouts, JSON, chronology, scrolling, zoom and native-task composer actions passed.",
   );
 } finally {
   await browser?.close();

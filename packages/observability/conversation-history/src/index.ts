@@ -1,6 +1,8 @@
 import { AssetSchema, ResourceReferenceSchema } from "@drawloom/host";
 import { z } from "zod";
 import { ContextPreparationSummarySchema } from "@drawloom/context";
+import { DelegationSnapshotSchema } from "./delegation.js";
+export { DelegationSnapshotSchema } from "./delegation.js";
 
 const nonEmptyId = z.string().min(1);
 const safeInteger = z.number().int().safe();
@@ -18,6 +20,7 @@ export type PlanSnapshot = z.infer<typeof PlanSnapshotSchema>;
 
 /** Captured by the trusted producer, never inferred from displayed text. */
 export const HistoryOriginSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("delegation"), child: DelegationSnapshotSchema }),
   z.strictObject({ kind: z.literal("proposal") }),
   z.strictObject({ kind: z.literal("plan"), plan: PlanSnapshotSchema }),
   z.strictObject({

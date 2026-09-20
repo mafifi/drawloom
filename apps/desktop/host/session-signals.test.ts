@@ -5,6 +5,84 @@ import type { Asset } from "@drawloom/host";
 import { createSessionSignalReader } from "./session-signals.js";
 import { createDesktopSessions } from "./desktop-sessions.js";
 
+test("native child updates replace one retained snapshot rather than invent a child transcript", async () => {
+  const child = {
+    id: "child",
+    parentId: null,
+    revision: "r1",
+    label: "Review",
+    status: "running" as const,
+    result: { state: "unknown" as const },
+    controls: { interrupt: "unknown" as const },
+  };
+  const f = fixture([
+    { kind: "delegation.updated", child },
+    {
+      kind: "delegation.updated",
+      child: {
+        ...child,
+        revision: "r2",
+        status: "completed",
+        result: { state: "available", text: "Reviewed" },
+      },
+    },
+  ]);
+  await createSessionSignalReader(f.options).read();
+  expect(f.written).toHaveLength(2);
+  expect(f.written[0]?.id).toBe(f.written[1]?.id);
+  expect(f.written[1]?.origin).toMatchObject({
+    kind: "delegation",
+    child: { status: "completed" },
+  });
+  expect(f.written[1]?.text).toBe("Review");
+});
+
+test("child starts do not occupy the parent composer or synchronize the parent's native history", async () => {
+  const f = fixture([
+    { kind: "operation.completed", operationId: "op" },
+    { kind: "operation.started", operationId: "child-op", delegationId: "child" },
+    { kind: "operation.completed", operationId: "child-op" },
+  ]);
+  let synchronizations = 0;
+  f.state.session = {
+    ...f.state.session,
+    history: {
+      namespace: "synthetic-child-history",
+      read: async () => ({ entries: [], checkpoints: [], hasOlder: false }),
+    },
+  };
+  f.options.synchronizeHistory = async () => {
+    synchronizations++;
+  };
+  await createSessionSignalReader(f.options).read();
+  expect(f.state.active).toBeUndefined();
+  expect(synchronizations).toBe(1);
+});
+
+test("settling one execution does not interrupt another execution's partial history", async () => {
+  const f = fixture([
+    { kind: "message.delta", operationId: "child-op", messageId: "child-message", delta: "Still " },
+    { kind: "operation.completed", operationId: "op" },
+    {
+      kind: "message.delta",
+      operationId: "child-op",
+      messageId: "child-message",
+      delta: "working",
+    },
+    {
+      kind: "message.completed",
+      operationId: "child-op",
+      messageId: "child-message",
+      text: "Still working",
+    },
+  ]);
+  await createSessionSignalReader(f.options).read();
+  expect(
+    f.written.some((entry) => entry.operationId === "child-op" && entry.state === "interrupted"),
+  ).toBe(false);
+  expect(f.written.at(-1)?.text).toBe("Still working");
+});
+
 function fixture(signals: AgentSessionSignal[]) {
   const written: Omit<HistoryEntry, "position">[] = [];
   const events: string[] = [];
@@ -47,6 +125,9 @@ function fixture(signals: AgentSessionSignal[]) {
     approvals: {
       admit: () => {},
       invalidate: () => {
+        events.push("invalidate");
+      },
+      invalidateOperation: () => {
         events.push("invalidate");
       },
     },

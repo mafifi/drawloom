@@ -81,13 +81,15 @@ export function createCodexHistoryReader(
   captureToolContent?: CaptureToolContent,
   recoverDisplay?: (
     sent: string,
+    turnId: string,
   ) => Promise<{ text: string; preparation?: HistoryEntry["preparation"] }>,
+  identityThreadForTurn: (turnId: string) => string = () => threadId,
 ): ConversationHistoryReader {
   const captured = new Map<string, Promise<Asset>>();
   const publicHistoryId = async (turnId: string, itemId: string) =>
     operations[turnId]
       ? `${operations[turnId]}:${await nativeMessageId(itemId)}`
-      : `history-${(await nativeMessageId(`${threadId}\0${turnId}\0${itemId}`)).slice(8)}`;
+      : `history-${(await nativeMessageId(`${identityThreadForTurn(turnId)}\0${turnId}\0${itemId}`)).slice(8)}`;
   const coverageKey = async (turnId: string) => `turn:${(await nativeMessageId(turnId)).slice(8)}`;
   const cursorKey = async (kind: "item" | "turn", cursor: string, scope = "") =>
     `${kind}-cursor:${(await nativeMessageId(`${scope}\0${cursor}`)).slice(8)}`;
@@ -196,7 +198,7 @@ export function createCodexHistoryReader(
         );
       const existing = await context.get(id);
       const sent = texts.map((value) => value.data).join("\n");
-      const display = recoverDisplay ? await recoverDisplay(sent) : { text: sent };
+      const display = recoverDisplay ? await recoverDisplay(sent, turnId) : { text: sent };
       return {
         ...common,
         role: "user",

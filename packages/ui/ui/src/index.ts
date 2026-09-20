@@ -11,6 +11,7 @@ export { Skeleton } from "./components/skeleton/index.js";
 export * as Select from "./components/select/index.js";
 export * as Command from "./components/command/index.js";
 export { default as MentionPicker } from "./components/mention-picker/mention-picker.svelte";
+export { default as PresentationIcon } from "./components/presentation-icon.svelte";
 export type { MentionOption } from "./components/mention-picker/mention-picker.svelte";
 export * as Dialog from "./components/dialog/index.js";
 export * as DropdownMenu from "./components/dropdown-menu/index.js";

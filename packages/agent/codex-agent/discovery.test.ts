@@ -4,7 +4,11 @@ import { createSyntheticDriver } from "../synthetic-agent/src/index.js";
 import type { RpcMessage, RpcTransport } from "@drawloom/host";
 import { agentDiscoveryConformance } from "../agent/src/conformance.js";
 
-function fixture(experimentalPluginDiscovery = false, imageInput?: () => Promise<string>) {
+function fixture(
+  experimentalPluginDiscovery: boolean | null = false,
+  imageInput?: () => Promise<string>,
+  readPluginIcon?: (path: string) => Promise<string | undefined>,
+) {
   const calls: { method: string; params: unknown }[] = [];
   let notify = (_message: RpcMessage) => {};
   const responses: Record<string, unknown> = {
@@ -114,7 +118,8 @@ function fixture(experimentalPluginDiscovery = false, imageInput?: () => Promise
       },
       async set() {},
     },
-    experimentalPluginDiscovery,
+    ...(experimentalPluginDiscovery === null ? {} : { experimentalPluginDiscovery }),
+    ...(readPluginIcon ? { readPluginIcon } : {}),
     ...(imageInput ? { imageInput } : {}),
   });
   return {
@@ -472,57 +477,83 @@ test("unsupported provider rejects selections without invoking responder", async
   expect(ran).toBe(false);
   await s.close();
 });
-test("experimental installed plugin selections use native mentions without leaking marketplace paths", async () => {
-  const f = fixture(true);
-  f.responses["plugin/list"] = {
-    marketplaces: [
-      {
-        name: "public",
-        path: "/private/marketplace.json",
-        interface: null,
-        plugins: [
-          {
-            id: "demo@public",
-            name: "Demo plugin",
-            installed: true,
-            enabled: true,
-            availability: "AVAILABLE",
-            interface: {
-              displayName: null,
-              shortDescription: null,
-              longDescription: "Public plugin",
+test.each(["Friendly Demo", "x".repeat(121)])(
+  "installed plugin metadata keeps native identity and independently validates name %s",
+  async (displayName) => {
+    const paths: string[] = [];
+    const f = fixture(true, undefined, async (path) => {
+      paths.push(path);
+      return "data:image/png;base64,aGVsbG8=";
+    });
+    f.responses["plugin/list"] = {
+      marketplaces: [
+        {
+          name: "public",
+          path: "/private/marketplace.json",
+          interface: null,
+          plugins: [
+            {
+              id: "demo@public",
+              name: "Demo plugin",
+              installed: true,
+              enabled: true,
+              availability: "AVAILABLE",
+              interface: {
+                displayName,
+                composerIcon: "/private/plugin/icon.png",
+                logoDark: "/private/plugin/dark.png",
+                shortDescription: null,
+                longDescription: "Public plugin",
+              },
             },
-          },
-        ],
-      },
-    ],
-    marketplaceLoadErrors: [],
-    featuredPluginIds: [],
-  };
+          ],
+        },
+      ],
+      marketplaceLoadErrors: [],
+      featuredPluginIds: [],
+    };
+    const opened = await f.driver.openSession(input);
+    if (opened.status !== "ok") throw Error();
+    const s = opened.value;
+    const result = await s.discovery!.list();
+    if (result.status !== "ok") throw Error();
+    const selected = result.value.entries.find((e) => e.kind === "plugin");
+    expect(selected?.selectable).toBe(true);
+    expect(selected?.presentation?.displayName).toBe(
+      displayName.length <= 120 ? displayName : undefined,
+    );
+    expect(selected?.presentation?.icon).toEqual({
+      light: "data:image/png;base64,aGVsbG8=",
+      dark: "data:image/png;base64,aGVsbG8=",
+    });
+    expect(paths).toEqual(["/private/plugin/icon.png", "/private/plugin/dark.png"]);
+    if (!selected) throw Error();
+    expect(JSON.stringify(result)).not.toContain("/private");
+    s.signals();
+    expect(
+      await s.execute({
+        operationId: "plugin",
+        text: "",
+        selections: [{ id: selected.id, revision: result.value.revision }],
+      }),
+    ).toMatchObject({ status: "ok" });
+    expect(f.calls.find((c) => c.method === "turn/start")?.params).toMatchObject({
+      input: [
+        { type: "text" },
+        { type: "mention", name: "Demo plugin", path: "plugin://demo@public" },
+      ],
+    });
+    await s.close();
+  },
+);
+test("default adapter discovers native plugins without starting execution", async () => {
+  const f = fixture(null);
   const opened = await f.driver.openSession(input);
   if (opened.status !== "ok") throw Error();
-  const s = opened.value;
-  const result = await s.discovery!.list();
-  if (result.status !== "ok") throw Error();
-  const selected = result.value.entries.find((e) => e.kind === "plugin");
-  expect(selected?.selectable).toBe(true);
-  if (!selected) throw Error();
-  expect(JSON.stringify(result)).not.toContain("/private");
-  s.signals();
-  expect(
-    await s.execute({
-      operationId: "plugin",
-      text: "",
-      selections: [{ id: selected.id, revision: result.value.revision }],
-    }),
-  ).toMatchObject({ status: "ok" });
-  expect(f.calls.find((c) => c.method === "turn/start")?.params).toMatchObject({
-    input: [
-      { type: "text" },
-      { type: "mention", name: "Demo plugin", path: "plugin://demo@public" },
-    ],
-  });
-  await s.close();
+  await opened.value.discovery!.list();
+  expect(f.calls.filter((c) => c.method === "plugin/list")).toHaveLength(1);
+  expect(f.calls.some((c) => c.method === "turn/start")).toBe(false);
+  await opened.value.close();
 });
 test("pagination cycle fails one category and stale in-flight discovery cannot republish", async () => {
   const f = fixture();

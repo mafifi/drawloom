@@ -1,16 +1,32 @@
-import type { AgentSession, AgentGoalSnapshot } from "@drawloom/agent";
+import type { AgentSession, AgentGoalSnapshot, AgentDelegation } from "@drawloom/agent";
 import type { DesktopSnapshot } from "../src/lib/protocol.js";
 import { cleanup } from "./cleanup.js";
 import { DesktopClosedError } from "./application-lifecycle.js";
+import type { ChildOperationState } from "./continuation-admission.js";
 
-export type DesktopSession = {
+export type DesktopSession = ChildOperationState & {
   session: AgentSession;
   signals: DesktopSnapshot["signals"];
-  active?: string;
   goal?: AgentGoalSnapshot | null;
   goalError?: string;
+  delegations?: Map<string, AgentDelegation>;
+  delegationError?: string;
   close(): Promise<void>;
 };
+
+/** Shared operation ownership for approvals, input and project tool access. */
+export function ownsSessionOperation(
+  state: ChildOperationState | undefined,
+  operationId: string,
+): boolean {
+  return (
+    state?.active === operationId ||
+    Boolean(
+      state?.childOperations &&
+        [...state.childOperations.values()].some((child) => child.operationId === operationId),
+    )
+  );
+}
 
 export async function closeAgentSession(session: AgentSession) {
   const result = await session.close();

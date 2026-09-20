@@ -1,5 +1,28 @@
 import { test, expect } from "bun:test";
 import { z } from "zod";
+test("plugin presentation requires confined image asset declarations", () => {
+  expect(
+    DrawloomPackageExtensionSchema.safeParse({
+      version: 1,
+      presentation: {
+        displayName: "Speech timing",
+        icon: { light: "./assets/icon.svg", dark: "./assets/icon-dark.png" },
+      },
+    }).success,
+  ).toBe(true);
+  for (const light of [
+    "../secret.png",
+    "/absolute.png",
+    "https://example.com/icon.png",
+    "./assets/../../secret.png",
+    "./assets/icon.html",
+    "./assets\\icon.png",
+  ])
+    expect(
+      DrawloomPackageExtensionSchema.safeParse({ version: 1, presentation: { icon: { light } } })
+        .success,
+    ).toBe(false);
+});
 test("settings declarations require unique pages, exact tools and an owned workbench", () => {
   const page = {
     id: "preferences",

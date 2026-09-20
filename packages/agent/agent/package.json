@@ -11,6 +11,11 @@
     "src"
   ],
   "exports": {
+    "./delegation-conformance": {
+      "bun": "./src/delegation-conformance.ts",
+      "types": "./dist/delegation-conformance.d.ts",
+      "import": "./dist/delegation-conformance.js"
+    },
     "./planning-conformance": {
       "bun": "./src/planning-conformance.ts",
       "types": "./dist/planning-conformance.d.ts",

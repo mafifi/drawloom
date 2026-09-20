@@ -71,6 +71,7 @@ export function createSyntheticDriver(
             const operation = p.data;
             if (operation.modelSelection) return reject("provider_rejected");
             if (operation.selections?.length) return reject("provider_rejected");
+            if (operation.delegationReferences?.length) return reject("provider_rejected");
             if (operation.reviewer === "delegated") return reject("provider_rejected");
             active = operation.operationId;
             used.add(active);

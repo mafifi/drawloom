@@ -217,6 +217,37 @@ tokens are subsets of input and output respectively, not extra totals to add.
 
 ## Tests and supporting evidence
 
+### Native children and independent forks
+
+[Proposed ADR 0032](../adr/0032-native-delegation-and-conversation-forks.md)
+records the new optional `delegations` and `forks` capabilities. A child descriptor
+is a native-state observation, not a session that callers may execute, steer,
+configure or give a goal. `delegation.updated` remains observable after parent
+completion. Child `operation.started` includes its opaque delegation identity;
+host admission gives each execution a separate binding and current authorization.
+Never use the parent's active-operation slot for child tools or approvals.
+
+Delegate and follow-up actions prepare the parent composer. Explicit
+`delegationReferences` preserve selected child identities separately from editable
+text; the adapter resolves them privately for the parent. They grant no authority
+and cannot submit ordinary input to a child. Saved history snapshots cannot enable
+interruption without freshly correlated native execution state.
+
+Fork creation uses a caller request identity and a retained receipt. Unknown
+outcomes are read/reconciled, never blindly created again. Desktop registration
+preserves source history identities and the fixed project; working files are
+shared, not copied into a worktree. The new independent session uses ordinary
+setup with current tool configuration, no inherited active goal and no automatic
+first turn. A confirmed native fork remains recoverable if local registration
+fails. Codex fork submission uses a short-lived native connection: the submitting
+App Server owns a writer lease until that connection closes. Release it before
+opening the independent session, without disconnecting the source or its children.
+See the [delivery record](../plans/0032-native-delegation-and-forks.md) for
+executed proof and remaining verification; these interfaces alone do not establish
+installed acceptance.
+
+### Conformance and retained evidence
+
 The [shared tests](../../packages/agent/agent/src/conformance.ts) check the same
 session behaviour across implementations: ordering, one active operation,
 terminal outcomes, approvals, input, close, and exposed optional controls.

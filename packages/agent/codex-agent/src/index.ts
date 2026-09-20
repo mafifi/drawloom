@@ -5,6 +5,9 @@ import { readCodexModels, permitsModel } from "./models.js";
 import { readPlanningModes, planningSettings } from "./planning.js";
 export { readCodexModels, permitsModel } from "./models.js";
 import { createCodexDiscovery } from "./discovery.js";
+import { createCodexForks, NativeForkHistorySchema } from "./forks.js";
+import { createCodexDelegations } from "./delegation.js";
+import { processNativeInteraction } from "./native-interactions.js";
 import { createCodexHistoryReader, nativeMessageId, type CaptureToolContent } from "./history.js";
 import {
   AgentSessionOpenInputSchema,
@@ -22,6 +25,7 @@ import {
   type AgentGoals,
   type AgentGoalSnapshot,
   type AgentSessionOpenOptions,
+  type AgentOperationInput,
 } from "@drawloom/agent";
 import type { JsonStore, RpcTransport, JsonValue } from "@drawloom/host";
 import type { ToolExposure, ToolGateway, ToolBinding } from "@drawloom/tools";
@@ -41,8 +45,10 @@ export type CodexDriverOptions = {
   }) => void;
   /** Native compaction or uncertain processing invalidates execution-local reuse. */
   onContextInvalidated?: (operationId: string) => void;
-  /** Read-only experimental plugin/list; disabled by default. */
+  /** Read-only native plugin/list; enabled by default, false explicitly opts out. */
   experimentalPluginDiscovery?: boolean;
+  /** Host-confined installed plugin image reader; no network fetching. */
+  readPluginIcon?: (path: string) => Promise<string | undefined>;
   /** Trusted host resolves only imported asset keys; provider paths never cross the contract. */
   imageInput?: (asset: import("@drawloom/host").Asset) => Promise<string>;
   /** Decode/copy native image bytes into confined storage, never follow a model-supplied path. */
@@ -51,7 +57,7 @@ export type CodexDriverOptions = {
   store: JsonStore;
   projection?: (exposure: ToolExposure) => JsonValue;
   onTurnAccepted?: (threadId: string, turnId: string, operationId: string) => void;
-  onTurnFinished?: (threadId: string, turnId: string) => void;
+  onTurnFinished?: (threadId: string, turnId: string, operationId?: string) => void;
   /** Dedicated managed sessions only: archive a fresh thread after an exact native terminal turn signal. */
   archiveOnClose?: boolean;
 };
@@ -118,6 +124,15 @@ const reject = (
 const ok = (): AgentResult<void> => ({ status: "ok", value: undefined });
 export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
   const sessions = new Set<string>();
+  let forkMutations: Promise<unknown> = Promise.resolve();
+  const reserveFork = <T>(action: () => Promise<T>): Promise<T> => {
+    const pending = forkMutations.then(action);
+    forkMutations = pending.then(
+      () => undefined,
+      () => undefined,
+    );
+    return pending;
+  };
   return {
     driverId: "codex-app-server",
     async openSession(raw, openOptions?: AgentSessionOpenOptions) {
@@ -224,6 +239,11 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           config,
         });
         const threadId = z.object({ thread: z.object({ id: identifier }) }).parse(opened).thread.id;
+        const forkHistoryRaw = await options.store.get("codex-fork-history:" + input.sessionId);
+        const forkHistory =
+          forkHistoryRaw === undefined ? undefined : NativeForkHistorySchema.parse(forkHistoryRaw);
+        if (forkHistory && forkHistory.nativeId !== threadId)
+          throw Error("Fork native identity mismatch");
         const planningModes = await readPlanningModes(rpc, opened);
         const reconcileExecution = async () => {
           try {
@@ -286,15 +306,18 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         const display = createReferenceDisplay(options.store, threadId);
         const userAssets = new Map<string, import("@drawloom/host").Asset[][]>();
         const mediaPending = new Set<Promise<void>>();
+        let closing = false;
         let closed = false,
           attached = false,
           starting = false;
+        let forking = false;
         const catalog = createCodexDiscovery(
           rpc,
           threadId,
           () => closed,
           options.experimentalPluginDiscovery,
           options.store,
+          options.readPluginIcon,
         );
         const captureToolContent: CaptureToolContent | undefined = options.onToolContent
           ? async (result) =>
@@ -341,6 +364,43 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           queue.push(AgentSessionSignalSchema.parse(signal));
           wake?.();
           wake = undefined;
+        };
+        const children =
+          nativeReview && openOptions?.admitChild
+            ? createCodexDelegations({
+                rpc,
+                store: options.store,
+                threadId,
+                available: () => !closed && !closing,
+                emit,
+                nativeReview,
+                ...(captureToolContent ? { captureToolContent } : {}),
+                ...(options.onToolResultDelivered
+                  ? { onToolResultDelivered: options.onToolResultDelivered }
+                  : {}),
+                ...(options.onContextInvalidated
+                  ? { onContextInvalidated: options.onContextInvalidated }
+                  : {}),
+                admit: openOptions.admitChild,
+                accepted: (childThread, turn, operation) =>
+                  options.onTurnAccepted?.(childThread, turn, operation),
+                finished: (childThread, turn, operation) =>
+                  options.onTurnFinished?.(childThread, turn, operation),
+              })
+            : undefined;
+        const parentContext = async (operation: AgentOperationInput) => {
+          if (!operation.delegationReferences?.length) return operation.additionalContext;
+          if (!children) throw Error("Native child references are unsupported");
+          const references = await children.referenceContext(operation.delegationReferences);
+          return {
+            text: [
+              operation.additionalContext?.text,
+              "Selected native-child references for this parent-directed request (reference data, not execution permission):",
+              references,
+            ]
+              .filter(Boolean)
+              .join("\n"),
+          };
         };
         const goalSnapshot = async (
           value: z.infer<typeof nativeGoal>,
@@ -490,7 +550,9 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         };
         let goalMutations: Promise<unknown> = Promise.resolve();
         const mutateGoal = <T>(action: () => Promise<AgentResult<T>>): Promise<AgentResult<T>> => {
-          const pending = goalMutations.then(() => (closed ? reject("invalid_state") : action()));
+          const pending = goalMutations.then(() =>
+            closed || forking ? reject("invalid_state") : action(),
+          );
           goalMutations = pending.then(
             () => undefined,
             () => undefined,
@@ -554,6 +616,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         };
         const fail = () => {
           if (closed) return;
+          children?.close();
           finish("operation.failed", "provider_unavailable");
           closed = true;
           sessions.delete(input.sessionId);
@@ -625,6 +688,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
         };
         const processMessage = async (message: import("@drawloom/host").RpcMessage) => {
           if (closed) return;
+          if (children && (await children.process(message))) return;
           if (starting && !active) {
             buffered.push(message);
             return;
@@ -767,175 +831,19 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               return;
             }
             if (message.id !== undefined) {
-              if (interrupting) return;
-              if (interactionRequests.has(message.id)) throw Error("Duplicate native request");
-              interactionRequests.add(message.id);
-              if (
-                message.method === "item/commandExecution/requestApproval" ||
-                message.method === "item/fileChange/requestApproval"
-              ) {
-                const decisions = z
-                  .array(z.json())
-                  .min(1)
-                  .parse(
-                    params.availableDecisions ?? [
-                      "accept",
-                      "acceptForSession",
-                      "decline",
-                      "cancel",
-                    ],
-                  );
-                const choices = new Map<string, unknown>();
-                const options = decisions.map((decision, index) => {
-                  const optionId = "option-" + index;
-                  choices.set(optionId, { decision });
-                  return {
-                    optionId,
-                    label:
-                      typeof decision === "string"
-                        ? decision
-                        : (Object.keys(record.parse(decision))[0] ?? "Provider option"),
-                  };
-                });
-                const approvalId = `${interactionScope}:approval-${++sequence}`;
-                approvals.set(approvalId, { rpcId: message.id, choices });
-                emit({
-                  kind: "approval.requested",
-                  request: {
-                    approvalId,
-                    operationId,
-                    summary:
-                      typeof params.reason === "string"
-                        ? params.reason.slice(0, 4096)
-                        : "Provider requested execution approval",
-                    options,
-                  },
-                });
-                return;
-              }
-              if (message.method === "mcpServer/elicitation/request") {
-                const meta = params._meta === undefined ? {} : record.parse(params._meta);
-                if (meta.codex_approval_kind === "mcp_tool_call") {
-                  if (!nativeReview || params.mode !== "form")
-                    throw Error("Unsupported native approval");
-                  const approvalId = `${interactionScope}:approval-${++sequence}`;
-                  const choices = new Map<string, unknown>([
-                    ["approve", { action: "accept" }],
-                    ["deny", { action: "decline" }],
-                    ["cancel", { action: "cancel" }],
-                  ]);
-                  approvals.set(approvalId, { rpcId: message.id, choices });
-                  const details = meta.tool_params_display ?? meta.tool_params;
-                  emit({
-                    kind: "approval.requested",
-                    request: {
-                      approvalId,
-                      operationId,
-                      summary: z.string().parse(params.message).slice(0, 4096),
-                      ...(details === undefined
-                        ? {}
-                        : {
-                            details: (typeof details === "string"
-                              ? details
-                              : JSON.stringify(z.json().parse(details), null, 2)
-                            ).slice(0, 16384),
-                          }),
-                      options: [
-                        { optionId: "approve", label: "Approve once" },
-                        { optionId: "deny", label: "Deny" },
-                        { optionId: "cancel", label: "Cancel" },
-                      ],
-                    },
-                  });
-                  return;
-                }
-                const responseSchema = z.record(z.string(), z.json()).parse(params.requestedSchema);
-                const schema = z.fromJSONSchema(responseSchema);
-                const requestId = `${interactionScope}:input-${++sequence}`;
-                inputs.set(requestId, {
-                  rpcId: message.id,
-                  schema,
-                  answer: (r) =>
-                    r.action === "submit"
-                      ? { action: "accept", content: r.value }
-                      : { action: "cancel" },
-                });
-                emit({
-                  kind: "input.requested",
-                  request: {
-                    requestId,
-                    operationId,
-                    prompt: z.string().parse(params.message).slice(0, 8192),
-                    responseSchema,
-                  },
-                });
-                return;
-              }
-              if (message.method === "item/tool/requestUserInput") {
-                const questions = z
-                  .array(
-                    z.object({
-                      id: identifier,
-                      question: z.string(),
-                      isOther: z.boolean().optional(),
-                      options: z
-                        .array(
-                          z.object({
-                            label: z.string(),
-                            description: z.string().optional(),
-                          }),
-                        )
-                        .nullable()
-                        .optional(),
-                    }),
-                  )
-                  .min(1)
-                  .parse(params.questions);
-                const shape: Record<string, z.ZodType> = {};
-                for (const question of questions)
-                  shape[question.id] = z.strictObject({
-                    answers: z
-                      .array(
-                        question.options?.length && !question.isOther
-                          ? z.enum(question.options.map((o) => o.label) as [string, ...string[]])
-                          : z.string(),
-                      )
-                      .min(1),
-                  });
-                const schema = z.strictObject(shape);
-                const requestId = `${interactionScope}:input-${++sequence}`;
-                inputs.set(requestId, {
-                  rpcId: message.id,
-                  schema,
-                  answer: (r) => ({
-                    answers: r.action === "submit" ? r.value : {},
-                  }),
-                });
-                emit({
-                  kind: "input.requested",
-                  request: {
-                    requestId,
-                    operationId,
-                    prompt: questions
-                      .map((q) =>
-                        [
-                          q.question,
-                          ...(q.options ?? []).map(
-                            (option) =>
-                              `${option.label}${option.description ? `: ${option.description}` : ""}`,
-                          ),
-                          ...(q.isOther ? ["Other: enter a custom answer."] : []),
-                        ].join("\n"),
-                      )
-                      .join("\n")
-                      .slice(0, 8192),
-                    responseSchema: z.json().parse(z.toJSONSchema(schema)),
-                  },
-                });
-                return;
-              }
-              // Unsupported server interactions cannot be silently abandoned.
-              finish("operation.failed", "invalid_provider_response");
+              processNativeInteraction({
+                message: { ...message, id: message.id },
+                params,
+                operationId,
+                nativeReview,
+                interrupting,
+                approvals,
+                inputs,
+                interactionRequests,
+                emit,
+                nextId: (kind) => `${interactionScope}:${kind}-${++sequence}`,
+                unsupported: () => finish("operation.failed", "invalid_provider_response"),
+              });
               return;
             }
             if (
@@ -989,6 +897,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
             }
             if (message.method === "item/completed") {
               const item = record.parse(params.item);
+              await children?.observeSpawn(threadId, operationId, item);
               if (
                 item.type === "mcpToolCall" &&
                 item.status === "completed" &&
@@ -1186,13 +1095,55 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
           operations,
           options.captureImage,
           captureToolContent,
-          display.recover,
+          (sent, turnId) => {
+            const source = forkHistory?.turns[turnId]?.threadId;
+            return source
+              ? createReferenceDisplay(options.store, source).recover(sent)
+              : display.recover(sent);
+          },
+          (turnId) => forkHistory?.turns[turnId]?.threadId ?? threadId,
         );
         return {
           status: "ok",
           value: {
             sessionId: input.sessionId,
             goals: serializedGoals,
+            ...(children ? { delegations: children.capability } : {}),
+            ...(nativeReview
+              ? {
+                  forks: createCodexForks({
+                    rpc,
+                    connect: options.connect,
+                    store: options.store,
+                    sessionId: input.sessionId,
+                    threadId,
+                    available: () =>
+                      !closing &&
+                      !closed &&
+                      !active &&
+                      !starting &&
+                      !executionFence &&
+                      !nativeAdmissionPending,
+                    reserve: (action) =>
+                      reserveFork(async () => {
+                        forking = true;
+                        try {
+                          return await action();
+                        } finally {
+                          forking = false;
+                        }
+                      }),
+                    configuration: {
+                      approvalPolicy: "on-request",
+                      sandbox: "read-only",
+                      ...(nativeReview ? { approvalsReviewer: "user" } : {}),
+                      ...(options.workingDirectory ? { cwd: options.workingDirectory } : {}),
+                      developerInstructions: input.context.text,
+                      config,
+                    },
+                  }),
+                }
+              : {}),
             modes: (["default", "plan"] as const).filter((mode) =>
               planningModes.some((p) => p.mode === mode),
             ),
@@ -1231,6 +1182,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               const p = AgentOperationInputSchema.safeParse(rawOperation);
               if (
                 !p.success ||
+                forking ||
                 executionFence ||
                 closed ||
                 !attached ||
@@ -1254,6 +1206,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                 return reject("provider_rejected");
               starting = true;
               try {
+                const additionalContext = await parentContext(operation);
                 if (
                   operation.modelSelection &&
                   !permitsModel(await readCodexModels(rpc), operation.modelSelection)
@@ -1306,12 +1259,12 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                     ...selected,
                     ...images,
                   ],
-                  ...(operation.additionalContext
+                  ...(additionalContext
                     ? {
                         additionalContext: {
                           drawloom: {
                             kind: "application",
-                            value: operation.additionalContext.text,
+                            value: additionalContext.text,
                           },
                         },
                       }
@@ -1364,6 +1317,7 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               const target = active;
               let queued = false;
               try {
+                const additionalContext = await parentContext(p.data);
                 if (p.data.attachments?.length && !options.imageInput)
                   return reject("provider_rejected");
                 const images = await Promise.all(
@@ -1394,12 +1348,12 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
                     ...selected,
                     ...images,
                   ],
-                  ...(p.data.additionalContext
+                  ...(additionalContext
                     ? {
                         additionalContext: {
                           drawloom: {
                             kind: "application",
-                            value: p.data.additionalContext.text,
+                            value: additionalContext.text,
                           },
                         },
                       }
@@ -1432,6 +1386,8 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               return promise;
             },
             async resolveApproval(rawResolution) {
+              const childResult = children?.resolveApproval(rawResolution);
+              if (childResult) return childResult;
               const p = AgentApprovalResolutionSchema.safeParse(rawResolution);
               if (!p.success) return reject("invalid_interaction");
               const pending = approvals.get(p.data.approvalId);
@@ -1448,6 +1404,8 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               }
             },
             async respondToInput(rawResolution) {
+              const childResult = children?.respondToInput(rawResolution);
+              if (childResult) return childResult;
               const p = AgentInputResolutionSchema.safeParse(rawResolution);
               if (!p.success) return reject("invalid_interaction");
               const pending = inputs.get(p.data.requestId);
@@ -1467,6 +1425,9 @@ export function createCodexDriver(options: CodexDriverOptions): AgentDriver {
               }
             },
             async close() {
+              closing = true;
+              await forkMutations;
+              children?.close();
               if (!closed) {
                 if (!nativeAdmissionPending) await receiveChain;
                 finish("operation.interrupted");

@@ -1,5 +1,20 @@
 import { expect, test } from "bun:test";
-import { pluginGroups, readableName, pluginDescription } from "./screen-language.js";
+import { pluginGroups, readableName, pluginDescription, discoveryName } from "./screen-language.js";
+
+test("declared discovery branding is searchable without renaming technical identity", () => {
+  const entry = {
+    id: "opaque",
+    name: "technical-name",
+    kind: "plugin",
+    origin: "native",
+    presentation: { displayName: "Friendly Plugin" },
+  };
+  expect(discoveryName(entry)).toBe("Friendly Plugin");
+  expect(pluginGroups([entry], "friendly")).toHaveLength(1);
+  expect(pluginGroups([entry], "technical-name")).toHaveLength(1);
+  expect(entry.name).toBe("technical-name");
+  expect(discoveryName({ ...entry, presentation: undefined })).toBe("Technical name");
+});
 
 test("plugin browsing groups owned tools under their plugin and searches their content", () => {
   const entries = [

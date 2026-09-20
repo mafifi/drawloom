@@ -112,6 +112,7 @@ test("unsupported native review is reported and never silently downgraded", asyn
   const { s } = await session(f);
   try {
     expect(s.reviewerModes).toEqual(["human"]);
+    expect(s.forks).toBeUndefined();
     expect(
       await s.execute({ operationId: "one", text: "work", reviewer: "delegated" }),
     ).toMatchObject({ status: "rejected", failure: { code: "provider_rejected" } });

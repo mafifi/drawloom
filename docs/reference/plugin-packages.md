@@ -11,6 +11,38 @@ separates public tests, private consumer observations and remaining limitations.
 
 ## Standard package
 
+### Display names and icons
+
+Declare branding under `extensions.org.drawloom.presentation`, not as invented
+standard manifest fields. Technical package identity and grants do not change.
+
+```json
+{
+  "org.drawloom": {
+    "version": 1,
+    "presentation": {
+      "displayName": "Document tools",
+      "icon": {
+        "light": "./assets/icon.svg",
+        "dark": "./assets/icon-dark.svg"
+      }
+    }
+  }
+}
+```
+
+The example is the `extensions` object. Icons are optional package-relative
+SVG, PNG, JPEG or WebP files, at most 256 KiB each. The host checks canonical
+package containment and rejects leaf symlinks, escaped paths, active/external SVG content and
+non-image bytes. Missing/unreadable icons fall back without affecting execution.
+Keep SVG self-contained, with explicit colours suitable for each declared theme.
+The host supplies bounded image data; shared UI renders it through image-only
+blob URLs and releases those URLs on unmount. No inline SVG or remote icon fetch.
+The native agent discovery contract has equivalent optional `presentation`
+metadata; Codex maps declared names and host-confined installed plugin images.
+Author names take precedence over display-only fallback formatting. Selection
+always uses the original opaque identity and technical name.
+
 Use an Agent Plugins 1.0.0 `plugin.json` at the package root. Put skills and their
 supporting files under `skills/`, and declare MCP servers in an optional root
 `mcp.json`. Skills and servers require neither a Drawloom dependency nor extension

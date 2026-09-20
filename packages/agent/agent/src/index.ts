@@ -14,6 +14,8 @@ import {
   type AgentSessionOpenOptions,
 } from "./goals.js";
 export * from "./goals.js";
+export * from "./delegation.js";
+import { AgentDelegationSchema, type AgentDelegations, type AgentForks } from "./delegation.js";
 
 const AbortSignalSchema = z.custom<AbortSignal>((value) => {
   if (!value || typeof value !== "object") return false;
@@ -35,11 +37,29 @@ export const DiscoveryKindSchema = z.enum([
 ]);
 export const DiscoverySelectionSchema = z.strictObject({ id, revision: id });
 export type DiscoverySelection = z.infer<typeof DiscoverySelectionSchema>;
+/** Host-resolved decorative images; never remote URLs or provider filesystem paths. */
+export const DiscoveryIconSchema = z.strictObject({
+  light: z
+    .string()
+    .max(350000)
+    .regex(/^data:image\/(?:png|jpeg|webp|svg\+xml);base64,[A-Za-z0-9+/]+={0,2}$/),
+  dark: z
+    .string()
+    .max(350000)
+    .regex(/^data:image\/(?:png|jpeg|webp|svg\+xml);base64,[A-Za-z0-9+/]+={0,2}$/)
+    .optional(),
+});
+export const DiscoveryPresentationSchema = z.strictObject({
+  displayName: z.string().trim().min(1).max(120).optional(),
+  icon: DiscoveryIconSchema.optional(),
+});
+export type DiscoveryPresentation = z.infer<typeof DiscoveryPresentationSchema>;
 export const DiscoveryEntrySchema = z.strictObject({
   id,
   origin: id,
   kind: DiscoveryKindSchema,
   name: id,
+  presentation: DiscoveryPresentationSchema.optional(),
   description: z.string(),
   scope: id,
   availability: z.enum(["available", "unavailable", "unverified"]),
@@ -109,6 +129,9 @@ export const AgentOperationInputSchema = z.strictObject({
   mode: AgentModeSchema.optional(),
   text: z.string(),
   selections: z.array(DiscoverySelectionSchema).max(32).optional(),
+  /** Stable native-child references for parent-directed requests. Providers must
+   * resolve verified lineage privately; this never permits direct child input. */
+  delegationReferences: z.array(id).max(16).optional(),
   attachments: z.array(AssetSchema).max(16).optional(),
   additionalContext: CompiledContextSchema.optional(),
   /** User reference content, never application/developer instructions. Framing is not isolation. */
@@ -211,6 +234,7 @@ export const AgentOperationUsageSchema = z
   });
 export type AgentOperationUsage = z.infer<typeof AgentOperationUsageSchema>;
 export const AgentSessionSignalSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("delegation.updated"), child: AgentDelegationSchema }),
   z.strictObject({
     kind: z.literal("plan.proposed"),
     operationId: id,
@@ -230,7 +254,11 @@ export const AgentSessionSignalSchema = z.discriminatedUnion("kind", [
     asset: AssetSchema,
     messageId: id.optional(),
   }),
-  z.strictObject({ kind: z.literal("operation.started"), operationId: id }),
+  z.strictObject({
+    kind: z.literal("operation.started"),
+    operationId: id,
+    delegationId: id.optional(),
+  }),
   z.strictObject({
     kind: z.literal("operation.completed"),
     operationId: id,
@@ -305,6 +333,8 @@ export interface AgentSession {
   /** Absent means mode selection is unsupported. */
   readonly modes?: readonly AgentMode[];
   readonly goals?: AgentGoals;
+  readonly delegations?: AgentDelegations;
+  readonly forks?: AgentForks;
   readonly discovery?: AgentDiscovery;
   readonly reviewerModes: readonly AgentReviewer[];
   readonly history?: ConversationHistoryReader;

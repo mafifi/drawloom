@@ -412,6 +412,14 @@ imports, then run the package build/check and the root gate.
 
 ### Goals and plans
 
+Native child activity uses the existing `Tool` process composition with truthful
+status, expandable results and shared action controls. It is not a task board or
+an independent child chat. The application's ViewModel owns fresh capability
+checks and prepares parent-directed follow-up text; a saved child snapshot never
+enables interruption. Fork belongs to the `/` and `+` Actions catalogue;
+delegation is parent-agent initiated, not a user action. Use shared `Dialog` for the independent fork's shared-files warning,
+not a permanent spawn button. See [Proposed ADR 0032](../../../docs/adr/0032-native-delegation-and-conversation-forks.md).
+
 `ComposerStrip` owns attached-row geometry for composer accessories. Place strips
 inside the same `composer-dock` immediately before the prompt; the shared inset
 clears the prompt's rounded shoulders, and adjacent strips share square seams.
@@ -431,7 +439,9 @@ composer + picker and `/` actions menu; an explicit selection opens the objectiv
 creation removes it without a native mutation. The shared component also suppresses
 an idle `mode: "create"` presentation.
 The same shadcn-backed `MentionPicker` handles actions and skills. The + picker
-orders Add actions before Plugins, Skills, Files and Conversations. Slash input
+orders Add actions before Plugins and Skills, followed by a persistent
+Files and chats heading and muted search instruction. Context search does not
+enumerate files or chats until a query is entered. Slash input
 shows Actions then Skills, not attachment or plugin inventories. Reuse its
 scroll-fade utility; do not create another command surface or inert action list.
 
@@ -440,6 +450,11 @@ Content and Footer composition. Supply complete provider snapshots; retain earli
 updates in history and do not infer stable step identities. Plan editing belongs
 in the conversation. Neither a completed plan nor a native completed goal grants
 business acceptance. See [Proposed ADR 0031](../../../docs/adr/0031-native-goals-and-structured-plans.md).
+
+`PresentationIcon` renders optional validated light/dark discovery icons as
+decorative images, with the existing category icon as fallback. Picker and
+catalogue consumers use declared presentation names without changing selection
+identity. Icons are bounded host-provided image data, not remote fetches or inline SVG.
 
 Consumers import `@drawloom/ui/styles.css` once and configure Tailwind v4's
 Vite plugin. The stylesheet scans the packaged component source; the

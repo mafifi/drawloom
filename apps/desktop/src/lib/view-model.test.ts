@@ -18,6 +18,46 @@ Bun.plugin({
 });
 const { createDesktopViewModel } = await import("./view-model.svelte.js");
 const originalFetch = globalThis.fetch;
+test("slash keyboard selection accepts available catalogue actions, not arbitrary action ids", async () => {
+  const initial = snapshot();
+  initial.forking = { supported: true };
+  initial.delegation = { supported: true, children: [] };
+  const h = await harness(initial);
+  for (const action of ["fork"]) {
+    h.vm.draft = `/${action}`;
+    h.vm.openPicker("action", { start: 0, end: h.vm.draft.length });
+    h.vm.pickerActiveId = `action:${action}`;
+    expect(h.vm.pickerActiveId).toBe(`action:${action}`);
+    h.vm.pickerActiveId = "action:invented";
+    expect(h.vm.pickerActiveId).toBe(`action:${action}`);
+  }
+  h.vm.draft = "/delegate";
+  h.vm.openPicker("action", { start: 0, end: h.vm.draft.length });
+  h.vm.pickerActiveId = "action:delegate";
+  expect(h.vm.pickerActiveId).toBe("");
+});
+test("delegation prepares a parent draft and sends nothing until Send", async () => {
+  const initial = snapshot();
+  initial.delegation = { supported: true, children: [] };
+  const h = await harness(initial);
+  h.vm.draft = "Preserve my notes";
+  h.vm.prepareDelegation();
+  expect(h.vm.draft).toContain("Preserve my notes");
+  expect(h.vm.draft).toContain("native delegation");
+  expect(h.commands).toEqual([]);
+});
+test("fork action preserves the source draft and uses an explicit request identity", async () => {
+  const initial = snapshot();
+  initial.forking = { supported: true };
+  const h = await harness(initial);
+  h.vm.draft = "Unsent source notes";
+  await h.vm.forkConversation();
+  expect(h.commands[0]).toMatchObject({
+    kind: "fork_conversation",
+    conversationId: initial.selectedId,
+  });
+  expect(h.vm.draft).toBe("Unsent source notes");
+});
 test("typed plan action selects native mode without submitting a turn", async () => {
   const initial = snapshot();
   initial.modes = ["default", "plan"];
@@ -1600,7 +1640,7 @@ test("large catalogue exposes bounded pages but searches every entry and resets 
   expect(h.vm.filteredCatalogue.map((item) => item.id)).toEqual(["app:4300"]);
   h.vm.catalogueQuery = "";
   expect(h.vm.filteredCatalogue).toHaveLength(100);
-  h.vm.openPicker("context");
+  h.vm.openPicker("add");
   expect(h.vm.pickerEntries).toHaveLength(100);
   expect(h.vm.pickerMatchCount).toBe(4301);
   h.vm.showMorePicker();
@@ -1689,6 +1729,26 @@ test("keyboard discovery follows one rendered selectable identity list", async (
   expect(h.vm.draft).toBe("Please ");
 });
 
+test("files and chats search excludes integrations and does not enumerate an empty query", async () => {
+  const h = await harness();
+  h.setCatalogue(skillCatalogue);
+  await h.vm.refreshCatalogue(true);
+  h.vm.draft = "Keep these notes";
+  h.vm.beginContextPicker();
+  expect(h.vm.draft).toBe("Keep these notes @");
+  expect(h.vm.pickerKind).toBe("context");
+  expect(h.vm.pickerEntries).toEqual([]);
+  expect(h.vm.composerActions).toEqual([]);
+  expect(h.vm.pickerContextOptions).toEqual([]);
+  h.vm.draft = "Keep these notes @A";
+  h.vm.openPicker("context", { start: 17, end: 19 });
+  expect(h.vm.pickerContextOptions.some((item) => item.id === "document:artifact-a")).toBe(true);
+  h.vm.selectPickerContext("artifact-a");
+  expect(h.vm.contextIds).toEqual(["artifact-a"]);
+  expect(h.vm.draft).toBe("Keep these notes ");
+  expect(h.commands).toEqual([]);
+});
+
 test("keyboard context navigation can choose a rendered document", async () => {
   const h = await harness();
   h.setCatalogue({ ...skillCatalogue, entries: [] });
@@ -1700,6 +1760,33 @@ test("keyboard context navigation can choose a rendered document", async () => {
   h.vm.selectActivePicker();
   expect(h.vm.contextIds).toEqual(["artifact-a"]);
   expect(h.vm.draft).toBe("Read ");
+});
+
+test("context search offers other current chats, retains selection and excludes archived chats", async () => {
+  const initial = snapshot();
+  initial.conversations.push(
+    { ...initial.conversations[0]!, id: "reference", title: "Reference notes" },
+    { ...initial.conversations[0]!, id: "archived", title: "Reference old", archived: true },
+  );
+  const h = await harness(initial);
+  h.vm.draft = "Read @Reference";
+  h.vm.openPicker("context", { start: 5, end: 15 });
+  expect(
+    h.vm.pickerContextOptions.filter((item) => item.kind === "conversation").map((item) => item.id),
+  ).toEqual(["conversation:reference"]);
+  h.vm.selectConversationContext("reference");
+  expect(h.vm.draft).toBe("Read ");
+  expect(h.vm.conversationContextIds).toEqual(["reference"]);
+  h.vm.openPicker("context");
+  h.vm.pickerQuery = "Reference";
+  expect(
+    h.vm.pickerContextOptions.find((item) => item.id === "conversation:reference")?.disabled,
+  ).toBe(true);
+  h.vm.removeConversationContext("reference");
+  expect(
+    h.vm.pickerContextOptions.find((item) => item.id === "conversation:reference")?.disabled,
+  ).toBe(false);
+  expect(h.commands).toEqual([]);
 });
 
 test("refresh preserves stale selection identity and draft when a same-name replacement appears", async () => {

@@ -29,6 +29,10 @@ import type { ResourceCardPresentation } from "./resource-card.js";
 import { createConversationNavigationViewModel } from "./conversation-navigation-view-model.svelte.js";
 import { initializeUiTelemetry, telemetryFetch as fetch } from "./telemetry.js";
 import { approvalCard } from "./approval-presentation.js";
+import { composerActions, delegationDraft } from "./composer-actions.js";
+import { discoveryName } from "./screen-language.js";
+import { delegationPresentation } from "./delegation-presentation.js";
+import type { AgentDelegation } from "@drawloom/agent";
 type Discovery = DesktopCatalogue["entries"][number];
 type Attachment = {
   id: string;
@@ -41,6 +45,7 @@ type Attachment = {
 };
 type SelectedResource = { entryId: string; resourceId: string; title: string; source: string };
 type SavedDraft = {
+  delegationReferences: { id: string; label: string }[];
   text: string;
   attachments: Attachment[];
   contextIds: string[];
@@ -51,6 +56,10 @@ type SavedDraft = {
 // Local draft metadata is untrusted and contains references only, never File data.
 const DraftReferencesSchema = z.strictObject({
   version: z.literal(1),
+  delegationReferences: z
+    .array(z.strictObject({ id: z.string().min(1), label: z.string() }))
+    .max(16)
+    .default([]),
   attachments: z
     .array(
       z.strictObject({
@@ -110,6 +119,9 @@ export function createDesktopViewModel() {
     error = $state(""),
     busy = $state(false);
   let pendingCommand = $state.raw<DesktopCommand>();
+  let delegationReferences = $state<{ id: string; label: string }[]>([]);
+  let delegationVersion = 0;
+  let forkRequested = $state(false);
   let stoppingApproval = $state.raw<DesktopCommand>();
   let stoppingApprovalOwner: Extract<DesktopCommand, { kind: "approval" }> | undefined;
   let elicitationChoices = $state<Record<string, string>>({});
@@ -178,7 +190,7 @@ export function createDesktopViewModel() {
     integrationUrls = $state<Record<string, string>>({}),
     integrationErrors = $state<Record<string, string>>({});
   let pickerOpen = $state(false),
-    pickerKind = $state<"skill" | "context" | "action">("skill"),
+    pickerKind = $state<"skill" | "context" | "action" | "add">("skill"),
     pickerQuery = $state(""),
     pickerActiveId = $state("");
   const discoveryPageSize = 100;
@@ -188,7 +200,15 @@ export function createDesktopViewModel() {
   let contributionLimits = $state<Record<string, number>>({});
   const catalogueMatches = $derived(
     catalogue?.entries.filter((entry) =>
-      [entry.name, entry.description, entry.origin, entry.kind, entry.scope, entry.ownerId]
+      [
+        discoveryName(entry),
+        entry.name,
+        entry.description,
+        entry.origin,
+        entry.kind,
+        entry.scope,
+        entry.ownerId,
+      ]
         .join(" ")
         .toLowerCase()
         .includes(catalogueQuery.toLowerCase()),
@@ -197,17 +217,18 @@ export function createDesktopViewModel() {
   const pickerMatches = $derived(
     catalogue?.entries.filter(
       (entry) =>
+        pickerKind !== "context" &&
         (pickerKind === "skill" || pickerKind === "action"
           ? entry.kind === "skill"
           : ["app", "plugin", "skill"].includes(entry.kind)) &&
-        [entry.name, entry.description, entry.origin]
+        [discoveryName(entry), entry.name, entry.description, entry.origin]
           .join(" ")
           .toLowerCase()
           .includes(pickerQuery.toLowerCase()),
     ) ?? [],
   );
   const pickerDocuments = $derived(
-    pickerKind === "context"
+    pickerKind === "context" && pickerQuery.trim()
       ? (state?.operator.artifacts.filter(
           (item) =>
             item.content.kind === "text" &&
@@ -374,6 +395,7 @@ export function createDesktopViewModel() {
         !saved.contextIds.length &&
         !saved.conversationContextIds.length &&
         !saved.selections.length &&
+        !saved.delegationReferences.length &&
         !saved.resources.length
       ) {
         localStorage.removeItem(key);
@@ -383,6 +405,7 @@ export function createDesktopViewModel() {
         key,
         JSON.stringify({
           version: 1,
+          delegationReferences: saved.delegationReferences,
           attachments: saved.attachments.map(({ id, name, size, mediaType, asset }) => ({
             id,
             name,
@@ -414,6 +437,7 @@ export function createDesktopViewModel() {
       const saved = DraftReferencesSchema.parse(JSON.parse(raw));
       return {
         text: localStorage.getItem("drawloom-composer:" + id) ?? "",
+        delegationReferences: saved.delegationReferences,
         contextIds: saved.contextIds,
         conversationContextIds: saved.conversationContextIds,
         resources: saved.resources,
@@ -439,6 +463,7 @@ export function createDesktopViewModel() {
   function saveDraft(id: string) {
     const saved = {
       text: draft,
+      delegationReferences,
       attachments,
       contextIds,
       conversationContextIds,
@@ -489,7 +514,7 @@ export function createDesktopViewModel() {
     }
   }
   function openPicker(
-    kind: "skill" | "context" | "action",
+    kind: "skill" | "context" | "action" | "add",
     token?: { start: number; end: number },
   ) {
     pickerLimit = discoveryPageSize;
@@ -499,7 +524,7 @@ export function createDesktopViewModel() {
     pickerToken = token ? { ...token, text: draft.slice(token.start, token.end) } : undefined;
     pickerActiveId = "";
     pickerOpen = true;
-    void refreshCatalogue();
+    if (kind !== "context") void refreshCatalogue();
   }
   function consumePickerToken() {
     if (pickerToken && draft.slice(pickerToken.start, pickerToken.end) === pickerToken.text)
@@ -582,10 +607,13 @@ export function createDesktopViewModel() {
     }
     state = next;
     if (navigation) {
+      forkRequested = false;
       const saved = drafts.get(next.selectedId) ?? restoreDraft(next.selectedId);
       // The legacy unqualified key has no conversation owner. Preserve it in
       // storage, but never infer ownership from whichever snapshot loads first.
       draft = saved?.text ?? localStorage.getItem("drawloom-composer:" + next.selectedId) ?? "";
+      delegationReferences = saved?.delegationReferences ?? [];
+      delegationVersion++;
       attachments = saved?.attachments ?? [];
       attachmentKeys = attachments.flatMap((item) => (item.asset ? [item.asset.key] : []));
       contextIds = saved?.contextIds ?? [];
@@ -835,6 +863,100 @@ export function createDesktopViewModel() {
     }
   }
   return {
+    get forkRequested() {
+      return forkRequested;
+    },
+    set forkRequested(value: boolean) {
+      if (!busy) forkRequested = value;
+    },
+    beginFork() {
+      consumePickerToken();
+      forkRequested = true;
+    },
+    delegationCard(child: AgentDelegation) {
+      return delegationPresentation(
+        child,
+        state?.delegation?.children.find((entry) => entry.id === child.id),
+        Boolean(state?.delegation?.supported),
+      );
+    },
+    get composerActions() {
+      if (pickerKind === "skill" || pickerKind === "context") return [];
+      return composerActions({
+        goal: Boolean(state?.goal?.supported && !state.goal.snapshot),
+        plan: Boolean(state?.modes.includes("plan")),
+        delegate: Boolean(state?.delegation?.supported),
+        fork: Boolean(state?.forking?.supported),
+        active: Boolean(
+          state?.activeOperation || state?.archiveBlockedConversationIds.includes(state.selectedId),
+        ),
+        busy,
+      }).filter((action) =>
+        `${action.title} ${action.description}`.toLowerCase().includes(pickerQuery.toLowerCase()),
+      );
+    },
+    get delegationReferences() {
+      return delegationReferences;
+    },
+    removeDelegationReference(id: string) {
+      delegationReferences = delegationReferences.filter((entry) => entry.id !== id);
+      delegationVersion++;
+      saveCurrentReferences();
+    },
+    prepareDelegation(childId?: string) {
+      if (!state?.delegation?.supported) {
+        error = "Native delegation is unavailable.";
+        return;
+      }
+      const child = childId
+        ? state.delegation.children.find((item) => item.id === childId)
+        : undefined;
+      if (childId && !child) {
+        error = "Inspect the native task before following up.";
+        return;
+      }
+      if (child && !delegationReferences.some((item) => item.id === child.id)) {
+        if (delegationReferences.length >= 16) {
+          error = "Remove a task reference before adding another.";
+          return;
+        }
+        delegationReferences = [...delegationReferences, { id: child.id, label: child.label }];
+        delegationVersion++;
+      }
+      consumePickerToken();
+      setDraft(delegationDraft(draft, child));
+      saveCurrentReferences();
+    },
+    async forkConversation() {
+      if (
+        !state?.forking?.supported ||
+        busy ||
+        state.archiveBlockedConversationIds.includes(state.selectedId)
+      )
+        return false;
+      consumePickerToken();
+      saveDraft(state.selectedId);
+      const ok = await command({
+        kind: "fork_conversation",
+        conversationId: state.selectedId,
+        requestId: crypto.randomUUID(),
+      });
+      if (ok) forkRequested = false;
+      return ok;
+    },
+    async inspectDelegation(childId: string) {
+      if (!state?.selectedId) return false;
+      return command({ kind: "inspect_delegation", conversationId: state.selectedId, childId });
+    },
+    async interruptDelegation(childId: string) {
+      const child = state?.delegation?.children.find((item) => item.id === childId);
+      if (!state || child?.controls.interrupt !== "available") return false;
+      return command({
+        kind: "interrupt_delegation",
+        conversationId: state.selectedId,
+        child: { id: child.id, revision: child.revision },
+      });
+    },
     async setMode(mode: "default" | "plan") {
       if (!state?.selectedId) return false;
       return command({ kind: "set_mode", conversationId: state.selectedId, mode });
@@ -1167,13 +1289,49 @@ export function createDesktopViewModel() {
       nativeResourceLimit = discoveryPageSize;
     },
     openPicker,
+    beginContextPicker() {
+      const prefix = draft && !/\s$/.test(draft) ? `${draft} ` : draft;
+      setDraft(`${prefix}@`);
+      openPicker("context", { start: prefix.length, end: prefix.length + 1 });
+    },
+    get pickerContextOptions() {
+      if (pickerKind !== "context" || !pickerQuery.trim()) return [];
+      return [
+        ...pickerDocuments.map((item) => ({
+          id: `document:${item.id}`,
+          title: contextLabel(item.id),
+          group: "Files",
+          kind: "document" as const,
+          disabled: contextIds.includes(item.id),
+        })),
+        ...(state?.conversations ?? [])
+          .filter(
+            (c) =>
+              c.id !== state?.selectedId &&
+              !c.archived &&
+              c.title.toLowerCase().includes(pickerQuery.toLowerCase()),
+          )
+          .slice(0, 20)
+          .map((item) => ({
+            id: `conversation:${item.id}`,
+            title: item.title,
+            description: "Share recent cached text",
+            group: "Chats",
+            kind: "conversation" as const,
+            disabled: conversationContextIds.includes(item.id),
+          })),
+      ];
+    },
     get pickerActiveId() {
       return pickerActiveId;
     },
     set pickerActiveId(v: string) {
       if (
         !v ||
-        ["action:attach", "action:browse", "action:more", "action:apps"].includes(v) ||
+        this.composerActions.some((action) => action.id === v && !action.disabled) ||
+        ["action:attach", "action:context", "action:browse", "action:more", "action:apps"].includes(
+          v,
+        ) ||
         (v.startsWith("conversation:") &&
           state?.conversations.some((c) => c.id === v.slice(13) && c.id !== state?.selectedId)) ||
         pickerOptions.some((option) => option.id === v && option.selectable)
@@ -1710,6 +1868,7 @@ export function createDesktopViewModel() {
       }
       const submitted = {
         draftVersion,
+        delegationVersion,
         attachmentVersion,
         contextVersion,
         selectionVersion,
@@ -1721,6 +1880,9 @@ export function createDesktopViewModel() {
           kind: "send",
           conversationId: submitted.conversationId,
           text: draft,
+          ...(delegationReferences.length
+            ? { delegationReferences: delegationReferences.map((entry) => entry.id) }
+            : {}),
           attachmentKeys: [...attachmentKeys],
           contextArtifactIds: [...contextIds],
           conversationContextIds: [...conversationContextIds],
@@ -1731,6 +1893,7 @@ export function createDesktopViewModel() {
           })),
         })
       ) {
+        if (delegationVersion === submitted.delegationVersion) delegationReferences = [];
         if (draftVersion === submitted.draftVersion) {
           draft = "";
           localStorage.removeItem("drawloom-composer:" + submitted.conversationId);
