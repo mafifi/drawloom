@@ -4,8 +4,20 @@
     {
       "layers": [
         {
-          "image-name": "mark.png",
-          "name": "Drawloom"
+          "image-name": "ribbons.png",
+          "name": "Drawloom ribbons",
+          "position": {
+            "scale": 0.65,
+            "translation-in-points": [0, 0]
+          }
+        },
+        {
+          "image-name": "lobes.png",
+          "name": "Drawloom lobes",
+          "position": {
+            "scale": 0.65,
+            "translation-in-points": [0, 0]
+          }
         }
       ],
       "shadow": {

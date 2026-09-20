@@ -1,4 +1,4 @@
-import { copyFile, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -8,10 +8,6 @@ const icons = new URL("../apps/desktop/src-tauri/icons/", import.meta.url).pathn
 const temporary = await mkdtemp(join(tmpdir(), "drawloom-icon-build-"));
 try {
   await mkdir(icons, { recursive: true });
-  await copyFile(
-    new URL("../publishing/site/public/artwork/drawloom/mark.png", import.meta.url),
-    join(icons, "Drawloom.icon/Assets/mark.png"),
-  );
   const command = Bun.spawn(
     [
       "xcrun",

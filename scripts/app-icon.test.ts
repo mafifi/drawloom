@@ -4,14 +4,20 @@ test("the approved Drawloom is the shared app, website and repository mark", asy
   const artwork = "publishing/site/public/artwork/drawloom/mark.png";
   const bytes = await Bun.file(artwork).bytes();
   expect(bytes[25]).toBe(6);
-  expect(await Bun.file("apps/desktop/src-tauri/icons/Drawloom.icon/Assets/mark.png").bytes()).toEqual(bytes);
+  expect(
+    await Bun.file("apps/desktop/src-tauri/icons/Drawloom.icon/Assets/mark.png").bytes(),
+  ).toEqual(bytes);
   expect(await Bun.file("README.md").text()).toContain(artwork);
   const desktopPage = await Bun.file("apps/desktop/src/routes/+page.svelte").text();
   expect(desktopPage).toContain("publishing/site/public/artwork/drawloom/mark.png");
   expect(desktopPage).toContain('rel="icon"');
-  expect(await Bun.file("publishing/site/src/pages/index.astro").text()).toContain("/artwork/drawloom/mark.png");
+  expect(await Bun.file("publishing/site/src/pages/index.astro").text()).toContain(
+    "/artwork/drawloom/mark.png",
+  );
   for (const layout of ["Landing", "Journal"]) {
-    expect(await Bun.file(`publishing/site/src/layouts/${layout}.astro`).text()).toContain("artwork/drawloom/mark.png");
+    expect(await Bun.file(`publishing/site/src/layouts/${layout}.astro`).text()).toContain(
+      "artwork/drawloom/mark.png",
+    );
   }
 });
 
