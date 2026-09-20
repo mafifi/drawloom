@@ -1,4 +1,6 @@
 import type { JsonStore, AssetLibrary } from "@drawloom/host";
+export * from "./browser.js";
+export * from "./browser-conformance.js";
 import type { PluginContributions } from "@drawloom/plugins";
 import type { OperatorController } from "@drawloom/workbench";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";

@@ -3,6 +3,7 @@ export const settingsSections = [
   { id: "workbench", title: "Workbench" },
   { id: "permissions", title: "Tool permissions" },
   { id: "media", title: "Media sources" },
+  { id: "browser", title: "Browser" },
   { id: "integrations", title: "Integrations" },
 ] as const;
 

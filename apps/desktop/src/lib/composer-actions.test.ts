@@ -1,6 +1,19 @@
 import { expect, test } from "bun:test";
 import { composerActions, delegationDraft } from "./composer-actions.js";
 
+test("browser navigation remains available while an agent is working", () => {
+  const actions = composerActions({
+    goal: false,
+    plan: false,
+    delegate: false,
+    fork: false,
+    active: true,
+    busy: true,
+    browser: true,
+  });
+  expect(actions.find((action) => action.id === "action:browser")?.disabled).toBe(false);
+});
+
 test("both picker entry points use the same capability-scoped actions", () => {
   const actions = composerActions({
     goal: true,

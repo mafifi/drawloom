@@ -8,6 +8,7 @@ export function composerActions(capabilities: {
   fork: boolean;
   active: boolean;
   busy: boolean;
+  browser?: boolean;
 }): MentionOption[] {
   const entries: MentionOption[] = [];
   const add = (id: string, title: string, description: string, disabled = capabilities.busy) =>
@@ -34,6 +35,8 @@ export function composerActions(capabilities: {
       "Independent conversation; project files remain shared",
       capabilities.busy || capabilities.active,
     );
+  if (capabilities.browser)
+    add("browser", "Open browser", "View a website alongside this conversation", false);
   return entries;
 }
 

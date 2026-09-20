@@ -71,6 +71,10 @@ Newest first. A decision remains binding until an ADR supersedes it.
 
 ### Plugins, projects and the desktop
 
+- **[0033: Host an isolated native browser in the workspace panel](0033-isolated-native-browser-panel.md)** —
+  Accepted. Tauri-owned browsing with separate storage and authority, native
+  lifecycle acceptance and explicit fallback; no agent browser automation.
+
 - **[0031: Integrate native goals and structured plans](0031-native-goals-and-structured-plans.md)** —
   Accepted. Provider-owned goals, correlated continuation and retained plan presentation.
 

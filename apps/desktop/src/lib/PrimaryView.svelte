@@ -3,6 +3,7 @@
   import { settingsSections, pluginSettingsTitle } from './settings-navigation.js';
   import DiscoveryInventory from './DiscoveryInventory.svelte';
   import PluginSettingsFrame from './PluginSettingsFrame.svelte';
+  import BrowserSettingsView from './BrowserSettingsView.svelte';
   import Projects from './Projects.svelte';
   import Knowledge from './Knowledge.svelte';
   import CodexModelSelector from './CodexModelSelector.svelte';
@@ -68,6 +69,7 @@
     <ArchivedConversations presentation={archivePresentation} restore={async(id)=>{if(await vm.command({kind:'restore_conversation',conversationId:id}))toast.success('Conversation restored');}} />
   {:else}
     <section class="primary-view-content settings-content">
+      {#if vm.settingsSection==='browser'}<BrowserSettingsView presentation={{snapshot:vm.browser.snapshot,pending:vm.browser.pendingKey,error:vm.browser.error}} actions={{forget:(origin,permission)=>vm.browser.command({kind:'forget',origin,permission})}}/>{/if}
       {#if vm.selectedSettingsPage}
         <section class="settings-group">
           {#if vm.selectedSettingsPage.status === 'available'}

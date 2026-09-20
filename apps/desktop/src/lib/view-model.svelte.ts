@@ -30,6 +30,7 @@ import { createConversationNavigationViewModel } from "./conversation-navigation
 import { initializeUiTelemetry, telemetryFetch as fetch } from "./telemetry.js";
 import { approvalCard } from "./approval-presentation.js";
 import { composerActions, delegationDraft } from "./composer-actions.js";
+import { BrowserController, nativeBrowserTransport } from "./browser-controller.js";
 import { discoveryName } from "./screen-language.js";
 import { delegationPresentation } from "./delegation-presentation.js";
 import type { AgentDelegation } from "@drawloom/agent";
@@ -122,6 +123,11 @@ export function createDesktopViewModel() {
   let delegationReferences = $state<{ id: string; label: string }[]>([]);
   let delegationVersion = 0;
   let forkRequested = $state(false);
+  let browserRevision = $state(0);
+  let browserOpen = $state(false);
+  const browser = new BrowserController(nativeBrowserTransport(), () => {
+    browserRevision++;
+  });
   let stoppingApproval = $state.raw<DesktopCommand>();
   let stoppingApprovalOwner: Extract<DesktopCommand, { kind: "approval" }> | undefined;
   let elicitationChoices = $state<Record<string, string>>({});
@@ -863,6 +869,22 @@ export function createDesktopViewModel() {
     }
   }
   return {
+    get browser() {
+      void browserRevision;
+      return browser;
+    },
+    get browserOpen() {
+      return browserOpen;
+    },
+    set browserOpen(value: boolean) {
+      browserOpen = value;
+    },
+    async openBrowser() {
+      consumePickerToken();
+      detailsOpen = true;
+      browserOpen = true;
+      if (state?.selectedId) await browser.open(state.selectedId);
+    },
     get forkRequested() {
       return forkRequested;
     },
@@ -891,6 +913,7 @@ export function createDesktopViewModel() {
           state?.activeOperation || state?.archiveBlockedConversationIds.includes(state.selectedId),
         ),
         busy,
+        browser: Boolean(state?.selectedId),
       }).filter((action) =>
         `${action.title} ${action.description}`.toLowerCase().includes(pickerQuery.toLowerCase()),
       );
@@ -1743,6 +1766,7 @@ export function createDesktopViewModel() {
       reviewSummary = v;
     },
     async start() {
+      void browser.start();
       void initializeUiTelemetry();
       await refresh();
       // Match host partial-message coalescing; the pager prevents overlapping
@@ -1762,6 +1786,7 @@ export function createDesktopViewModel() {
       }, 600);
     },
     stopPolling() {
+      browser.dispose();
       clearInterval(timer);
       clearInterval(streamTimer);
       cancelUploads();

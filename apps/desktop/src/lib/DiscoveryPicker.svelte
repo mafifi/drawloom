@@ -25,6 +25,7 @@
     if(id==='action:goal'){vm.consumePickerToken();onCreateGoal();return;}
     if(id==='action:plan'){vm.consumePickerToken();void vm.setMode('plan');onSelected();return;}
     if(id==='action:fork'){vm.beginFork();return;}
+    if(id==='action:browser'){void vm.openBrowser();return;}
     if(id==='action:attach'){vm.consumePickerToken();onAttach();return;}
     if(id==='action:browse'){vm.consumePickerToken();onBrowse();return;}
     if(id.startsWith('discovery:'))vm.selectDiscovery(id.slice(10));

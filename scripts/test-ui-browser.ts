@@ -7,6 +7,7 @@ import { createDesktopApplication } from "../apps/desktop/host/application.js";
 import { serveDesktop } from "../apps/desktop/host/server.js";
 import { createSqliteConversationHistory } from "@drawloom/sqlite-conversation-history";
 import type { HistoryEntry } from "@drawloom/conversation-history";
+import { verifyBrowserPanel } from "./browser-panel-ui.fixture.js";
 
 // Public synthetic acceptance, isolated from user installations and model providers.
 const root = await mkdtemp(join(tmpdir(), "drawloom-ui-acceptance-"));
@@ -473,9 +474,10 @@ try {
       assert.equal(taskCommands.length, 0, "Inspecting action menus never submits");
     }
   }
+  await verifyBrowserPanel(page, new URL(server.url).origin);
   assert.deepEqual(errors, []);
   console.log(
-    "Public UI acceptance: themes, narrow layouts, JSON, chronology, scrolling, zoom and native-task composer actions passed.",
+    "Public UI acceptance: themes, narrow layouts, JSON, chronology, scrolling, zoom, native-task actions and scripted browser panel/settings passed.",
   );
 } finally {
   await browser?.close();
