@@ -42,6 +42,24 @@ test.skipIf(process.env.DRAWLOOM_TEST_OS_CREDENTIALS !== "1" || process.platform
       await store.set(key, "drawloom-synthetic-test-value");
       expect(store.mode).toBe("os");
       expect(await store.get(key)).toBe("drawloom-synthetic-test-value");
+      const reader = Bun.spawn(
+        [
+          process.execPath,
+          "--eval",
+          `
+          const { createPluginCredentialStore } = await import(${JSON.stringify(new URL("./plugin-credentials.ts", import.meta.url).href)});
+          const store = await createPluginCredentialStore();
+          const value = await store.get(process.env.DRAWLOOM_TEST_CREDENTIAL_KEY);
+          process.exit(store.mode === "os" && value === "drawloom-synthetic-test-value" ? 0 : 1);
+        `,
+        ],
+        {
+          env: { ...process.env, DRAWLOOM_TEST_CREDENTIAL_KEY: key },
+          stdout: "pipe",
+          stderr: "pipe",
+        },
+      );
+      expect(await reader.exited).toBe(0);
     } finally {
       await store.delete(key);
     }

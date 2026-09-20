@@ -10,6 +10,7 @@
       {#if request&&request.topOrigin!==request.origin}This request comes from content embedded in {request.topOrigin}.{/if}
     </Dialog.Description></Dialog.Header>
     <p class="text-sm text-muted-foreground">This does not grant access to Drawloom tools or conversations. macOS may also ask for permission.</p>
+    <p class="text-sm text-muted-foreground">Allow once applies to this loaded page. It may request access again without another prompt until you reload or close it.</p>
     {#if error}<Alert.Root variant="destructive"><Alert.Description>{error}</Alert.Description></Alert.Root>{/if}
     <Dialog.Footer>
       <StatefulButton variant="outline" pending={pending==='block'} disabled={!!pending} onclick={()=>request&&decide(request.id,'block')}>Block</StatefulButton>

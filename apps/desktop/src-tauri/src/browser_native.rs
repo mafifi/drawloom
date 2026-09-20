@@ -10,10 +10,10 @@ use objc2::{
 };
 use objc2_foundation::{MainThreadMarker, NSArray, NSError, NSObjectProtocol, NSURL};
 use objc2_web_kit::{
-    WKFrameInfo, WKMediaCaptureType, WKNavigation, WKNavigationAction, WKNavigationActionPolicy,
-    WKNavigationDelegate, WKNavigationResponse, WKNavigationResponsePolicy, WKOpenPanelParameters,
-    WKPermissionDecision, WKSecurityOrigin, WKUIDelegate, WKWebView, WKWebViewConfiguration,
-    WKWindowFeatures,
+    WKFrameInfo, WKMediaCaptureState, WKMediaCaptureType, WKNavigation, WKNavigationAction,
+    WKNavigationActionPolicy, WKNavigationDelegate, WKNavigationResponse,
+    WKNavigationResponsePolicy, WKOpenPanelParameters, WKPermissionDecision, WKSecurityOrigin,
+    WKUIDelegate, WKWebView, WKWebViewConfiguration, WKWindowFeatures,
 };
 use std::{cell::RefCell, collections::BTreeMap};
 use tauri::{Emitter, Manager};
@@ -274,6 +274,11 @@ fn request_media(
         handler.call((WKPermissionDecision::Deny,));
         return;
     };
+    model
+        .media_origins
+        .entry(tab_id.to_owned())
+        .or_default()
+        .insert(origin.clone());
     if let Some(allowed) = model.remembered(&origin, &permissions) {
         drop(model);
         handler.call((if allowed {
@@ -553,7 +558,55 @@ pub fn command(app: &tauri::AppHandle, action: Action) -> Result<(), String> {
             {
                 return Err("Invalid site origin".into());
             }
-            browser.model.lock().unwrap().forget(&origin, &permission);
+            let owned_app = app.clone();
+            let main = app
+                .get_webview("main")
+                .ok_or("Trusted settings unavailable")?;
+            let (tabs, saved) = on_native(&main, move |_| {
+                let browser = owned_app.state::<Browser>();
+                let (tabs, requests) = browser.model.lock().unwrap().forget(&origin, &permission);
+                complete(&requests, false);
+                // A website can reuse WebKit's document-local grant without
+                // another delegate callback. Stop capture and detach that exact
+                // instance before closing it; resetting only preferences is not
+                // sufficient. Retain tab metadata for explicit reopening.
+                NATIVE.with(|n| {
+                    let mut n = n.borrow_mut();
+                    for id in &tabs {
+                        if let Some(tab) = n.tabs.remove(id) {
+                            unsafe {
+                                tab.view.setCameraCaptureState_completionHandler(
+                                    WKMediaCaptureState::None,
+                                    None,
+                                );
+                                tab.view.setMicrophoneCaptureState_completionHandler(
+                                    WKMediaCaptureState::None,
+                                    None,
+                                );
+                                tab.view.stopLoading();
+                                tab.view.setHidden(true);
+                                tab.view.setUIDelegate(None);
+                                tab.view.setNavigationDelegate(None);
+                            }
+                        }
+                    }
+                });
+                // Persist even if a later native close fails; failure is shown
+                // rather than restoring a revoked grant or retrying navigation.
+                Ok((tabs, browser.save()))
+            })?;
+            let mut close_error = None;
+            for id in tabs {
+                if let Some(view) = app.get_webview(&id) {
+                    if let Err(error) = view.close() {
+                        close_error = Some(error.to_string());
+                    }
+                }
+            }
+            saved?;
+            if let Some(error) = close_error {
+                return Err(error);
+            }
         }
         Action::Decide { request_id, choice } => {
             // Decision and native completion are serialized on Cocoa's thread,
@@ -616,7 +669,7 @@ pub fn command(app: &tauri::AppHandle, action: Action) -> Result<(), String> {
                     // not authorization to create a native website instance.
                     let view = match app.get_webview(&id) {
                         Some(view) => view,
-                        None if !visible => return Ok(()),
+                        None if !visible || tab.status == "unloaded" => return Ok(()),
                         None => ensure_view(app, &id)?,
                     };
                     view.set_position(tauri::LogicalPosition::new(bounds.x, bounds.y))
@@ -658,6 +711,7 @@ pub fn command(app: &tauri::AppHandle, action: Action) -> Result<(), String> {
                     let mut model = browser.model.lock().unwrap();
                     model.tabs.retain(|t| t.id != id);
                     model.documents.remove(&id);
+                    model.media_origins.remove(&id);
                 }
                 Action::External { .. } => {
                     let url = tauri::Url::parse(&tab.url).map_err(|_| "No website to open")?;

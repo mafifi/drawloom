@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::{path::PathBuf, sync::Mutex};
 use tauri::{Emitter, Manager};
 
@@ -55,6 +55,8 @@ pub struct Model {
     pub requests: Vec<Request>,
     pub permissions: Vec<Setting>,
     pub documents: BTreeMap<String, String>,
+    // Ephemeral native request provenance, never persisted as browsing history.
+    pub media_origins: BTreeMap<String, BTreeSet<String>>,
 }
 impl Model {
     pub fn remembered(&self, origin: &str, permissions: &[Permission]) -> Option<bool> {
@@ -76,9 +78,35 @@ impl Model {
             None
         }
     }
-    pub fn forget(&mut self, origin: &str, permission: &Permission) {
+    pub fn forget(&mut self, origin: &str, permission: &Permission) -> (Vec<String>, Vec<String>) {
         self.permissions
             .retain(|s| s.origin != origin || s.permission != *permission);
+        let tabs: Vec<String> = self
+            .media_origins
+            .iter()
+            .filter(|(_, origins)| origins.contains(origin))
+            .map(|(tab, _)| tab.clone())
+            .chain(
+                self.requests
+                    .iter()
+                    .filter(|r| r.origin == origin)
+                    .map(|r| r.tab_id.clone()),
+            )
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        let mut requests = Vec::new();
+        for id in &tabs {
+            requests.extend(self.invalidate(id));
+            self.media_origins.remove(id);
+            if let Some(tab) = self.tabs.iter_mut().find(|t| &t.id == id) {
+                tab.status = "unloaded".into();
+                tab.can_go_back = false;
+                tab.can_go_forward = false;
+                tab.error = Some("Site permission reset. Reopen this page to continue.".into());
+            }
+        }
+        (tabs, requests)
     }
     pub fn decision(&mut self, id: &str, choice: &str) -> Result<bool, String> {
         if !matches!(choice, "allow_once" | "allow" | "block" | "dismiss") {
@@ -104,6 +132,10 @@ impl Model {
                 });
             }
         }
+        self.media_origins
+            .entry(request.tab_id)
+            .or_default()
+            .insert(request.origin);
         Ok(matches!(choice, "allow_once" | "allow"))
     }
     pub fn invalidate(&mut self, tab: &str) -> Vec<String> {
@@ -514,6 +546,62 @@ mod tests {
         );
         assert_eq!(
             model.remembered("https://embedded.example", &[Permission::Microphone]),
+            None
+        );
+    }
+    #[test]
+    fn reset_finds_cached_grants_without_an_outstanding_prompt() {
+        let mut model = pending();
+        model.tabs.push(Tab {
+            id: "tab-1".into(),
+            conversation_id: "conversation-1".into(),
+            title: "Website".into(),
+            url: "https://top.example/page".into(),
+            status: "ready".into(),
+            can_go_back: true,
+            can_go_forward: false,
+            error: None,
+        });
+        model.decision("req-1", "allow").unwrap();
+        assert!(model.requests.is_empty());
+        let (tabs, requests) = model.forget("https://embedded.example", &Permission::Camera);
+        assert_eq!(tabs, vec!["tab-1"]);
+        assert!(requests.is_empty());
+        assert!(model.media_origins.is_empty());
+        assert_eq!(model.tabs[0].status, "unloaded");
+        assert_eq!(model.tabs[0].url, "https://top.example/page");
+        assert_eq!(model.tabs[0].conversation_id, "conversation-1");
+        assert!(!model.tabs[0].can_go_back);
+        assert_eq!(
+            model.forget("https://embedded.example", &Permission::Camera),
+            (vec![], vec![])
+        );
+    }
+    #[test]
+    fn resetting_a_grant_invalidates_its_open_document_but_not_other_tabs() {
+        let mut model = pending();
+        let mut repeated = model.requests[0].clone();
+        repeated.id = "req-2".into();
+        model.decision("req-1", "allow").unwrap();
+        model.requests.push(repeated);
+        model
+            .documents
+            .insert("unrelated".into(), "other-document".into());
+        model.forget("https://embedded.example", &Permission::Camera);
+        assert!(
+            model.requests.is_empty(),
+            "a cached document must lose its pending decisions"
+        );
+        assert_ne!(
+            model.documents.get("tab-1").map(String::as_str),
+            Some("doc-1")
+        );
+        assert_eq!(
+            model.documents.get("unrelated").map(String::as_str),
+            Some("other-document")
+        );
+        assert_eq!(
+            model.remembered("https://embedded.example", &[Permission::Camera]),
             None
         );
     }

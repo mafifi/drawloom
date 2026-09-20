@@ -1,6 +1,50 @@
 import { expect, test } from "bun:test";
 import { BrowserController, type BrowserTransport } from "./browser-controller.js";
 
+test("failed reset refreshes native state without repeating the mutation", async () => {
+  const calls: string[] = [];
+  let reset = false;
+  const browser = new BrowserController(
+    {
+      execute: async (action) => {
+        calls.push(action.kind);
+        if (action.kind === "forget") {
+          reset = true;
+          throw Error("save failed after native teardown");
+        }
+        return {
+          available: true,
+          tabs: [],
+          requests: [],
+          permissions: reset
+            ? []
+            : [
+                {
+                  origin: "https://example.org",
+                  permission: "microphone",
+                  decision: "allow",
+                },
+              ],
+        };
+      },
+      subscribe: async () => () => {},
+    },
+    () => {},
+  );
+  await browser.start();
+  expect(browser.snapshot.permissions).toHaveLength(1);
+  expect(
+    await browser.command({
+      kind: "forget",
+      origin: "https://example.org",
+      permission: "microphone",
+    }),
+  ).toBe(false);
+  expect(browser.snapshot.permissions).toEqual([]);
+  expect(browser.error).toContain("No retry occurred");
+  expect(calls).toEqual(["read", "forget", "read"]);
+});
+
 test("late geometry for a closed tab does not invoke native placement or show an error", async () => {
   const browser = new BrowserController(
     {

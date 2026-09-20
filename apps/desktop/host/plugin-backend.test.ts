@@ -10,6 +10,68 @@ import type { EvaluationComposer } from "@drawloom/evaluation";
 const writeBackend = (root: string, source: string) =>
   Bun.write(join(root, "org.drawloom", "backend.mjs"), source);
 
+test("fresh host processes load a backend update and recover from a broken replacement without changing its data", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-backend-update-"));
+  const loaderUrl = new URL("./plugin-backend.ts", import.meta.url).href;
+  const marker = join(root, "retained.txt");
+  const backend = (version: string) => `
+    import {readFile} from 'node:fs/promises';
+    export default async context => ({contributions:{skills:[{
+      id:'version',title:${JSON.stringify(version)},
+      instructions:await readFile(${JSON.stringify(marker)},'utf8')
+    }]},dispose(){}});`;
+  const run = async () => {
+    const process = Bun.spawn(
+      [
+        Bun.which("bun")!,
+        "--eval",
+        `
+      import {createBackendLoader} from ${JSON.stringify(loaderUrl)};
+      const loader=createBackendLoader();
+      try {
+        const result=await loader.activate({root:${JSON.stringify(root)},name:'update-fixture',
+          skills:[],servers:[],diagnostics:[],extensions:{},
+          drawloom:{version:1,backend:{entrypoint:'./org.drawloom/backend.mjs'}}},
+          {installationId:'retained-installation',dataDirectory:${JSON.stringify(root)},
+           configuration:{choice:'retained'},trusted:true,available:[],capabilities:{}});
+        console.log(JSON.stringify(result.status==='ready'
+          ? {status:result.status,skills:result.backend.contributions.skills}
+          : result));
+      } finally {await loader.close();}
+    `,
+      ],
+      { stdout: "pipe", stderr: "pipe" },
+    );
+    const output = await new Response(process.stdout).text();
+    expect(await process.exited).toBe(0);
+    return JSON.parse(output);
+  };
+  try {
+    await writeFile(marker, "retained synthetic working data");
+    for (const version of ["1", "2"]) {
+      await writeBackend(root, backend(version));
+      expect(await run()).toEqual({
+        status: "ready",
+        skills: [
+          {
+            id: "version",
+            title: version,
+            instructions: "retained synthetic working data",
+          },
+        ],
+      });
+    }
+    await writeBackend(root, "throw Error('broken synthetic update')");
+    expect((await run()).status).toBe("failed");
+    expect(await Bun.file(marker).text()).toBe("retained synthetic working data");
+    await writeBackend(root, backend("1"));
+    expect((await run()).skills[0].title).toBe("1");
+    expect(await Bun.file(marker).text()).toBe("retained synthetic working data");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("evaluation is supplied only when declared, with availability independent of orchestration", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-backend-evaluation-"));
   let compositions = 0;

@@ -21,7 +21,7 @@
     <Button type="button" variant="ghost" size="icon" aria-label="Back" title="Back" disabled={!presentation.tab?.canGoBack||!!presentation.pending} onclick={()=>actions.command('back')}><ChevronRightIcon class="rotate-180"/></Button>
     <Button type="button" variant="ghost" size="icon" aria-label="Forward" title="Forward" disabled={!presentation.tab?.canGoForward||!!presentation.pending} onclick={()=>actions.command('forward')}><ChevronRightIcon/></Button>
     {#if presentation.tab?.status==='loading'}<Button type="button" variant="ghost" size="icon" aria-label="Stop loading" title="Stop loading" onclick={()=>actions.command('stop')}><StopIcon/></Button>
-    {:else}<StatefulButton type="button" variant="ghost" size="icon" aria-label="Reload" title="Reload" pending={presentation.pending==='reload'} disabled={!presentation.tab?.url||!!presentation.pending} onclick={()=>actions.command('reload')}><RefreshIcon/></StatefulButton>{/if}
+    {:else}<StatefulButton type="button" variant="ghost" size="icon" aria-label="Reload" title="Reload" pending={presentation.pending==='reload'} disabled={!presentation.tab?.url||presentation.tab.status==='unloaded'||!!presentation.pending} onclick={()=>actions.command('reload')}><RefreshIcon/></StatefulButton>{/if}
     <Input bind:ref={input} bind:value={address} class="min-w-0 flex-1" aria-label="Website address" placeholder="Enter a website address" autocomplete="off" spellcheck={false}/>
     <StatefulButton type="submit" variant="outline" pending={presentation.pending==='navigate'} disabled={!address.trim()||!presentation.available||!!presentation.pending}>Go</StatefulButton>
   </form>

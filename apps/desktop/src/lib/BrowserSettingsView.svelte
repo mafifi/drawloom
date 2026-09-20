@@ -19,6 +19,6 @@
         </div>
       {/each}
     </div>
-    <p class="text-sm text-muted-foreground">Reset applies to future requests. Close the website to end current use; removing a saved permission does not confirm an active stream has stopped.</p>
+    <p class="text-sm text-muted-foreground">Reset unloads pages that requested access so their cached permission cannot be reused. Unsaved website edits may be lost. Reopen the page when ready; website sign-ins are retained.</p>
   {/if}
 </section>

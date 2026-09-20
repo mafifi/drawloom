@@ -98,6 +98,16 @@ export class BrowserController {
       this.accept(value);
       return true;
     } catch {
+      // A failed mutation can already have changed native state (for example,
+      // permission teardown before a persistence failure). Read, never retry it.
+      if (action.kind !== "read" && !this.stopped && generation === this.generation) {
+        try {
+          const value = await this.transport.execute({ kind: "read" });
+          if (!this.stopped && generation === this.generation) this.accept(value);
+        } catch {
+          // Keep the original action failure visible if reconciliation also fails.
+        }
+      }
       this.error = "The browser action could not be completed. No retry occurred.";
       return false;
     } finally {

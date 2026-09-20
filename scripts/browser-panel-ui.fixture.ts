@@ -44,7 +44,10 @@ export async function verifyBrowserPanel(page: Page, origin: string) {
               });
             snapshot.requests = [];
           }
-          if (action.kind === "forget") snapshot.permissions = [];
+          if (action.kind === "forget") {
+            snapshot.permissions = [];
+            Object.assign(snapshot.tabs[0]!, { status: "unloaded" });
+          }
           if (action.kind === "close")
             snapshot.tabs = snapshot.tabs.filter((tab) => tab.id !== action.tabId);
           if (action.kind !== "place") emit();
@@ -88,6 +91,12 @@ export async function verifyBrowserPanel(page: Page, origin: string) {
   await page.getByRole("option").filter({ hasText: "Open browser" }).click();
   const address = page.getByRole("textbox", { name: "Website address" });
   await address.waitFor();
+  const tabList = page.getByRole("tablist", { name: "Workspace tabs" });
+  assert.equal(await tabList.getAttribute("data-variant"), "line");
+  assert.equal(
+    await tabList.evaluate((element) => getComputedStyle(element).backgroundColor),
+    "rgba(0, 0, 0, 0)",
+  );
   assert.equal(await address.inputValue(), "");
   assert.equal(await address.evaluate((element) => element === document.activeElement), true);
   assert.equal(await composer.inputValue(), "");
@@ -158,4 +167,7 @@ export async function verifyBrowserPanel(page: Page, origin: string) {
   await page.getByText("https://camera.example", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Reset to Ask", exact: true }).click();
   await page.getByText("No saved site permissions", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "← Back to app", exact: true }).click();
+  assert.equal(await page.getByRole("button", { name: "Reload", exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole("button", { name: "Go", exact: true }).isEnabled(), true);
 }

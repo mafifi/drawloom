@@ -6,6 +6,53 @@ import { createNodeJsonStore } from "@drawloom/node-host";
 import { createInstallationStore } from "./plugin-installations.js";
 import { createDesktopApplication } from "./application.js";
 
+test("in-place plugin replacement preserves installation settings and rejects a corrupt update", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-plugin-replacement-"));
+  try {
+    const manifest = (version: string) =>
+      JSON.stringify({
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        name: "replacement-fixture",
+        version,
+      });
+    await writeFile(join(root, "plugin.json"), manifest("1.0.0"));
+    const store = createNodeJsonStore(join(root, "state"));
+    const initial = await createInstallationStore(store);
+    const id = await initial.add(root);
+    await initial.configure(id, {
+      enabled: true,
+      trustedBackend: false,
+      servers: [],
+      configuration: { choice: "retained" },
+    });
+    const saved = initial.list();
+    await writeFile(join(root, "plugin.json"), manifest("1.1.0"));
+    const replaced = await createInstallationStore(store);
+    expect(await replaced.add(root)).toBe(id);
+    expect(replaced.list()).toEqual(saved);
+    expect(replaced.startup).toEqual(saved);
+
+    await writeFile(join(root, "plugin.json"), "{invalid");
+    await expect(
+      replaced.configure(id, {
+        enabled: false,
+        trustedBackend: false,
+        servers: [],
+        configuration: {},
+      }),
+    ).rejects.toThrow();
+    expect(replaced.list()).toEqual(saved);
+    expect((await createInstallationStore(store)).list()).toEqual(saved);
+
+    await writeFile(join(root, "plugin.json"), manifest("1.0.0"));
+    const recovered = await createInstallationStore(store);
+    expect(await recovered.add(root)).toBe(id);
+    expect(recovered.list()).toEqual(saved);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("parallel connection policy is explicit, validated, durable and restart-only", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-install-parallel-"));
   try {

@@ -84,7 +84,7 @@
       <div class="flex h-full min-h-0 flex-col">
           <div class="action-row flex-nowrap border-b p-2">
             <Tabs.Root value={vm.browserOpen?(browserTab?.id??'browser'):'document'} onValueChange={selectWorkspace} class="min-w-0 flex-1">
-              <Tabs.List class="w-full max-w-full justify-start overflow-x-auto scroll-fade" aria-label="Workspace tabs">
+              <Tabs.List variant="line" class="w-full max-w-full justify-start overflow-x-auto scroll-fade" aria-label="Workspace tabs">
                 {#if documentVisible}<div class="flex shrink-0 items-center"><Tabs.Trigger value="document">Workbench</Tabs.Trigger><Button variant="ghost" size="icon" aria-label="Close Workbench tab" title="Close Workbench tab" onclick={closeDocument}><CloseIcon/></Button></div>{/if}
                 {#each browserTabs as tab(tab.id)}<div class="flex min-w-24 max-w-56 flex-1 items-center"><Tabs.Trigger value={tab.id} class="min-w-0 flex-1 truncate">{tab.title||'New tab'}</Tabs.Trigger><StatefulButton variant="ghost" size="icon" aria-label={'Close '+(tab.title||'New tab')} title={'Close '+(tab.title||'New tab')} pending={vm.browser.pendingKey==='close:'+tab.id} disabled={!!vm.browser.pending} onclick={()=>closeBrowserTab(tab.id)}><CloseIcon/></StatefulButton></div>{/each}
                 {#if !browserTabs.length&&vm.browserOpen}<Tabs.Trigger value="browser">Browser</Tabs.Trigger>{/if}
