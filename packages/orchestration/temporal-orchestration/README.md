@@ -149,9 +149,9 @@ not live-model recovery evidence.
 Build public packages before the opt-in real service suite:
 
 ```sh
-bun run build:packages
-bun run test:temporal
-bun run test:temporal:compiled
+pnpm run build:packages
+pnpm run test:temporal
+pnpm run test:temporal:compiled
 ```
 
 The compiled check stages the frozen runtime, then starts a compiled Bun

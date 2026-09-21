@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { OperatorSnapshotSchema } from "./src/index.js";
 
 for (const kind of ["text", "asset"] as const)

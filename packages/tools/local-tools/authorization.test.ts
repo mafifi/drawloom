@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { z } from "zod";
 import type { AuthorizationResult, Authorizer } from "@drawloom/authorization";
 import { defineTool, type ToolEvidence, type ToolAuthorization } from "@drawloom/tools";

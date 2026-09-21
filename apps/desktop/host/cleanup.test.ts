@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { cleanup } from "./cleanup.js";
 
 test("cleanup awaits each dependency and retains synchronous and asynchronous failures", async () => {

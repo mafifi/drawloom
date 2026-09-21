@@ -7,6 +7,7 @@ import { initializeObservability } from "@drawloom/otel-host";
 import { createTelemetryRelay } from "./telemetry-relay.js";
 import { pickMacProjectDirectory } from "./folder-picker.js";
 import { createProcessShutdown } from "./process-shutdown.js";
+import { describeShutdownFailures } from "./shutdown-report.js";
 async function main() {
   const selectedMode = process.env.DRAWLOOM_TELEMETRY ?? "disabled";
   if (!["disabled", "recording", "export"].includes(selectedMode))
@@ -26,7 +27,7 @@ async function main() {
       : {}),
   });
   console.error(`Drawloom data: ${root}`);
-  const web = resolve(process.env.DRAWLOOM_WEB_ROOT ?? resolve(import.meta.dir, "../build"));
+  const web = resolve(process.env.DRAWLOOM_WEB_ROOT ?? resolve(import.meta.dirname, "../build"));
   const knowledgeRuntime = process.env.DRAWLOOM_KNOWLEDGE_RUNTIME;
   const app = await createDesktopApplication(root, {
     experimentalPluginDiscovery: process.env.DRAWLOOM_EXPERIMENTAL_PLUGIN_DISCOVERY !== "0",
@@ -50,17 +51,15 @@ async function main() {
       ...(process.env.DRAWLOOM_NODE_PATH ? { nodePath: process.env.DRAWLOOM_NODE_PATH } : {}),
       ...(knowledgeRuntime
         ? {
-            runtimeEntrypoint: resolve(
-              knowledgeRuntime,
-              "node_modules/@drawloom/local-knowledge-runtime/dist/sidecar.js",
-            ),
+            // `pnpm deploy` writes the deployed package at the target root.
+            runtimeEntrypoint: resolve(knowledgeRuntime, "dist/sidecar.js"),
             nightloomDirectory: resolve(knowledgeRuntime, "node_modules/@drawloom/nightloom"),
           }
         : {}),
     },
   });
   await app.restore();
-  const server = serveDesktop(
+  const server = await serveDesktop(
     app,
     web,
     Number(process.env.DRAWLOOM_PORT ?? 0),
@@ -71,10 +70,14 @@ async function main() {
   const stop = createProcessShutdown({
     closeApplication: () => server.close(),
     shutdownTelemetry: () => telemetry.shutdown(),
-    reportFailure: () => {
+    reportFailure: (reasons) => {
       console.error(
         "Drawloom could not shut down cleanly. Some local work may need recovery; no automatic retry occurred.",
       );
+      for (const line of describeShutdownFailures(reasons, {
+        diagnostics: process.env.DRAWLOOM_DIAGNOSTICS === "1",
+      }))
+        console.error(line);
     },
   });
   for (const signal of ["SIGTERM", "SIGINT"] as const)

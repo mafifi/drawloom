@@ -223,8 +223,8 @@ bun test packages/observability/sqlite-conversation-history
 bun test apps/desktop/host/history-performance.test.ts
 ```
 
-The optional `bun run scripts/verify-codex-history-protocol.ts` checks an
-installed Codex separately. Run the repository's `bun run check:ci` before
+The optional `pnpm run scripts/verify-codex-history-protocol.ts` checks an
+installed Codex separately. Run the repository's `pnpm run check:ci` before
 integration.
 
 Synthetic measurements are not live model measurements. Smaller history pages

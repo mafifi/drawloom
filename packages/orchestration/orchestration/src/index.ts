@@ -309,11 +309,10 @@ export async function workflowResult<I, O>(
   return parse(workflow.output, await engine.result(runId, options));
 }
 export class StepFailure extends Error {
-  constructor(
-    readonly code: "retryable" | "denied" | "invalid" | "unknown",
-    message: string = code,
-  ) {
+  readonly code: "retryable" | "denied" | "invalid" | "unknown";
+  constructor(code: "retryable" | "denied" | "invalid" | "unknown", message: string = code) {
     super(message);
+    this.code = code;
   }
 }
 /** JSON round trip rejects non-JSON boundaries before schema transforms. */

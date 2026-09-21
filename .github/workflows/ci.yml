@@ -20,25 +20,26 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up pinned Bun version
-        uses: oven-sh/setup-bun@v2.2.0
+      - name: Set up pinned pnpm version
+        uses: pnpm/action-setup@v4
 
-      - name: Set up Node consumer runtime
+      - name: Set up pinned Node runtime
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '24.20.0'
+          cache: pnpm
 
       - name: Install pinned dependencies
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Run canonical checks
-        run: bun run check:ci
+        run: pnpm run check:ci
 
       - name: Install pinned browser for public UI acceptance
-        run: bunx --no-install playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Verify public synthetic browser acceptance
-        run: bun run test:ui
+        run: pnpm run test:ui
 
       - name: Select publication changes
         id: publication
@@ -51,7 +52,7 @@ jobs:
           else
             [[ "$BEFORE" =~ ^[0-9a-f]{40}$ ]]
             git fetch --no-tags --depth=1 origin "$BEFORE"
-            git diff --no-renames --name-only -z "$BEFORE" "$GITHUB_SHA" | bun scripts/publishing-scope.ts >> "$GITHUB_OUTPUT"
+            git diff --no-renames --name-only -z "$BEFORE" "$GITHUB_SHA" | node scripts/publishing-scope.ts >> "$GITHUB_OUTPUT"
           fi
 
   learning-integration:
@@ -61,14 +62,16 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Set up pinned Bun version
-        uses: oven-sh/setup-bun@v2.2.0
-      - name: Set up knowledge runtime
+      - name: Set up pinned pnpm version
+        uses: pnpm/action-setup@v4
+
+      - name: Set up pinned Node runtime
         uses: actions/setup-node@v4
         with:
           node-version: '24.20.0'
+          cache: pnpm
       - name: Install pinned dependencies
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Install verified Temporal CLI
         shell: bash
         run: |
@@ -82,12 +85,12 @@ jobs:
           ./temporal --version
           echo "$install_dir" >> "$GITHUB_PATH"
       - name: Build supported packages
-        run: bun run build:packages
+        run: pnpm run build:packages
       - name: Verify real service recovery
         # Each test owns an isolated service and closes it in finally.
-        run: bun run test:temporal
+        run: pnpm run test:temporal
       - name: Verify learning orchestration recovery (Temporal-backed)
-        run: bun run test:orchestration:learning
+        run: pnpm run test:orchestration:learning
 
   publish:
     needs: [check, learning-integration]

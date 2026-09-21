@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { recorded } from "./driver.test.js";
 import { agentPlanningConformance } from "@drawloom/agent/planning-conformance";
 

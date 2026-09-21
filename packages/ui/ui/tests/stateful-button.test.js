@@ -1,32 +1,11 @@
-import { beforeAll, describe, expect, test } from "bun:test";
-import { plugin } from "bun";
+import { describe, expect, test } from "vitest";
 import { readFile } from "node:fs/promises";
-import { compile, compileModule } from "svelte/compiler";
 import { createRawSnippet } from "svelte";
 import { render } from "svelte/server";
 
 // Compile actual component markup for behavioural SSR checks without a DOM
 // dependency. Svelte check additionally verifies event and ref prop types.
-plugin({
-  name: "stateful-button-server-components",
-  setup(build) {
-    build.onLoad({ filter: /\.svelte$/ }, async ({ path }) => ({
-      contents: compile(await readFile(path, "utf8"), { filename: path, generate: "server" }).js
-        .code,
-      loader: "js",
-    }));
-    build.onLoad({ filter: /\.svelte\.js$/ }, async ({ path }) => ({
-      contents: compileModule(await readFile(path, "utf8"), { filename: path, generate: "server" })
-        .js.code,
-      loader: "js",
-    }));
-  },
-});
-
-let StatefulButton;
-beforeAll(async () => {
-  StatefulButton = (await import("@drawloom/ui")).StatefulButton;
-});
+import { StatefulButton } from "@drawloom/ui";
 
 const children = createRawSnippet(() => ({ render: () => "<span>Save</span>" }));
 const markup = (props = {}) => render(StatefulButton, { props: { children, ...props } }).body;

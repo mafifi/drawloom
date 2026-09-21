@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type {
   EvaluationDefinition,
   EvaluationFeedback,
@@ -9,6 +9,7 @@ import type {
   TargetCheckpoint,
 } from "@drawloom/evaluation";
 import { createEvaluationViewModel } from "./src/index.js";
+import { setTimeout as sleep } from "node:timers/promises";
 
 const definition: EvaluationDefinition = {
   schemaVersion: 1,
@@ -172,7 +173,7 @@ test("late result reads cannot replace a newer selection or a closed view", asyn
   await vm.actions.selectRun(run.id);
   const firstRead = vm.actions.selectResult(summary.id);
   const secondRead = vm.actions.selectResult(second.id);
-  await Bun.sleep(0);
+  await sleep(0);
   responses.get(second.id)!(detail(second, scorer("r2")));
   await secondRead;
   responses.get(summary.id)!(detail());
@@ -180,7 +181,7 @@ test("late result reads cannot replace a newer selection or a closed view", asyn
   expect(vm.presentation.selectedResult?.id).toBe(second.id);
   expect(vm.presentation.detail?.result.id).toBe(second.id);
   const closedRead = vm.actions.selectResult(summary.id);
-  await Bun.sleep(0);
+  await sleep(0);
   vm.close();
   responses.get(summary.id)!(detail());
   await closedRead;
@@ -208,7 +209,7 @@ test("rapid start uses one identity and an unavailable response becomes authorit
   vm.actions.selectDefinition({ id: definition.id, revision: definition.revision });
   const first = vm.actions.start();
   const duplicate = vm.actions.start();
-  await Bun.sleep(0);
+  await sleep(0);
   release({ kind: "unavailable", reason: "Orchestration is not configured" });
   await Promise.all([first, duplicate]);
   expect(requests).toEqual(["request-one"]);
@@ -259,7 +260,7 @@ test("feedback validates, preserves drafts on failure, and reload cannot hide a 
   await vm.open();
   await vm.actions.selectRun(run.id);
   const selected = vm.actions.selectResult(summary.id);
-  await Bun.sleep(0);
+  await sleep(0);
   reload({ items: [], hasMore: false });
   await selected;
   vm.actions.setFeedback({
@@ -274,7 +275,7 @@ test("feedback validates, preserves drafts on failure, and reload cannot hide a 
   expect(vm.presentation.feedbackDraft.correction).toBe("Keep this correction");
   expect(vm.presentation.feedbackError).toContain("storage unavailable");
   const retry = vm.actions.saveFeedback();
-  await Bun.sleep(0);
+  await sleep(0);
   reload({
     items: [
       {
@@ -431,13 +432,13 @@ test("same-definition navigation cannot replace the identity of an in-flight or 
   const first = vm.actions.start();
   vm.actions.selectDefinition({ id: definition.id, revision: definition.revision });
   definitionRead.resolve(definition);
-  await Bun.sleep(0);
+  await sleep(0);
   expect(requests).toEqual(["request-one"]);
   firstStart.resolve({ kind: "uncertain", evaluationRunId: "run-uncertain" });
   await first;
 
   const retry = vm.actions.start();
-  await Bun.sleep(0);
+  await sleep(0);
   expect(requests).toEqual(["request-one", "request-one"]);
   secondStart.resolve({
     kind: "started",
@@ -462,10 +463,10 @@ test("scorer loading belongs to its result selection and settles after navigatio
   await vm.actions.selectRun(run.id);
   await vm.actions.selectResult(summary.id);
   const oldRead = vm.actions.selectScorer("score-a");
-  await Bun.sleep(0);
-  expect(vm.presentation.scorerLoading).toBeTrue();
+  await sleep(0);
+  expect(vm.presentation.scorerLoading).toBe(true);
   await vm.actions.selectResult(second.id);
-  expect(vm.presentation.scorerLoading).toBeFalse();
+  expect(vm.presentation.scorerLoading).toBe(false);
   pending.resolve(scorer());
   await oldRead;
   expect(vm.presentation.selectedResult?.id).toBe(second.id);
@@ -505,9 +506,9 @@ test("feedback saves reconcile with their original result after navigation", asy
   await vm.actions.selectResult(summary.id);
   vm.actions.setFeedback({ attribution: "Reviewer A", rating: "correct" });
   const savingA = vm.actions.saveFeedback();
-  await Bun.sleep(0);
+  await sleep(0);
   await vm.actions.selectResult(second.id);
-  expect(vm.presentation.feedbackPending).toBeFalse();
+  expect(vm.presentation.feedbackPending).toBe(false);
   vm.actions.setFeedback({ attribution: "Reviewer B", rating: "incorrect" });
   await vm.actions.saveFeedback();
   expect(saved.map((item) => item.resultId)).toEqual([second.id]);
@@ -574,7 +575,7 @@ test("late terminal status and old result errors cannot overwrite a newer select
   await vm.open();
   await vm.actions.selectRun(run.id);
   const cancelling = vm.actions.cancel();
-  await Bun.sleep(0);
+  await sleep(0);
   await vm.actions.selectRun(secondRun.id);
   terminalStatus.resolve({
     kind: "completed",
@@ -586,7 +587,7 @@ test("late terminal status and old result errors cannot overwrite a newer select
 
   await vm.actions.selectRun(run.id);
   const selectingOld = vm.actions.selectResult(summary.id);
-  await Bun.sleep(0);
+  await sleep(0);
   await vm.actions.selectRun(secondRun.id);
   await vm.actions.selectResult(secondResult.id);
   oldDetail.reject(Error("old detail failed"));
@@ -607,7 +608,7 @@ test("editing the baseline identity invalidates an older comparison read", async
   await vm.actions.selectResult(summary.id);
   vm.actions.setBaselineResultId(oldBaseline.id);
   const comparing = vm.actions.selectBaseline(oldBaseline.id);
-  await Bun.sleep(0);
+  await sleep(0);
   vm.actions.setBaselineResultId("baseline-new");
   lookup.resolve(oldBaseline);
   await comparing;
@@ -702,7 +703,7 @@ test("refreshing saved checks rereads readiness and keeps start blocked until re
   await vm.open();
   vm.actions.selectDefinition({ id: definition.id, revision: definition.revision });
   const refreshing = vm.actions.latestDefinitions();
-  await Bun.sleep(0);
+  await sleep(0);
   expect(vm.presentation.startReadiness.status).toBe("unavailable");
   await vm.actions.start();
   expect(starts).toBe(0);
@@ -789,7 +790,7 @@ test("reopen does not duplicate in-flight saves or starts and reconciles their c
   const saving = vm.actions.saveFeedback();
   vm.actions.selectDefinition({ id: definition.id, revision: definition.revision });
   const starting = vm.actions.start();
-  await Bun.sleep(0);
+  await sleep(0);
   vm.close();
   await vm.open();
   await vm.actions.selectRun(run.id);
@@ -797,7 +798,7 @@ test("reopen does not duplicate in-flight saves or starts and reconciles their c
   await vm.actions.saveFeedback();
   vm.actions.selectDefinition({ id: definition.id, revision: definition.revision });
   const duplicateStart = vm.actions.start();
-  await Bun.sleep(0);
+  await sleep(0);
   expect([starts, saves]).toEqual([1, 1]);
   saveResult.resolve({ kind: "accepted" });
   startResult.resolve({ kind: "uncertain", evaluationRunId: "uncertain-run" });

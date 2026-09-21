@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createProjectPluginRuntimes } from "./project-plugin-runtimes.js";
 
 test("shutdown drains pending creation without publishing and rejects new runtime access", async () => {

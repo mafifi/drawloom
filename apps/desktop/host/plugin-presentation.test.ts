@@ -1,18 +1,36 @@
-import { expect, test } from "bun:test";
-import { mkdtemp, writeFile, symlink, rm } from "node:fs/promises";
+import { expect, test } from "vitest";
+import { mkdtemp, mkdir, writeFile, symlink, rm, open } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readPluginIcon, packagePresentation } from "./plugin-presentation.js";
+import type { FileOpen } from "./plugin-presentation.js";
+import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 
 test("special files cannot block icon loading", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-icon-fifo-"));
   try {
     const path = join(root, "icon.svg");
-    expect(Bun.spawnSync(["mkfifo", path]).exitCode).toBe(0);
-    const code = `import {readPluginIcon} from ${JSON.stringify(import.meta.dir + "/plugin-presentation.ts")}; console.log(await readPluginIcon(${JSON.stringify(root)}, "icon.svg"));`;
-    const run = Bun.spawnSync([process.execPath, "-e", code], { timeout: 1000 });
-    expect(run.exitCode).toBe(0);
-    expect(run.stdout.toString().trim()).toBe("undefined");
+    expect(spawnSync("mkfifo", [path]).status).toBe(0);
+    // A blocking open on a FIFO would hang forever. The child measures the call
+    // itself and reports its duration, so the bound is on the read rather than
+    // on Node's startup and module loading, which it previously included.
+    const code = `
+      import {readPluginIcon} from ${JSON.stringify(import.meta.dirname + "/plugin-presentation.ts")};
+      const started = process.hrtime.bigint();
+      const value = await readPluginIcon(${JSON.stringify(root)}, "icon.svg");
+      const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+      console.log(JSON.stringify({ value: value ?? null, elapsedMs }));`;
+    const run = spawnSync(process.execPath, ["--input-type=module", "-e", code], {
+      timeout: 30_000,
+    });
+    expect(run.status, run.stderr.toString()).toBe(0);
+    const observed = JSON.parse(run.stdout.toString().trim()) as {
+      value: string | null;
+      elapsedMs: number;
+    };
+    expect(observed.value).toBeNull();
+    expect(observed.elapsedMs).toBeLessThan(1000);
   } finally {
     await rm(root, { recursive: true });
   }
@@ -22,19 +40,29 @@ test("replacement between resolving and opening an icon cannot expose outside by
   const root = await mkdtemp(join(tmpdir(), "drawloom-icon-race-"));
   try {
     const inside = join(root, "inside");
-    await Bun.spawn(["mkdir", inside]).exited;
-    await writeFile(join(inside, "icon.svg"), '<svg xmlns="http://www.w3.org/2000/svg"/>');
+    await mkdir(inside, { recursive: true });
+    const icon = join(inside, "icon.svg");
+    await writeFile(icon, '<svg xmlns="http://www.w3.org/2000/svg"/>');
     await writeFile(
       join(root, "outside.svg"),
       '<svg xmlns="http://www.w3.org/2000/svg"><text>private</text></svg>',
     );
-    const code = `import {mock} from "bun:test"; import * as fs from "node:fs/promises";
-      const original=fs.open; let swapped=false;
-      mock.module("node:fs/promises",()=>({...fs,open:async(...args)=>{if(!swapped){swapped=true;await fs.unlink(${JSON.stringify(join(inside, "icon.svg"))});await fs.symlink(${JSON.stringify(join(root, "outside.svg"))},${JSON.stringify(join(inside, "icon.svg"))});}return original(...args);}}));
-      const {readPluginIcon}=await import(${JSON.stringify(import.meta.dir + "/plugin-presentation.ts")});console.log(await readPluginIcon(${JSON.stringify(inside)},"icon.svg"));`;
-    const run = Bun.spawnSync([process.execPath, "-e", code], { timeout: 2000 });
-    expect(run.exitCode).toBe(0);
-    expect(run.stdout.toString().trim()).toBe("undefined");
+    // Swap the resolved path for a link out of the package at the moment it is
+    // opened. Injected rather than mocked in a child process: the race is in
+    // this function's own sequence, so nothing global needs replacing.
+    let swapped = false;
+    const files = {
+      open: async (...args: Parameters<typeof open>) => {
+        if (!swapped) {
+          swapped = true;
+          await rm(icon);
+          await symlink(join(root, "outside.svg"), icon);
+        }
+        return open(...args);
+      },
+    } as FileOpen;
+    expect(await readPluginIcon(inside, "icon.svg", files)).toBeUndefined();
+    expect(swapped).toBe(true);
   } finally {
     await rm(root, { recursive: true });
   }
@@ -53,7 +81,9 @@ test("host loads bounded package icons and rejects escapes, active content and n
     await writeFile(join(root, "bad.svg"), "<svg><script>alert(1)</script></svg>");
     await writeFile(join(root, "fake.png"), "secret text");
     await writeFile(join(root, "large.svg"), "x".repeat(262145));
-    expect(await readPluginIcon(root, "./icon.svg")).toStartWith("data:image/svg+xml;base64,");
+    expect(
+      (await readPluginIcon(root, "./icon.svg")).startsWith("data:image/svg+xml;base64,"),
+    ).toBe(true);
     for (const path of [
       "./escape.svg",
       "./bad.svg",

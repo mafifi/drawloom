@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { createAgentBridge } from "./src/agent-bridge.js";
 import { createSyntheticDriver } from "@drawloom/synthetic-agent";
 import type { Json } from "@drawloom/orchestration";

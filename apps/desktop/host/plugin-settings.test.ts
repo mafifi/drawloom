@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -262,7 +262,7 @@ test("installation settings list without activation and mount without a project 
   expect(pages[0]?.title).toBe("Preferences");
   expect(f.connects()).toBe(0);
   const opened = await f.host.open({ installationId: f.installation.id, pageId: f.page.id });
-  expect(opened.mountId).toBeString();
+  expect(opened.mountId).toBeTypeOf("string");
   expect(f.connects()).toBe(1);
   await f.host.request({ mountId: opened.mountId, request: { name: "save" } });
   await expect(

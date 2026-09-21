@@ -1,5 +1,5 @@
-import { test, expect } from "bun:test";
-import { Database } from "bun:sqlite";
+import { test, expect } from "vitest";
+import { DatabaseSync } from "node:sqlite";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,11 +7,12 @@ import { createTestDesktopApplication as createDesktopApplication } from "./test
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { createSqliteConversationHistory } from "@drawloom/sqlite-conversation-history";
 import { ProjectSchema } from "../src/lib/protocol.js";
+import { setTimeout as sleep } from "node:timers/promises";
 
 test("failed history writes do not turn successful synthetic work into failed execution", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-history-failure-"));
   const app = await createDesktopApplication(root);
-  const db = new Database(join(root, "history.sqlite"));
+  const db = new DatabaseSync(join(root, "history.sqlite"));
   try {
     db.exec(
       "CREATE TRIGGER reject_history BEFORE INSERT ON history_entries BEGIN SELECT RAISE(ABORT, 'fixture disk failure'); END;",
@@ -30,7 +31,7 @@ test("failed history writes do not turn successful synthetic work into failed ex
       !(await app.snapshot()).signals.some((signal) => signal.kind === "operation.completed");
       n++
     )
-      await Bun.sleep(5);
+      await sleep(5);
     const state = await app.snapshot();
     expect(state.signals.some((signal) => signal.kind === "operation.completed")).toBe(true);
     expect(state.signals.some((signal) => signal.kind === "operation.failed")).toBe(false);

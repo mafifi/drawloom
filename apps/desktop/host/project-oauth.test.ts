@@ -1,13 +1,15 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { addTestProject, createTestDesktopApplication } from "./test-project.fixture.js";
 import { retireCreatedRuntimes } from "./project-plugin-runtimes.js";
+import { serve } from "@hono/node-server";
+import { once } from "node:events";
 
-function packageServer() {
-  return Bun.serve({
+async function packageServer() {
+  const server = serve({
     hostname: "127.0.0.1",
     port: 0,
     async fetch(request) {
@@ -47,6 +49,11 @@ function packageServer() {
       return Response.json({ jsonrpc: "2.0", id: message.id, result });
     },
   });
+  await once(server, "listening");
+  return {
+    server,
+    url: new URL(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`),
+  };
 }
 
 async function installPackage(root: string, url: string) {
@@ -102,7 +109,7 @@ test.each(["disconnect", "configure-client"] as const)(
   "global OAuth %s closes the matching connection in every created project runtime",
   async (action) => {
     const root = await mkdtemp(join(tmpdir(), "drawloom-project-oauth-"));
-    const remote = packageServer();
+    const remote = await packageServer();
     try {
       const installationId = await installPackage(root, remote.url.href);
       const app = await createTestDesktopApplication(root);
@@ -154,7 +161,7 @@ test.each(["disconnect", "configure-client"] as const)(
         await app.close();
       }
     } finally {
-      remote.stop(true);
+      remote.server.close();
       await rm(root, { recursive: true, force: true });
     }
   },

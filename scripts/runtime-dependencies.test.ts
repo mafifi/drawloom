@@ -1,5 +1,5 @@
-import { expect, test } from "bun:test";
-import { runtimeDependencies } from "./runtime-dependencies.js";
+import { expect, test } from "vitest";
+import { runtimeDependencies } from "./runtime-dependencies.ts";
 
 test("required peers enter product closure; dev dependencies do not", () => {
   expect(

@@ -1,7 +1,8 @@
 export function createProcessShutdown(options: {
   closeApplication: () => Promise<void>;
   shutdownTelemetry: () => Promise<void>;
-  reportFailure: () => void;
+  /** Receives every rejection so the cause can be reported, not just the fact. */
+  reportFailure: (reasons: readonly unknown[]) => void;
 }) {
   let stopping: Promise<number> | undefined;
   return () =>
@@ -12,8 +13,11 @@ export function createProcessShutdown(options: {
       const telemetry = await Promise.allSettled([
         Promise.resolve().then(options.shutdownTelemetry),
       ]);
-      if (application[0]?.status === "rejected" || telemetry[0]?.status === "rejected") {
-        options.reportFailure();
+      const reasons = [...application, ...telemetry]
+        .filter((settled) => settled.status === "rejected")
+        .map((settled) => (settled as PromiseRejectedResult).reason);
+      if (reasons.length > 0) {
+        options.reportFailure(reasons);
         return 1;
       }
       return 0;

@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { createStateFeed } from "./state-feed.js";
 
 test("state feed sends a baseline, no unchanged body and only changed sections", () => {

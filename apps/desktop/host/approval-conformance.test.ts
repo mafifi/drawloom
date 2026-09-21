@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { approvalPresentationConformance } from "@drawloom/agent/approval-conformance";
 import { approvalConformanceFixture } from "../tests/approval-conformance-fixture.js";
 

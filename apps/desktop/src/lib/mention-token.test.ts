@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mentionToken } from "./mention-token.js";
 test("mentions respect caret, selection, whitespace and literal email addresses", () => {
   expect(mentionToken("Ask $edit next", 9)).toEqual({ kind: "skill", start: 4, end: 9 });

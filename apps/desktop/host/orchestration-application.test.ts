@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +8,9 @@ import { createDesktopApplication } from "./application.js";
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { createInstallationStore } from "./plugin-installations.js";
 import { workflowEvidenceKey } from "./workflow-tools.js";
+import { serve } from "@hono/node-server";
+import { once } from "node:events";
+import type { AddressInfo } from "node:net";
 
 test("desktop attaches installed task handlers, restores both projects and enforces grants without conversations", async () => {
   const base = await mkdtemp(join(tmpdir(), "drawloom-installed-workflows-"));
@@ -16,7 +19,7 @@ test("desktop attaches installed task handlers, restores both projects and enfor
   await mkdir(root);
   await mkdir(join(pkg, "org.drawloom"), { recursive: true });
   let calls = 0;
-  const remote = Bun.serve({
+  const remote = serve({
     hostname: "127.0.0.1",
     port: 0,
     async fetch(request) {
@@ -36,6 +39,8 @@ test("desktop attaches installed task handlers, restores both projects and enfor
       return Response.json({ jsonrpc: "2.0", id: message.id, result });
     },
   });
+  await once(remote, "listening");
+  const remoteUrl = new URL(`http://127.0.0.1:${(remote.address() as AddressInfo).port}/`);
   const events: string[] = [],
     handlers = new Map<string, readonly RegisteredTaskHandler[]>();
   const savedProjects = new Set<string>();
@@ -114,13 +119,15 @@ test("desktop attaches installed task handlers, restores both projects and enfor
     join(pkg, "mcp.json"),
     JSON.stringify({
       $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-      mcpServers: { remote: { type: "streamable-http", url: remote.url.href } },
+      mcpServers: { remote: { type: "streamable-http", url: remoteUrl.href } },
     }),
   );
+  await mkdir(join(pkg, "org.drawloom"), { recursive: true });
   await writeFile(
     join(pkg, "org.drawloom", "workflows.mjs"),
     "export default {workflows:[],tasks:[]}",
   );
+  await mkdir(join(pkg, "org.drawloom"), { recursive: true });
   await writeFile(
     join(pkg, "org.drawloom", "backend.mjs"),
     `export default async ({capabilities}) => {
@@ -226,7 +233,7 @@ test("desktop attaches installed task handlers, restores both projects and enfor
     const evidence = await createNodeJsonStore(join(root, "projects", projectId, "state")).get(
       "tool-evidence:" + workflowEvidenceKey(installationId, "run", "inspect", "attempt"),
     );
-    expect(evidence).toBeArray();
+    expect(Array.isArray(evidence)).toBe(true);
     expect((await app.historyPage(snapshot.selectedId)).entries).toHaveLength(0);
     await expect(
       app.packageAction({
@@ -251,7 +258,7 @@ test("desktop attaches installed task handlers, restores both projects and enfor
     }
   } finally {
     await app.close();
-    remote.stop(true);
+    remote.close();
     await rm(base, { recursive: true, force: true });
   }
 });

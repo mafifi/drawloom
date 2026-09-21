@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -92,8 +92,16 @@ async function fixture(presenter?: ApprovalPresenter) {
     attachmentKeys: [],
     contextArtifactIds: [],
   });
-  const settle = async () => {
-    for (let i = 0; i < 8; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+  /** Drain queued asynchronous work. Node and Bun schedule differently, so a
+   * fixed tick count is not a reliable barrier. Callers that depend on a
+   * specific outcome pass a predicate and this waits for it. */
+  const settle = async (until?: () => unknown) => {
+    const deadline = Date.now() + 10_000;
+    for (let i = 0; ; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (i >= 8 && (!until || (await until()))) return;
+      if (Date.now() > deadline) return;
+    }
   };
   return {
     app,
@@ -148,7 +156,7 @@ test("desktop routes child approvals independently after parent completion", asy
         availableDecisions: ["decline"],
       },
     });
-    await f.settle();
+    await f.settle(async () => (await f.app.snapshot()).approvals.length === 1);
     const before = (await f.app.snapshot()).approvals;
     expect(before).toHaveLength(1);
     await f.complete();
@@ -373,7 +381,7 @@ test("HTTP queue recovers after native invalidation while provider response stay
     },
   });
   const presentationId = host.pending(f.id)[0]!.presentationId;
-  const server = serveDesktop(
+  const server = await serveDesktop(
     {
       ...f.app,
       async command(raw) {
@@ -385,7 +393,7 @@ test("HTTP queue recovers after native invalidation while provider response stay
       },
       async close() {},
     },
-    join(import.meta.dir, "../build"),
+    join(import.meta.dirname, "../build"),
   );
   let pending: Promise<Response> | undefined;
   try {

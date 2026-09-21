@@ -16,7 +16,7 @@ area you change.
 - Apply the permissive product-dependency principle in `ARCHITECTURE.md` and
   licensing requirements in `CONTRIBUTING.md`. Audit exact versions, transitive
   and bundled code, runtimes and weights separately. Downloads are not exemptions.
-  Run `bun run check:licenses`; unknown terms and artifact gaps remain blockers.
+  Run `pnpm run check:licenses`; unknown terms and artifact gaps remain blockers.
   Preserve research evidence. Accepted ADR 0026 partially supersedes ADR 0024's runtime
   choice. Reviewed MPL-2.0 dependencies are permitted with source and notice obligations.
 
@@ -27,9 +27,9 @@ area you change.
 - Parse and validate data at trust boundaries.
 - Keep one authoritative home for each fact; link instead of copying.
 - Update architecture, decisions, or knowledge records when their truth changes.
-- Keep external dependency versions in the root Bun catalog; workspaces use
+- Keep external dependency versions in the root dependency catalog; workspaces use
   `catalog:` for external packages and `workspace:*` for internal packages.
-- Keep portable packages free of Bun, Node.js, Cloudflare, and Tauri ambient
+- Keep portable packages free of Node.js, Cloudflare, and Tauri ambient
   APIs. Cross host-specific behaviour through an explicit contract.
 - Keep retained spike code outside supported packages and applications. No
   module outside `spikes/` may import a spike module.
@@ -148,7 +148,7 @@ area you change.
 
 - UI work follows [ADR 0012](docs/adr/0012-shared-ui-components-and-guidance.md).
   Use `@drawloom/ui` compositions, and StatefulButton for the action actually
-  pending. Keep unrelated disabled controls plain. Run `bun run check:ui-policy`;
+  pending. Keep unrelated disabled controls plain. Run `pnpm run check:ui-policy`;
   its errors include replacement advice. The optional `.codex/hooks.json` hook
   repeats that advice after edits once reviewed and trusted through `/hooks`.
   Do not bypass hook trust; CI checks remain required whether hooks run or not.
@@ -172,10 +172,10 @@ Install the pinned toolchain dependencies and run the canonical gate from the
 repository root:
 
 ```sh
-bun install --frozen-lockfile
-bun run check:ci
+pnpm install --frozen-lockfile
+pnpm run check:ci
 ```
 
 `check:ci` validates dependency policy, runs strict TypeScript checking, and
-runs the Bun test suite. Add target-specific checks when a package first claims
+runs the test suite. Add target-specific checks when a package first claims
 Node.js, Cloudflare, or Tauri compatibility; do not claim untested portability.

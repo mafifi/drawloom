@@ -1,25 +1,7 @@
-import { beforeAll, describe, expect, test } from "bun:test";
-import { plugin } from "bun";
+import { beforeAll, describe, expect, test } from "vitest";
 import { readFile } from "node:fs/promises";
-import { compile, compileModule } from "svelte/compiler";
 import { createRawSnippet } from "svelte";
 import { render } from "svelte/server";
-
-plugin({
-  name: "conversation-server-components",
-  setup(build) {
-    build.onLoad({ filter: /\.svelte$/ }, async ({ path }) => ({
-      contents: compile(await readFile(path, "utf8"), { filename: path, generate: "server" }).js
-        .code,
-      loader: "js",
-    }));
-    build.onLoad({ filter: /\.svelte\.js$/ }, async ({ path }) => ({
-      contents: compileModule(await readFile(path, "utf8"), { filename: path, generate: "server" })
-        .js.code,
-      loader: "js",
-    }));
-  },
-});
 
 let Attachment;
 let Marker;

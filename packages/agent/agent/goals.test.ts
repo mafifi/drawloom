@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import * as agent from "./src/index.js";
 import { agentGoalsConformance } from "./src/goals-conformance.js";
 

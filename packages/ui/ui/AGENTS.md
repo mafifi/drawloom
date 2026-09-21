@@ -25,4 +25,4 @@ Read [README.md](README.md) before changing the component boundary and
   There is no inline suppression mechanism. Document any justified future
   exception narrowly in the contract and encode it in the checker tests.
 
-Run `bun run check:ui-policy` and the package's Svelte/type checks after changes.
+Run `pnpm run check:ui-policy` and the package's Svelte/type checks after changes.

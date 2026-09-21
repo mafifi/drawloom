@@ -7,7 +7,7 @@ import { createCodexDriver } from "@drawloom/codex-agent";
 import { createStdioTransport } from "@drawloom/node-host";
 import type { AgentSession, AgentSessionSignal } from "@drawloom/agent";
 import type { JsonValue } from "@drawloom/host";
-import { finishDisposableCodexThread } from "./codex-thread-cleanup.js";
+import { finishDisposableCodexThread } from "./codex-thread-cleanup.ts";
 
 if (process.env.DRAWLOOM_LIVE_GOALS !== "1") throw Error("Explicit live goals consent required");
 const directory = await realpath(await mkdtemp(join(tmpdir(), "drawloom-native-goals-")));

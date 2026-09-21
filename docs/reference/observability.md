@@ -26,7 +26,7 @@ For example, after building the desktop, this starts it with local processing
 but no network export:
 
 ```sh
-DRAWLOOM_TELEMETRY=recording bun run desktop:start
+DRAWLOOM_TELEMETRY=recording pnpm run desktop:start
 ```
 
 Use your chosen data directory as described in the

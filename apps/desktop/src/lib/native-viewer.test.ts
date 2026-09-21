@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 
 test("replaced media viewers stop playback and release their current resource", async () => {
   const { releaseMedia } = await import("./native-viewer.js");

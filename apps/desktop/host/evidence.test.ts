@@ -1,5 +1,5 @@
 import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { z } from "zod";
 import type { JsonValue, JsonStore } from "@drawloom/host";
 import { defineTool } from "@drawloom/tools";

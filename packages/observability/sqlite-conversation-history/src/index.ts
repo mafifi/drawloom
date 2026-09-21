@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import {
   chmodSync,
   existsSync,
@@ -31,6 +31,22 @@ import {
   type HistoryAroundResult,
 } from "@drawloom/conversation-history";
 
+/** The house transaction pattern: explicit BEGIN IMMEDIATE / COMMIT / ROLLBACK,
+ * matching packages/knowledge/sqlite-knowledge. `node:sqlite` has no transaction
+ * wrapper, and IMMEDIATE takes the write lock up front so a conflicting writer
+ * fails at BEGIN rather than part-way through. */
+const transaction = <T>(db: DatabaseSync, operation: () => T): T => {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const result = operation();
+    db.exec("COMMIT");
+    return result;
+  } catch (cause) {
+    db.exec("ROLLBACK");
+    throw cause;
+  }
+};
+
 const SCHEMA_VERSION = 5;
 const DEFAULT_LIMIT = 50;
 const schema = {
@@ -52,94 +68,6 @@ const normalizeSql = (sql: string) =>
     .replace(/\s+/g, "")
     .toLowerCase();
 
-/** Offline, one-time conversion. Call only after stopping the store's owner.
- * The caller supplies provenance from retained producer evidence, never text heuristics.
- * A failed conversion leaves the original schema intact and any completed backup retained.
- */
-export function convertConversationHistory(
-  path: string,
-  backup: string,
-  provenance: readonly { conversationId: string; id: string; origin: HistoryOrigin }[],
-): { kind: "already_current" } | { kind: "converted"; entries: number; backup: string } {
-  const db = new Database(path, { strict: true, create: false });
-  try {
-    return db
-      .transaction(() => {
-        const version = (db.query("PRAGMA user_version").get() as { user_version: number })
-          .user_version;
-        if (version === SCHEMA_VERSION) return { kind: "already_current" as const };
-        if (![1, 2, 3, 4].includes(version))
-          throw new Error("Unsupported history conversion version");
-        for (const [name, expected] of Object.entries(schema)) {
-          let prior = expected.replace(", origin TEXT", "");
-          if (version < 4) prior = prior.replace(", preparation TEXT", "");
-          if (version === 1) prior = prior.replace(", resources TEXT, selections TEXT", "");
-          const found = db.query("SELECT sql FROM sqlite_master WHERE name=?").get(name) as {
-            sql: string;
-          } | null;
-          if (!found || normalizeSql(found.sql) !== normalizeSql(prior))
-            throw new Error("Invalid history conversion schema");
-        }
-        const rows = db.query("SELECT conversation_id,id,role FROM history_entries").all() as {
-          conversation_id: string;
-          id: string;
-          role: string;
-        }[];
-        const origins = new Map<string, HistoryOrigin>();
-        for (const item of provenance) {
-          const key = JSON.stringify([item.conversationId, item.id]);
-          if (origins.has(key)) throw new Error("Duplicate history provenance");
-          origins.set(key, HistoryOriginSchema.parse(item.origin));
-        }
-        if (
-          origins.size !== rows.length ||
-          rows.some((row) => {
-            const origin = origins.get(JSON.stringify([row.conversation_id, row.id]));
-            return !origin || (origin.kind === "user") !== (row.role === "user");
-          })
-        )
-          throw new Error(
-            "Complete matching history provenance is required; nothing was converted",
-          );
-
-        // Serialization includes WAL state. Exclusive creation prevents overwriting a backup.
-        const fd = openSync(backup, "wx", 0o600);
-        try {
-          const snapshot = db.serialize();
-          // SQLite's documented serialized-WAL conversion: the standalone copy
-          // has no WAL sidecars. Only the copy's journal-format bytes change.
-          // https://www.sqlite.org/c3ref/deserialize.html
-          snapshot[18] = 1;
-          snapshot[19] = 1;
-          writeFileSync(fd, snapshot);
-          fsyncSync(fd);
-        } finally {
-          closeSync(fd);
-        }
-        if (version === 1)
-          db.exec(
-            "ALTER TABLE history_entries ADD COLUMN resources TEXT; ALTER TABLE history_entries ADD COLUMN selections TEXT;",
-          );
-        if (version < 3)
-          db.exec(
-            "CREATE VIRTUAL TABLE history_entries_fts USING fts5(text, content='history_entries', content_rowid='rowid'); CREATE TRIGGER history_entries_fts_insert AFTER INSERT ON history_entries BEGIN INSERT INTO history_entries_fts(rowid,text) VALUES (new.rowid,new.text); END; CREATE TRIGGER history_entries_fts_delete AFTER DELETE ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); END; CREATE TRIGGER history_entries_fts_update AFTER UPDATE OF text ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); INSERT INTO history_entries_fts(rowid,text) VALUES(new.rowid,new.text); END; INSERT INTO history_entries_fts(history_entries_fts) VALUES('rebuild');",
-          );
-        if (version < 4) db.exec("ALTER TABLE history_entries ADD COLUMN preparation TEXT");
-        db.exec("ALTER TABLE history_entries ADD COLUMN origin TEXT");
-        for (const row of rows)
-          db.query("UPDATE history_entries SET origin=? WHERE conversation_id=? AND id=?").run(
-            JSON.stringify(origins.get(JSON.stringify([row.conversation_id, row.id]))),
-            row.conversation_id,
-            row.id,
-          );
-        db.exec(`PRAGMA user_version=${SCHEMA_VERSION}`);
-        return { kind: "converted" as const, entries: rows.length, backup };
-      })
-      .immediate();
-  } finally {
-    db.close();
-  }
-}
 type Cursor =
   | {
       generation: string;
@@ -299,16 +227,17 @@ function safeRead<T>(read: () => T): T {
 
 export function createSqliteConversationHistory(path: string): ConversationHistoryStore {
   parseId(path, "path");
-  let db: Database;
+  let db: DatabaseSync;
   try {
     mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-    db = new Database(path, { create: true, strict: true });
+    db = new DatabaseSync(path);
   } catch {
     throw new HistoryStoreError("unavailable", "Conversation history database could not be opened");
   }
   try {
     const version = Number(
-      (db.query("PRAGMA user_version").get() as { user_version: number } | null)?.user_version ?? 0,
+      (db.prepare("PRAGMA user_version").get() as { user_version: number } | null)?.user_version ??
+        0,
     );
     if (version !== 0 && version !== SCHEMA_VERSION)
       throw new HistoryStoreError(
@@ -320,14 +249,14 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
     if (version >= 1 && version <= SCHEMA_VERSION) {
       // Validate before any PRAGMA that changes disk or any initialization DDL.
       for (const [name, expected] of Object.entries(schema)) {
-        const row = db.query("SELECT sql FROM sqlite_master WHERE name=?").get(name) as {
+        const row = db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name) as {
           sql: string;
         } | null;
         if (!row || normalizeSql(row.sql) !== normalizeSql(expected))
           throw Error("Invalid history schema");
       }
       const meta = db
-        .query("SELECT key,value FROM history_meta WHERE key IN ('generation','change_sequence')")
+        .prepare("SELECT key,value FROM history_meta WHERE key IN ('generation','change_sequence')")
         .all() as { key: string; value: string }[];
       if (
         !meta.some((row) => row.key === "generation" && /^[a-f0-9-]{36}$/.test(row.value)) ||
@@ -347,13 +276,13 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
           ["history_entries_fts_update", "trigger"],
         ] as const) {
           const row = db
-            .query("SELECT 1 FROM sqlite_master WHERE name=? AND type=?")
+            .prepare("SELECT 1 FROM sqlite_master WHERE name=? AND type=?")
             .get(name, type);
           if (!row) throw Error("Invalid history search schema");
         }
     } else if (
       db
-        .query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
         .all().length
     )
       throw Error("Unrecognized history schema");
@@ -361,16 +290,16 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
     chmodSync(path, 0o600);
     db.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA foreign_keys = ON;");
     if (version === 0)
-      db.transaction(() => {
+      transaction(db, () => {
         for (const sql of Object.values(schema)) db.exec(sql);
-        db.query(
+        db.prepare(
           "INSERT OR IGNORE INTO history_meta(key,value) VALUES ('generation', ?), ('change_sequence', '0')",
         ).run(crypto.randomUUID());
         db.exec(
           "CREATE VIRTUAL TABLE history_entries_fts USING fts5(text, content='history_entries', content_rowid='rowid'); CREATE TRIGGER history_entries_fts_insert AFTER INSERT ON history_entries BEGIN INSERT INTO history_entries_fts(rowid,text) VALUES (new.rowid,new.text); END; CREATE TRIGGER history_entries_fts_delete AFTER DELETE ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); END; CREATE TRIGGER history_entries_fts_update AFTER UPDATE OF text ON history_entries BEGIN INSERT INTO history_entries_fts(history_entries_fts,rowid,text) VALUES('delete',old.rowid,old.text); INSERT INTO history_entries_fts(rowid,text) VALUES(new.rowid,new.text); END;",
         );
         db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
-      })();
+      });
     chmodSync(path, 0o600);
     // SQLite creates sidecars from the database mode. Also restrict pre-existing
     // sidecars when reopening an installation created with broader permissions.
@@ -386,7 +315,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
   }
 
   const generation = String(
-    (db.query("SELECT value FROM history_meta WHERE key='generation'").get() as { value: string })
+    (db.prepare("SELECT value FROM history_meta WHERE key='generation'").get() as { value: string })
       .value,
   );
   let closed = false;
@@ -396,7 +325,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
   const readStatus = (conversationId: string): ConversationHistoryStatus => {
     try {
       const row = db
-        .query("SELECT revision,sync,has_older,message FROM history_conversations WHERE id=?")
+        .prepare("SELECT revision,sync,has_older,message FROM history_conversations WHERE id=?")
         .get(conversationId) as StatusRow | null;
       if (row && row.has_older !== 0 && row.has_older !== 1) throw Error("Invalid history status");
       return ConversationHistoryStatusSchema.parse(
@@ -414,7 +343,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
     }
   };
   const maxSequence = () => {
-    const row = db.query("SELECT value FROM history_meta WHERE key='change_sequence'").get() as {
+    const row = db.prepare("SELECT value FROM history_meta WHERE key='change_sequence'").get() as {
       value: string;
     } | null;
     if (!row || !/^\d+$/.test(row.value) || !Number.isSafeInteger(Number(row.value)))
@@ -433,7 +362,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
       parseId(id, "id");
       return safeRead(() => {
         const row = db
-          .query("SELECT * FROM history_entries WHERE conversation_id=? AND id=?")
+          .prepare("SELECT * FROM history_entries WHERE conversation_id=? AND id=?")
           .get(conversationId, id) as EntryRow | null;
         return row ? record(row) : undefined;
       });
@@ -445,7 +374,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
       parseId(key, "key");
       return safeRead(() => {
         const row = db
-          .query(
+          .prepare(
             "SELECT value FROM history_checkpoints WHERE conversation_id=? AND namespace=? AND key=?",
           )
           .get(conversationId, namespace, key) as { value: string } | null;
@@ -476,12 +405,12 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
         const rows = (
           before?.position
             ? db
-                .query(
+                .prepare(
                   "SELECT * FROM history_entries WHERE conversation_id=? AND (position_0,position_1,id) < (?,?,?) ORDER BY position_0 DESC,position_1 DESC,id DESC LIMIT ?",
                 )
                 .all(conversationId, before.position[0], before.position[1], before.id, limit + 1)
             : db
-                .query(
+                .prepare(
                   "SELECT * FROM history_entries WHERE conversation_id=? ORDER BY position_0 DESC,position_1 DESC,id DESC LIMIT ?",
                 )
                 .all(conversationId, limit + 1)
@@ -527,7 +456,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
         if (!parsed.after) {
           const sequence = maxSequence();
           const rows = db
-            .query(
+            .prepare(
               "SELECT * FROM history_entries WHERE conversation_id=? ORDER BY changed_sequence DESC LIMIT ?",
             )
             .all(conversationId, limit) as EntryRow[];
@@ -548,7 +477,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
             "History change position is ahead of this store",
           );
         const rows = db
-          .query(
+          .prepare(
             "SELECT * FROM history_entries WHERE conversation_id=? AND changed_sequence>? ORDER BY changed_sequence ASC LIMIT ?",
           )
           .all(conversationId, cursor.sequence, limit + 1) as EntryRow[];
@@ -583,14 +512,12 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
           ? " AND (e.position_0,e.position_1,e.conversation_id,e.id) < (?,?,?,?)"
           : "";
         const sql = `SELECT e.conversation_id,e.id,e.position_0,e.position_1,e.role,substr(snippet(history_entries_fts,0,'','','…',24),1,240) AS snippet FROM history_entries_fts JOIN history_entries e ON e.rowid=history_entries_fts.rowid WHERE history_entries_fts MATCH ?${scopeSql}${cursorSql} ORDER BY e.position_0 DESC,e.position_1 DESC,e.conversation_id DESC,e.id DESC LIMIT ?`;
-        const args: (string | number | null | boolean | Uint8Array | bigint)[] = [
-          ftsQuery(parsed.query),
-        ];
+        const args: SQLInputValue[] = [ftsQuery(parsed.query)];
         if (ids) args.push(JSON.stringify(ids));
         if (cursor)
           args.push(cursor.position[0], cursor.position[1], cursor.conversationId, cursor.id);
         args.push(limit + 1);
-        const rows = db.query(sql).all(...args) as {
+        const rows = db.prepare(sql).all(...args) as {
           conversation_id: string;
           id: string;
           position_0: number;
@@ -636,13 +563,13 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
           throw invalid("Invalid history around options");
         }
         const anchor = db
-          .query("SELECT * FROM history_entries WHERE conversation_id=? AND id=?")
+          .prepare("SELECT * FROM history_entries WHERE conversation_id=? AND id=?")
           .get(conversationId, parsed.entryId) as EntryRow | null;
         if (!anchor) throw invalid("History anchor does not exist");
         const before = parsed.before ?? 25,
           after = parsed.after ?? 25;
         const older = db
-          .query(
+          .prepare(
             "SELECT * FROM history_entries WHERE conversation_id=? AND (position_0,position_1,id)<(?,?,?) ORDER BY position_0 DESC,position_1 DESC,id DESC LIMIT ?",
           )
           .all(
@@ -653,7 +580,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
             before + 1,
           ) as EntryRow[];
         const newer = db
-          .query(
+          .prepare(
             "SELECT * FROM history_entries WHERE conversation_id=? AND (position_0,position_1,id)>(?,?,?) ORDER BY position_0 ASC,position_1 ASC,id ASC LIMIT ?",
           )
           .all(
@@ -709,7 +636,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
         ids.add(value.id);
       }
       try {
-        return db.transaction(() => {
+        return transaction(db, () => {
           const current = readStatus(conversationId);
           if (current.revision !== parsed.expectedRevision)
             throw new HistoryStoreError(
@@ -720,7 +647,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
           let sequence = maxSequence();
           for (const value of parsed.entries ?? []) {
             const existing = db
-              .query("SELECT * FROM history_entries WHERE conversation_id=? AND id=?")
+              .prepare("SELECT * FROM history_entries WHERE conversation_id=? AND id=?")
               .get(conversationId, value.id) as EntryRow | null;
             if (
               existing &&
@@ -753,7 +680,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
             if (!Number.isSafeInteger(sequence))
               throw new HistoryStoreError("unavailable", "History change position is exhausted");
             changed = true;
-            db.query(`INSERT INTO history_entries(conversation_id,id,position_0,position_1,role,text,assets,operation_id,state,changed_sequence,resources,selections,preparation,origin)
+            db.prepare(`INSERT INTO history_entries(conversation_id,id,position_0,position_1,role,text,assets,operation_id,state,changed_sequence,resources,selections,preparation,origin)
               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(conversation_id,id) DO UPDATE SET role=excluded.role,text=excluded.text,assets=excluded.assets,operation_id=excluded.operation_id,state=excluded.state,changed_sequence=excluded.changed_sequence,resources=excluded.resources,selections=excluded.selections,preparation=excluded.preparation,origin=excluded.origin`).run(
               conversationId,
               value.id,
@@ -774,7 +701,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
           for (const checkpoint of parsed.checkpoints ?? []) {
             const value = JSON.stringify(checkpoint.value);
             const existing = db
-              .query(
+              .prepare(
                 "SELECT value FROM history_checkpoints WHERE conversation_id=? AND namespace=? AND key=?",
               )
               .get(conversationId, checkpoint.namespace, checkpoint.key) as {
@@ -782,7 +709,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
             } | null;
             if (existing?.value === value) continue;
             changed = true;
-            db.query(
+            db.prepare(
               "INSERT INTO history_checkpoints(conversation_id,namespace,key,value) VALUES (?,?,?,?) ON CONFLICT(conversation_id,namespace,key) DO UPDATE SET value=excluded.value",
             ).run(conversationId, checkpoint.namespace, checkpoint.key, value);
           }
@@ -806,7 +733,7 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
             hasOlder: nextSync.hasOlder,
             message: nextSync.message,
           };
-          db.query(
+          db.prepare(
             "INSERT INTO history_conversations(id,revision,sync,has_older,message) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET revision=excluded.revision,sync=excluded.sync,has_older=excluded.has_older,message=excluded.message",
           ).run(
             conversationId,
@@ -816,11 +743,11 @@ export function createSqliteConversationHistory(path: string): ConversationHisto
             next.message ?? null,
           );
           if (sequence !== maxSequence())
-            db.query("UPDATE history_meta SET value=? WHERE key='change_sequence'").run(
+            db.prepare("UPDATE history_meta SET value=? WHERE key='change_sequence'").run(
               String(sequence),
             );
           return ConversationHistoryStatusSchema.parse(next);
-        })();
+        });
       } catch (cause) {
         if (cause instanceof HistoryStoreError) throw cause;
         throw new HistoryStoreError("unavailable", "Conversation history commit failed");

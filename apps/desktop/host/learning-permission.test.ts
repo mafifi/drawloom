@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { JsonStore, JsonValue } from "@drawloom/host";
 import { createLearningConsentStore, DEFAULT_LOCAL_LEARNING_SCOPE } from "./learning-consent.js";
 import { createLearningPermission } from "./learning-permission.js";

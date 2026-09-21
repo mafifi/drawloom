@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { ConversationScroll, conversationTurns } from "./conversation-scroll.js";
 
 test("opening waits for history and follows the tail, including late media layout", () => {

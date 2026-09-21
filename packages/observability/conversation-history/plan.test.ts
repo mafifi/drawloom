@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { HistoryEntrySchema } from "./src/index.js";
 
 test("retained plans require operation ownership and preserve empty snapshots", () => {

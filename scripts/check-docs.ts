@@ -15,8 +15,9 @@
  */
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { dirname, resolve, relative, basename } from "node:path";
+import { execFileSync } from "node:child_process";
 
-const tracked = (await Bun.$`git ls-files "*.md"`.text())
+const tracked = execFileSync("git", ["ls-files", "*.md"], { encoding: "utf8" })
   .trim()
   .split("\n")
   .filter((file) => file && !file.includes("node_modules"));

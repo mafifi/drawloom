@@ -4,7 +4,7 @@ Inventory of installed JavaScript product candidates, not a final bundle SBOM.
 Exact release/native/runtime artifacts need their own review. Missing legal files
 are recorded as unresolved, not waived. Shared texts are stored once by SHA256.
 
-Regenerate explicitly with `bun run licenses:inventory && bun run licenses:export`.
+Regenerate explicitly with `pnpm run licenses:inventory && pnpm run licenses:export`.
 This compliance record is retained source material, not a build artifact.
 
 | Dependency | Declared licence | Retained legal files |

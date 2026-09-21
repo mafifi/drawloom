@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { resolveTurnMaterial } from "./turn-preparation.js";
 import { createDefaultContextAssembler } from "@drawloom/default-context";
 import { createDesktopContextAssembly } from "./context-assembly.js";

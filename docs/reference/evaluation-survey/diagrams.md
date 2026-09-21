@@ -70,8 +70,8 @@ operation, security assurance or working Drawloom compatibility.
 
 ## Repository verification
 
-On 12 September 2026, `bun install --frozen-lockfile` reported no dependency
-changes and the canonical `bun run check:ci` completed successfully. It includes
+On 12 September 2026, `pnpm install --frozen-lockfile` reported no dependency
+changes and the canonical `pnpm run check:ci` completed successfully. It includes
 the UI/dependency policies, package builds, type checks, publishing checks and
 Bun/Node tests; opt-in service/model checks remained skipped. The desktop build
 reported its existing large-chunk warning, not a failure. `git diff --check`

@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION } from "@drawloom/local-knowledge-runtime";
 import { createKnowledgePlugin, knowledgeObservation } from "./knowledge-tools.js";
 import * as knowledgeTools from "./knowledge-tools.js";

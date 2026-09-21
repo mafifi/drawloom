@@ -125,6 +125,11 @@ Newest first. A decision remains binding until an ADR supersedes it.
 
 ### Foundations
 
+- **[0034: Run and ship Drawloom on Node](0034-node-toolchain.md)** —
+  Accepted. Node is the runtime Drawloom ships, develops against and tests on:
+  pnpm, Vitest, esbuild and Tauri, with the toolchain pinned exactly.
+  Supersedes ADR 0003's Bun toolchain and `bun` runtime class.
+
 - **[0008: Define tool execution and exposure](0008-tool-execution-and-exposure.md)** —
   Accepted. Invocation, grants and execution evidence.
 - **[0007: Define provider-neutral agent execution](0007-provider-neutral-agent-execution.md)** —
@@ -139,8 +144,10 @@ Newest first. A decision remains binding until an ADR supersedes it.
   Accepted. Behaviour before implementation, Zod validation at the edges, and
   one shared conformance suite per contract.
 - **[0003: Adopt TypeScript, Bun, and portable packages](0003-typescript-bun-and-portable-packages.md)** —
-  Accepted. TypeScript and ESM, Bun for repository tooling, explicit interfaces
-  for host-specific code.
+  Accepted. TypeScript and ESM, explicit interfaces for host-specific code. Its
+  Bun toolchain and `bun` runtime class are superseded by
+  [ADR 0034](0034-node-toolchain.md); its TypeScript, ESM, portability,
+  dependency-catalog and lockstep-release decisions stand.
 - **[0002: License the public core under Apache-2.0](0002-open-core-licensing.md)** —
   Accepted. Proprietary products stay in separate repositories; contributions
   use the Developer Certificate of Origin.

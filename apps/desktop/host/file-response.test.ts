@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import type { AssetReader } from "@drawloom/host";
 import { fileResponse } from "./file-response.js";
 function fixture(size = 10_000_000) {

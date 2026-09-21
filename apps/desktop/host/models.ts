@@ -1,8 +1,11 @@
 import { createStdioTransport, codexCommand } from "@drawloom/node-host";
+import { observedRpc } from "./telemetry.js";
 import { readCodexModels } from "@drawloom/codex-agent";
 /** Read-only provider discovery; closes its process even on timeout. */
 export async function desktopModels() {
-  const rpc = createStdioTransport({ ...codexCommand(), maxMessageBytes: 1024 * 1024 });
+  const rpc = observedRpc(
+    createStdioTransport({ ...codexCommand(), maxMessageBytes: 1024 * 1024 }),
+  );
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([

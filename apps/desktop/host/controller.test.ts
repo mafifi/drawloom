@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { operatorConformance } from "@drawloom/workbench/conformance";
 import { createTextController } from "./text-controller.js";
 import type { JsonValue } from "@drawloom/host";

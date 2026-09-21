@@ -1,4 +1,9 @@
 import { open, realpath, lstat } from "node:fs/promises";
+
+/** File-open seam. Production always uses `node:fs/promises`. Tests substitute
+ * `open` to replace the resolved path between resolution and open — precisely
+ * the race the post-open inode comparison below exists to defeat. */
+export type FileOpen = { open: typeof open };
 import { constants } from "node:fs";
 import { resolve, relative, isAbsolute, extname, join } from "node:path";
 import { homedir } from "node:os";
@@ -7,7 +12,11 @@ import type { DrawloomPackageExtension } from "@drawloom/plugins";
 
 const maxIconBytes = 256 * 1024;
 /** Read-only host boundary. No remote fetching or provider paths in browser data. */
-export async function readPluginIcon(root: string, path: string): Promise<string | undefined> {
+export async function readPluginIcon(
+  root: string,
+  path: string,
+  files: FileOpen = { open },
+): Promise<string | undefined> {
   try {
     const base = await realpath(root);
     const unresolved = resolve(base, path);
@@ -25,7 +34,7 @@ export async function readPluginIcon(root: string, path: string): Promise<string
     }[extname(target).toLowerCase()];
     if (!mime) return;
     const rootInfo = await lstat(base);
-    const file = await open(
+    const file = await files.open(
       target,
       constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
     );

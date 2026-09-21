@@ -12,10 +12,12 @@
   ],
   "exports": {
     ".": {
+      "drawloom-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
     "./agent-bridge": {
+      "drawloom-source": "./src/agent-bridge.ts",
       "types": "./dist/agent-bridge.d.ts",
       "import": "./dist/agent-bridge.js"
     }
@@ -25,15 +27,22 @@
     "runtime": "node"
   },
   "dependencies": {
-    "@drawloom/orchestration": "workspace:*",
     "@drawloom/agent": "workspace:*",
     "@drawloom/host": "workspace:*",
+    "@drawloom/orchestration": "workspace:*",
     "@opentelemetry/api": "catalog:",
+    "@temporalio/activity": "catalog:",
     "@temporalio/client": "catalog:",
+    "@temporalio/common": "catalog:",
     "@temporalio/worker": "catalog:",
     "@temporalio/workflow": "catalog:",
-    "@temporalio/activity": "catalog:",
-    "@temporalio/common": "catalog:",
     "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@drawloom/synthetic-agent": "workspace:*",
+    "esbuild": "catalog:"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
   }
 }

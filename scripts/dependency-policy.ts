@@ -1,6 +1,6 @@
-import { readFile } from "node:fs/promises";
+import { readFile, glob } from "node:fs/promises";
 import { join } from "node:path";
-import publicBoundaryPolicy from "./public-boundary-policy.json";
+import publicBoundaryPolicy from "./public-boundary-policy.json" with { type: "json" };
 
 export const dependencySections = [
   "dependencies",
@@ -13,7 +13,7 @@ export type DependencySection = (typeof dependencySections)[number];
 
 export const packageRoles = ["contract", "provider", "consumer", "runtime", "composition"] as const;
 
-export const runtimeClasses = ["portable", "bun", "node", "cloudflare", "tauri"] as const;
+export const runtimeClasses = ["portable", "node", "cloudflare", "tauri"] as const;
 
 export interface DependencyPolicyException {
   workspace: string;
@@ -152,9 +152,13 @@ export const validateDependencyPolicy = (
   if (root.type !== "module") {
     violations.push(violation(rootPath, "type", 'The root workspace must use type "module".'));
   }
-  if (!root.packageManager?.startsWith("bun@")) {
+  if (!root.packageManager?.startsWith("pnpm@")) {
     violations.push(
-      violation(rootPath, "packageManager", "The root workspace must pin Bun with packageManager."),
+      violation(
+        rootPath,
+        "packageManager",
+        "The root workspace must pin pnpm with packageManager.",
+      ),
     );
   }
   if (!Array.isArray(root.workspaces?.packages)) {
@@ -367,10 +371,9 @@ export const discoverWorkspaceManifests = async (
       );
     }
 
-    const glob = new Bun.Glob(`${pattern}/package.json`);
-    for await (const relativePath of glob.scan({
+    for await (const relativePath of glob(`${pattern}/package.json`, {
       cwd: rootDirectory,
-      onlyFiles: true,
+      withFileTypes: false,
     })) {
       if (seenPaths.has(relativePath)) {
         continue;

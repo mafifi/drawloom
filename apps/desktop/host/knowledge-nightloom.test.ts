@@ -1,5 +1,5 @@
 import { createAuthorizedKnowledgeFixture as createManagedLocalKnowledgeClient } from "../tests/knowledge-authority-fixture.js";
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { JsonStore, JsonValue } from "@drawloom/host";
 import type { LocalTemporalRegistration } from "@drawloom/temporal-orchestration";
 import type { Orchestrator, RegisteredTaskHandler } from "@drawloom/orchestration";

@@ -2,9 +2,12 @@ import { mkdtemp, rm, copyFile, writeFile, readFile, cp, mkdir } from "node:fs/p
 import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { discoverWorkspaceManifests, type WorkspaceManifestInput } from "./dependency-policy.ts";
+import { spawnSync } from "node:child_process";
+import { parse as parseYaml } from "yaml";
+import { build as esbuild } from "esbuild";
 
 /** One disposable installed closure. Public packages load built tarball exports;
- * desktop-only code is separately compiled outside the checkout, then runs in Bun. */
+ * desktop-only code is separately compiled outside the checkout, then runs on Node. */
 const repository = process.cwd();
 const directory = await mkdtemp(join(tmpdir(), "drawloom-replacement-consumer-"));
 try {
@@ -22,44 +25,51 @@ try {
   const desktop = JSON.parse(
     await readFile(join(repository, "apps/desktop/package.json"), "utf8"),
   ) as {
-    dependencies: Record<string, string>;
+    dependencies?: Record<string, string>;
     devDependencies: Record<string, string>;
-    optionalDependencies: Record<string, string>;
+    optionalDependencies?: Record<string, string>;
   };
-  const root = JSON.parse(await readFile(join(repository, "package.json"), "utf8")) as {
-    workspaces: { catalog: Record<string, string> };
+  // The desktop application is a binary distribution: its host is bundled, so
+  // the packages it composes are declared as build inputs, and only unbundlable
+  // natives remain runtime dependencies. This check is about what a consumer
+  // installs from published tarballs, so it reads both sections.
+  const desktopComposed: Record<string, string> = {
+    ...(desktop.dependencies ?? {}),
+    ...desktop.devDependencies,
   };
+  // The dependency catalog moved to pnpm-workspace.yaml.
+  const { catalog } = parseYaml(
+    await readFile(join(repository, "pnpm-workspace.yaml"), "utf8"),
+  ) as { catalog: Record<string, string> };
   for (const name of [
     "@drawloom/replacement-examples",
     "@drawloom/default-context",
     "@drawloom/local-authorization",
     "@drawloom/deterministic-authorization",
     "@drawloom/authorization-scheduler",
-    ...Object.keys(desktop.dependencies).filter((name) => name.startsWith("@drawloom/")),
+    ...Object.keys(desktopComposed).filter((name) => name.startsWith("@drawloom/")),
   ])
     include(name);
   const dependencies: Record<string, string> = {};
-  const externals = new Set<string>(["bun:*", ...Object.keys(desktop.optionalDependencies)]);
+  const externals = new Set<string>(Object.keys(desktop.optionalDependencies ?? {}));
   for (const [name, workspace] of selected) {
     const archive = join(directory, name.replaceAll("/", "-") + ".tgz");
-    const packed = Bun.spawnSync(["bun", "pm", "pack", "--filename", archive, "--quiet"], {
+    const packed = spawnSync("pnpm", ["pack", "--out", archive], {
       cwd: dirname(resolve(repository, workspace.path)),
-      stdout: "pipe",
-      stderr: "pipe",
     });
-    if (packed.exitCode !== 0)
+    if (packed.status !== 0)
       throw Error("Could not pack " + name + ": " + packed.stderr.toString());
     dependencies[name] = "file:" + archive;
     for (const dependency of Object.keys(workspace.manifest.dependencies ?? {}))
       if (!dependency.startsWith("@drawloom/")) externals.add(dependency);
   }
   for (const [name, version] of Object.entries({
-    ...desktop.dependencies,
+    ...desktopComposed,
     "@modelcontextprotocol/sdk": desktop.devDependencies["@modelcontextprotocol/sdk"]!,
     "@modelcontextprotocol/ext-apps": desktop.devDependencies["@modelcontextprotocol/ext-apps"]!,
   })) {
     if (name.startsWith("@drawloom/")) continue;
-    const pinned = version === "catalog:" ? root.workspaces.catalog[name] : version;
+    const pinned = version === "catalog:" ? catalog[name] : version;
     if (!pinned) throw Error("Missing pinned desktop dependency: " + name);
     dependencies[name] = pinned;
     externals.add(name);
@@ -70,17 +80,27 @@ try {
       private: true,
       type: "module",
       dependencies,
-      overrides: dependencies,
     }),
   );
+  // Transitive @drawloom requirements must resolve to the packed tarballs too,
+  // never the registry. pnpm reads overrides from pnpm-workspace.yaml, and the
+  // file also makes this directory a self-contained pnpm project.
+  await writeFile(
+    join(directory, "pnpm-workspace.yaml"),
+    "packages: []\noverrides:\n" +
+      Object.entries(dependencies)
+        .map(([name, specifier]) => `  "${name}": "${specifier}"`)
+        .join("\n") +
+      "\n",
+  );
   const run = (command: string[], env?: Record<string, string | undefined>) => {
-    const result = Bun.spawnSync(command, {
+    const [executable, ...args] = command;
+    if (!executable) throw Error("A command requires an executable");
+    const result = spawnSync(executable, args, {
       cwd: directory,
-      stdout: "pipe",
-      stderr: "pipe",
       ...(env ? { env } : {}),
     });
-    if (result.exitCode !== 0)
+    if (result.status !== 0)
       throw Error(
         command.join(" ") +
           " failed:\n" +
@@ -90,7 +110,14 @@ try {
       );
     process.stdout.write(result.stdout);
   };
-  run(["bun", "install", "--offline", "--ignore-scripts"]);
+  // This fixture's bundle sits at the root of the installation and imports its
+  // external packages directly, so those packages must resolve from the
+  // bundle's own location. Hoisting is one arrangement that achieves that, not
+  // a requirement of bundles in general: placing the bundle inside the package
+  // whose dependencies it needs works equally well, and is what the desktop
+  // host does. Hoisting is used here only to keep this fixture a flat, single
+  // disposable directory, and says nothing about the shipped layout.
+  run(["pnpm", "install", "--ignore-scripts", "--no-lockfile", "--node-linker=hoisted"]);
   await copyFile(
     join(repository, "scripts/fixtures/replacement-consumer.mjs"),
     join(directory, "consumer.mjs"),
@@ -112,21 +139,18 @@ try {
     await mkdir(dirname(join(directory, file)), { recursive: true });
     await copyFile(join(repository, file), join(directory, file));
   }
-  // Node resolution selects public import/dist exports (not development bun/src
-  // conditions). Bun-only application builtins stay external and execute under Bun.
-  run([
-    "bun",
-    "build",
-    "scripts/fixtures/replacement-application-consumer.mjs",
-    "--target",
-    "node",
-    "--sourcemap=external",
-    "--outdir",
-    ".",
-    "--entry-naming",
-    "application-consumer.mjs",
-    ...[...externals].flatMap((name) => ["--external", name]),
-  ]);
+  // Without the `drawloom-source` condition, resolution must select the published
+  // import/dist exports. The source map below proves it did.
+  await esbuild({
+    entryPoints: [join(directory, "scripts/fixtures/replacement-application-consumer.mjs")],
+    outfile: join(directory, "application-consumer.mjs"),
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    sourcemap: "external",
+    external: [...externals],
+    absWorkingDir: directory,
+  });
   const map = JSON.parse(
     await readFile(join(directory, "application-consumer.mjs.map"), "utf8"),
   ) as { sources: string[] };
@@ -142,7 +166,7 @@ try {
     directory,
     "node_modules/@drawloom/local-knowledge-runtime/dist/sidecar.js",
   );
-  run(["bun", "application-consumer.mjs"], {
+  run(["node", "application-consumer.mjs"], {
     ...process.env,
     DRAWLOOM_CONFORMANCE_RUNTIME: runtimeEntrypoint,
   });

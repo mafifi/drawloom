@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createKnowledgeEmbeddings, embeddingConfiguration } from "./src/adapter.js";
 import type { TrustedKnowledgeSubject } from "@drawloom/knowledge";
 

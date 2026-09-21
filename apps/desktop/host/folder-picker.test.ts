@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -8,7 +8,7 @@ test("folder chooser requires the authenticated command channel and is only a se
   const root = await mkdtemp(join(tmpdir(), "drawloom-chooser-"));
   const app = await createDesktopApplication(root);
   let calls = 0;
-  const host = serveDesktop(app, resolve("apps/desktop/build"), 0, undefined, {
+  const host = await serveDesktop(app, resolve("apps/desktop/build"), 0, undefined, {
     pickDirectory: async () => {
       calls++;
       return "/chosen/directory";

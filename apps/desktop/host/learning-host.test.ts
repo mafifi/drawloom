@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createDeterministicLearningService } from "@drawloom/replacement-examples";
 import { createKnowledgeHost } from "./knowledge-host.js";
 import { createLearningConsentStore, DEFAULT_LOCAL_LEARNING_SCOPE } from "./learning-consent.js";

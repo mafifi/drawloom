@@ -1,4 +1,4 @@
-import { expect, spyOn, test } from "bun:test";
+import { expect, vi, test } from "vitest";
 import { z } from "zod";
 import type {
   AssessmentResult,
@@ -1312,7 +1312,7 @@ test("assessment timeout cancels the exact receipt and does not reset on reconci
   const request = { ...assessInput("deadline"), assessmentTimeoutMs: 10 };
   expect(await handler().run(request, context())).toMatchObject({ kind: "running" });
   const first = (await receipts.load("batch-deadline"))!;
-  expect(first.deadlineAtMs).toBeNumber();
+  expect(first.deadlineAtMs).toBeTypeOf("number");
   await new Promise((resolve) => setTimeout(resolve, 15));
   expect(
     await handler().recover!({ ...request, assessmentTimeoutMs: 300_000 }, context()),
@@ -1425,8 +1425,8 @@ test("cancellation during accepted-assessment pacing interrupts its exact owner 
 
 test("polling retains one cancellation listener and terminal completion removes it", async () => {
   const signal = new AbortController().signal;
-  const added = spyOn(signal, "addEventListener"),
-    removed = spyOn(signal, "removeEventListener");
+  const added = vi.spyOn(signal, "addEventListener"),
+    removed = vi.spyOn(signal, "removeEventListener");
   let completed = false;
   const configured = dependencies({
     async assess(_subject, request) {

@@ -1,4 +1,4 @@
-import { expect, test, spyOn } from "bun:test";
+import { expect, test, vi } from "vitest";
 import * as synthetic from "@drawloom/synthetic-agent";
 import { chmod, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -6,11 +6,12 @@ import { join, resolve } from "node:path";
 import { createSqliteConversationHistory } from "@drawloom/sqlite-conversation-history";
 import { createTestDesktopApplication as createDesktopApplication } from "./test-project.fixture.js";
 import { serveDesktop } from "./server.js";
+import { setTimeout as sleep } from "node:timers/promises";
 
 test("authenticated cached search, exact around reads, and durable conversation organisation preserve ownership", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-history-search-"));
   let app = await createDesktopApplication(root);
-  let server: ReturnType<typeof serveDesktop> | undefined;
+  let server: Awaited<ReturnType<typeof serveDesktop>> | undefined;
   try {
     const initial = await app.snapshot(),
       first = initial.selectedId,
@@ -148,7 +149,7 @@ test("authenticated cached search, exact around reads, and durable conversation 
       projectId,
     });
     await app.command({ kind: "restore_conversation", conversationId: first });
-    server = serveDesktop(app, resolve("apps/desktop/build"));
+    server = await serveDesktop(app, resolve("apps/desktop/build"));
     expect((await fetch(server.origin + "/api/conversations/search?q=lighthouse")).status).toBe(
       401,
     );
@@ -232,7 +233,7 @@ test("archive rejects active work and manual titles survive automatic naming", a
     finish = resolve;
   });
   const original = synthetic.createSyntheticDriver;
-  const replacement = spyOn(synthetic, "createSyntheticDriver").mockImplementation((respond) =>
+  const replacement = vi.spyOn(synthetic, "createSyntheticDriver").mockImplementation((respond) =>
     original(async (text, context) => {
       await held;
       return respond(text, context);
@@ -268,7 +269,7 @@ test("archive rejects active work and manual titles survive automatic naming", a
 
 test("native operation completion invalidates approval presentation and permits archive", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-history-pending-"));
-  const replacement = spyOn(synthetic, "createSyntheticDriver").mockImplementation(
+  const replacement = vi.spyOn(synthetic, "createSyntheticDriver").mockImplementation(
     () =>
       ({
         driverId: "synthetic",
@@ -342,7 +343,7 @@ test("native operation completion invalidates approval presentation and permits 
       attachmentKeys: [],
       contextArtifactIds: [],
     });
-    for (let i = 0; i < 50 && (await app.snapshot()).activeOperation; i++) await Bun.sleep(2);
+    for (let i = 0; i < 50 && (await app.snapshot()).activeOperation; i++) await sleep(2);
     expect((await app.snapshot()).activeOperation).toBeUndefined();
     await app.command({ kind: "create_conversation", workbenchId: "text", provider: "synthetic" });
     expect((await app.snapshot()).selectedId).not.toBe(id);

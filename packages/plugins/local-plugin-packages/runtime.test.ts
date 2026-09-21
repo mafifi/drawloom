@@ -1,10 +1,13 @@
-import { test, expect } from "bun:test";
-import { mkdtemp, writeFile, readFile, rm, symlink, mkdir, realpath } from "node:fs/promises";
+import { test, expect } from "vitest";
+import { mkdtemp, writeFile, readFile, rm, symlink, mkdir, realpath, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PLUGIN_SCHEMA, MCP_PACKAGE_SCHEMA } from "@drawloom/plugins";
 import { inspectPackage } from "./src/index.ts";
 import { activatePackage, packageFetch } from "./src/runtime.ts";
+import { serve } from "@hono/node-server";
+import { once } from "node:events";
+import type { AddressInfo } from "node:net";
 
 async function localFixture(servers: object) {
   const root = await mkdtemp(join(tmpdir(), "drawloom-runtime-test-"));
@@ -37,7 +40,7 @@ let buffer = ''; process.stdin.on('data', chunk => { buffer += chunk; let newlin
 `;
 test("one installed configuration is shared while two project process stores remain isolated", async () => {
   const local = await localFixture({
-    good: { type: "stdio", command: "bun", args: ["./server.mjs"] },
+    good: { type: "stdio", command: "node", args: ["./server.mjs"] },
   });
   try {
     const shared = join(local.root, "shared"),
@@ -92,19 +95,24 @@ test("explicit stdio activation preserves data, opaque arguments, wire names and
   const local = await localFixture({
     good: {
       type: "stdio",
-      command: "bun",
+      command: "node",
       args: ["./server.mjs", "${PLUGIN_ROOT}/../literal", "${PLUGIN_DATA}"],
       env: { CUSTOM: "${PLUGIN_ROOT}:${PLUGIN_DATA}:${UNKNOWN}" },
     },
     broken: { type: "stdio", command: "does-not-exist-drawloom-test" },
-    unselected: { type: "stdio", command: "bun", args: ["./server.mjs"] },
+    unselected: { type: "stdio", command: "node", args: ["./server.mjs"] },
   });
   process.env.DRAWLOOM_TEST_SECRET = "never-inherit";
   try {
     await writeFile(join(local.root, "server.mjs"), serverScript);
     const inventory = await inspectPackage(local.root),
       dataRoot = join(local.root, "data");
-    expect(await Bun.file(join(dataRoot, "first/launch.json")).exists()).toBe(false);
+    expect(
+      await stat(join(dataRoot, "first/launch.json")).then(
+        () => true,
+        () => false,
+      ),
+    ).toBe(false);
     for (const count of [1, 2]) {
       const active = await activatePackage(inventory, {
         dataRoot,
@@ -127,7 +135,12 @@ test("explicit stdio activation preserves data, opaque arguments, wire names and
         expect(launch.custom).toBe(
           inventory.root + ":" + join(inventory.root, "data/first") + ":${UNKNOWN}",
         );
-        expect(await Bun.file(join(dataRoot, "first/invoked")).exists()).toBe(false);
+        expect(
+          await stat(join(dataRoot, "first/invoked")).then(
+            () => true,
+            () => false,
+          ),
+        ).toBe(false);
         expect((await active.servers.get("good")!.client.listTools()).tools[0]?.name).toBe(
           "original.name",
         );
@@ -142,7 +155,7 @@ test("explicit stdio activation preserves data, opaque arguments, wire names and
 });
 test("handshake timeout closes hung subprocess", async () => {
   const local = await localFixture({
-    hung: { type: "stdio", command: "bun", args: ["./hung.mjs"] },
+    hung: { type: "stdio", command: "node", args: ["./hung.mjs"] },
   });
   try {
     await writeFile(
@@ -166,7 +179,7 @@ test("handshake timeout closes hung subprocess", async () => {
 test("HTTP handshake performs no tool invocation and never forwards redirect credentials", async () => {
   const methods: string[] = [],
     seen: string[] = [];
-  const target = Bun.serve({
+  const target = serve({
     port: 0,
     hostname: "127.0.0.1",
     fetch() {
@@ -174,13 +187,15 @@ test("HTTP handshake performs no tool invocation and never forwards redirect cre
       return new Response("unexpected");
     },
   });
-  const http = Bun.serve({
+  await once(target, "listening");
+  const targetUrl = new URL(`http://127.0.0.1:${(target.address() as AddressInfo).port}/`);
+  const http = serve({
     port: 0,
     hostname: "127.0.0.1",
     async fetch(request) {
       const url = new URL(request.url);
       if (url.pathname === "/redirect")
-        return new Response(null, { status: 307, headers: { location: target.url.href } });
+        return new Response(null, { status: 307, headers: { location: targetUrl.href } });
       if (url.pathname === "/auth") return new Response("Authentication required", { status: 401 });
       if (request.method !== "POST") return new Response(null, { status: 405 });
       expect(request.headers.get("x-package")).toBe("visible-value");
@@ -198,18 +213,20 @@ test("HTTP handshake performs no tool invocation and never forwards redirect cre
       });
     },
   });
+  await once(http, "listening");
+  const httpUrl = new URL(`http://127.0.0.1:${(http.address() as AddressInfo).port}/`);
   const local = await localFixture({
     remote: {
       type: "streamable-http",
-      url: http.url.href,
+      url: httpUrl.href,
       headers: { "X-Package": "visible-value" },
     },
     redirect: {
       type: "streamable-http",
-      url: new URL("/redirect", http.url).href,
+      url: new URL("/redirect", httpUrl).href,
       headers: { Authorization: "do-not-forward" },
     },
-    auth: { type: "streamable-http", url: new URL("/auth", http.url).href },
+    auth: { type: "streamable-http", url: new URL("/auth", httpUrl).href },
   });
   try {
     const active = await activatePackage(await inspectPackage(local.root), {
@@ -229,14 +246,14 @@ test("HTTP handshake performs no tool invocation and never forwards redirect cre
       await active.close();
     }
   } finally {
-    http.stop(true);
-    target.stop(true);
+    http.close();
+    target.close();
     await local.dispose();
   }
 });
 test("package HTTP headers never override generated authentication or reach an OAuth origin", async () => {
   const received: Array<string | null> = [];
-  const oauth = Bun.serve({
+  const oauth = serve({
     hostname: "127.0.0.1",
     port: 0,
     fetch(request) {
@@ -244,7 +261,9 @@ test("package HTTP headers never override generated authentication or reach an O
       return new Response("ok");
     },
   });
-  const endpoint = Bun.serve({
+  await once(oauth, "listening");
+  const oauthUrl = new URL(`http://127.0.0.1:${(oauth.address() as AddressInfo).port}/`);
+  const endpoint = serve({
     hostname: "127.0.0.1",
     port: 0,
     fetch(request) {
@@ -252,24 +271,26 @@ test("package HTTP headers never override generated authentication or reach an O
       return new Response("ok");
     },
   });
+  await once(endpoint, "listening");
+  const endpointUrl = new URL(`http://127.0.0.1:${(endpoint.address() as AddressInfo).port}/`);
   try {
     const scopedFetch = packageFetch({
       type: "streamable-http",
-      url: endpoint.url.href,
+      url: endpointUrl.href,
       headers: { Authorization: "package-value", "X-Package": "visible" },
     });
-    await scopedFetch(endpoint.url, { headers: { Authorization: "Bearer client-token" } });
-    await scopedFetch(oauth.url);
+    await scopedFetch(endpointUrl, { headers: { Authorization: "Bearer client-token" } });
+    await scopedFetch(oauthUrl);
     expect(received).toEqual(["Bearer client-token", null]);
   } finally {
-    oauth.stop(true);
-    endpoint.stop(true);
+    oauth.close();
+    endpoint.close();
   }
 });
 test("failed authenticated tool calls are not retried by SDK auth flow", async () => {
   let calls = 0,
     tokens = 0;
-  const http = Bun.serve({
+  const http = serve({
     hostname: "127.0.0.1",
     port: 0,
     async fetch(request) {
@@ -291,7 +312,9 @@ test("failed authenticated tool calls are not retried by SDK auth flow", async (
       });
     },
   });
-  const local = await localFixture({ remote: { type: "streamable-http", url: http.url.href } });
+  await once(http, "listening");
+  const httpUrl = new URL(`http://127.0.0.1:${(http.address() as AddressInfo).port}/`);
+  const local = await localFixture({ remote: { type: "streamable-http", url: httpUrl.href } });
   try {
     const active = await activatePackage(await inspectPackage(local.root), {
       dataRoot: join(local.root, "data"),
@@ -332,14 +355,19 @@ test("failed authenticated tool calls are not retried by SDK auth flow", async (
       await active.close();
     }
   } finally {
-    http.stop(true);
+    http.close();
     await local.dispose();
   }
 });
 test("data-root cwd escape fails independently and separate installations keep separate data", async () => {
   const local = await localFixture({
-    good: { type: "stdio", command: "bun", args: ["./server.mjs"] },
-    escape: { type: "stdio", command: "bun", cwd: "${PLUGIN_DATA}/escape", args: ["./server.mjs"] },
+    good: { type: "stdio", command: "node", args: ["./server.mjs"] },
+    escape: {
+      type: "stdio",
+      command: "node",
+      cwd: "${PLUGIN_DATA}/escape",
+      args: ["./server.mjs"],
+    },
   });
   try {
     await writeFile(join(local.root, "server.mjs"), serverScript);
@@ -371,7 +399,7 @@ test("data-root cwd escape fails independently and separate installations keep s
 });
 test("overlapping active-server close calls wait for the same delayed subprocess cleanup", async () => {
   const local = await localFixture({
-    good: { type: "stdio", command: "bun", args: ["./server.mjs"] },
+    good: { type: "stdio", command: "node", args: ["./server.mjs"] },
   });
   let active: Awaited<ReturnType<typeof activatePackage>> | undefined;
   try {
@@ -402,8 +430,8 @@ test("overlapping active-server close calls wait for the same delayed subprocess
 });
 test("package shutdown retains close failure and still closes every real connection once", async () => {
   const local = await localFixture({
-    first: { type: "stdio", command: "bun", args: ["./server.mjs"] },
-    second: { type: "stdio", command: "bun", args: ["./server.mjs"] },
+    first: { type: "stdio", command: "node", args: ["./server.mjs"] },
+    second: { type: "stdio", command: "node", args: ["./server.mjs"] },
   });
   let active: Awaited<ReturnType<typeof activatePackage>> | undefined;
   try {
@@ -439,7 +467,7 @@ test("package shutdown retains close failure and still closes every real connect
 
 test("composition-selected client capabilities are present in MCP initialization", async () => {
   const local = await localFixture({
-    good: { type: "stdio", command: "bun", args: ["./server.mjs"] },
+    good: { type: "stdio", command: "node", args: ["./server.mjs"] },
   });
   let active: Awaited<ReturnType<typeof activatePackage>> | undefined;
   try {

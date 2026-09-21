@@ -1,11 +1,11 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { EvaluationDefinitionSchema, ScorerInvocationResultSchema } from "@drawloom/evaluation";
 import { loadKnowledgeEvaluation, knowledgeEvaluationSourceIdentity } from "./src/index.js";
 import { parseKnowledgeEvaluationAssets } from "./src/assets.js";
 
-const packageRoot = import.meta.dir;
+const packageRoot = import.meta.dirname;
 const fixture = (name: string) => readFile(resolve(packageRoot, "src", "fixtures", name));
 
 describe("frozen supported knowledge evaluation", () => {

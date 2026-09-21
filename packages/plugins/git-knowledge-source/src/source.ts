@@ -85,23 +85,23 @@ const StateSchema = z.strictObject({
 });
 type SourceState = z.infer<typeof StateSchema>;
 
+export type GitKnowledgeSourceErrorCode =
+  | "invalid_config"
+  | "invalid_path"
+  | "state_corrupt"
+  | "configuration_changed"
+  | "reconciliation_required"
+  | "unsupported_file"
+  | "file_too_large"
+  | "batch_too_large"
+  | "unknown_ack"
+  | "writer_locked";
 export class GitKnowledgeSourceError extends Error {
-  constructor(
-    readonly code:
-      | "invalid_config"
-      | "invalid_path"
-      | "state_corrupt"
-      | "configuration_changed"
-      | "reconciliation_required"
-      | "unsupported_file"
-      | "file_too_large"
-      | "batch_too_large"
-      | "unknown_ack"
-      | "writer_locked",
-    message: string,
-  ) {
+  readonly code: GitKnowledgeSourceErrorCode;
+  constructor(code: GitKnowledgeSourceErrorCode, message: string) {
     super(message);
     this.name = "GitKnowledgeSourceError";
+    this.code = code;
   }
 }
 export type GitKnowledgeSourceOptions = {

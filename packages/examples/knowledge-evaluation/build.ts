@@ -3,58 +3,49 @@ import { resolve } from "node:path";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import tailwindcss from "@tailwindcss/vite";
 import { build } from "vite";
+import { build as esbuild } from "esbuild";
+import { spawnSync } from "node:child_process";
 
-const packageRoot = import.meta.dir;
+const packageRoot = import.meta.dirname;
 
 export async function buildKnowledgeEvaluationPackage(): Promise<void> {
   const dist = resolve(packageRoot, "dist");
   const extension = resolve(packageRoot, "org.drawloom");
   await rm(dist, { recursive: true, force: true });
   await rm(extension, { recursive: true, force: true });
-  const checked = Bun.spawn(
-    ["bun", "x", "--no-install", "tsc", "-p", resolve(packageRoot, "tsconfig.json")],
-    { cwd: packageRoot, stdout: "inherit", stderr: "inherit" },
-  );
-  if (await checked.exited) throw new Error("Knowledge evaluation TypeScript build failed");
+  // Resolved through pnpm so the binary is found whatever invoked this build.
+  const checked = spawnSync("pnpm", ["exec", "tsc", "-p", resolve(packageRoot, "tsconfig.json")], {
+    cwd: packageRoot,
+    stdio: "inherit",
+  });
+  if (checked.status !== 0) throw new Error("Knowledge evaluation TypeScript build failed");
   await mkdir(extension, { recursive: true });
   await Promise.all(
     ["backend.d.ts", "workflows.d.ts"].map((file) =>
       rename(resolve(dist, file), resolve(extension, file)),
     ),
   );
-  const bundled = await Bun.build({
-    entrypoints: [resolve(packageRoot, "src/index.ts")],
-    outdir: dist,
-    target: "node",
+  await esbuild({
+    entryPoints: [resolve(packageRoot, "src/index.ts")],
+    outfile: resolve(dist, "index.js"),
+    bundle: true,
+    platform: "node",
     format: "esm",
-    naming: "[name].js",
-    packages: "bundle",
   });
-  if (!bundled.success)
-    throw new AggregateError(
-      bundled.logs,
-      "Knowledge evaluation installed entrypoint build failed",
-    );
-  const backend = await Bun.build({
-    entrypoints: [resolve(packageRoot, "src/backend.ts")],
-    outdir: extension,
-    target: "node",
+  await esbuild({
+    entryPoints: [resolve(packageRoot, "src/backend.ts")],
+    outfile: resolve(extension, "backend.js"),
+    bundle: true,
+    platform: "node",
     format: "esm",
-    naming: "backend.js",
-    packages: "bundle",
   });
-  if (!backend.success)
-    throw new AggregateError(backend.logs, "Knowledge evaluation backend build failed");
-  const workflow = await Bun.build({
-    entrypoints: [resolve(packageRoot, "src/workflows.ts")],
-    outdir: extension,
-    target: "browser",
+  await esbuild({
+    entryPoints: [resolve(packageRoot, "src/workflows.ts")],
+    outfile: resolve(extension, "workflows.js"),
+    bundle: true,
+    platform: "browser",
     format: "esm",
-    naming: "[name].js",
-    packages: "bundle",
   });
-  if (!workflow.success)
-    throw new AggregateError(workflow.logs, "Knowledge evaluation portable workflow build failed");
   const built = await build({
     configFile: false,
     root: packageRoot,

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Derived from Node's tools/osx-entitlements.plist for the pinned runtime,
+       then reduced to what the shipped application demonstrably requires.
+
+       Node upstream grants five entitlements. Each of the other four was tested
+       against the real bundle, signing every Mach-O payload it ships (the
+       Keychain addon, sqlite-vec's dylib and Temporal's core-bridge) and
+       exercising V8 startup, a Keychain round trip, a sqlite-vec extension load
+       and a core-bridge load:
+
+         allow-unsigned-executable-memory  NOT required
+         disable-library-validation        NOT required once the shipped native
+                                           code is signed with this identity;
+                                           keeping it off preserves the
+                                           protection ADR 0026 assumes
+         allow-dyld-environment-variables  NOT required
+         get-task-allow                    a debug entitlement permitting any
+                                           process to attach a debugger;
+                                           notarization rejects it
+
+       Only JIT remains. `scripts/sign-macos-app.sh` performs the signing this
+       depends on: native payloads first, then the bundle. -->
+
+  <!-- V8 compiles JavaScript at runtime. -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+</dict>
+</plist>

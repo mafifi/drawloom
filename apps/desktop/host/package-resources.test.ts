@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { createPackageResources } from "./package-resources.js";
 test("nonblocking package discovery exposes loading then caches success without repeated reads", async () => {

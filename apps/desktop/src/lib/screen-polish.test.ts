@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 const source = (name: string) => readFileSync(new URL(name, import.meta.url), "utf8");
 test("project entry groups folder input and chooser, with a bounded form and footer", () => {

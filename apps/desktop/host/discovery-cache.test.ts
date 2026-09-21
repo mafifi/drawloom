@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createDiscoveryCache } from "./discovery-cache.js";
 
 test("registered entries need not wait for package resources and refresh joins an active read", async () => {

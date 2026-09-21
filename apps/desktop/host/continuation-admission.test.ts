@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createContinuationAdmission } from "./continuation-admission.js";
 import * as admission from "./continuation-admission.js";
 import { ownsSessionOperation } from "./desktop-sessions.js";

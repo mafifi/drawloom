@@ -28,7 +28,7 @@ the underlying source work.
 Build and run the focused verification from the repository root:
 
 ```sh
-bun run --cwd packages/examples/knowledge-evaluation build
+pnpm --filter ./packages/examples/knowledge-evaluation run build
 bun test packages/examples/knowledge-evaluation/knowledge.test.ts \
   packages/examples/knowledge-evaluation/backend.test.ts \
   packages/examples/knowledge-evaluation/client.test.ts \

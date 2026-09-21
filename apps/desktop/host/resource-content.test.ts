@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import type { AssetLibrary } from "@drawloom/host";
 import { createResourceContent } from "./resource-content.js";
 

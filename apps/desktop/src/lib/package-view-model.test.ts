@@ -1,18 +1,5 @@
-import { afterEach, expect, test } from "bun:test";
-import { compileModule } from "svelte/compiler";
-Bun.plugin({
-  name: "package-view-model-tests",
-  setup(build) {
-    build.onLoad({ filter: /package-view-model\.svelte\.ts$/ }, async ({ path }) => ({
-      contents: compileModule(
-        new Bun.Transpiler({ loader: "ts" }).transformSync(await Bun.file(path).text()),
-        { filename: path, generate: "client" },
-      ).js.code,
-      loader: "js",
-    }));
-  },
-});
-const { createPackageViewModel } = await import("./package-view-model.svelte.js");
+import { afterEach, expect, test } from "vitest";
+import { createPackageViewModel } from "./package-view-model.svelte.js";
 const original = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = original;

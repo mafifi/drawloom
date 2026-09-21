@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { mkdtemp, mkdir, writeFile, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -6,19 +6,20 @@ import { createNodeJsonStore } from "@drawloom/node-host";
 import { createInstallationStore } from "./plugin-installations.js";
 import { createTestDesktopApplication as createDesktopApplication } from "./test-project.fixture.js";
 import { serveDesktop } from "./server.js";
+import { build as esbuild } from "esbuild";
 
 async function openExample(root: string) {
   const installations = await createInstallationStore(createNodeJsonStore(join(root, "state")));
   if (!installations.startup.length) {
     const pkg = join(root, "example");
     await mkdir(join(pkg, "org.drawloom"), { recursive: true });
-    const build = await Bun.build({
-      entrypoints: [resolve(import.meta.dir, "example-backend.fixture.ts")],
-      target: "bun",
-      outdir: join(pkg, "org.drawloom"),
-      naming: "backend.mjs",
+    await esbuild({
+      entryPoints: [resolve(import.meta.dirname, "example-backend.fixture.ts")],
+      outfile: join(pkg, "org.drawloom", "backend.mjs"),
+      bundle: true,
+      platform: "node",
+      format: "esm",
     });
-    if (!build.success) throw Error("Example package build failed");
     await writeFile(
       join(pkg, "plugin.json"),
       JSON.stringify({
@@ -197,7 +198,7 @@ test("MCP HTML and calls require authenticated parent channel and retain sandbox
   const app = await openExample(root);
   await app.command({ kind: "create_conversation", workbenchId: "example", provider: "synthetic" });
   const state = await app.snapshot();
-  const server = serveDesktop(app, resolve("apps/desktop/build"));
+  const server = await serveDesktop(app, resolve("apps/desktop/build"));
   try {
     const path = "/api/views/example.view?conversationId=" + state.selectedId;
     expect((await fetch(server.origin + path)).status).toBe(401);
@@ -330,7 +331,7 @@ test("opaque MCP frame receives a project-only media URL revoked on navigation",
   const state = await app.snapshot();
   const target = { conversationId: state.selectedId, viewId: "example.view" };
   await app.viewSession({ ...target, action: "open" });
-  const host = serveDesktop(app, resolve("apps/desktop/build"));
+  const host = await serveDesktop(app, resolve("apps/desktop/build"));
   try {
     const boot = await fetch(host.url, { redirect: "manual" });
     const cookie = boot.headers.get("set-cookie")!.split(";")[0]!;
@@ -341,7 +342,7 @@ test("opaque MCP frame receives a project-only media URL revoked on navigation",
     const html = await response.text();
     const base = /<base href="([^"]+)"/.exec(html)?.[1];
     expect(base).toBeDefined();
-    expect(base).toStartWith(host.origin + "/api/view-files/");
+    expect(base.startsWith(host.origin + "/api/view-files/")).toBe(true);
     const file = await fetch(base + "sample.txt", {
       headers: { origin: "null", range: "bytes=0-5" },
     });

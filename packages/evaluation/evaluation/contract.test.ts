@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import {
   EvaluationCancelResultSchema,
   EvaluationExecutionStatusSchema,
@@ -29,14 +29,14 @@ test("definition modes, case identities, JSON size, and media references are bou
       mode: "assess_existing",
       cases: [{ id: "case", revision: "r1", input: null }],
     }).success,
-  ).toBeFalse();
+  ).toBe(false);
   expect(
     EvaluationDefinitionSchema.safeParse({
       ...base,
       mode: "experiment",
       cases: [{ id: "case", revision: "r1", input: null }],
     }).success,
-  ).toBeFalse();
+  ).toBe(false);
   expect(
     EvaluationDefinitionSchema.safeParse({
       ...base,
@@ -47,30 +47,30 @@ test("definition modes, case identities, JSON size, and media references are bou
         { id: "case", revision: "r2", input: null },
       ],
     }).success,
-  ).toBeFalse();
+  ).toBe(false);
   expect(
     EvaluationDefinitionHeaderSchema.safeParse({
       ...base,
       mode: "assess_existing",
       target: { id: "target", revision: "r1" },
     }).success,
-  ).toBeFalse();
-  expect(EvaluationJsonSchema.safeParse("x".repeat(256 * 1024 + 1)).success).toBeFalse();
+  ).toBe(false);
+  expect(EvaluationJsonSchema.safeParse("x".repeat(256 * 1024 + 1)).success).toBe(false);
   expect(
     EvidenceReferenceSchema.safeParse({
       id: "embedded",
       source: "fixture",
       uri: "data:text/plain;base64,SGVsbG8=",
     }).success,
-  ).toBeFalse();
+  ).toBe(false);
 });
 
 test("usage remains optional but observed cached input is a subset of input", () => {
-  expect(NormalizedUsageSchema.safeParse({}).success).toBeFalse();
-  expect(
-    NormalizedUsageSchema.safeParse({ inputTokens: 4, cachedInputTokens: 5 }).success,
-  ).toBeFalse();
-  expect(NormalizedUsageSchema.safeParse({ outputTokens: 0 }).success).toBeTrue();
+  expect(NormalizedUsageSchema.safeParse({}).success).toBe(false);
+  expect(NormalizedUsageSchema.safeParse({ inputTokens: 4, cachedInputTokens: 5 }).success).toBe(
+    false,
+  );
+  expect(NormalizedUsageSchema.safeParse({ outputTokens: 0 }).success).toBe(true);
 });
 
 test("whole scorer checkpoints and result checkpoint identities are bounded", () => {
@@ -100,7 +100,7 @@ test("whole scorer checkpoints and result checkpoint identities are bounded", ()
       startedAtMs: 1,
       completedAtMs: 2,
     }).success,
-  ).toBeFalse();
+  ).toBe(false);
   expect(
     EvaluationResultRecordSchema.safeParse({
       schemaVersion: 1,
@@ -114,7 +114,7 @@ test("whole scorer checkpoints and result checkpoint identities are bounded", ()
       startedAtMs: 1,
       completedAtMs: 2,
     }).success,
-  ).toBeFalse();
+  ).toBe(false);
 });
 
 test("evaluation starts materialize bounded defaults and expose uncertainty without inventing a provider run", () => {
@@ -138,14 +138,14 @@ test("evaluation starts materialize bounded defaults and expose uncertainty with
       definition,
       settings: { repetitions: 1, concurrency: 101 },
     }).success,
-  ).toBeFalse();
+  ).toBe(false);
   expect(
     EvaluationStartResultSchema.safeParse({ kind: "uncertain", evaluationRunId: "request" })
       .success,
-  ).toBeTrue();
+  ).toBe(true);
   expect(
     EvaluationStartResultSchema.safeParse({ kind: "started", evaluationRunId: "request" }).success,
-  ).toBeFalse();
+  ).toBe(false);
 });
 
 test("execution and cancellation outcomes keep saved work distinct from scheduler availability", () => {
@@ -162,7 +162,7 @@ test("execution and cancellation outcomes keep saved work distinct from schedule
       evaluationRunId: "run",
       unresolvedEffects: [],
     }).success,
-  ).toBeFalse();
+  ).toBe(false);
   expect(
     EvaluationCancelResultSchema.parse({ kind: "not_started", evaluationRunId: "run" }),
   ).toEqual({ kind: "not_started", evaluationRunId: "run" });
@@ -191,6 +191,6 @@ test("evaluation readiness is a bounded portable service fact", () => {
   });
   expect(
     EvaluationReadinessSchema.safeParse({ status: "unavailable", reason: "x".repeat(513) }).success,
-  ).toBeFalse();
-  expect(EvaluationReadinessSchema.safeParse({ status: "running" }).success).toBeFalse();
+  ).toBe(false);
+  expect(EvaluationReadinessSchema.safeParse({ status: "running" }).success).toBe(false);
 });

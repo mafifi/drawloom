@@ -14,6 +14,7 @@ import { command } from "./dist/processes.js";
 import { createReceiptDispatcher } from "./dist/receipts.js";
 import { matchTaskHandlers } from "@drawloom/orchestration";
 import { z } from "zod";
+import { build as esbuild } from "esbuild";
 
 async function until(read, predicate) {
   for (let i = 0; i < 300; i++) {
@@ -157,14 +158,13 @@ if (!process.versions.bun) {
     const pkg = join(root, "packaged");
     await mkdir(pkg);
     // Bundles its own Zod copy; registration must accept trait-compatible schemas.
-    await command("bun", [
-      "build",
-      resolve("packages/orchestration/temporal-orchestration/fixtures/recovery.mjs"),
-      "--target",
-      "browser",
-      "--outfile",
-      join(pkg, "workflow.mjs"),
-    ]);
+    await esbuild({
+      entryPoints: [resolve("packages/orchestration/temporal-orchestration/fixtures/recovery.mjs")],
+      outfile: join(pkg, "workflow.mjs"),
+      bundle: true,
+      platform: "browser",
+      format: "esm",
+    });
     const original = await readFile(join(pkg, "workflow.mjs"), "utf8");
     const owner = {
       projectId: "project",
@@ -357,7 +357,7 @@ if (!process.versions.bun) {
     }
   });
 
-  test("Bun desktop client makes actual service requests with Node-only workers", {
+  test("desktop client makes actual service requests against Node-only workers", {
     skip: process.env.DRAWLOOM_TEMPORAL_TEST !== "1",
     timeout: 60000,
   }, async () => {

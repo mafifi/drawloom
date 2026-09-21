@@ -1,4 +1,4 @@
-import { expect, test, afterEach } from "bun:test";
+import { expect, test, afterEach } from "vitest";
 import { createDesktopAuthorization } from "../../../apps/desktop/host/authorization.js";
 const hosts: ReturnType<typeof createDesktopAuthorization>[] = [];
 const authority = () => {

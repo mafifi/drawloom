@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { sendLiveTurn, type LiveNativeMessage, type LiveSubmission } from "./learning-live-turn.js";
 
 const completed = (threadId: string, turnId: string): LiveNativeMessage => ({

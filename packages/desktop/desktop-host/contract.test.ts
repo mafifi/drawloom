@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import { OrchestrationReadinessSchema, registerTaskHandler } from "@drawloom/orchestration";
 import * as desktopHost from "./src/index.ts";

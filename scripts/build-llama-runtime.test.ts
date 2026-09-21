@@ -1,7 +1,12 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { once } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
+/** Bun exposed `child.exited`; Node signals completion with an "exit" event. */
+const exitCodeOf = async (child: ChildProcess): Promise<number> =>
+  (await once(child, "exit"))[0] as number;
 
 test("a failed worktree add never removes staging owned by another build", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-llama-build-race-"));
@@ -53,7 +58,7 @@ esac
 `,
     );
     await Promise.all([chmod(join(tools, "uname"), 0o700), chmod(join(tools, "git"), 0o700)]);
-    const process = Bun.spawn(["/bin/sh", join(repository, "scripts", "build-llama-runtime.sh")], {
+    const child = spawn("/bin/sh", [join(repository, "scripts", "build-llama-runtime.sh")], {
       env: {
         ...globalThis.process.env,
         PATH: `${tools}:/usr/bin:/bin`,
@@ -61,10 +66,8 @@ esac
         DRAWLOOM_LLAMA_SOURCE: source,
         DRAWLOOM_LLAMA_OUTPUT: join(root, "output"),
       },
-      stdout: "pipe",
-      stderr: "pipe",
     });
-    expect(await process.exited).not.toBe(0);
+    expect(await exitCodeOf(child)).not.toBe(0);
     expect(
       await readFile(
         join(repository, "dist", ".llama-source-2f539596c6e9a977e91b6bc6344650422c6bc3b0", "owner"),

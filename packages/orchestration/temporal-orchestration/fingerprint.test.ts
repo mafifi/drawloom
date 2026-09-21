@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { workflowFingerprint } from "./src/storage.js";
 
 test("workflow fingerprint binds executable bytes as well as a stable dependency closure", () => {

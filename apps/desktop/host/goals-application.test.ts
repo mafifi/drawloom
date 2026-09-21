@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -100,8 +100,16 @@ test("desktop native continuation has a fresh operation and retains its plan and
       },
     },
   });
-  const settle = async () => {
-    for (let i = 0; i < 15; i++) await new Promise((resolve) => setTimeout(resolve, 1));
+  /** Drain queued asynchronous work. Node and Bun schedule differently, so a
+   * fixed tick count is not a reliable barrier. Callers that depend on a
+   * specific outcome pass a predicate and this waits for it. */
+  const settle = async (until?: () => unknown) => {
+    const deadline = Date.now() + 10_000;
+    for (let i = 0; ; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      if (i >= 15 && (!until || (await until()))) return;
+      if (Date.now() > deadline) return;
+    }
   };
   try {
     await app.command({ kind: "add_project", directory: working });
@@ -153,7 +161,7 @@ test("desktop native continuation has a fresh operation and retains its plan and
         cwd: working,
       },
     });
-    await settle();
+    await settle(async () => (await app.snapshot()).approvals.length === 1);
     const next = await app.snapshot();
     expect(next.activeOperation).toBeDefined();
     if (!next.activeOperation) throw Error("Missing continuation operation");

@@ -1,4 +1,4 @@
-import { afterAll } from "bun:test";
+import { afterAll } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";

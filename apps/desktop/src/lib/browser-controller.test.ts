@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { BrowserController, type BrowserTransport } from "./browser-controller.js";
 
 test("failed reset refreshes native state without repeating the mutation", async () => {

@@ -1,16 +1,12 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { spawnSync } from "node:child_process";
 
-for (const runtime of ["bun", "node"]) {
-  test(`OTel host real context, privacy, loopback export and outage on ${runtime}`, () => {
-    const result = spawnSync(
-      runtime === "bun" ? process.execPath : "node",
-      [
-        runtime === "bun" ? "run" : "--experimental-strip-types",
-        new URL("./verify.ts", import.meta.url).pathname,
-      ],
-      { encoding: "utf8", timeout: 10000 },
-    );
-    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+// One runtime now ships, so there is one lane. This deliberately launches the
+// real Node executable against the source file rather than running inside Vite.
+test("OTel host real context, privacy, loopback export and outage", () => {
+  const result = spawnSync(process.execPath, [new URL("./verify.ts", import.meta.url).pathname], {
+    encoding: "utf8",
+    timeout: 10000,
   });
-}
+  expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+});

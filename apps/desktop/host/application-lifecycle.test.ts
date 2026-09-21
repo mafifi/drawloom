@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createApplicationLifecycle } from "./application-lifecycle.js";
 
 test("closing rejects new work and drains admitted work before releasing dependencies", async () => {

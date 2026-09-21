@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { operatorConformance } from "./src/conformance.js";
 import type { OperatorSnapshot } from "./src/index.js";
 

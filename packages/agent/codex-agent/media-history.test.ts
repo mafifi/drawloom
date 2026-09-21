@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { HistoryEntry, HistoryReadContext } from "@drawloom/conversation-history";
 import { createCodexHistoryReader, nativeMessageId } from "./src/history.js";
 

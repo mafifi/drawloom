@@ -12,12 +12,13 @@
   ],
   "exports": {
     ".": {
-      "bun": "./src/client.ts",
+      "drawloom-source": "./src/client.ts",
       "types": "./dist/client.d.ts",
       "import": "./dist/client.js"
     }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "test:node": "node --test runtime.node-check.ts semantic.node-check.ts"
   },
   "drawloom": {
@@ -37,6 +38,6 @@
     "@drawloom/authorization": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "catalog:node-runtime"
+    "@types/node": "catalog:"
   }
 }

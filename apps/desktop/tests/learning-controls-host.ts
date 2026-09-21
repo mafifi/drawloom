@@ -143,7 +143,7 @@ app = await createDesktopApplication(data, {
   orchestration: { manager: async () => fixture.manager },
 });
 await app.restore();
-const host = serveDesktop(app, resolve("apps/desktop/build"));
+const host = await serveDesktop(app, resolve("apps/desktop/build"));
 console.log(JSON.stringify({ root, url: host.url, origin: host.origin, pid: process.pid }));
 let stopping = false;
 for (const signal of ["SIGTERM", "SIGINT"] as const)

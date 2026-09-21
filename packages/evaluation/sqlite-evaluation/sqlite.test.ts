@@ -1,5 +1,5 @@
-import { afterEach, expect, test } from "bun:test";
-import { Database } from "bun:sqlite";
+import { afterEach, expect, test } from "vitest";
+import { DatabaseSync } from "node:sqlite";
 import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -80,8 +80,8 @@ test("uses the fixed filename, WAL, and restrictive directory/database/sidecar p
     expect(statSync(root).mode & 0o777).toBe(0o700);
     for (const path of [file(root), `${file(root)}-wal`, `${file(root)}-shm`])
       expect(statSync(path).mode & 0o777).toBe(0o600);
-    const inspect = new Database(file(root), { readonly: true });
-    expect(inspect.query("PRAGMA journal_mode").get()).toEqual({ journal_mode: "wal" });
+    const inspect = new DatabaseSync(file(root), { readOnly: true });
+    expect(inspect.prepare("PRAGMA journal_mode").get()).toEqual({ journal_mode: "wal" });
     inspect.close();
   } finally {
     await store.close();
@@ -91,8 +91,8 @@ test("uses the fixed filename, WAL, and restrictive directory/database/sidecar p
 test("reads a definition header without hydrating case payloads", async () => {
   const root = directory();
   const { store } = await prepared(root);
-  const inspect = new Database(file(root));
-  inspect.query("UPDATE evaluation_cases SET json=? WHERE case_id='case'").run("not-json");
+  const inspect = new DatabaseSync(file(root));
+  inspect.prepare("UPDATE evaluation_cases SET json=? WHERE case_id='case'").run("not-json");
   inspect.close();
   expect(await store.getDefinitionHeader({ id: "definition", revision: "r1" })).toMatchObject({
     id: "definition",
@@ -108,7 +108,7 @@ test("reads a definition header without hydrating case payloads", async () => {
 test("a real finding write failure rolls back the whole scorer checkpoint and preserves prior target evidence", async () => {
   const root = directory();
   const { store, target } = await prepared(root);
-  const setup = new Database(file(root));
+  const setup = new DatabaseSync(file(root));
   setup.exec(
     "CREATE TRIGGER reject_finding BEFORE INSERT ON evaluation_findings BEGIN SELECT RAISE(ABORT, 'test abort'); END;",
   );
@@ -155,13 +155,13 @@ test("a real finding write failure rolls back the whole scorer checkpoint and pr
       })
     )?.outcome,
   ).toBe("succeeded");
-  const inspect = new Database(file(root), { readonly: true });
-  expect(inspect.query("SELECT count(*) AS count FROM evaluation_findings").get()).toEqual({
+  const inspect = new DatabaseSync(file(root), { readOnly: true });
+  expect(inspect.prepare("SELECT count(*) AS count FROM evaluation_findings").get()).toEqual({
     count: 0,
   });
   expect(
     inspect
-      .query("SELECT count(*) AS count FROM evaluation_references WHERE owner_kind='finding'")
+      .prepare("SELECT count(*) AS count FROM evaluation_references WHERE owner_kind='finding'")
       .get(),
   ).toEqual({ count: 0 });
   inspect.close();
@@ -214,7 +214,7 @@ test("cases, checkpoints, findings, references, results, and feedback have separ
     rating: "correct",
     createdAtMs: 6,
   });
-  const inspect = new Database(file(root), { readonly: true });
+  const inspect = new DatabaseSync(file(root), { readOnly: true });
   for (const table of [
     "evaluation_cases",
     "evaluation_target_checkpoints",
@@ -223,8 +223,8 @@ test("cases, checkpoints, findings, references, results, and feedback have separ
     "evaluation_results",
     "evaluation_feedback",
   ])
-    expect(inspect.query(`SELECT count(*) AS count FROM ${table}`).get()).toEqual({ count: 1 });
-  expect(inspect.query("SELECT count(*) AS count FROM evaluation_references").get()).toEqual({
+    expect(inspect.prepare(`SELECT count(*) AS count FROM ${table}`).get()).toEqual({ count: 1 });
+  expect(inspect.prepare("SELECT count(*) AS count FROM evaluation_references").get()).toEqual({
     count: 3,
   });
   inspect.close();
@@ -234,7 +234,7 @@ test("cases, checkpoints, findings, references, results, and feedback have separ
 test("a newer database is rejected without changing bytes or permissions", () => {
   const root = directory();
   const path = file(root);
-  const setup = new Database(path);
+  const setup = new DatabaseSync(path);
   setup.exec(
     "CREATE TABLE sentinel(value TEXT); INSERT INTO sentinel VALUES ('keep'); PRAGMA user_version=2;",
   );
@@ -247,8 +247,8 @@ test("a newer database is rejected without changing bytes or permissions", () =>
   );
   expect(readFileSync(path)).toEqual(bytes);
   expect(statSync(path).mode).toBe(permissions);
-  const inspect = new Database(path, { readonly: true });
-  expect(inspect.query("SELECT value FROM sentinel").get()).toEqual({ value: "keep" });
+  const inspect = new DatabaseSync(path);
+  expect(inspect.prepare("SELECT value FROM sentinel").get()).toEqual({ value: "keep" });
   inspect.close();
 });
 
@@ -263,7 +263,7 @@ test("corrupt and damaged supported databases are refused without repair", async
   const damagedRoot = directory();
   const store = createSqliteEvaluationStore({ dataDirectory: damagedRoot, scope });
   await store.close();
-  const setup = new Database(file(damagedRoot));
+  const setup = new DatabaseSync(file(damagedRoot));
   setup.exec("DROP INDEX evaluation_results_page");
   setup.close();
   const damagedBytes = readFileSync(file(damagedRoot));
@@ -276,9 +276,9 @@ test("corrupt and damaged supported databases are refused without repair", async
 test("stored corruption returns a bounded provider error without exposing stored content", async () => {
   const root = directory();
   const { store } = await prepared(root);
-  const setup = new Database(file(root));
+  const setup = new DatabaseSync(file(root));
   setup
-    .query("UPDATE evaluation_definitions SET json=?")
+    .prepare("UPDATE evaluation_definitions SET json=?")
     .run(JSON.stringify({ private: "do-not-expose" }));
   setup.close();
   try {
@@ -296,7 +296,7 @@ test("filtered and unfiltered result and feedback keysets avoid temporary orderi
   const root = directory();
   const { store } = await prepared(root);
   await store.close();
-  const inspect = new Database(file(root), { readonly: true });
+  const inspect = new DatabaseSync(file(root), { readOnly: true });
   const plans = [
     {
       index: "evaluation_results_scope_page",
@@ -341,7 +341,7 @@ test("filtered and unfiltered result and feedback keysets avoid temporary orderi
   ] as const;
   for (const plan of plans) {
     const detail = (
-      inspect.query(`EXPLAIN QUERY PLAN ${plan.sql}`).all(...plan.args) as { detail: string }[]
+      inspect.prepare(`EXPLAIN QUERY PLAN ${plan.sql}`).all(...plan.args) as { detail: string }[]
     )
       .map((row) => row.detail)
       .join("\n");
@@ -384,7 +384,7 @@ test("definition summaries and selected-case writes do not hydrate unrelated cas
     settings: { repetitions: 1, concurrency: 2 },
     createdAtMs: 1,
   });
-  const setup = new Database(file(root));
+  const setup = new DatabaseSync(file(root));
   setup.exec(
     "UPDATE evaluation_cases SET json='not-json' WHERE case_id LIKE 'unrelated-%' AND (case_order % 2)=0; UPDATE evaluation_references SET json='not-json' WHERE owner_kind='case' AND json LIKE '%asset://unrelated-%';",
   );

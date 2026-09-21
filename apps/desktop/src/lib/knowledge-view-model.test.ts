@@ -1,18 +1,5 @@
-import { expect, test } from "bun:test";
-import { compileModule } from "svelte/compiler";
-Bun.plugin({
-  name: "knowledge-view-model-tests",
-  setup(build) {
-    build.onLoad({ filter: /knowledge-view-model\.svelte\.ts$/ }, async ({ path }) => ({
-      contents: compileModule(
-        new Bun.Transpiler({ loader: "ts" }).transformSync(await Bun.file(path).text()),
-        { filename: path, generate: "client" },
-      ).js.code,
-      loader: "js",
-    }));
-  },
-});
-const { createKnowledgeViewModel } = await import("./knowledge-view-model.svelte.js");
+import { expect, test } from "vitest";
+import { createKnowledgeViewModel } from "./knowledge-view-model.svelte.js";
 
 test("a provider without installation fields saves preference without granting disclosure", async () => {
   const scope = {

@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,6 +7,9 @@ import type { createLocalTemporalManager } from "@drawloom/temporal-orchestratio
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { createDesktopApplication } from "./application.js";
 import { createInstallationStore } from "./plugin-installations.js";
+import { serve } from "@hono/node-server";
+import { once } from "node:events";
+import type { AddressInfo } from "node:net";
 
 test("controllerless installed evaluation tasks run while protected tools remain denied", async () => {
   const base = await mkdtemp(join(tmpdir(), "drawloom-controllerless-evaluation-"));
@@ -15,7 +18,7 @@ test("controllerless installed evaluation tasks run while protected tools remain
   await mkdir(root);
   await mkdir(join(packageRoot, "org.drawloom"), { recursive: true });
   let remoteCalls = 0;
-  const remote = Bun.serve({
+  const remote = serve({
     hostname: "127.0.0.1",
     port: 0,
     async fetch(request) {
@@ -35,6 +38,8 @@ test("controllerless installed evaluation tasks run while protected tools remain
       return Response.json({ jsonrpc: "2.0", id: message.id, result });
     },
   });
+  await once(remote, "listening");
+  const remoteUrl = new URL(`http://127.0.0.1:${(remote.address() as AddressInfo).port}/`);
   const handlers = new Map<string, readonly RegisteredTaskHandler[]>();
   const manager: ReturnType<typeof createLocalTemporalManager> = {
     async prepare(owner) {
@@ -98,13 +103,15 @@ test("controllerless installed evaluation tasks run while protected tools remain
       join(packageRoot, "mcp.json"),
       JSON.stringify({
         $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-        mcpServers: { remote: { type: "streamable-http", url: remote.url.href } },
+        mcpServers: { remote: { type: "streamable-http", url: remoteUrl.href } },
       }),
     );
+    await mkdir(join(packageRoot, "org.drawloom"), { recursive: true });
     await writeFile(
       join(packageRoot, "org.drawloom", "workflows.mjs"),
       "export default {workflows:[],tasks:[]}",
     );
+    await mkdir(join(packageRoot, "org.drawloom"), { recursive: true });
     await writeFile(
       join(packageRoot, "org.drawloom", "backend.mjs"),
       `
@@ -163,7 +170,7 @@ test("controllerless installed evaluation tasks run while protected tools remain
       await app.close();
     }
   } finally {
-    remote.stop(true);
+    remote.close();
     await rm(base, { recursive: true, force: true });
   }
 });

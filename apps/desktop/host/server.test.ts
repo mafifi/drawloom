@@ -1,4 +1,5 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
+import { build as esbuild } from "esbuild";
 test("managed MOV export is authenticated, byte exact and offered as an attachment", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-mov-test-"));
   const bytes = new Uint8Array([0, 0, 0, 20, 102, 116, 121, 112, 113, 116, 32, 32]);
@@ -11,7 +12,7 @@ test("managed MOV export is authenticated, byte exact and offered as an attachme
   const content = (await app.snapshot()).operator.artifacts[0]!.content;
   if (content.kind !== "asset") throw Error("Expected registered media");
   const { key } = content.asset;
-  const server = serveDesktop(app, resolve("apps/desktop/build"));
+  const server = await serveDesktop(app, resolve("apps/desktop/build"));
   try {
     expect((await fetch(server.origin + "/api/assets/" + key)).status).toBe(401);
     const boot = await fetch(server.url, { redirect: "manual" });
@@ -34,7 +35,7 @@ test("managed JSON is authenticated, byte exact and always offered as a download
   });
   const content = (await app.snapshot()).operator.artifacts[0]!.content;
   if (content.kind !== "asset") throw Error("Expected managed JSON");
-  const server = serveDesktop(app, resolve("apps/desktop/build"));
+  const server = await serveDesktop(app, resolve("apps/desktop/build"));
   try {
     const boot = await fetch(server.url, { redirect: "manual" });
     const cookie = boot.headers.get("set-cookie")!.split(";")[0]!;
@@ -59,11 +60,17 @@ import { assetLibraryConformance } from "@drawloom/host/conformance";
 import { createDesktopAssets } from "./assets.js";
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { createInstallationStore } from "./plugin-installations.js";
+import { text as readText } from "node:stream/consumers";
+import { once } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
+/** Bun exposed `child.exited`; Node signals completion with an "exit" event. */
+const exitCodeOf = async (child: ChildProcess): Promise<number> =>
+  (await once(child, "exit"))[0] as number;
 test("cold native discovery may exceed the HTTP idle default without blocking state reads", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-slow-discovery-"));
   const app = await createDesktopApplication(root);
   const id = (await app.snapshot()).selectedId;
-  const server = serveDesktop(
+  const server = await serveDesktop(
     {
       ...app,
       async discover(...args) {
@@ -78,7 +85,8 @@ test("cold native discovery may exceed the HTTP idle default without blocking st
     const headers = { cookie: boot.headers.get("set-cookie")!.split(";")[0]! };
     const discovery = fetch(`${server.origin}/api/discovery?conversationId=${id}`, { headers });
     expect((await fetch(server.origin + "/api/state", { headers })).status).toBe(200);
-    expect((await discovery).status).toBe(200);
+    const discovered = await discovery;
+    expect(discovered.status, await discovered.clone().text()).toBe(200);
   } finally {
     await server.close();
   }
@@ -86,20 +94,16 @@ test("cold native discovery may exceed the HTTP idle default without blocking st
 async function installedMedia(root: string, mov = false, json = false) {
   const pkg = join(root, "media");
   await mkdir(join(pkg, "org.drawloom"), { recursive: true });
-  // Build in a separate process, as package producers do. Repeated in-process
-  // Bun 1.2 builds/imports of this graph corrupt the bundler's resolver cache.
-  const built = Bun.spawn(
-    [
-      process.execPath,
-      "build",
-      resolve(import.meta.dir, "media-backend.fixture.ts"),
-      "--target=bun",
-      "--outfile=" + join(pkg, "org.drawloom", "backend.mjs"),
-    ],
-    { stdout: "ignore", stderr: "pipe" },
-  );
-  const buildError = await new Response(built.stderr).text();
-  if (await built.exited) throw Error("Fixture build failed: " + buildError);
+  // Built the way a package producer builds a backend. The previous separate
+  // process existed only to dodge a Bun 1.2 resolver-cache bug on repeated
+  // in-process builds of this graph; esbuild has no such constraint.
+  await esbuild({
+    entryPoints: [resolve(import.meta.dirname, "media-backend.fixture.ts")],
+    outfile: join(pkg, "org.drawloom", "backend.mjs"),
+    bundle: true,
+    platform: "node",
+    format: "esm",
+  });
   await writeFile(
     join(pkg, "plugin.json"),
     JSON.stringify({
@@ -185,7 +189,7 @@ test("trusted large image registration does not raise the native image-input bou
 test("legacy JSON/base64 upload transport is refused without registering assets", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-upload-limit-test-"));
   const app = await createDesktopApplication(root);
-  const server = serveDesktop(app, resolve("apps/desktop/build"));
+  const server = await serveDesktop(app, resolve("apps/desktop/build"));
   try {
     const boot = await fetch(server.url, { redirect: "manual" });
     const cookie = boot.headers.get("set-cookie")!.split(";")[0]!;
@@ -208,7 +212,7 @@ test("legacy JSON/base64 upload transport is refused without registering assets"
 test("authenticated UI channel, durable revisions and no duplicate transcript", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-host-test-"));
   const app = await createDesktopApplication(root);
-  const server = serveDesktop(app, resolve("apps/desktop/build"));
+  const server = await serveDesktop(app, resolve("apps/desktop/build"));
   try {
     expect((await fetch(server.origin + "/api/state")).status).toBe(401);
     const boot = await fetch(server.url, { redirect: "manual" });
@@ -274,7 +278,7 @@ test("authenticated UI channel, durable revisions and no duplicate transcript", 
       "example.txt",
     );
     const file = await fetch(server.origin + "/api/assets/" + asset.key, { headers: { cookie } });
-    expect(file.headers.get("content-security-policy")).toStartWith("sandbox;");
+    expect(file.headers.get("content-security-policy").startsWith("sandbox;")).toBe(true);
     expect(
       (await fetch(server.origin + "/api/assets/..%2Foutside", { headers: { cookie } })).status,
     ).toBe(400);

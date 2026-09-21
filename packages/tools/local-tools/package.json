@@ -12,7 +12,7 @@
   ],
   "exports": {
     ".": {
-      "bun": "./src/index.ts",
+      "drawloom-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
@@ -26,5 +26,8 @@
     "zod": "catalog:",
     "@drawloom/tools": "workspace:*",
     "@drawloom/host": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
   }
 }

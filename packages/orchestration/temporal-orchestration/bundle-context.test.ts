@@ -1,7 +1,13 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { text as readText } from "node:stream/consumers";
+import { once } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
+/** Bun exposed `child.exited`; Node signals completion with an "exit" event. */
+const exitCodeOf = async (child: ChildProcess): Promise<number> =>
+  (await once(child, "exit"))[0] as number;
 
 async function compile(root: string, cwd: string, name: string) {
   const destination = join(root, `${name}.js`);
@@ -17,18 +23,18 @@ async function compile(root: string, cwd: string, name: string) {
       bundleContext: resolve("."),
     }),
   );
-  const child = Bun.spawn(
-    [
-      process.execPath,
-      resolve("packages/orchestration/temporal-orchestration/src/sidecar.ts"),
-      config,
-    ],
-    { cwd, stdout: "pipe", stderr: "pipe" },
+  // Launch the built sidecar, which is what the product spawns (src/index.ts
+  // resolves ../dist/sidecar.js). Running it under the real Node executable
+  // outside Vite is the point of this check, so it requires a prior build.
+  const child = spawn(
+    process.execPath,
+    [resolve("packages/orchestration/temporal-orchestration/dist/sidecar.js"), config],
+    { cwd },
   );
   const [code, stdout, stderr] = await Promise.all([
-    child.exited,
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
+    exitCodeOf(child),
+    readText(child.stdout!),
+    readText(child.stderr!),
   ]);
   expect(code, stderr).toBe(0);
   return {

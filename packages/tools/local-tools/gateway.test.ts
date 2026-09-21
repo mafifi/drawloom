@@ -1,5 +1,5 @@
 import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { z } from "zod";
 import { defineTool, type ToolDefinition } from "@drawloom/tools";
 import { toolConformance } from "@drawloom/tools/conformance";

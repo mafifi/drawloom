@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { AuthZenRequestSchema, AuthorizationResultSchema } from "./src/index.js";
 test("request byte bound counts UTF-8 and result rejects unknown affirmative fields", () => {
   const request = {

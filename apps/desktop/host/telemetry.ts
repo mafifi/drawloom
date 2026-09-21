@@ -75,6 +75,30 @@ export async function observed<T>(
   });
 }
 const rpcMethods = new Set([
+  // Knowledge worker methods. Names only: this set exists so a method is
+  // either a known constant or recorded as "other", never user content.
+  "knowledge.assess",
+  "knowledge.authorize",
+  "knowledge.close",
+  "knowledge.configure",
+  "knowledge.disclose",
+  "knowledge.download",
+  "knowledge.evidence",
+  "knowledge.expand",
+  "knowledge.export",
+  "knowledge.get",
+  "knowledge.index",
+  "knowledge.ingest",
+  "knowledge.maintenance.pending",
+  "knowledge.maintenance.publish",
+  "knowledge.maintenance.release",
+  "knowledge.maintenance.status",
+  "knowledge.prepare",
+  "knowledge.reconcile",
+  "knowledge.search",
+  "knowledge.sqlite",
+  "knowledge.status",
+  "knowledge.warmup",
   "initialize",
   "thread/start",
   "thread/resume",

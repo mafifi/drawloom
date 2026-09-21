@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { RpcMessage, RpcTransport } from "@drawloom/host";
 import {
   createLiveBudget,

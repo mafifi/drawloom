@@ -1,6 +1,7 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
+import { readFile } from "node:fs/promises";
 
-const source = async (name: string) => Bun.file(new URL(name, import.meta.url)).text();
+const source = async (name: string) => readFile(new URL(name, import.meta.url), "utf8");
 
 test("utility menu describes its actions without implying a user account", async () => {
   const sidebar = await source("./Sidebar.svelte");

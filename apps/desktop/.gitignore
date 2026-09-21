@@ -4,3 +4,4 @@
 /src-tauri/binaries/
 /src-tauri/gen/
 /.local/
+/.dev/

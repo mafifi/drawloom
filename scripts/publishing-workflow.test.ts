@@ -1,11 +1,17 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import { parse } from "yaml";
 import { mkdtempSync, mkdirSync, writeFileSync, renameSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { LOCAL_TEMPORAL_NODE_VERSION } from "../packages/orchestration/temporal-orchestration/src/runtime-version.js";
+import { LOCAL_TEMPORAL_NODE_VERSION } from "../packages/orchestration/temporal-orchestration/src/runtime-version.ts";
+import { text as readText } from "node:stream/consumers";
+import { once } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
+/** Bun exposed `child.exited`; Node signals completion with an "exit" event. */
+const exitCodeOf = async (child: ChildProcess): Promise<number> =>
+  (await once(child, "exit"))[0] as number;
 
 test("publication is callable only after the same-commit CI dependency succeeds", () => {
   const ci = parse(readFileSync(".github/workflows/ci.yml", "utf8"));
@@ -17,7 +23,7 @@ test("publication is callable only after the same-commit CI dependency succeeds"
   expect(ci.jobs.publish.if).toContain("needs.check.outputs.publish == 'true'");
   expect(ci.jobs.check.outputs.publish).toBe("${{ steps.publication.outputs.publish }}");
   const ciRuns = ci.jobs.check.steps.map((step: { run?: string }) => step.run).filter(Boolean);
-  expect(ciRuns.filter((run: string) => run === "bun run check:ci")).toHaveLength(1);
+  expect(ciRuns.filter((run: string) => run === "pnpm run check:ci")).toHaveLength(1);
   const learningRuns = ci.jobs["learning-integration"].steps
     .map((step: { run?: string }) => step.run)
     .filter(Boolean);
@@ -25,17 +31,17 @@ test("publication is callable only after the same-commit CI dependency succeeds"
     step.uses?.startsWith("actions/setup-node"),
   );
   expect(learningNode.with["node-version"]).toBe(LOCAL_TEMPORAL_NODE_VERSION);
-  expect(learningRuns).toContain("bun run test:temporal");
-  expect(learningRuns).toContain("bun run test:orchestration:learning");
+  expect(learningRuns).toContain("pnpm run test:temporal");
+  expect(learningRuns).toContain("pnpm run test:orchestration:learning");
   expect(
     learningRuns.some((run: string) => /check:ci|journal:build|journal:render/.test(run)),
   ).toBe(false);
   const publishRuns = publication.jobs.build.steps
     .map((step: { run?: string }) => step.run)
     .filter(Boolean);
-  expect(publishRuns).not.toContain("bun run check:ci");
-  expect(publishRuns).toContain("bun run journal:render:article");
-  expect(publishRuns).toContain("bun run journal:build");
+  expect(publishRuns).not.toContain("pnpm run check:ci");
+  expect(publishRuns).toContain("pnpm run journal:render:article");
+  expect(publishRuns).toContain("pnpm run journal:build");
   expect(publication.jobs.deploy.needs).toBe("build");
   expect(
     publication.jobs.build.steps.find((step: { uses?: string }) =>
@@ -103,20 +109,17 @@ test.each([
   { paths: ["README.md", "knowledge/evidence/result.md"], expected: "false" },
   { paths: ["publishing/site/src/pages/index.astro"], expected: "true" },
   { paths: ["packages/plugins/plugins/src/package.ts"], expected: "true" },
-  { paths: ["scripts/build-journal.ts", "bun.lock"], expected: "true" },
+  { paths: ["scripts/build-journal.ts", "pnpm-lock.yaml"], expected: "true" },
   { paths: [".github/workflows/ci.yml"], expected: "true" },
   { paths: ["scripts/publishing-scope.ts"], expected: "true" },
   { paths: ["unrelated/publishing/file.ts"], expected: "false" },
 ])("publication scope selects $paths -> $expected", async ({ paths, expected }) => {
-  const child = Bun.spawn(["bun", "scripts/publishing-scope.ts"], {
-    stdin: new Blob([paths.join("\0")]),
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  const child = spawn(process.execPath, ["scripts/publishing-scope.ts"]);
+  child.stdin!.end(paths.join("\0"));
   const [exit, stdout, stderr] = await Promise.all([
-    child.exited,
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
+    exitCodeOf(child),
+    readText(child.stdout!),
+    readText(child.stderr!),
   ]);
   expect(exit, stderr).toBe(0);
   expect(stdout).toBe(`publish=${expected}\n`);

@@ -1,8 +1,9 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createCodexAssessment } from "./src/index.js";
 import type { JsonStore, JsonValue, RpcMessage, RpcTransport } from "@drawloom/host";
 import type { AssessmentRequest, RecordRef, TrustedKnowledgeSubject } from "@drawloom/knowledge";
 import { knowledgeAssessmentConformance } from "@drawloom/knowledge/conformance";
+import { setTimeout as sleep } from "node:timers/promises";
 
 const subject = { type: "user", id: "owner", properties: {} } as TrustedKnowledgeSubject;
 const source = { type: "source" as const, origin: "public-test", id: "note", revision: "r1" };
@@ -541,13 +542,13 @@ test("cancellation does not wait behind a hung assessment or reauthorize submitt
   const f = fixture({ hangAt: "model/list" });
   try {
     const assessing = f.provider.assess(subject, request);
-    await Bun.sleep(1);
+    await sleep(1);
     const cancelled = await Promise.race([
       f.provider.cancel(subject, {
         requestId: request.requestId,
         payloadFingerprint: request.payloadFingerprint,
       }),
-      Bun.sleep(100).then(() => "timed-out" as const),
+      sleep(100).then(() => "timed-out" as const),
     ]);
     expect(cancelled).not.toBe("timed-out");
     if (cancelled !== "timed-out") expect(cancelled.kind).toBe("cancelled");
@@ -582,7 +583,7 @@ test("native intervention preserves uncertainty until native terminal evidence i
   try {
     expect((await f.provider.assess(subject, request)).kind).toBe("running");
     f.emit({ id: 7, method: "approval/request", params: {} });
-    await Bun.sleep(1);
+    await sleep(1);
     expect(
       [...f.saved.values()].some(
         (value) => (value as { outcome?: { kind: string } }).outcome?.kind === "uncertain",
@@ -641,7 +642,7 @@ test("native intervention preserves uncertainty until native terminal evidence i
 test("an operation shares one deadline across sequential provider requests", async () => {
   const f = fixture({
     handle: async (method) => {
-      if (method === "initialize" || method === "model/list") await Bun.sleep(14);
+      if (method === "initialize" || method === "model/list") await sleep(14);
     },
   });
   try {
@@ -701,7 +702,7 @@ test("late cancellation cannot overwrite a concurrently persisted completed outc
       payloadFingerprint: request.payloadFingerprint,
     };
     const cancelled = f.provider.cancel(subject, identity);
-    for (let i = 0; i < 10 && !release; i++) await Bun.sleep(1);
+    for (let i = 0; i < 10 && !release; i++) await sleep(1);
     expect((await f.provider.reconcile(subject, identity)).kind).toBe("completed");
     release?.({ data: [{ id: "native-turn", status: "inProgress" }], nextCursor: null });
     expect((await cancelled).kind).toBe("too_late");
@@ -731,7 +732,7 @@ test("a cancellation resumed after its authorization deadline cannot interrupt l
     expect((await f.provider.reconcile(subject, identity)).kind).toBe("completed");
     const closes = f.closed();
     release?.();
-    await Bun.sleep(1);
+    await sleep(1);
     expect(f.calls).not.toContain("turn/interrupt");
     expect(f.closed()).toBe(closes);
   } finally {
@@ -750,7 +751,7 @@ test("native intervention closes its exact transport even when receipt persisten
     await f.provider.assess(subject, request);
     stalled = true;
     f.emit({ id: 7, method: "approval/request", params: {} });
-    await Bun.sleep(1);
+    await sleep(1);
     expect(f.closed()).toBe(1);
   } finally {
     await f.provider.close();
@@ -766,7 +767,7 @@ test("shutdown closes a connection belonging to a later generation", async () =>
   });
   await f.provider.assess(subject, request);
   f.emit({ id: 7, method: "approval/request", params: {} });
-  await Bun.sleep(1);
+  await sleep(1);
   expect(
     (
       await f.provider.reconcile(subject, {
@@ -873,7 +874,7 @@ test("a delayed pre-submission RPC cannot submit after cancellation", async () =
   });
   try {
     const active = f.provider.assess(subject, request);
-    for (let i = 0; i < 10 && !release; i++) await Bun.sleep(1);
+    for (let i = 0; i < 10 && !release; i++) await sleep(1);
     await f.provider.cancel(subject, {
       requestId: request.requestId,
       payloadFingerprint: request.payloadFingerprint,

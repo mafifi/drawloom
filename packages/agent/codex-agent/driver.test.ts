@@ -1,5 +1,5 @@
 import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { agentConformance } from "../agent/src/conformance.js";
 import { agentGoalsConformance } from "@drawloom/agent/goals-conformance";
 import { createCodexDriver, createCodexToolBridge } from "./src/index.js";
@@ -621,7 +621,7 @@ test("opt-in dedicated fresh session archives only after terminal settlement", a
   second.value.signals();
   await second.value.execute({ operationId: "judge", text: "work" });
   await second.value.close();
-  expect(uncertain.requests.some((request) => request.method === "thread/archive")).toBeFalse();
+  expect(uncertain.requests.some((request) => request.method === "thread/archive")).toBe(false);
 });
 test("opt-in dedicated fresh session archives after exact native failure or interruption settlement", async () => {
   for (const status of ["failed", "interrupted"] as const) {

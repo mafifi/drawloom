@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { composerActions, delegationDraft } from "./composer-actions.js";
 
 test("browser navigation remains available while an agent is working", () => {

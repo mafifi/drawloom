@@ -1,5 +1,5 @@
 import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { createMcpToolServer } from "./src/index.js";
 import { defineTool } from "@drawloom/tools";
 import { createLocalToolGateway } from "../../tools/local-tools/src/index.js";
@@ -14,10 +14,12 @@ class FetchMcpTransport implements Transport {
   onerror?: (error: Error) => void;
   onmessage?: (message: JSONRPCMessage) => void;
 
-  constructor(
-    private readonly url: string,
-    private readonly token: string,
-  ) {}
+  private readonly url: string;
+  private readonly token: string;
+  constructor(url: string, token: string) {
+    this.url = url;
+    this.token = token;
+  }
 
   async start(): Promise<void> {}
 

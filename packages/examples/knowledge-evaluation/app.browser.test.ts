@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, test } from "vitest";
 import { access, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createServer as createHttpServer, type Server } from "node:http";
 import { homedir } from "node:os";
@@ -80,7 +80,7 @@ test.skipIf(process.env.DRAWLOOM_BROWSER_TEST !== "1")(
       throw new Error(
         "A local Chromium executable is required for the mounted Svelte regression test",
       );
-    const root = await mkdtemp(join(import.meta.dir, ".app-browser-"));
+    const root = await mkdtemp(join(import.meta.dirname, ".app-browser-"));
     temporary.push(root);
     await writeFile(
       join(root, "index.html"),
@@ -92,7 +92,7 @@ test.skipIf(process.env.DRAWLOOM_BROWSER_TEST !== "1")(
     import "@drawloom/ui/styles.css";
     import { mount } from "svelte";
     import { createEvaluationViewModel } from "@drawloom/evaluation-presentation";
-    import AppView from ${JSON.stringify(join(import.meta.dir, "src", "app", "App.svelte"))};
+    import AppView from ${JSON.stringify(join(import.meta.dirname, "src", "app", "App.svelte"))};
 
     let release;
     const loaded = new Promise(resolve => { release = resolve; });
@@ -303,7 +303,7 @@ test.skipIf(process.env.DRAWLOOM_BROWSER_TEST !== "1")(
       }),
     };
 
-    const root = await mkdtemp(join(import.meta.dir, ".app-browser-"));
+    const root = await mkdtemp(join(import.meta.dirname, ".app-browser-"));
     temporary.push(root);
     await writeFile(
       join(root, "index.html"),

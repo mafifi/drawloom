@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { createHistoryPager } from "./history-pager.js";
 const entry = (i: number) => ({
   id: String(i),

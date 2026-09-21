@@ -32,7 +32,7 @@ code that does the work behind that interface.
   the application, not throughout the code that uses it.
 - **Keep shared interfaces independent.** A package defining an interface must
   not import the implementation it describes.
-- **Separate code tied to a platform.** Keep Bun, Node.js, Cloudflare and Tauri
+- **Separate code tied to a platform.** Keep Node.js, Cloudflare and Tauri
   APIs out of packages intended to work across platforms. Put those calls in
   a platform-specific implementation behind an interface.
 - **Check incoming data before using it.** Use the validation rules defined
@@ -134,8 +134,11 @@ even when the code underneath is different.
   change affects.
 - **Test when things go wrong.** Include invalid input, denied access,
   cancellation, failure and recovery where relevant.
-- **Test the platforms you claim to support.** Passing under Bun does not prove
-  that the same code works under Node.js, Cloudflare or Tauri.
+- **Test the platforms you claim to support.** Passing in the Vitest suite,
+  which resolves workspace source, does not prove that the same code works from
+  published exports, inside a bundle, or under Cloudflare or Tauri. Some checks
+  must launch the real Node executable against built, packed or deployed
+  files.
 - **Measure claimed improvements.** Record the workload, environment and results.
   Do not assume that a design is faster, safer or more useful because it looks
   better on paper.
@@ -153,8 +156,8 @@ rather than a production deployment.
 
 Biome formats the maintained JavaScript, TypeScript, JSON and CSS sources in
 the application, packages, evaluation runners, publishing application and
-repository scripts. Run `bun run format` to update that baseline and
-`bun run check:format` to verify it; the latter also runs in `check:ci`.
+repository scripts. Run `pnpm run format` to update that baseline and
+`pnpm run check:format` to verify it; the latter also runs in `check:ci`.
 
 The baseline deliberately excludes raw research and historical evidence under
 `docs/`, `knowledge/`, `spikes/` and `LICENSES/`; generated, vendored and fixture
@@ -171,7 +174,7 @@ template formatter without maintainer approval and an equivalent content check.
 
 ### Check documentation structure and links
 
-`bun run check:docs` verifies that every architecture decision record uses the
+`pnpm run check:docs` verifies that every architecture decision record uses the
 house format from [the ADR template](docs/adr/0000-template.md) — Context,
 Decision, Alternatives considered, Evidence, Consequences, with a recognised
 status — and that every relative Markdown link in the repository resolves,
@@ -274,7 +277,7 @@ Keep the required copyright statements, licence texts and notices. Update the
 dependency inventory and attribution records together. Giving someone credit in
 the acknowledgements does not replace these requirements.
 
-Run `bun run check:licenses`, then inspect the actual runtime or archive we will
+Run `pnpm run check:licenses`, then inspect the actual runtime or archive we will
 distribute. The automated JavaScript check cannot check every native component.
 Report unresolved questions before describing a download as ready to distribute.
 
@@ -291,11 +294,11 @@ records the decision behind this policy.
 Use the pinned dependencies and run the repository checks from its root:
 
 ```sh
-bun install --frozen-lockfile
-bun run check:ci
+pnpm install --frozen-lockfile
+pnpm run check:ci
 ```
 
-Keep external dependency versions in the root Bun catalog, referenced by
+Keep external dependency versions in the root dependency catalog, referenced by
 `catalog:` in workspace packages. Internal packages use `workspace:*`.
 See the [dependency and package policy](docs/reference/dependency-policy.md).
 

@@ -66,7 +66,7 @@ await hostConformance(async () => {
   };
 });
 console.log(
-  "Node shared conformance: tools, synthetic agent, Codex agent, plugins, host passed; portable history schema/export smoke passed (SQLite remains Bun-only)",
+  "Node shared conformance: tools, synthetic agent, Codex agent, plugins, host passed; portable history schema/export smoke passed",
 );
 const repository = resolve(import.meta.dirname, "..");
 assertCompleteNodeCheckInventory(await discoverNodeChecks(repository), nodeCheckLanes);

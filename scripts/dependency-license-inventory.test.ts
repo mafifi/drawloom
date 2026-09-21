@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,13 +6,13 @@ import { join, resolve } from "node:path";
 import {
   KnownLlamaRuntime,
   KnownModelManifests,
-} from "../packages/knowledge/local-embeddings/src/manifest.js";
+} from "../packages/knowledge/local-embeddings/src/manifest.ts";
 
 test("inventory routes supported external artifacts to separate release review", () => {
-  const root = resolve(import.meta.dir, "..");
+  const root = resolve(import.meta.dirname, "..");
   const output = mkdtempSync(join(tmpdir(), "drawloom-license-inventory-"));
   try {
-    execFileSync("bun", ["run", "scripts/dependency-license-inventory.ts", "--offline"], {
+    execFileSync(process.execPath, ["scripts/dependency-license-inventory.ts", "--offline"], {
       cwd: root,
       env: { ...process.env, DRAWLOOM_LICENSE_INVENTORY_OUTPUT: output },
       stdio: "pipe",
@@ -23,9 +23,13 @@ test("inventory routes supported external artifacts to separate release review",
     const temporalBridge = inventory.npm.find(
       (item: { name: string }) => item.name === "@temporalio/core-bridge",
     );
-    expect(temporalBridge?.legalFiles).toContain(
-      "node_modules/@temporalio/core-bridge/sdk-core/LICENSE.txt",
-    );
+    // The vendored licence nested inside a native package must be discovered.
+    // The containing path is pnpm's to choose, so only the tail is asserted.
+    expect(
+      temporalBridge?.legalFiles.some((path: string) =>
+        path.endsWith("@temporalio/core-bridge/sdk-core/LICENSE.txt"),
+      ),
+    ).toBe(true);
     expect(inventory).not.toHaveProperty("python");
     expect(inventory.summary).not.toHaveProperty("python");
     expect(inventory.externalArtifacts).toEqual([

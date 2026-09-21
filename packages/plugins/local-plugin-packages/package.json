@@ -9,14 +9,14 @@
   ],
   "exports": {
     ".": {
-      "bun": "./src/index.ts",
+      "drawloom-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
   "drawloom": {
     "role": "provider",
-    "runtime": "bun"
+    "runtime": "node"
   },
   "dependencies": {
     "@drawloom/plugins": "workspace:*",
@@ -25,5 +25,13 @@
     "@opentelemetry/api": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@hono/node-server": "catalog:",
+    "@opentelemetry/sdk-trace-base": "catalog:",
+    "@opentelemetry/sdk-trace-node": "catalog:"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
   }
 }

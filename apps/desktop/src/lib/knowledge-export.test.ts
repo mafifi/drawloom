@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { parse } from "yaml";
 import { serializeKnowledgeExport } from "./knowledge-export.js";
 

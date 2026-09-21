@@ -27,3 +27,4 @@ docs/reference/evidence/generated/
 docs/reference/authorization-survey/*.html
 docs/reference/harness-workbench-survey/*.html
 docs/reference/knowledge-memory-survey/*.html
+.deploy/

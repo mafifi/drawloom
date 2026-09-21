@@ -8,9 +8,11 @@ export type RpcMessage = {
 };
 /** Protocol code only: provider error messages/data must not escape the transport. */
 export class RpcRequestError extends Error {
-  constructor(readonly code: number) {
+  readonly code: number;
+  constructor(code: number) {
     super("Provider request rejected");
     this.name = "RpcRequestError";
+    this.code = code;
   }
 }
 export interface RpcTransport {

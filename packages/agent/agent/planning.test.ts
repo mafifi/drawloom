@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { agentPlanningConformance } from "./src/planning-conformance.js";
 import { AgentOperationInputSchema, AgentSessionSignalSchema } from "./src/index.js";
 test("deterministic planning capability runs shared conformance, including unsupported", async () => {

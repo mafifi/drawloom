@@ -65,7 +65,7 @@ Exact check counts are retained in [verification-results.json](verification-resu
 The manifest records that all 15 upstream source checkouts were clean when
 captured. Future source refreshes can change that state; do not assume it.
 
-The canonical Drawloom `bun run check:ci` gate passed:
+The canonical Drawloom `pnpm run check:ci` gate passed:
 
 - Dependency and packed-package checks; 20 public packages built.
 - Svelte check: zero errors and warnings; desktop build completed.

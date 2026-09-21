@@ -195,7 +195,7 @@ not just successful clicks or hidden overflow.
 
 ## Final gates
 
-On 2026-09-10, frozen installation and `bun run check:ci` passed in both existing
+On 2026-09-10, frozen installation and `pnpm run check:ci` passed in both existing
 checkouts:
 
 - Public: 375 tests passed, 1,870 assertions, zero failures; Node shared

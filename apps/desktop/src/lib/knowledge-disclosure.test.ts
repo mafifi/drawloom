@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { presentKnowledgeDisclosure } from "./knowledge-disclosure.js";
 
 test("disclosure only claims use after confirmed delivery and labels reference-only evidence", () => {

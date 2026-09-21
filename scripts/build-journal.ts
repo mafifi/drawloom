@@ -7,20 +7,24 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { DrawloomPackageExtensionJsonSchema } from "../packages/plugins/plugins/src/package";
+import { DrawloomPackageExtensionJsonSchema } from "../packages/plugins/plugins/dist/package.js";
+import { once } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
+/** Bun exposed `child.exited`; Node signals completion with an "exit" event. */
+const exitCodeOf = async (child: ChildProcess): Promise<number> =>
+  (await once(child, "exit"))[0] as number;
 
-const root = resolve(import.meta.dir, "..");
-const output = resolve(Bun.env.JOURNAL_OUT_DIR || `${root}/publishing/site/dist`);
+const root = resolve(import.meta.dirname, "..");
+const output = resolve(process.env.JOURNAL_OUT_DIR || `${root}/publishing/site/dist`);
 // Preview is an explicit command flag. An inherited preview environment cannot
 // accidentally turn the default build into a draft publication.
-const preview = Bun.argv.includes("--drafts");
-const child = Bun.spawn(["bun", "x", "--no-install", "astro", "build"], {
+const preview = process.argv.includes("--drafts");
+const child = spawn("pnpm", ["exec", "astro", "build"], {
   cwd: `${root}/publishing/site`,
-  env: { ...Bun.env, JOURNAL_DRAFTS: preview ? "1" : "0", JOURNAL_OUT_DIR: output },
-  stdout: "inherit",
-  stderr: "inherit",
+  env: { ...process.env, JOURNAL_DRAFTS: preview ? "1" : "0", JOURNAL_OUT_DIR: output },
+  stdio: ["pipe", "inherit", "inherit"],
 });
-const status = await child.exited;
+const status = await exitCodeOf(child);
 if (status !== 0) process.exit(status);
 // Publish the contract-owned schema; package loading never consults the website.
 const schemaPath = resolve(output, "schemas/1.0.0/plugin-extension.schema.json");
@@ -28,7 +32,7 @@ mkdirSync(dirname(schemaPath), { recursive: true });
 writeFileSync(schemaPath, JSON.stringify(DrawloomPackageExtensionJsonSchema, null, 2) + "\n");
 // Stage only media actually referenced by emitted HTML, after Astro has cleaned
 // its output. Draft render output never lives in Astro's public directory.
-const generated = resolve(Bun.env.JOURNAL_MEDIA_DIR || `${root}/publishing/.generated/media`);
+const generated = resolve(process.env.JOURNAL_MEDIA_DIR || `${root}/publishing/.generated/media`);
 for (const file of readdirSync(output, { recursive: true })
   .map(String)
   .filter((file) => file.endsWith(".html"))) {

@@ -9,7 +9,7 @@ and the repository's [Apache-2.0 licence](LICENSE).
 
 | Project | Contribution to Drawloom |
 | --- | --- |
-| [Bun](https://bun.sh), [Node.js](https://nodejs.org), [TypeScript](https://www.typescriptlang.org) | Toolchain and application/runtime foundations |
+| [Node.js](https://nodejs.org), [pnpm](https://pnpm.io), [TypeScript](https://www.typescriptlang.org) | Toolchain and application/runtime foundations |
 | [Svelte](https://svelte.dev), [shadcn-svelte](https://shadcn-svelte.com), [Bits UI](https://bits-ui.com), [Tailwind CSS](https://tailwindcss.com), [Lucide](https://lucide.dev) | Accessible presentation, components, styling and iconography |
 | [Tauri](https://tauri.app) | Native desktop shell |
 | [Zod](https://zod.dev) | Validated boundary schemas |

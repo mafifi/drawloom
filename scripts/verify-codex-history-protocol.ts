@@ -2,18 +2,20 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
+import { spawnSync } from "node:child_process";
 
 // Explicit local compatibility check, separate from portable/public CI.
 const root = await mkdtemp(join(tmpdir(), "drawloom-installed-history-protocol-"));
 try {
-  const version = Bun.spawnSync(["codex", "--version"], { stdout: "pipe", stderr: "pipe" });
-  if (version.exitCode !== 0)
+  const version = spawnSync("codex", ["--version"], {});
+  if (version.status !== 0)
     throw Error("Install Codex before running this optional protocol check.");
-  const generated = Bun.spawnSync(
-    ["codex", "app-server", "generate-json-schema", "--experimental", "--out", root],
-    { stdout: "pipe", stderr: "pipe" },
+  const generated = spawnSync(
+    "codex",
+    ["app-server", "generate-json-schema", "--experimental", "--out", root],
+    {},
   );
-  if (generated.exitCode !== 0)
+  if (generated.status !== 0)
     throw Error("Installed Codex could not generate its protocol schema.");
   const object = z.object({ properties: z.record(z.string(), z.unknown()) });
   const document = async (name: string) =>

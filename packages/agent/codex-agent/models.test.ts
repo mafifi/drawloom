@@ -1,5 +1,5 @@
-import { test, expect } from "bun:test";
-import { readCodexModels, permitsModel } from "./src/models";
+import { test, expect } from "vitest";
+import { readCodexModels, permitsModel } from "./src/models.ts";
 test("model inventory is bounded metadata and validates reasoning", async () => {
   const calls: string[] = [];
   const models = await readCodexModels({

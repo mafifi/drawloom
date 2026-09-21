@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite";
+import { DatabaseSync } from "node:sqlite";
 import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -47,6 +47,22 @@ import {
   type TargetCheckpoint,
   type VersionedReference,
 } from "@drawloom/evaluation";
+
+/** The house transaction pattern: explicit BEGIN IMMEDIATE / COMMIT / ROLLBACK,
+ * matching packages/knowledge/sqlite-knowledge. `node:sqlite` has no transaction
+ * wrapper, and IMMEDIATE takes the write lock up front so a conflicting writer
+ * fails at BEGIN rather than part-way through. */
+const transaction = <T>(db: DatabaseSync, operation: () => T): T => {
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const result = operation();
+    db.exec("COMMIT");
+    return result;
+  } catch (cause) {
+    db.exec("ROLLBACK");
+    throw cause;
+  }
+};
 
 const SCHEMA_VERSION = 1;
 const DEFAULT_LIMIT = 50;
@@ -168,15 +184,16 @@ function ownerId(parts: readonly unknown[]): string {
 }
 
 function inspect(path: string): { version: number; generation?: string } {
-  let db: Database;
+  let db: DatabaseSync;
   try {
-    db = new Database(path, { readonly: true, strict: true });
+    db = new DatabaseSync(path, { readOnly: true });
   } catch {
     throw unavailable("Evaluation database could not be inspected");
   }
   try {
     const version = Number(
-      (db.query("PRAGMA user_version").get() as { user_version: number } | null)?.user_version ?? 0,
+      (db.prepare("PRAGMA user_version").get() as { user_version: number } | null)?.user_version ??
+        0,
     );
     if (!Number.isSafeInteger(version) || version < 0) throw Error("Invalid schema version");
     if (version > SCHEMA_VERSION)
@@ -185,20 +202,20 @@ function inspect(path: string): { version: number; generation?: string } {
         "Evaluation schema is newer than this provider supports",
       );
     const applicationTables = db
-      .query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
       .all() as { name: string }[];
     if (version === 0) {
       if (applicationTables.length) throw Error("Unrecognized evaluation schema");
       return { version };
     }
     for (const [name, expected] of Object.entries(schema)) {
-      const row = db.query("SELECT sql FROM sqlite_master WHERE name=?").get(name) as {
+      const row = db.prepare("SELECT sql FROM sqlite_master WHERE name=?").get(name) as {
         sql: string;
       } | null;
       if (!row || normalizeSql(row.sql) !== normalizeSql(expected))
         throw Error("Invalid evaluation schema");
     }
-    const meta = db.query("SELECT value FROM evaluation_meta WHERE key='generation'").get() as {
+    const meta = db.prepare("SELECT value FROM evaluation_meta WHERE key='generation'").get() as {
       value: string;
     } | null;
     if (!meta || !/^[a-f0-9-]{36}$/.test(meta.value)) throw Error("Invalid evaluation metadata");
@@ -231,9 +248,9 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
   const existed = existsSync(path);
   if (!existed) mkdirSync(options.dataDirectory, { recursive: true, mode: 0o700 });
   const inspected = existed ? inspect(path) : { version: 0 };
-  let db: Database;
+  let db: DatabaseSync;
   try {
-    db = new Database(path, { create: true, strict: true });
+    db = new DatabaseSync(path);
   } catch {
     throw unavailable("Evaluation database could not be opened");
   }
@@ -242,13 +259,13 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
     chmodSync(path, 0o600);
     db.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA foreign_keys = ON;");
     if (inspected.version === 0)
-      db.transaction(() => {
+      transaction(db, () => {
         for (const sql of Object.values(schema)) db.exec(sql);
-        db.query("INSERT INTO evaluation_meta(key,value) VALUES ('generation',?)").run(
+        db.prepare("INSERT INTO evaluation_meta(key,value) VALUES ('generation',?)").run(
           randomUUID(),
         );
         db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
-      })();
+      });
   } catch (error) {
     db.close();
     if (error instanceof EvaluationStoreError) throw error;
@@ -258,7 +275,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
     inspected.generation ??
     String(
       (
-        db.query("SELECT value FROM evaluation_meta WHERE key='generation'").get() as {
+        db.prepare("SELECT value FROM evaluation_meta WHERE key='generation'").get() as {
           value: string;
         }
       ).value,
@@ -276,7 +293,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
 
   const references = (kind: string, id: string) => {
     const rows = db
-      .query(
+      .prepare(
         "SELECT json FROM evaluation_references WHERE installation_id=? AND project_id=? AND owner_kind=? AND owner_id=? ORDER BY reference_order",
       )
       .all(...scopeArgs, kind, id) as JsonRow[];
@@ -286,7 +303,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
   };
   const insertReferences = (kind: string, id: string, values: readonly unknown[]) => {
     for (const [index, value] of values.entries())
-      db.query(
+      db.prepare(
         "INSERT INTO evaluation_references(installation_id,project_id,owner_kind,owner_id,reference_order,json) VALUES (?,?,?,?,?,?)",
       ).run(...scopeArgs, kind, id, index, canonical(value));
   };
@@ -297,7 +314,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
 
   const readCase = (ref: VersionedReference, caseId: string): EvaluationCase | undefined => {
     const row = db
-      .query(
+      .prepare(
         "SELECT json FROM evaluation_cases WHERE installation_id=? AND project_id=? AND definition_id=? AND definition_revision=? AND case_id=?",
       )
       .get(...scopeArgs, ref.id, ref.revision, caseId) as JsonRow | null;
@@ -317,7 +334,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
     ref: VersionedReference,
   ): EvaluationDefinitionHeader | undefined => {
     const row = db
-      .query(
+      .prepare(
         "SELECT json FROM evaluation_definitions WHERE installation_id=? AND project_id=? AND id=? AND revision=?",
       )
       .get(...scopeArgs, ref.id, ref.revision) as JsonRow | null;
@@ -333,7 +350,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
     const content = readDefinitionHeader(ref);
     if (!content) return undefined;
     const ids = db
-      .query(
+      .prepare(
         "SELECT case_id FROM evaluation_cases WHERE installation_id=? AND project_id=? AND definition_id=? AND definition_revision=? ORDER BY case_order",
       )
       .all(...scopeArgs, ref.id, ref.revision) as { case_id: string }[];
@@ -348,7 +365,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
   };
   const readRun = (runId: string): EvaluationRun | undefined => {
     const row = db
-      .query(
+      .prepare(
         "SELECT json FROM evaluation_runs WHERE installation_id=? AND project_id=? AND run_id=?",
       )
       .get(...scopeArgs, runId) as JsonRow | null;
@@ -358,7 +375,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
   };
   const readStartAttempt = (evaluationRunId: string): EvaluationStartAttempt | undefined => {
     const row = db
-      .query(
+      .prepare(
         "SELECT json FROM evaluation_start_attempts WHERE installation_id=? AND project_id=? AND evaluation_run_id=?",
       )
       .get(...scopeArgs, evaluationRunId) as JsonRow | null;
@@ -374,7 +391,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
     evaluationRunId: string,
   ): EvaluationOrchestrationBinding | undefined => {
     const row = db
-      .query(
+      .prepare(
         "SELECT json FROM evaluation_orchestration_bindings WHERE installation_id=? AND project_id=? AND evaluation_run_id=?",
       )
       .get(...scopeArgs, evaluationRunId) as JsonRow | null;
@@ -388,7 +405,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
   };
   const readTarget = (selector: CheckpointSelector): TargetCheckpoint | undefined => {
     const row = db
-      .query(
+      .prepare(
         "SELECT json FROM evaluation_target_checkpoints WHERE installation_id=? AND project_id=? AND invocation_id=? AND run_id=? AND case_id=? AND case_revision=? AND trial=?",
       )
       .get(
@@ -409,7 +426,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
   };
   const readScorer = (selector: CheckpointSelector): ScorerCheckpoint | undefined => {
     const row = db
-      .query(
+      .prepare(
         "SELECT json FROM evaluation_scorer_checkpoints WHERE installation_id=? AND project_id=? AND invocation_id=? AND run_id=? AND case_id=? AND case_revision=? AND trial=?",
       )
       .get(
@@ -423,7 +440,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
     if (!row) return undefined;
     const content = storedObject(row.json, "Stored scorer checkpoint is invalid");
     const rows = db
-      .query(
+      .prepare(
         "SELECT finding_id,json FROM evaluation_findings WHERE installation_id=? AND project_id=? AND invocation_id=? ORDER BY finding_order",
       )
       .all(...scopeArgs, selector.invocationId) as { finding_id: string; json: string }[];
@@ -457,7 +474,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
     });
   const readResult = (resultId: string): EvaluationResultView | undefined => {
     const row = db
-      .query(
+      .prepare(
         "SELECT json FROM evaluation_results WHERE installation_id=? AND project_id=? AND result_id=?",
       )
       .get(...scopeArgs, resultId) as JsonRow | null;
@@ -493,7 +510,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
   };
   const readResultSummary = (resultId: string) => {
     const row = db
-      .query(
+      .prepare(
         "SELECT json,finding_count FROM evaluation_results WHERE installation_id=? AND project_id=? AND result_id=?",
       )
       .get(...scopeArgs, resultId) as (JsonRow & { finding_count: number }) | null;
@@ -561,7 +578,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
   const write = <T>(operation: () => T): T => {
     available();
     try {
-      return db.transaction(operation)();
+      return transaction(db, operation);
     } catch (error) {
       if (error instanceof EvaluationStoreError) throw error;
       throw unavailable("Evaluation write failed");
@@ -597,7 +614,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
       const value = parse(EvaluationDefinitionSchema, input, "Invalid evaluation definition");
       return write(() => {
         const existing = db
-          .query(
+          .prepare(
             "SELECT fingerprint FROM evaluation_definitions WHERE installation_id=? AND project_id=? AND id=? AND revision=?",
           )
           .get(...scopeArgs, value.id, value.revision) as { fingerprint: string } | null;
@@ -610,12 +627,12 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
           );
         }
         const { cases, ...content } = value;
-        db.query(
+        db.prepare(
           "INSERT INTO evaluation_definitions(installation_id,project_id,id,revision,json,fingerprint) VALUES (?,?,?,?,?,?)",
         ).run(...scopeArgs, value.id, value.revision, canonical(content), fingerprint);
         for (const [index, item] of cases.entries()) {
           const { references: caseReferences, ...caseContent } = item;
-          db.query(
+          db.prepare(
             "INSERT INTO evaluation_cases(installation_id,project_id,definition_id,definition_revision,case_id,case_revision,case_order,json) VALUES (?,?,?,?,?,?,?,?)",
           ).run(
             ...scopeArgs,
@@ -657,12 +674,12 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
       const rows = (
         before === undefined
           ? db
-              .query(
+              .prepare(
                 "SELECT sequence,id,revision,json FROM evaluation_definitions WHERE installation_id=? AND project_id=? ORDER BY sequence DESC LIMIT ?",
               )
               .all(...scopeArgs, limit + 1)
           : db
-              .query(
+              .prepare(
                 "SELECT sequence,id,revision,json FROM evaluation_definitions WHERE installation_id=? AND project_id=? AND sequence<? ORDER BY sequence DESC LIMIT ?",
               )
               .all(...scopeArgs, before, limit + 1)
@@ -674,7 +691,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
         const caseCount = Number(
           (
             db
-              .query(
+              .prepare(
                 "SELECT count(*) AS count FROM evaluation_cases WHERE installation_id=? AND project_id=? AND definition_id=? AND definition_revision=?",
               )
               .get(...scopeArgs, row.id, row.revision) as { count: number }
@@ -698,13 +715,13 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
       const value = parse(EvaluationRunSchema, input, "Invalid evaluation run");
       return write(() => {
         const existing = db
-          .query(
+          .prepare(
             "SELECT json FROM evaluation_runs WHERE installation_id=? AND project_id=? AND run_id=?",
           )
           .get(...scopeArgs, value.id) as JsonRow | null;
         if (existing) return exact(existing.json, value);
         const request = db
-          .query(
+          .prepare(
             "SELECT run_id FROM evaluation_runs WHERE installation_id=? AND project_id=? AND request_id=?",
           )
           .get(...scopeArgs, value.requestId) as { run_id: string } | null;
@@ -715,7 +732,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
           );
         if (!readDefinitionHeader(value.definition))
           throw new EvaluationStoreError("not_found", "Evaluation definition was not found");
-        db.query(
+        db.prepare(
           "INSERT INTO evaluation_runs(installation_id,project_id,run_id,request_id,definition_id,definition_revision,json) VALUES (?,?,?,?,?,?,?)",
         ).run(
           ...scopeArgs,
@@ -737,14 +754,14 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
       const value = parse(EvaluationStartAttemptSchema, input, "Invalid evaluation start attempt");
       return write(() => {
         const existing = db
-          .query(
+          .prepare(
             "SELECT json FROM evaluation_start_attempts WHERE installation_id=? AND project_id=? AND evaluation_run_id=?",
           )
           .get(...scopeArgs, value.evaluationRunId) as JsonRow | null;
         if (existing) return exact(existing.json, value);
         if (!readRun(value.evaluationRunId))
           throw new EvaluationStoreError("not_found", "Evaluation run was not found");
-        db.query(
+        db.prepare(
           "INSERT INTO evaluation_start_attempts(installation_id,project_id,evaluation_run_id,json) VALUES (?,?,?,?)",
         ).run(...scopeArgs, value.evaluationRunId, canonical(value));
         return { kind: "accepted" };
@@ -763,7 +780,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
       );
       return write(() => {
         const existing = db
-          .query(
+          .prepare(
             "SELECT json FROM evaluation_orchestration_bindings WHERE installation_id=? AND project_id=? AND evaluation_run_id=?",
           )
           .get(...scopeArgs, value.evaluationRunId) as JsonRow | null;
@@ -771,7 +788,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
         if (!readRun(value.evaluationRunId))
           throw new EvaluationStoreError("not_found", "Evaluation run was not found");
         const providerRun = db
-          .query(
+          .prepare(
             "SELECT evaluation_run_id FROM evaluation_orchestration_bindings WHERE installation_id=? AND project_id=? AND orchestration_run_id=?",
           )
           .get(...scopeArgs, value.orchestrationRunId) as { evaluation_run_id: string } | null;
@@ -780,7 +797,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
             "conflict",
             "Orchestration run is already bound to another evaluation run",
           );
-        db.query(
+        db.prepare(
           "INSERT INTO evaluation_orchestration_bindings(installation_id,project_id,evaluation_run_id,orchestration_run_id,json) VALUES (?,?,?,?,?)",
         ).run(...scopeArgs, value.evaluationRunId, value.orchestrationRunId, canonical(value));
         return { kind: "accepted" };
@@ -799,12 +816,12 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
       const rows = (
         before === undefined
           ? db
-              .query(
+              .prepare(
                 "SELECT sequence,json FROM evaluation_runs WHERE installation_id=? AND project_id=? ORDER BY sequence DESC LIMIT ?",
               )
               .all(...scopeArgs, limit + 1)
           : db
-              .query(
+              .prepare(
                 "SELECT sequence,json FROM evaluation_runs WHERE installation_id=? AND project_id=? AND sequence<? ORDER BY sequence DESC LIMIT ?",
               )
               .all(...scopeArgs, before, limit + 1)
@@ -822,7 +839,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
       const value = parse(TargetCheckpointSchema, input, "Invalid target checkpoint");
       return write(() => {
         const existing = db
-          .query(
+          .prepare(
             "SELECT json FROM evaluation_target_checkpoints WHERE installation_id=? AND project_id=? AND invocation_id=?",
           )
           .get(...scopeArgs, value.invocationId) as JsonRow | null;
@@ -841,7 +858,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
             : exact(existing.json, value);
         }
         const logical = db
-          .query(
+          .prepare(
             "SELECT invocation_id FROM evaluation_target_checkpoints WHERE installation_id=? AND project_id=? AND run_id=? AND case_id=? AND case_revision=? AND trial=?",
           )
           .get(...scopeArgs, value.runId, value.caseId, value.caseRevision, value.trial) as {
@@ -859,7 +876,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
           definition.target.revision !== value.target.revision
         )
           throw new EvaluationStoreError("conflict", "Target does not match the run definition");
-        db.query(
+        db.prepare(
           "INSERT INTO evaluation_target_checkpoints(installation_id,project_id,invocation_id,run_id,case_id,case_revision,trial,json) VALUES (?,?,?,?,?,?,?,?)",
         ).run(
           ...scopeArgs,
@@ -883,7 +900,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
       const value = parse(ScorerCheckpointSchema, input, "Invalid scorer checkpoint");
       return write(() => {
         const existing = db
-          .query(
+          .prepare(
             "SELECT json FROM evaluation_scorer_checkpoints WHERE installation_id=? AND project_id=? AND invocation_id=?",
           )
           .get(...scopeArgs, value.invocationId) as JsonRow | null;
@@ -900,7 +917,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
             : exact(existing.json, value);
         }
         const logical = db
-          .query(
+          .prepare(
             "SELECT invocation_id FROM evaluation_scorer_checkpoints WHERE installation_id=? AND project_id=? AND run_id=? AND case_id=? AND case_revision=? AND trial=? AND scorer_id=? AND scorer_revision=?",
           )
           .get(
@@ -925,7 +942,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
         )
           throw new EvaluationStoreError("conflict", "Scorer does not match the run definition");
         const { findings, ...content } = value;
-        db.query(
+        db.prepare(
           "INSERT INTO evaluation_scorer_checkpoints(installation_id,project_id,invocation_id,run_id,case_id,case_revision,trial,scorer_id,scorer_revision,json) VALUES (?,?,?,?,?,?,?,?,?,?)",
         ).run(
           ...scopeArgs,
@@ -940,7 +957,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
         );
         for (const [index, finding] of findings.entries()) {
           const { references: findingReferences, ...findingContent } = finding;
-          db.query(
+          db.prepare(
             "INSERT INTO evaluation_findings(installation_id,project_id,invocation_id,finding_id,finding_order,json) VALUES (?,?,?,?,?,?)",
           ).run(...scopeArgs, value.invocationId, finding.id, index, canonical(findingContent));
           insertReferences(
@@ -961,13 +978,13 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
       const value = parse(EvaluationResultRecordSchema, input, "Invalid evaluation result");
       return write(() => {
         const existing = db
-          .query(
+          .prepare(
             "SELECT json FROM evaluation_results WHERE installation_id=? AND project_id=? AND result_id=?",
           )
           .get(...scopeArgs, value.id) as JsonRow | null;
         if (existing) return exact(existing.json, value);
         const logical = db
-          .query(
+          .prepare(
             "SELECT result_id FROM evaluation_results WHERE installation_id=? AND project_id=? AND run_id=? AND case_id=? AND case_revision=? AND trial=?",
           )
           .get(...scopeArgs, value.runId, value.caseId, value.caseRevision, value.trial) as {
@@ -998,7 +1015,7 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
           (total, item) => total + item.findings.length,
           0,
         );
-        db.query(
+        db.prepare(
           "INSERT INTO evaluation_results(installation_id,project_id,result_id,run_id,case_id,case_revision,trial,json,finding_count) VALUES (?,?,?,?,?,?,?,?,?)",
         ).run(
           ...scopeArgs,
@@ -1036,12 +1053,12 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
         rows = (
           before === undefined
             ? db
-                .query(
+                .prepare(
                   "SELECT sequence,json,finding_count FROM evaluation_results WHERE installation_id=? AND project_id=? ORDER BY sequence DESC LIMIT ?",
                 )
                 .all(...scopeArgs, limit + 1)
             : db
-                .query(
+                .prepare(
                   "SELECT sequence,json,finding_count FROM evaluation_results WHERE installation_id=? AND project_id=? AND sequence<? ORDER BY sequence DESC LIMIT ?",
                 )
                 .all(...scopeArgs, before, limit + 1)
@@ -1050,12 +1067,12 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
         rows = (
           before === undefined
             ? db
-                .query(
+                .prepare(
                   "SELECT sequence,json,finding_count FROM evaluation_results WHERE installation_id=? AND project_id=? AND run_id=? ORDER BY sequence DESC LIMIT ?",
                 )
                 .all(...scopeArgs, filter, limit + 1)
             : db
-                .query(
+                .prepare(
                   "SELECT sequence,json,finding_count FROM evaluation_results WHERE installation_id=? AND project_id=? AND run_id=? AND sequence<? ORDER BY sequence DESC LIMIT ?",
                 )
                 .all(...scopeArgs, filter, before, limit + 1)
@@ -1085,19 +1102,19 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
       const value = parse(EvaluationFeedbackSchema, input, "Invalid evaluation feedback");
       return write(() => {
         const existing = db
-          .query(
+          .prepare(
             "SELECT json FROM evaluation_feedback WHERE installation_id=? AND project_id=? AND feedback_id=?",
           )
           .get(...scopeArgs, value.id) as JsonRow | null;
         if (existing) return exact(existing.json, value);
         const result = db
-          .query(
+          .prepare(
             "SELECT result_id FROM evaluation_results WHERE installation_id=? AND project_id=? AND result_id=?",
           )
           .get(...scopeArgs, value.resultId) as { result_id: string } | null;
         if (!result)
           throw new EvaluationStoreError("not_found", "Evaluation feedback result was not found");
-        db.query(
+        db.prepare(
           "INSERT INTO evaluation_feedback(installation_id,project_id,feedback_id,result_id,json) VALUES (?,?,?,?,?)",
         ).run(...scopeArgs, value.id, value.resultId, canonical(value));
         return { kind: "accepted" };
@@ -1116,12 +1133,12 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
         rows = (
           before === undefined
             ? db
-                .query(
+                .prepare(
                   "SELECT sequence,json FROM evaluation_feedback WHERE installation_id=? AND project_id=? ORDER BY sequence DESC LIMIT ?",
                 )
                 .all(...scopeArgs, limit + 1)
             : db
-                .query(
+                .prepare(
                   "SELECT sequence,json FROM evaluation_feedback WHERE installation_id=? AND project_id=? AND sequence<? ORDER BY sequence DESC LIMIT ?",
                 )
                 .all(...scopeArgs, before, limit + 1)
@@ -1130,12 +1147,12 @@ export function createSqliteEvaluationStore(options: SqliteEvaluationOptions): E
         rows = (
           before === undefined
             ? db
-                .query(
+                .prepare(
                   "SELECT sequence,json FROM evaluation_feedback WHERE installation_id=? AND project_id=? AND result_id=? ORDER BY sequence DESC LIMIT ?",
                 )
                 .all(...scopeArgs, filter, limit + 1)
             : db
-                .query(
+                .prepare(
                   "SELECT sequence,json FROM evaluation_feedback WHERE installation_id=? AND project_id=? AND result_id=? AND sequence<? ORDER BY sequence DESC LIMIT ?",
                 )
                 .all(...scopeArgs, filter, before, limit + 1)

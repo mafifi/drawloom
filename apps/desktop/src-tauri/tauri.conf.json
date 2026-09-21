@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "identifier": "org.drawloom.desktop",
   "build": {
-    "beforeBuildCommand": "bun run bundle:icon && bun run build && bun run bundle:host",
+    "beforeBuildCommand": "pnpm run bundle:icon && pnpm run build && pnpm run bundle:host",
     "frontendDist": "../build"
   },
   "app": {
@@ -22,10 +22,14 @@
     "resources": {
       "icons/Assets.car": "Assets.car",
       "../build/": "web/",
-      "binaries/drawloom-host": "host/drawloom-host",
+      "binaries/host/": "host/",
       "binaries/orchestration/": "orchestration/",
       "binaries/knowledge/": "knowledge/"
     },
-    "macOS": { "minimumSystemVersion": "14.0", "infoPlist": "Info.plist" }
+    "macOS": {
+      "minimumSystemVersion": "14.0",
+      "infoPlist": "Info.plist",
+      "entitlements": "Entitlements.plist"
+    }
   }
 }

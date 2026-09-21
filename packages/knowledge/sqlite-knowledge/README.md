@@ -38,7 +38,7 @@ run against assumptions that no longer hold.
 Run the Node-specific verification from this package with:
 
 ```sh
-bun run test:node
+pnpm run test:node
 ```
 
 See [knowledge](../knowledge/README.md) for the contracts this package

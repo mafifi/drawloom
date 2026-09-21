@@ -1,4 +1,4 @@
-import { expect, test, spyOn } from "bun:test";
+import { expect, test, vi } from "vitest";
 import { mkdtemp, rm, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +10,7 @@ import {
 import { ConversationSchema } from "../src/lib/protocol.js";
 import * as composition from "./composition.js";
 import * as synthetic from "@drawloom/synthetic-agent";
+import { setTimeout as sleep } from "node:timers/promises";
 
 test("legacy conversations default to human review without changing identity or provider", () => {
   expect(
@@ -107,7 +108,7 @@ test("accepted execution locks reviewer selection before delayed started deliver
   const original = synthetic.createSyntheticDriver;
   // Keep the real synthetic session; delay its public signal boundary like a
   // host pump awaiting previous-turn history ingestion. Commands remain sequential.
-  const replacement = spyOn(synthetic, "createSyntheticDriver").mockImplementation((respond) => {
+  const replacement = vi.spyOn(synthetic, "createSyntheticDriver").mockImplementation((respond) => {
     const driver = original(async (text, context) => {
       await completion;
       return respond(text, context);
@@ -210,7 +211,7 @@ test("a missing project directory blocks new work but not stopping an existing o
   });
   const original = synthetic.createSyntheticDriver;
   let interrupted = 0;
-  const replacement = spyOn(synthetic, "createSyntheticDriver").mockImplementation((respond) => {
+  const replacement = vi.spyOn(synthetic, "createSyntheticDriver").mockImplementation((respond) => {
     const driver = original(async (text, context) => {
       await completion;
       return respond(text, context);
@@ -261,7 +262,7 @@ test("a missing project directory blocks new work but not stopping an existing o
     await app.command({ kind: "stop", conversationId: state.selectedId });
     expect(interrupted).toBe(1);
     finish();
-    for (let i = 0; i < 100 && (await app.snapshot()).activeOperation; i++) await Bun.sleep(5);
+    for (let i = 0; i < 100 && (await app.snapshot()).activeOperation; i++) await sleep(5);
     expect((await app.snapshot()).activeOperation).toBeUndefined();
     expect((await app.historyPage(state.selectedId)).entries.length).toBeGreaterThan(0);
   } finally {

@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -21,7 +21,7 @@ test("HTTP shutdown rejects queued commands without dispatch and shares cleanup"
     queued = resolve;
   });
   let dispatches = 0;
-  const server = serveDesktop(
+  const server = await serveDesktop(
     {
       ...app,
       async command(raw) {
@@ -76,7 +76,7 @@ test("HTTP shutdown rejects queued commands without dispatch and shares cleanup"
 test("HTTP maps a closed application to unavailable", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-server-closed-"));
   const app = await createDesktopApplication(root);
-  const server = serveDesktop(app, resolve("apps/desktop/build"));
+  const server = await serveDesktop(app, resolve("apps/desktop/build"));
   try {
     const boot = await fetch(server.url, { redirect: "manual" });
     const cookie = boot.headers.get("set-cookie")!.split(";")[0]!;
@@ -101,7 +101,7 @@ test("server shutdown aborts an admitted native folder picker", async () => {
     release = resolve;
   });
   let pickerSignal: AbortSignal | undefined;
-  const server = serveDesktop(app, resolve("apps/desktop/build"), 0, undefined, {
+  const server = await serveDesktop(app, resolve("apps/desktop/build"), 0, undefined, {
     pickDirectory: async (signal) => {
       pickerSignal = signal;
       enter();

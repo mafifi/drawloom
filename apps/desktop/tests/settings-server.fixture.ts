@@ -6,17 +6,20 @@ import {
   RESOURCE_MIME_TYPE,
 } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
+import { build as esbuild } from "esbuild";
 const server = new McpServer({ name: "public-preferences", version: "1" });
 const uri = "ui://public-preferences/settings.html";
 let value = 3,
   revision = 0;
-const appBuild = await Bun.build({
-  entrypoints: [new URL("./settings-app.fixture.ts", import.meta.url).pathname],
-  target: "browser",
+const appBuild = await esbuild({
+  entryPoints: [new URL("./settings-app.fixture.ts", import.meta.url).pathname],
+  platform: "browser",
+  bundle: true,
+  format: "esm",
   minify: true,
+  write: false,
 });
-if (!appBuild.success) throw Error("Fixture app build failed");
-const javascript = await appBuild.outputs[0]!.text();
+const javascript = appBuild.outputFiles[0]!.text;
 registerAppResource(server, "Preferences", uri, {}, async () => ({
   contents: [
     {

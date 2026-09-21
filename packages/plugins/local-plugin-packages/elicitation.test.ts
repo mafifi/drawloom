@@ -1,5 +1,5 @@
-import { test, expect } from "bun:test";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { test, expect } from "vitest";
+import { mkdtemp, writeFile, rm, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PLUGIN_SCHEMA, MCP_PACKAGE_SCHEMA } from "@drawloom/plugins";
@@ -43,7 +43,7 @@ export async function fixture(
     join(root, "mcp.json"),
     JSON.stringify({
       $schema: MCP_PACKAGE_SCHEMA,
-      mcpServers: { stationery: { type: "stdio", command: "bun", args: ["./server.mjs"] } },
+      mcpServers: { stationery: { type: "stdio", command: "node", args: ["./server.mjs"] } },
     }),
   );
   await writeFile(join(root, "server.mjs"), script);
@@ -130,7 +130,9 @@ test("form capability is advertised only with an available presenter", async () 
   for (const enabled of [false, true]) {
     const f = await fixture(enabled ? async () => ({ action: "cancel" }) : undefined);
     try {
-      const capabilities = await Bun.file(join(f.root, "data/one/capabilities.json")).json();
+      const capabilities = await JSON.parse(
+        await readFile(join(f.root, "data/one/capabilities.json"), "utf8"),
+      );
       expect(capabilities.elicitation).toEqual(enabled ? { form: {} } : undefined);
     } finally {
       await f.close();
@@ -252,7 +254,9 @@ test("explicit elicitation opt-out overlaps requests without presenting or adver
     return { action: "cancel" };
   }, ["stationery"]);
   try {
-    const capabilities = await Bun.file(join(f.root, "data/one/capabilities.json")).json();
+    const capabilities = await JSON.parse(
+      await readFile(join(f.root, "data/one/capabilities.json"), "utf8"),
+    );
     expect(capabilities.elicitation).toBeUndefined();
     const results = await Promise.all([
       f.server.callTool(
@@ -291,7 +295,7 @@ test("invalid elicitation opt-out names fail before any selected server executes
     join(root, "mcp.json"),
     JSON.stringify({
       $schema: MCP_PACKAGE_SCHEMA,
-      mcpServers: { stationery: { type: "stdio", command: "bun", args: ["./server.mjs"] } },
+      mcpServers: { stationery: { type: "stdio", command: "node", args: ["./server.mjs"] } },
     }),
   );
   await writeFile(join(root, "server.mjs"), script);
@@ -312,7 +316,12 @@ test("invalid elicitation opt-out names fail before any selected server executes
         elicitationDisabledServers: [42] as unknown as readonly string[],
       }),
     ).rejects.toThrow();
-    expect(await Bun.file(join(root, "data/one/capabilities.json")).exists()).toBe(false);
+    expect(
+      await stat(join(root, "data/one/capabilities.json")).then(
+        () => true,
+        () => false,
+      ),
+    ).toBe(false);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -332,7 +341,7 @@ test("parallel cancellation never duplicates tool work", async () => {
     abort.abort();
     expect(await pending).toBeInstanceOf(Error);
     await new Promise((resolve) => setTimeout(resolve, 40));
-    const lines = (await Bun.file(join(f.root, "data/one/calls.jsonl")).text())
+    const lines = (await readFile(join(f.root, "data/one/calls.jsonl"), "utf8"))
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line));

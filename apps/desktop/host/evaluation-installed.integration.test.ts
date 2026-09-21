@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,6 +18,7 @@ import type { Installation } from "./plugin-installations.js";
 import { createInstalledEvaluation } from "./evaluation-host.js";
 import { loadInstalledPackages, type InstalledWorkflowRegistration } from "./plugin-packages.js";
 import { createWorkflowAuthority } from "./workflow-authority.js";
+import { setTimeout as sleep } from "node:timers/promises";
 
 function unusedAssets(): AssetLibrary {
   const unused = async (): Promise<never> => {
@@ -211,10 +212,12 @@ test("trusted installed evaluation executes through attached authority-wrapped h
         mcpServers: {},
       }),
     );
+    await mkdir(join(packageRoot, "org.drawloom"), { recursive: true });
     await writeFile(
       join(packageRoot, "org.drawloom", "workflows.mjs"),
       `export { evaluationRegistry as default } from ${JSON.stringify(workflowUrl)};`,
     );
+    await mkdir(join(packageRoot, "org.drawloom"), { recursive: true });
     await writeFile(join(packageRoot, "org.drawloom", "backend.mjs"), backendSource);
     const installation: Installation = {
       id: "installed-consumer",
@@ -278,7 +281,7 @@ test("trusted installed evaluation executes through attached authority-wrapped h
       const start = started.structuredContent as { evaluationRunId: string };
       let status: { kind: string } = { kind: "running" };
       for (let attempt = 0; attempt < 20 && status.kind === "running"; attempt++) {
-        await Bun.sleep(1);
+        await sleep(1);
         status = (
           await app!.callTool({ name: "status", arguments: { runId: start.evaluationRunId } })
         ).structuredContent as { kind: string };

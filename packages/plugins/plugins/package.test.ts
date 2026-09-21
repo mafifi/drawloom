@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { z } from "zod";
 test("plugin presentation requires confined image asset declarations", () => {
   expect(
@@ -149,14 +149,14 @@ test("remote metadata rejects ambiguous headers and insecure or credential-beari
 });
 test("stdio rejects shell commands, reserved environment and closed-variant mixing", () => {
   for (const config of [
-    { command: "bun run app" },
-    { command: "/usr/bin/bun" },
+    { command: "node run app" },
+    { command: "/usr/bin/node" },
     { command: "${PLUGIN_ROOT}/bin" },
-    { command: "bun", url: "https://example.com" },
-    { command: "bun", env: { PLUGIN_ROOT: "forged" } },
-    { command: "bun", env: { DRAWLOOM_PLUGIN_CONFIG_DIR: "forged" } },
-    { command: "bun", env: { drawloom_project_dir: "forged" } },
-    { command: "bun", cwd: "/outside" },
+    { command: "node", url: "https://example.com" },
+    { command: "node", env: { PLUGIN_ROOT: "forged" } },
+    { command: "node", env: { DRAWLOOM_PLUGIN_CONFIG_DIR: "forged" } },
+    { command: "node", env: { drawloom_project_dir: "forged" } },
+    { command: "node", cwd: "/outside" },
   ]) {
     expect(PackageServerConfigSchema.safeParse({ type: "stdio", ...config }).success).toBe(false);
   }

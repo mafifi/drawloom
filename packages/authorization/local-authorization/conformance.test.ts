@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { authorizationConformance } from "@drawloom/authorization/conformance";
 import { createLocalAuthorizer } from "./src/index.js";
 const request = (id: string) => ({

@@ -1,8 +1,8 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { createDesktopApplication } from "../apps/desktop/host/application.js";
-import { serveDesktop } from "../apps/desktop/host/server.js";
+import { createDesktopApplication } from "../apps/desktop/host/application.ts";
+import { serveDesktop } from "../apps/desktop/host/server.ts";
 import { createSqliteConversationHistory } from "@drawloom/sqlite-conversation-history";
 
 // Isolated public UI verification fixture. It never opens the user's installation.
@@ -30,7 +30,7 @@ for (let start = 0; start < 10000; start += 200) {
 await store.close();
 await app.command({ kind: "create_conversation", workbenchId: "text", provider: "synthetic" });
 await app.command({ kind: "select_conversation", conversationId: first });
-const server = serveDesktop(app, resolve("apps/desktop/build"));
+const server = await serveDesktop(app, resolve("apps/desktop/build"));
 console.log(
   JSON.stringify({
     url: server.url,

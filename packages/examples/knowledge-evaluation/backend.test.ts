@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "vitest";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -108,7 +108,7 @@ describe("fixed-scope standard MCP Apps backend", () => {
       join(root, "app.html"),
       "<!doctype html><main>Shared evaluation workbench</main>",
     );
-    const fixtureRoot = join(import.meta.dir, "src", "fixtures");
+    const fixtureRoot = join(import.meta.dirname, "src", "fixtures");
     const before = await Promise.all(
       ["corpus.ts", "local-knowledge-mlx-10k.json", "local-knowledge-answers-10k.json"].map(
         async (name) => digest(await readFile(join(fixtureRoot, name))),

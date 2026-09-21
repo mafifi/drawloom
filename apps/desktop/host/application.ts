@@ -141,6 +141,7 @@ import { createKnowledgeComposition } from "./knowledge-composition.js";
 import { createProjectPluginRuntimes } from "./project-plugin-runtimes.js";
 import { createConversationResources } from "./conversation-resources.js";
 import { createProjectToolGatewayAccess } from "./project-tool-gateway.js";
+import { createHash } from "node:crypto";
 
 export async function createDesktopApplication(
   root: string,
@@ -439,6 +440,8 @@ export async function createDesktopApplication(
         ...(options.knowledge?.runtimeEntrypoint
           ? { runtimeEntrypoint: options.knowledge.runtimeEntrypoint }
           : {}),
+        // The knowledge worker's RPC is observed like every other provider's.
+        observe: observedRpc,
       }));
   const projectRuntimes = createProjectPluginRuntimes({
     available: (binding) =>
@@ -697,7 +700,7 @@ export async function createDesktopApplication(
     manager,
     nightloomDirectory:
       options.knowledge?.nightloomDirectory ??
-      join(import.meta.dir, "../../../packages/knowledge/nightloom"),
+      join(import.meta.dirname, "../../../packages/knowledge/nightloom"),
     ...(options.knowledge?.scheduleNightloomTick
       ? { scheduleNightloomTick: options.knowledge.scheduleNightloomTick }
       : {}),
@@ -1813,7 +1816,10 @@ export async function createDesktopApplication(
       const app = mcpApps.get(view.id)!;
       const result = await app.callTool(request);
       if (result.content.some((b) => b.type !== "text")) {
-        const identity = Bun.hash(JSON.stringify(result.content)).toString(16);
+        const identity = createHash("sha256")
+          .update(JSON.stringify(result.content))
+          .digest("hex")
+          .slice(0, 16);
         try {
           await resourceCollector(target.conversationId).capture({
             id: `app-resource:${view.id}:${identity}`,
@@ -1837,7 +1843,10 @@ export async function createDesktopApplication(
       const { mcpApps } = await runtimeForConversation(conversationId);
       const app = mcpApps.get(viewId)!;
       if (!app.canRead(uri)) throw Error("Resource unavailable");
-      const id = `listed-resource:${Bun.hash(viewId + ":" + uri).toString(16)}`;
+      const id = `listed-resource:${createHash("sha256")
+        .update(viewId + ":" + uri)
+        .digest("hex")
+        .slice(0, 16)}`;
       const cached = await history.get(conversationId, id);
       if (cached) return cached;
       const result = await app.readResource(uri);

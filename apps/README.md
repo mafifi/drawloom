@@ -6,7 +6,7 @@ They choose the implementations and connect them to the UI.
 ## Run the desktop
 
 The [desktop application](desktop/README.md) uses SvelteKit for its interface,
-a local Bun host for application work, and a small Tauri shell for macOS.
+a local Node host for application work, and a small Tauri shell for macOS.
 Follow its guide to run it from source or build the native app.
 
 The public journal lives separately under [publishing](../publishing/site/README.md).

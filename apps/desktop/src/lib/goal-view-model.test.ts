@@ -1,20 +1,6 @@
-import { expect, test } from "bun:test";
-import { compileModule } from "svelte/compiler";
+import { expect, test } from "vitest";
 
-Bun.plugin({
-  name: "goal-view-model-tests",
-  setup(build) {
-    build.onLoad({ filter: /goal-view-model\.svelte\.ts$/ }, async ({ path }) => ({
-      contents: compileModule(
-        new Bun.Transpiler({ loader: "ts" }).transformSync(await Bun.file(path).text()),
-        { filename: path, generate: "client" },
-      ).js.code,
-      loader: "js",
-    }));
-  },
-});
-
-const { createGoalViewModel } = await import("./goal-view-model.svelte.js");
+import { createGoalViewModel } from "./goal-view-model.svelte.js";
 
 const snapshot = {
   revision: "goal:4",

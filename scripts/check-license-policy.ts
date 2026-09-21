@@ -4,30 +4,31 @@ import { resolve } from "node:path";
 import {
   KnownLlamaRuntime,
   KnownModelManifests,
-} from "../packages/knowledge/local-embeddings/src/manifest.js";
-import { assessLicense, isReviewedMpl, selectedLicense } from "./license-policy.js";
+} from "../packages/knowledge/local-embeddings/src/manifest.ts";
+import { assessLicense, isReviewedMpl, selectedLicense } from "./license-policy.ts";
 
-const root = resolve(import.meta.dir, "..");
-// Exact-version decisions backed by the installed licence text; never name-wide exemptions.
-const evidence: Record<string, { license: string; path: string; sha256: string }> = {
+const root = resolve(import.meta.dirname, "..");
+// Exact-version decisions backed by the installed licence text; never name-wide
+// exemptions. The proof is the sha256 of that text, matched against the legal
+// files the inventory discovered for that exact version. Paths are deliberately
+// not pinned: pnpm's store encodes peer-dependency hashes in directory names,
+// so a recorded path would break on unrelated dependency changes while the
+// licence text itself is unchanged.
+const evidence: Record<string, { license: string; sha256: string }> = {
   "dompurify@3.4.15": {
     license: "Apache-2.0",
-    path: "node_modules/dompurify/LICENSE",
     sha256: "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
   },
   "khroma@2.1.0": {
     license: "MIT",
-    path: "node_modules/khroma/LICENSE",
     sha256: "66b333b0f66759a0b710459e03f7029abe17f4358114a128d2c972e642961b49",
   },
   "svelte-toolbelt@0.10.6": {
     license: "MIT",
-    path: "node_modules/svelte-toolbelt/LICENSE",
     sha256: "8914f144af4333312a07b30438dc6b75dd8da7a665c3ae9fa751f229eb615e8b",
   },
   "unionfs@4.6.0": {
     license: "Unlicense",
-    path: "node_modules/unionfs/LICENSE",
     sha256: "6b0382b16279f26ff69014300541967a356a666eb0b91b422f6862f6b7dad17e",
   },
 };
@@ -48,9 +49,12 @@ for (const item of inventory.npm) {
   const proof = evidence[key];
   if (
     proof &&
-    createHash("sha256")
-      .update(readFileSync(resolve(root, proof.path)))
-      .digest("hex") === proof.sha256
+    item.legalFiles.some(
+      (path: string) =>
+        createHash("sha256")
+          .update(readFileSync(resolve(root, path)))
+          .digest("hex") === proof.sha256,
+    )
   )
     licence = proof.license;
   const mplReviewed = item.legalFiles.some((path: string) =>

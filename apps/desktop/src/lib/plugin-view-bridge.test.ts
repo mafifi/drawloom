@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { AppBridge } from "@modelcontextprotocol/ext-apps/app-bridge";
 import { updatePluginViewTheme } from "./plugin-view-bridge.js";
 

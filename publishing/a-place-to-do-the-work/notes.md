@@ -217,15 +217,15 @@ Use the existing root toolchain; no additional dependencies or renderer service.
 Generated output remains ignored. The still and animation share one composition.
 
 ```sh
-bunx --no-install remotion studio publishing/site/remotion.tsx --no-open
-bunx --no-install remotion render publishing/site/remotion.tsx EpisodeSteps publishing/.generated/media/a-place-to-do-the-work/episode-steps.mp4 --codec=h264 --concurrency=2
-bunx --no-install remotion still publishing/site/remotion.tsx EpisodeSteps publishing/.generated/media/a-place-to-do-the-work/episode-steps.png --frame=840
+pnpm exec --no-install remotion studio publishing/site/remotion.tsx --no-open
+pnpm exec --no-install remotion render publishing/site/remotion.tsx EpisodeSteps publishing/.generated/media/a-place-to-do-the-work/episode-steps.mp4 --codec=h264 --concurrency=2
+pnpm exec --no-install remotion still publishing/site/remotion.tsx EpisodeSteps publishing/.generated/media/a-place-to-do-the-work/episode-steps.png --frame=840
 ```
 
 ## Local verification
 
 Second-draft verification (2026-09-05): explicit draft build passed; the full
-`bun run check:ci` gate passed 57 tests / 175 assertions, with zero Astro errors,
+`pnpm run check:ci` gate passed 57 tests / 175 assertions, with zero Astro errors,
 warnings or hints. Publishing tests check the revised title, four inline SVGs,
 the capability-map text alternative, all three screenshot copies and exclusion
 of the draft route/media from a normal build. `git diff --check` passed.

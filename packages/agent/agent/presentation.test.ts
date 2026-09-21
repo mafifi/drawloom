@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { DiscoveryEntrySchema } from "./src/index.js";
 
 test("discovery retains presentation separately from identity and rejects active icon URLs", () => {

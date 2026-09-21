@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { workingFileReference } from "./working-file.js";
 import type { ResourceReference } from "@drawloom/host";
 

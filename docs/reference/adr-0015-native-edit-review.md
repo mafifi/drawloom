@@ -7,7 +7,7 @@ reviewer or MCP Apps extension was introduced. See
 
 ## Public verification
 
-`bun install --frozen-lockfile` and `bun run check:ci` passed: **319 tests,
+`pnpm install --frozen-lockfile` and `pnpm run check:ci` passed: **319 tests,
 1,625 assertions**, four explicitly opt-in live tests skipped by ordinary CI.
 The gate also passed package exports, dependency barriers, TypeScript, Svelte,
 UI/design policy, publishing checks and Node shared conformance. Svelte reported

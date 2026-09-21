@@ -1,0 +1,11 @@
+# The Rust toolchain is pinned exactly, as Node and pnpm are (ADR 0034).
+#
+# Tauri 2.11.5 does not compile on Rust 1.96.0 with the feature set its own CLI
+# uses. `cargo build --bins --features tauri/custom-protocol --release` fails
+# with `error[E0463]: can't find crate for 'tauri_macros'`, while the same tree
+# builds cleanly without that feature. It is a toolchain defect, not a
+# dependency or cache problem: 1.98.1 compiles the identical invocation.
+[toolchain]
+channel = "1.98.1"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

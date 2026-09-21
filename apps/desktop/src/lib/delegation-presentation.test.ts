@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { delegationPresentation } from "./delegation-presentation.js";
 import type { AgentDelegation } from "@drawloom/agent";
 const child: AgentDelegation = {

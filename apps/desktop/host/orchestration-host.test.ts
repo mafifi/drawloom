@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdtemp, rm, mkdir, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -10,7 +10,9 @@ import type { Orchestrator } from "@drawloom/orchestration";
 import { z } from "zod";
 
 const writeWorkflow = (root: string, name = "workflows.mjs") =>
-  Bun.write(join(root, "org.drawloom", name), "export default {}");
+  mkdir(join(root, "org.drawloom"), { recursive: true }).then(() =>
+    writeFile(join(root, "org.drawloom", name), "export default {}"),
+  );
 
 test("configuration is serialized with starts and blocks old configuration until restart", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-workflow-guard-"));

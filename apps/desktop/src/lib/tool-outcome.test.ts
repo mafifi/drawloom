@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { presentToolOutcome, groupToolActivity, toolActivityTitle } from "./tool-outcome.js";
 
 test("tool activity uses admitted display titles and keeps opaque unknown aliases out of headings", () => {

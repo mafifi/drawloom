@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { contextAssemblyConformance } from "@drawloom/context/assembly-conformance";
 import { createSectionedContextAssembler, createInboxApprovalPresenter } from "./src/index.js";
 

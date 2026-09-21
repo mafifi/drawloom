@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "vitest";
 import type { JsonStore, JsonValue } from "@drawloom/host";
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { mkdtemp, rm } from "node:fs/promises";

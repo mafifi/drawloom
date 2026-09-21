@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { mkdtemp, mkdir, writeFile, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -6,12 +6,18 @@ import { createDesktopApplication } from "./application.js";
 import { serveDesktop } from "./server.js";
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { createInstallationStore } from "./plugin-installations.js";
+import { once } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
+/** Bun exposed `child.exited`; Node signals completion with an "exit" event. */
+const exitCodeOf = async (child: ChildProcess): Promise<number> =>
+  (await once(child, "exit"))[0] as number;
 
 test("real settings HTTP routes work with no project and no generation runtime", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "drawloom-settings-routes-")));
   const pkg = join(root, "fixture");
   await mkdir(pkg);
   await mkdir(join(pkg, "org.drawloom"));
+  await mkdir(join(pkg, "org.drawloom"), { recursive: true });
   await writeFile(
     join(pkg, "org.drawloom", "absent.mjs"),
     'throw Error("Optional runtime is not installed; settings must never import this backend");',
@@ -44,7 +50,7 @@ test("real settings HTTP routes work with no project and no generation runtime",
       mcpServers: {
         setup: {
           type: "stdio",
-          command: "bun",
+          command: "node",
           args: [resolve("apps/desktop/tests/settings-server.fixture.ts")],
         },
         generation: { type: "stdio", command: "absent-model-runtime" },
@@ -60,7 +66,7 @@ test("real settings HTTP routes work with no project and no generation runtime",
     configuration: {},
   });
   const app = await createDesktopApplication(root);
-  const server = serveDesktop(app, resolve("apps/desktop/build"));
+  const server = await serveDesktop(app, resolve("apps/desktop/build"));
   try {
     const boot = await fetch(server.url, { redirect: "manual" });
     const cookie = boot.headers.get("set-cookie")!.split(";")[0]!;
@@ -94,12 +100,11 @@ test("real settings HTTP routes work with no project and no generation runtime",
     });
     expect((await app.snapshot()).projects).toHaveLength(0);
     if (process.env.DRAWLOOM_PLAYWRIGHT_PATH) {
-      const child = Bun.spawn(["node", resolve("apps/desktop/tests/plugin-settings-browser.mjs")], {
+      const child = spawn("node", [resolve("apps/desktop/tests/plugin-settings-browser.mjs")], {
         env: { ...process.env, DRAWLOOM_SETTINGS_URL: server.url },
-        stdout: "inherit",
-        stderr: "inherit",
+        stdio: ["pipe", "inherit", "inherit"],
       });
-      expect(await child.exited).toBe(0);
+      expect(await exitCodeOf(child)).toBe(0);
     }
     await post("/api/settings/close", opened);
     expect(

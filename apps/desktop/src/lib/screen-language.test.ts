@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { pluginGroups, readableName, pluginDescription, discoveryName } from "./screen-language.js";
 
 test("declared discovery branding is searchable without renaming technical identity", () => {

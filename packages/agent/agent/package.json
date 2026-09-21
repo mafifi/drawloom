@@ -12,37 +12,37 @@
   ],
   "exports": {
     "./delegation-conformance": {
-      "bun": "./src/delegation-conformance.ts",
+      "drawloom-source": "./src/delegation-conformance.ts",
       "types": "./dist/delegation-conformance.d.ts",
       "import": "./dist/delegation-conformance.js"
     },
     "./planning-conformance": {
-      "bun": "./src/planning-conformance.ts",
+      "drawloom-source": "./src/planning-conformance.ts",
       "types": "./dist/planning-conformance.d.ts",
       "import": "./dist/planning-conformance.js"
     },
     ".": {
-      "bun": "./src/index.ts",
+      "drawloom-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
     "./approval-presentation": {
-      "bun": "./src/approval-presentation.ts",
+      "drawloom-source": "./src/approval-presentation.ts",
       "types": "./dist/approval-presentation.d.ts",
       "import": "./dist/approval-presentation.js"
     },
     "./approval-conformance": {
-      "bun": "./src/approval-conformance.ts",
+      "drawloom-source": "./src/approval-conformance.ts",
       "types": "./dist/approval-conformance.d.ts",
       "import": "./dist/approval-conformance.js"
     },
     "./conformance": {
-      "bun": "./src/conformance.ts",
+      "drawloom-source": "./src/conformance.ts",
       "types": "./dist/conformance.d.ts",
       "import": "./dist/conformance.js"
     },
     "./goals-conformance": {
-      "bun": "./src/goals-conformance.ts",
+      "drawloom-source": "./src/goals-conformance.ts",
       "types": "./dist/goals-conformance.d.ts",
       "import": "./dist/goals-conformance.js"
     }
@@ -57,5 +57,8 @@
     "@drawloom/context": "workspace:*",
     "@drawloom/host": "workspace:*",
     "@drawloom/tools": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
   }
 }

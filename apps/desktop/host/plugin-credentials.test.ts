@@ -1,9 +1,14 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import {
   createNativeCredentialStore,
   createSessionCredentialStore,
   createPluginCredentialStore,
 } from "./plugin-credentials.js";
+import { once } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
+/** Bun exposed `child.exited`; Node signals completion with an "exit" event. */
+const exitCodeOf = async (child: ChildProcess): Promise<number> =>
+  (await once(child, "exit"))[0] as number;
 
 test("session credentials are isolated to the process-owned store", async () => {
   const store = createSessionCredentialStore();
@@ -42,9 +47,9 @@ test.skipIf(process.env.DRAWLOOM_TEST_OS_CREDENTIALS !== "1" || process.platform
       await store.set(key, "drawloom-synthetic-test-value");
       expect(store.mode).toBe("os");
       expect(await store.get(key)).toBe("drawloom-synthetic-test-value");
-      const reader = Bun.spawn(
+      const reader = spawn(
+        process.execPath,
         [
-          process.execPath,
           "--eval",
           `
           const { createPluginCredentialStore } = await import(${JSON.stringify(new URL("./plugin-credentials.ts", import.meta.url).href)});
@@ -53,13 +58,9 @@ test.skipIf(process.env.DRAWLOOM_TEST_OS_CREDENTIALS !== "1" || process.platform
           process.exit(store.mode === "os" && value === "drawloom-synthetic-test-value" ? 0 : 1);
         `,
         ],
-        {
-          env: { ...process.env, DRAWLOOM_TEST_CREDENTIAL_KEY: key },
-          stdout: "pipe",
-          stderr: "pipe",
-        },
+        { env: { ...process.env, DRAWLOOM_TEST_CREDENTIAL_KEY: key } },
       );
-      expect(await reader.exited).toBe(0);
+      expect(await exitCodeOf(reader)).toBe(0);
     } finally {
       await store.delete(key);
     }

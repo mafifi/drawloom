@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { controlGoal } from "./goal-control.js";
 
 test("unavailable goal control never simulates a successful mutation", async () => {

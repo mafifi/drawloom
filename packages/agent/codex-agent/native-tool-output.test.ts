@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { nativeToolOutput } from "./src/native-tool-output.js";
 
 test("structured native results use provider metadata, never text sniffing", () => {

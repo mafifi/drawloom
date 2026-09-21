@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { JsonStore, JsonValue } from "@drawloom/host";
 import type { IntakeInput } from "@drawloom/knowledge";
 import type { LearningService } from "@drawloom/knowledge/learning";

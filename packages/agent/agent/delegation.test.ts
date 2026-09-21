@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import * as agent from "./src/index.js";
 import { agentDelegationConformance, agentForkConformance } from "./src/delegation-conformance.js";
 

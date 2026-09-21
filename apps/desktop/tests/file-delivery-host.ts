@@ -11,15 +11,24 @@ import { initializeObservability } from "@drawloom/otel-host";
 import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { createInstallationStore } from "../host/plugin-installations.js";
+import { text as readText } from "node:stream/consumers";
+import { once } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
+import { serve } from "@hono/node-server";
+import type { AddressInfo } from "node:net";
+import { build as esbuild } from "esbuild";
+/** Bun exposed `child.exited`; Node signals completion with an "exit" event. */
+const exitCodeOf = async (child: ChildProcess): Promise<number> =>
+  (await once(child, "exit"))[0] as number;
 const root = await realpath(await mkdtemp(join(tmpdir(), "drawloom-file-browser-")));
 const work = join(root, "project-a");
 const other = join(root, "project-b");
 await mkdir(work);
 await mkdir(other);
 const video = join(work, "synthetic.mp4");
-const render = Bun.spawn(
+const render = spawn(
+  "ffmpeg",
   [
-    "ffmpeg",
     "-hide_banner",
     "-loglevel",
     "error",
@@ -41,9 +50,9 @@ const render = Bun.spawn(
     "+faststart",
     video,
   ],
-  { stdout: "ignore", stderr: "pipe" },
+  { stdio: ["pipe", "ignore", "pipe"] },
 );
-if (await render.exited) throw Error(await new Response(render.stderr).text());
+if (await exitCodeOf(render)) throw Error(await readText(render.stderr!));
 const sparse = await open(join(work, "large.bin"), "w");
 await sparse.truncate(512 * 1024 * 1024);
 await sparse.close();
@@ -77,7 +86,7 @@ const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=",
   "base64",
 );
-const allowed = Bun.serve({
+const allowed = serve({
   hostname: "127.0.0.1",
   port: 0,
   fetch(request) {
@@ -88,7 +97,9 @@ const allowed = Bun.serve({
     });
   },
 });
-const blocked = Bun.serve({
+await once(allowed, "listening");
+const allowedUrl = new URL(`http://127.0.0.1:${(allowed.address() as AddressInfo).port}/`);
+const blocked = serve({
   hostname: "127.0.0.1",
   port: 0,
   fetch() {
@@ -96,15 +107,17 @@ const blocked = Bun.serve({
     return new Response(png, { headers: { "Content-Type": "image/png" } });
   },
 });
+await once(blocked, "listening");
+const blockedUrl = new URL(`http://127.0.0.1:${(blocked.address() as AddressInfo).port}/`);
 const pkg = join(root, "media-package");
 await mkdir(join(pkg, "org.drawloom"), { recursive: true });
-const build = await Bun.build({
-  entrypoints: [resolve(import.meta.dir, "file-media-backend.fixture.ts")],
-  target: "bun",
-  outdir: join(pkg, "org.drawloom"),
-  naming: "backend.mjs",
+await esbuild({
+  entryPoints: [resolve(import.meta.dirname, "file-media-backend.fixture.ts")],
+  outfile: join(pkg, "org.drawloom", "backend.mjs"),
+  bundle: true,
+  platform: "node",
+  format: "esm",
 });
-if (!build.success) throw Error("Media fixture failed to build");
 await writeFile(
   join(pkg, "plugin.json"),
   JSON.stringify({
@@ -131,8 +144,8 @@ await installations.configure(installation, {
   enabled: true,
   trustedBackend: true,
   servers: [],
-  configuration: { approved: allowed.url.origin, blocked: blocked.url.origin },
-  approvedResourceOrigins: [allowed.url.origin],
+  configuration: { approved: allowedUrl.origin, blocked: blockedUrl.origin },
+  approvedResourceOrigins: [allowedUrl.origin],
 });
 let app = await createDesktopApplication(data);
 await app.command({ kind: "add_project", directory: work, name: "Public media" });
@@ -184,7 +197,7 @@ await history.commit(state.selectedId, {
 });
 await history.close();
 app = await createDesktopApplication(data);
-const host = serveDesktop(app, resolve("apps/desktop/build"));
+const host = await serveDesktop(app, resolve("apps/desktop/build"));
 const baselineRss = process.memoryUsage().rss;
 let peakRss = baselineRss;
 const sample = setInterval(() => {
@@ -250,8 +263,8 @@ for (const signal of ["SIGTERM", "SIGINT"] as const)
     await telemetry.flush();
     await writeFile(join(root, "delivery-spans.json"), JSON.stringify(deliveries, null, 2));
     await writeFile(join(root, "origin-requests.json"), JSON.stringify(originRequests));
-    allowed.stop(true);
-    blocked.stop(true);
+    allowed.close();
+    blocked.close();
     await telemetry.shutdown();
     process.exit(0);
   });

@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { LocalLearningSetupCommandSchema } from "./local-knowledge-setup-protocol.js";
 test("the browser can request only the GGUF installation with explicit consent", () => {
   expect(

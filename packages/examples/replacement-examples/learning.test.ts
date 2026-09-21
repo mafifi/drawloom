@@ -1,4 +1,4 @@
-import { expect, test, spyOn } from "bun:test";
+import { expect, test, vi } from "vitest";
 import { learningConformance } from "@drawloom/knowledge/learning-conformance";
 import type { IntakeInput } from "@drawloom/knowledge";
 import { createDeterministicLearningService } from "./src/learning.js";
@@ -82,7 +82,7 @@ test("synthetic consumer preserves denial and failure before revealing stored da
 });
 test("synthetic consumer rejects a late default decision", async () => {
   let now = 1000;
-  const clock = spyOn(Date, "now").mockImplementation(() => now);
+  const clock = vi.spyOn(Date, "now").mockImplementation(() => now);
   const service = createDeterministicLearningService({
     subject,
     authorizer: {

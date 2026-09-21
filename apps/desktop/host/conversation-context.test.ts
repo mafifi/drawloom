@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { conversationContext } from "./conversation-context.js";
 import type { ConversationHistoryStore } from "@drawloom/conversation-history";
 test("unknown and self context fail before accessing history", async () => {

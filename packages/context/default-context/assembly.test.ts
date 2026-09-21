@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { ContextAssembler } from "@drawloom/context/assembly";
 import { contextAssemblyConformance } from "@drawloom/context/assembly-conformance";
 import { createDefaultContextAssembler } from "./src/index.js";

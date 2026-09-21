@@ -9,6 +9,12 @@ import {
   type RpcMessage,
 } from "@drawloom/host";
 import { mkdir, realpath, lstat, open, rename, unlink } from "node:fs/promises";
+
+/** Path-resolution seam for the asset store. Production always uses
+ * `node:fs/promises`. Tests substitute `realpath` to drive post-open path
+ * verification — an inode replaced between resolve and open — deterministically
+ * and on every platform, rather than relying on a Linux-only kernel behaviour. */
+export type PathResolution = { realpath: typeof realpath };
 import { constants } from "node:fs";
 import { resolve, join, dirname, relative, isAbsolute, sep } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -60,6 +66,7 @@ function inside(root: string, candidate: string): boolean {
 export function createNodeAssetStore(
   root: string,
   binding?: { device: string; inode: string },
+  paths: PathResolution = { realpath },
 ): AssetStore {
   const base = resolve(root);
   const expected = binding ? { ...binding } : undefined;
@@ -69,7 +76,7 @@ export function createNodeAssetStore(
     if (create) await mkdir(base, { recursive: true });
     const info = await lstat(base);
     if (info.isSymbolicLink() || !info.isDirectory()) throw Error("Invalid asset root");
-    const canonical = await realpath(base);
+    const canonical = await paths.realpath(base);
     const canonicalInfo = await lstat(canonical, { bigint: true });
     if (!canonicalInfo.isDirectory()) throw Error("Invalid asset root");
     if (
@@ -107,7 +114,7 @@ export function createNodeAssetStore(
         });
       const info = await lstat(parent);
       if (info.isSymbolicLink() || !info.isDirectory()) throw Error("Invalid asset directory");
-      const canonicalParent = await realpath(parent);
+      const canonicalParent = await paths.realpath(parent);
       if (!inside(canonical, canonicalParent)) throw Error("Invalid asset directory");
       parent = canonicalParent;
     }
@@ -139,7 +146,7 @@ export function createNodeAssetStore(
       if (!info.isFile() || !Number.isSafeInteger(info.size) || info.size < 0)
         throw Error("Invalid asset file");
       try {
-        const canonicalTarget = await realpath(target);
+        const canonicalTarget = await paths.realpath(target);
         if (!inside(canonical, canonicalTarget)) throw Error("Invalid asset file");
         const pathInfo = await lstat(canonicalTarget);
         if (!pathInfo.isFile() || pathInfo.dev !== info.dev || pathInfo.ino !== info.ino)
@@ -280,8 +287,8 @@ export function createNodeAssetStore(
     writeStream,
   };
 }
-export function createNodeJsonStore(root: string): JsonStore {
-  const assets = createNodeAssetStore(root);
+export function createNodeJsonStore(root: string, paths: PathResolution = { realpath }): JsonStore {
+  const assets = createNodeAssetStore(root, undefined, paths);
   const key = (value: string) => encodeURIComponent(z.string().min(1).parse(value)) + ".json";
   return {
     async get(value) {
@@ -336,19 +343,27 @@ export function createStdioTransport(options: {
       timer: ReturnType<typeof setTimeout>;
     }
   >();
+  /** Attaches the child's retained stderr so callers can report the cause.
+   * The tail is untrusted provider output: it may contain paths, credentials or
+   * user content. Callers must keep it out of the UI and out of telemetry, and
+   * should gate it behind an explicit diagnostics opt-in before logging it. */
+  const unavailable = () =>
+    diagnostics.trim()
+      ? new Error("Transport unavailable", { cause: new Error(diagnostics.trim()) })
+      : new Error("Transport unavailable");
   const fail = () => {
     if (ended) return;
     ended = true;
     for (const entry of pending.values()) {
       clearTimeout(entry.timer);
-      entry.reject(Error("Transport unavailable"));
+      entry.reject(unavailable());
     }
     pending.clear();
     for (const listener of listeners) listener.failure();
     process.kill();
   };
   const send = (value: unknown) => {
-    if (ended || closed) throw Error("Transport unavailable");
+    if (ended || closed) throw unavailable();
     process.stdin.write(JSON.stringify(value) + "\n", (error) => {
       if (error) fail();
     });
@@ -404,6 +419,15 @@ export function createStdioTransport(options: {
       }
     }
   });
+  // The child's stderr is the only account of why a provider died. Draining it
+  // unread (the previous behaviour) meant a failed sidecar reported nothing but
+  // "Transport unavailable". Retain a bounded tail and attach it to the failure.
+  const diagnosticLimit = 8 * 1024;
+  let diagnostics = "";
+  process.stderr.setEncoding("utf8");
+  process.stderr.on("data", (chunk: string) => {
+    diagnostics = (diagnostics + chunk).slice(-diagnosticLimit);
+  });
   process.stderr.resume();
   process.on("error", fail);
   process.on("exit", () => {
@@ -412,7 +436,7 @@ export function createStdioTransport(options: {
   process.stdin.on("error", fail);
   return {
     request(method, params) {
-      if (ended || closed) return Promise.reject(Error("Transport unavailable"));
+      if (ended || closed) return Promise.reject(unavailable());
       const id = ++nextId;
       return new Promise((resolve, reject) => {
         const timer = setTimeout(fail, options.requestTimeoutMs ?? 30000);

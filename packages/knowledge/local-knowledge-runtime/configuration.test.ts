@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { RpcRequestError, type RpcTransport } from "@drawloom/host";
 import { createDesktopAuthorization } from "../../../apps/desktop/host/authorization.js";
 import { createLocalKnowledgeClient, DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION } from "./src/client.js";

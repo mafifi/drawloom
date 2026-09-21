@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { remoteMediaResponse } from "./remote-media-response.js";
 
 test("remote media viewer escapes content, isolates scripts and never expands access to the host", async () => {

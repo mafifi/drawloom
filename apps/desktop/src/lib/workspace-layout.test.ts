@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { workspaceNeedsFullWidth } from "./workspace-layout.js";
 test("panels use actual available space rather than the window breakpoint", () => {
   expect(workspaceNeedsFullWidth(970)).toBe(false);

@@ -1,22 +1,10 @@
-import { afterEach, expect, test } from "bun:test";
-import { compileModule } from "svelte/compiler";
+import { afterEach, expect, test } from "vitest";
 import type { DesktopCatalogue, DesktopCommand, DesktopSnapshot } from "./protocol.js";
 import type { HistoryEntry } from "@drawloom/conversation-history";
+import { setTimeout as sleep } from "node:timers/promises";
 
 // Compile the real rune module, leaving only HTTP/storage as controlled test IO.
-Bun.plugin({
-  name: "desktop-view-model-tests",
-  setup(build) {
-    build.onLoad({ filter: /view-model\.svelte\.ts$/ }, async ({ path }) => ({
-      contents: compileModule(
-        new Bun.Transpiler({ loader: "ts" }).transformSync(await Bun.file(path).text()),
-        { filename: path, generate: "client" },
-      ).js.code,
-      loader: "js",
-    }));
-  },
-});
-const { createDesktopViewModel } = await import("./view-model.svelte.js");
+import { createDesktopViewModel } from "./view-model.svelte.js";
 const originalFetch = globalThis.fetch;
 test("slash keyboard selection accepts available catalogue actions, not arbitrary action ids", async () => {
   const initial = snapshot();
@@ -83,11 +71,11 @@ test("active history delivery does not wait for the slower state refresh cadence
   const h = await harness(initial);
   await h.vm.start();
   const before = h.historyRequests.length;
-  await Bun.sleep(350);
+  await sleep(350);
   const during = h.historyRequests.length;
   h.vm.stopPolling();
   expect(during).toBeGreaterThan(before);
-  await Bun.sleep(200);
+  await sleep(200);
   expect(h.historyRequests.length).toBe(during);
 });
 test("typed goal command uses native goal control, not message submission", async () => {
@@ -149,7 +137,7 @@ test("Settings navigation groups named owners and distinguishes multiple pages",
         ])
       : base(url, options)) as typeof fetch;
   h.vm.primaryView = "settings";
-  await Bun.sleep(0);
+  await sleep(0);
   expect(
     h.vm.pluginSettingsGroups.map((group) => ({
       title: group.title,

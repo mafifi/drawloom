@@ -27,10 +27,12 @@ export class BrowserController {
   private unsubscribe?: () => void;
   private stopped = false;
   private generation = 0;
-  constructor(
-    private readonly transport: BrowserTransport | undefined,
-    private readonly changed: () => void,
-  ) {}
+  private readonly transport: BrowserTransport | undefined;
+  private readonly changed: () => void;
+  constructor(transport: BrowserTransport | undefined, changed: () => void) {
+    this.transport = transport;
+    this.changed = changed;
+  }
   private accept(value: unknown) {
     this.snapshot = DesktopBrowserSnapshotSchema.parse(value);
     this.changed();

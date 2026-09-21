@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { execFile } from "node:child_process";
@@ -23,7 +23,7 @@ const unit = Object.freeze([1, ...Array<number>(1023).fill(0)]);
 const execFileAsync = promisify(execFile);
 
 test("the supported GGUF identity replaces the old index generation", () => {
-  expect(LlamaEmbeddingWorker).toBeFunction();
+  expect(LlamaEmbeddingWorker).toBeTypeOf("function");
   expect(Object.keys(KnownModelManifests)).toEqual([modelId]);
   const manifest = KnownModelManifests[modelId];
   expect(manifest).toMatchObject({
@@ -138,7 +138,7 @@ test("warmup starts the installed worker without tokenization or inference", asy
     await worker.warmup();
     expect(starts).toBe(1);
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toEndWith("/v1/models");
+    expect(calls[0]?.endsWith("/v1/models")).toBe(true);
   } finally {
     await worker.close();
   }
@@ -566,7 +566,7 @@ test("trusted runtime and model archives are verified and atomically become read
       ["-czf", archive, "-C", fixture, "drawloom-llama-runtime"],
       { env: { ...process.env, COPYFILE_DISABLE: "1" } },
     );
-    const archiveBytes = new Uint8Array(await Bun.file(archive).arrayBuffer());
+    const archiveBytes = new Uint8Array(await Uint8Array.from(await readFile(archive)).buffer);
     const modelBytes = new TextEncoder().encode("x");
     const manifest = ModelManifestSchema.parse({
       id: "fixture",

@@ -7,6 +7,7 @@ import { createInstallationStore } from "../host/plugin-installations.ts";
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { createLocalTemporalManager } from "@drawloom/temporal-orchestration";
 import { command } from "../../../packages/orchestration/temporal-orchestration/dist/processes.js";
+import { build as esbuild } from "esbuild";
 
 // This capture is at the application composition root: prepare/attach/dispatch
 // and restoration all remain real. The test never supplies or calls handlers.
@@ -52,14 +53,13 @@ try {
     ["installed-workflow.mjs", "workflows.mjs"],
     ["installed-backend.mjs", "backend.mjs"],
   ]) {
-    await command("bun", [
-      "build",
-      resolve("packages/orchestration/temporal-orchestration/fixtures", source),
-      "--target",
-      "browser",
-      "--outfile",
-      join(pkg, "org.drawloom", output),
-    ]);
+    await esbuild({
+      entryPoints: [resolve("packages/orchestration/temporal-orchestration/fixtures", source)],
+      outfile: join(pkg, "org.drawloom", output),
+      bundle: true,
+      platform: "browser",
+      format: "esm",
+    });
   }
   await writeFile(
     join(pkg, "plugin.json"),

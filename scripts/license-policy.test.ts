@@ -1,5 +1,5 @@
-import { expect, test } from "bun:test";
-import { assessLicense, isReviewedMpl, selectedLicense } from "./license-policy.js";
+import { expect, test } from "vitest";
+import { assessLicense, isReviewedMpl, selectedLicense } from "./license-policy.ts";
 
 test("the Linux CI sqlite-vec binary uses the explicitly reviewed MIT alternative", () => {
   expect(selectedLicense("sqlite-vec-linux-x64@0.1.9")).toBe("MIT");

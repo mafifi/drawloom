@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { queueDesktopRequest } from "./request-queue.js";
 
 test("queue admission and invocation cannot be separated by shutdown", async () => {

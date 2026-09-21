@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { createDesktopAuthorization } from "./authorization.js";
 import { createGrantRefresh } from "./grant-refresh.js";
 import { createLocalToolGateway } from "@drawloom/local-tools";

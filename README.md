@@ -79,14 +79,16 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change.
 
 ## Development
 
-Drawloom uses the Bun version pinned in `package.json`:
+Drawloom pins its toolchain exactly: the pnpm version in `packageManager`, the
+Node version in `engines`, and the Rust toolchain in
+`apps/desktop/src-tauri/rust-toolchain.toml`.
 
 ```sh
-bun install --frozen-lockfile
-bun run check:ci
+pnpm install --frozen-lockfile
+pnpm run check:ci
 ```
 
-External dependency versions are owned by the root Bun catalog. See the
+External dependency versions are owned by the root dependency catalog. See the
 [dependency and package policy](docs/reference/dependency-policy.md) before
 adding a workspace dependency.
 

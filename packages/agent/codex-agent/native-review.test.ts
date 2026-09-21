@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createCodexDriver } from "./src/index.js";
 import type { AgentSessionSignal } from "@drawloom/agent";
 import type { RpcMessage, RpcTransport } from "@drawloom/host";

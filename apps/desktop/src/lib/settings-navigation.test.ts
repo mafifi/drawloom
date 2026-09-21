@@ -1,5 +1,5 @@
-import { expect, test } from "bun:test";
-import { pluginSettingsTitle } from "./settings-navigation";
+import { expect, test } from "vitest";
+import { pluginSettingsTitle } from "./settings-navigation.ts";
 
 test("settings titles remove repeated owner names but retain distinct page context", () => {
   expect(pluginSettingsTitle({ ownerTitle: "Example", title: "example" })).toBe("example");

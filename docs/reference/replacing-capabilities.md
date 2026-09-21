@@ -235,7 +235,7 @@ revocation and unattended assessment for policy; failed, dismissed and unanswere
 requests for approval presentation. A passing type check alone does not prove these
 behaviors.
 
-After `bun run build:packages`, `bun run test:replacements` packages the built
+After `pnpm run build:packages`, `pnpm run test:replacements` packages the built
 public packages and installs their tarballs into a disposable consumer outside
 the checkout, then uses their public exports under Node. It is a packaging and
 contract check, not a live model or rendered UI test.

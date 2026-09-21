@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { z } from "zod";
 import { parse, canonical, workflowResult, type Orchestrator } from "./src/index.ts";
 import * as orchestration from "./src/index.ts";

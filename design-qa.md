@@ -135,7 +135,7 @@ are black rather than the reference's green. This is not a pixel-perfect claim.
 
 ### Verification and limits
 
-Fresh full `bun run check:ci`: 57 tests passed, 179 assertions; Astro reported
+Fresh full `pnpm run check:ci`: 57 tests passed, 179 assertions; Astro reported
 zero errors, warnings or hints. The final neutral-asset draft build passed.
 During this rebuild, desktop (1280px), source-width and mobile (390px) views were
 inspected; mobile home/article had no horizontal overflow. Read the essay,

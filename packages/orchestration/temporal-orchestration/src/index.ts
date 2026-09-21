@@ -90,11 +90,11 @@ const limit = (value = 100) => {
 /** One manager per data root; creating it neither imports a plugin nor starts a service. */
 export function createLocalTemporalManager(options: LocalTemporalOptions) {
   const root = resolve(options.dataDirectory, "orchestration");
+  // `pnpm deploy` writes the deployed package at the target root, with its own
+  // self-contained node_modules beside it. The installed layout is therefore
+  // <runtimeDirectory>/dist/sidecar.js, not a nested node_modules path.
   const sidecar = options.runtimeDirectory
-    ? resolve(
-        options.runtimeDirectory,
-        "node_modules/@drawloom/temporal-orchestration/dist/sidecar.js",
-      )
+    ? resolve(options.runtimeDirectory, "dist/sidecar.js")
     : fileURLToPath(new URL("../dist/sidecar.js", import.meta.url));
   const node = options.nodePath ?? "node";
   const cli = options.temporalPath ?? "temporal";

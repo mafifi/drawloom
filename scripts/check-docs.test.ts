@@ -1,7 +1,8 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { spawnSync } from "node:child_process";
 
 async function check(files: Record<string, string>) {
   const cwd = await mkdtemp(join(tmpdir(), "drawloom-docs-test-"));
@@ -14,13 +15,13 @@ async function check(files: Record<string, string>) {
       ["init", "-q"],
       ["add", "."],
     ]) {
-      const result = Bun.spawnSync(["git", ...args], { cwd });
-      expect(result.exitCode).toBe(0);
+      const result = spawnSync("git", [...args], { cwd });
+      expect(result.status).toBe(0);
     }
-    const result = Bun.spawnSync([process.execPath, join(import.meta.dir, "check-docs.ts")], {
+    const result = spawnSync(process.execPath, [join(import.meta.dirname, "check-docs.ts")], {
       cwd,
     });
-    return { code: result.exitCode, error: result.stderr.toString() };
+    return { code: result.status, error: result.stderr.toString() };
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }

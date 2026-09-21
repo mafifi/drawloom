@@ -3,9 +3,12 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "allowJs": true,
-    "types": ["bun", "node"]
+    "types": ["node"]
   },
-  "include": ["packages/**/*.test.ts", "scripts/**/*.ts", "spikes/**/*.ts"],
+  // `spikes/` is retained Bun evidence (ADR 0034): not built, not run, and not
+  // migrated. It cannot type-check under a toolchain with no `bun:test` types,
+  // and rewriting it would destroy the record of what was actually tried.
+  "include": ["packages/**/*.test.ts", "scripts/**/*.ts"],
   "exclude": [
     "node_modules",
     "spikes/adr-0017-orchestration/temporal*.ts",

@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -6,6 +6,7 @@ import { createNodeJsonStore } from "@drawloom/node-host";
 import { createInstallationStore } from "./plugin-installations.js";
 import { createTestDesktopApplication } from "./test-project.fixture.js";
 import { serveDesktop } from "./server.js";
+import { build as esbuild } from "esbuild";
 
 test("a producer declaration and later media result are shared with another workbench and remote viewer", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-shared-media-"));
@@ -13,13 +14,13 @@ test("a producer declaration and later media result are shared with another work
   for (const id of ["producer", "consumer"]) {
     const pkg = join(root, id);
     await mkdir(join(pkg, "org.drawloom"), { recursive: true });
-    const build = await Bun.build({
-      entrypoints: [resolve(import.meta.dir, "shared-media.fixture.ts")],
-      target: "bun",
-      outdir: join(pkg, "org.drawloom"),
-      naming: "backend.mjs",
+    await esbuild({
+      entryPoints: [resolve(import.meta.dirname, "shared-media.fixture.ts")],
+      outfile: join(pkg, "org.drawloom", "backend.mjs"),
+      bundle: true,
+      platform: "node",
+      format: "esm",
     });
-    if (!build.success) throw Error("Fixture build failed");
     await writeFile(
       join(pkg, "plugin.json"),
       JSON.stringify({
@@ -47,7 +48,7 @@ test("a producer declaration and later media result are shared with another work
     });
   }
   const app = await createTestDesktopApplication(root);
-  const host = serveDesktop(app, resolve("apps/desktop/build"));
+  const host = await serveDesktop(app, resolve("apps/desktop/build"));
   try {
     const boot = await fetch(host.url, { redirect: "manual" });
     const cookie = boot.headers.get("set-cookie")!.split(";")[0]!;

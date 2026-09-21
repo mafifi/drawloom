@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { createSyntheticWorkbench } from "./src/index.js";
 test("registration alone never grants synthetic tool execution", async () => {
   const workbench = createSyntheticWorkbench({ record: async () => {} });

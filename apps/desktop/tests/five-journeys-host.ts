@@ -10,6 +10,7 @@ import {
   WorkflowReadSchema,
   WorkflowRunSchema,
 } from "../src/lib/orchestration-protocol.js";
+import { setTimeout as sleep } from "node:timers/promises";
 
 const root = await realpath(await mkdtemp(join(tmpdir(), "drawloom-journeys-")));
 const data = join(root, "data");
@@ -31,7 +32,7 @@ await app.command({
   attachmentKeys: [],
   contextArtifactIds: [],
 });
-for (let i = 0; i < 100 && (await app.snapshot()).activeOperation; i++) await Bun.sleep(10);
+for (let i = 0; i < 100 && (await app.snapshot()).activeOperation; i++) await sleep(10);
 if ((await app.snapshot()).activeOperation) throw Error("Synthetic operation did not settle");
 await app.command({ kind: "add_project", directory: research, name: "Research" });
 const second = await app.command({
@@ -118,7 +119,7 @@ if (process.env.DRAWLOOM_UI_ACTIVITY_FIXTURE === "1") {
     return run;
   };
 }
-const host = serveDesktop(app, resolve("apps/desktop/build"));
+const host = await serveDesktop(app, resolve("apps/desktop/build"));
 const metadata = {
   root,
   data,

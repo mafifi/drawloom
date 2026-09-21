@@ -1,10 +1,13 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { createTelemetryRelay } from "./telemetry-relay.js";
 import { createDesktopApplication } from "./application.js";
 import { serveDesktop } from "./server.js";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { serve } from "@hono/node-server";
+import { once } from "node:events";
+import type { AddressInfo } from "node:net";
 
 function payload() {
   const start = String(BigInt(Date.now()) * 1_000_000n);
@@ -35,7 +38,7 @@ function payload() {
 }
 test("UI relay forwards bounded standard traces with fixed resource and no user content", async () => {
   const received: unknown[] = [];
-  const sink = Bun.serve({
+  const sink = serve({
     hostname: "127.0.0.1",
     port: 0,
     async fetch(req) {
@@ -43,8 +46,10 @@ test("UI relay forwards bounded standard traces with fixed resource and no user 
       return Response.json({});
     },
   });
+  await once(sink, "listening");
+  const sinkUrl = new URL(`http://127.0.0.1:${(sink.address() as AddressInfo).port}/`);
   try {
-    const relay = createTelemetryRelay("export", sink.url.href);
+    const relay = createTelemetryRelay("export", sinkUrl.href);
     expect(
       (
         await relay.handle(
@@ -63,7 +68,7 @@ test("UI relay forwards bounded standard traces with fixed resource and no user 
       ).status,
     ).toBe(413);
   } finally {
-    sink.stop(true);
+    sink.close();
   }
 });
 test("disabled UI relay is closed and invalid endpoints cannot become an export proxy", async () => {
@@ -85,7 +90,7 @@ test("disabled UI relay is closed and invalid endpoints cannot become an export 
 test("the desktop authenticates and checks origin before accepting UI OTLP", async () => {
   const app = await createDesktopApplication(await mkdtemp(join(tmpdir(), "drawloom-relay-auth-")));
   const relay = createTelemetryRelay("recording");
-  const server = serveDesktop(app, "/unused", 0, relay);
+  const server = await serveDesktop(app, "/unused", 0, relay);
   const url = server.origin + "/api/telemetry/v1/traces",
     body = JSON.stringify(payload());
   try {

@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { WorkflowRunSchema } from "./orchestration-protocol.js";
 const run = {
   runId: "run",

@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -18,7 +18,7 @@ test("authenticated Activity uses the composed Nightloom registration without a 
     knowledge: { local: service },
     orchestration: { manager: async () => fixture.manager },
   });
-  const host = serveDesktop(app, resolve("apps/desktop/build"));
+  const host = await serveDesktop(app, resolve("apps/desktop/build"));
   try {
     expect((await app.snapshot()).selectedProjectId).toBeUndefined();
     expect(await app.knowledgeActivityOwner()).toMatchObject({

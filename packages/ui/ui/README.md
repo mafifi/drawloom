@@ -126,7 +126,7 @@ Direct Bits UI, shadcn-svelte or local `components/ui` imports outside this
 package's `src/` bypass the boundary. Standard Svelte APIs remain available
 to consumers. The exact shared source directory owns native control
 implementation; a similarly named sibling package is not exempt, and no
-inline suppression comment can waive this policy. `bun run check:ui-policy`
+inline suppression comment can waive this policy. `pnpm run check:ui-policy`
 enforces it: it parses maintained Svelte with the Svelte compiler, checks
 source imports in maintained JavaScript and TypeScript, and reports file and
 line with replacement advice. It fails on Svelte parse errors, excludes
@@ -357,7 +357,7 @@ narrow:
   base theme.
 - The `DropdownMenu` source uses the same package-local `../../utils.js`
   import as the other generated components; the CLI's attempted dependency
-  specifier and version rewrites were discarded so the root Bun catalog
+  specifier and version rewrites were discarded so the root dependency catalog
   remains authoritative.
 
 `StatefulButton` is a locally authored wrapper around the generated Button;
@@ -405,7 +405,7 @@ behaviour and open a separate browser surface without replacing the conversation
 Links do not trigger animation or automatic fetch; unavailable files retain the host's
 normal error response. Repeated rendering never changes the stored message.
 
-The root Bun catalog owns dependency versions. When adding a component, use
+The root dependency catalog owns dependency versions. When adding a component, use
 the Svelte CLI (not the React CLI), preserve existing sources, convert newly
 added dependencies to catalog references and internal aliases to relative
 imports, then run the package build/check and the root gate.

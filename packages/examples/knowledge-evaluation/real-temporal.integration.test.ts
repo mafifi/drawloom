@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,6 +11,8 @@ import type { Installation } from "../../../apps/desktop/host/plugin-installatio
 import { loadInstalledPackages } from "../../../apps/desktop/host/plugin-packages.js";
 import { createWorkflowAuthority } from "../../../apps/desktop/host/workflow-authority.js";
 import { buildKnowledgeEvaluationPackage } from "./build.js";
+import { setTimeout as sleep } from "node:timers/promises";
+import { spawnSync } from "node:child_process";
 
 function unusedAssets(): AssetLibrary {
   const unused = async (): Promise<never> => {
@@ -32,19 +34,18 @@ test.skipIf(process.env.DRAWLOOM_TEMPORAL_TEST !== "1")(
     try {
       await buildKnowledgeEvaluationPackage();
       const archive = join(root, "knowledge-evaluation.tgz");
-      const packed = Bun.spawnSync(["bun", "pm", "pack", "--filename", archive, "--quiet"], {
-        cwd: import.meta.dir,
-        stdout: "pipe",
-        stderr: "pipe",
+      const packed = spawnSync("pnpm", ["pack", "--out", archive], {
+        cwd: import.meta.dirname,
       });
-      expect(packed.exitCode, packed.stderr.toString()).toBe(0);
+      expect(packed.status, packed.stderr.toString()).toBe(0);
       const packageRoot = join(root, "installed", "consumer");
       await mkdir(packageRoot, { recursive: true });
-      const extracted = Bun.spawnSync(
-        ["tar", "-xzf", archive, "--strip-components=1", "-C", packageRoot],
-        { stdout: "pipe", stderr: "pipe" },
+      const extracted = spawnSync(
+        "tar",
+        ["-xzf", archive, "--strip-components=1", "-C", packageRoot],
+        {},
       );
-      expect(extracted.exitCode, extracted.stderr.toString()).toBe(0);
+      expect(extracted.status, extracted.stderr.toString()).toBe(0);
       const installation: Installation = {
         id: "installed-public-knowledge",
         root: packageRoot,
@@ -136,7 +137,7 @@ test.skipIf(process.env.DRAWLOOM_TEMPORAL_TEST !== "1")(
       const evaluationRunId = start.evaluationRunId as string;
       let status: { kind: string } = { kind: "running" };
       for (let attempt = 0; attempt < 800 && status.kind === "running"; attempt++) {
-        await Bun.sleep(25);
+        await sleep(25);
         const response = await firstApp.callTool({
           name: "evaluation.request",
           arguments: { operation: "status", input: evaluationRunId },

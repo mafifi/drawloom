@@ -3,16 +3,16 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { chromium } from "playwright";
-import { createDesktopApplication } from "../apps/desktop/host/application.js";
-import { serveDesktop } from "../apps/desktop/host/server.js";
+import { createDesktopApplication } from "../apps/desktop/host/application.ts";
+import { serveDesktop } from "../apps/desktop/host/server.ts";
 import { createSqliteConversationHistory } from "@drawloom/sqlite-conversation-history";
 import type { HistoryEntry } from "@drawloom/conversation-history";
-import { verifyBrowserPanel } from "./browser-panel-ui.fixture.js";
+import { verifyBrowserPanel } from "./browser-panel-ui.fixture.ts";
 
 // Public synthetic acceptance, isolated from user installations and model providers.
 const root = await mkdtemp(join(tmpdir(), "drawloom-ui-acceptance-"));
 let app: Awaited<ReturnType<typeof createDesktopApplication>> | undefined;
-let server: ReturnType<typeof serveDesktop> | undefined;
+let server: Awaited<ReturnType<typeof serveDesktop>> | undefined;
 let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
 try {
   const working = join(root, "working");
@@ -90,7 +90,10 @@ try {
   });
   await history.close();
   app = await createDesktopApplication(data);
-  server = serveDesktop(app, resolve(process.env.DRAWLOOM_WEB_BUILD_DIR ?? "apps/desktop/build"));
+  server = await serveDesktop(
+    app,
+    resolve(process.env.DRAWLOOM_WEB_BUILD_DIR ?? "apps/desktop/build"),
+  );
   browser = await chromium.launch({
     headless: true,
     ...(process.env.DRAWLOOM_BROWSER_EXECUTABLE

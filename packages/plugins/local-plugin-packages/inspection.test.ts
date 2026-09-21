@@ -1,10 +1,13 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { mkdtemp, mkdir, writeFile, rm, symlink } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { packageInspectionConformance } from "@drawloom/plugins/conformance";
 import { PLUGIN_SCHEMA, MCP_PACKAGE_SCHEMA } from "@drawloom/plugins";
 import * as inspector from "./src/index.ts";
+import { serve } from "@hono/node-server";
+import { once } from "node:events";
+import type { AddressInfo } from "node:net";
 export async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "drawloom-package-test-"));
   return {
@@ -78,7 +81,7 @@ test("known extension failure and malformed fixed locations preserve siblings", 
 test("inspection recognizes extension metadata without importing backend or fetching schemas", async () => {
   const local = await fixture();
   let fetched = 0;
-  const schemaHost = Bun.serve({
+  const schemaHost = serve({
     hostname: "127.0.0.1",
     port: 0,
     fetch() {
@@ -86,6 +89,8 @@ test("inspection recognizes extension metadata without importing backend or fetc
       return Response.json({});
     },
   });
+  await once(schemaHost, "listening");
+  const schemaHostUrl = new URL(`http://127.0.0.1:${(schemaHost.address() as AddressInfo).port}/`);
   try {
     await local.write(
       "org.drawloom/backend.mjs",
@@ -109,7 +114,7 @@ test("inspection recognizes extension metadata without importing backend or fetc
         },
       }),
     );
-    await local.write("mcp.json", JSON.stringify({ $schema: schemaHost.url.href, mcpServers: {} }));
+    await local.write("mcp.json", JSON.stringify({ $schema: schemaHostUrl.href, mcpServers: {} }));
     const inventory = await inspector.inspectPackage(local.root);
     expect(inventory.drawloom?.backend?.entrypoint).toBe("./org.drawloom/backend.mjs");
     expect(inventory.drawloom?.workflows?.entrypoint).toBe("./org.drawloom/workflows.mjs");
@@ -117,12 +122,12 @@ test("inspection recognizes extension metadata without importing backend or fetc
     expect(fetched).toBe(0);
     await local.write(
       "plugin.json",
-      JSON.stringify({ $schema: schemaHost.url.href, name: "local" }),
+      JSON.stringify({ $schema: schemaHostUrl.href, name: "local" }),
     );
     await expect(inspector.inspectPackage(local.root)).rejects.toThrow();
     expect(fetched).toBe(0);
   } finally {
-    schemaHost.stop(true);
+    schemaHost.close();
     await local.dispose();
   }
 });

@@ -8,7 +8,7 @@ Material highlights are partly baked into the raster layers; Icon Composer adds
 its native effects. Individual ribbons are not separate layers. The earlier
 `Drawloom-preview.png` is a historical reference, not the current default artwork.
 
-`bun run --cwd apps/desktop bundle:icon` uses Apple's `actool` to compile the
+`pnpm --filter ./apps/desktop run bundle:icon` uses Apple's `actool` to compile the
 source into `Assets.car` and the `Drawloom.icns` compatibility fallback. Both
 generated artifacts are retained so public checks do not require Xcode. The
 normal native build regenerates them and bundles them with `CFBundleIconName`

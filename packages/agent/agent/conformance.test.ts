@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { agentConformance } from "./src/conformance.js";
 import { syntheticAgentFixture as fixture } from "../../../scripts/agent-conformance-fixtures.mjs";
 test("shared suite rejects an exposed steering method that accepts a stale target", async () => {

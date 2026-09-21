@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { GitKnowledgeSource, GitBatchSchema, gitBatchResult } from "./src/source.js";
 import { execFileSync } from "node:child_process";
 import {
@@ -42,7 +42,7 @@ function commit(repo: string, path: string, text?: string) {
 }
 
 test("Git source exposes a replayable committed-file feed", async () => {
-  expect(GitKnowledgeSource).toBeFunction();
+  expect(GitKnowledgeSource).toBeTypeOf("function");
 });
 
 test("unchanged acknowledged polls never hide a later commit", async () => {
@@ -246,7 +246,7 @@ test("a generic MCP client can poll and acknowledge the packed server outside th
   let client: Client | undefined;
   try {
     commit(fixture.repo, "notes.txt", "portable public fixture\n");
-    execFileSync("bun", ["run", "--cwd", "packages/plugins/git-knowledge-source", "build"], {
+    execFileSync("pnpm", ["--filter", "./packages/plugins/git-knowledge-source", "run", "build"], {
       cwd: process.cwd(),
       encoding: "utf8",
     });
@@ -307,7 +307,7 @@ test("a restarted durable consumer deduplicates a replayed multi-update page bef
     writeFileSync(join(fixture.repo, "two.txt"), "second public source\n");
     git(fixture.repo, ["add", "one.txt", "two.txt"]);
     git(fixture.repo, ["commit", "-m", "initial public source batch"]);
-    execFileSync("bun", ["run", "--cwd", "packages/plugins/git-knowledge-source", "build"], {
+    execFileSync("pnpm", ["--filter", "./packages/plugins/git-knowledge-source", "run", "build"], {
       cwd: process.cwd(),
       encoding: "utf8",
     });

@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createConversationForks } from "./conversation-forks.js";
 import { ConversationSchema } from "../src/lib/protocol.js";
 import type { JsonValue } from "@drawloom/host";

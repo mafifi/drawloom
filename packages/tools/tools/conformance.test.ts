@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { toolConformance } from "@drawloom/tools/conformance";
 import { createLocalToolGateway } from "../local-tools/src/index.js";
 for (const [tool, message] of [

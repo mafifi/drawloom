@@ -1,10 +1,10 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import * as provider from "./src/index.js";
 test("local manager is lazy, excludes concurrent roots, and rejects escaped module before import", async () => {
-  expect(Reflect.get(provider, "createLocalTemporalManager")).toBeFunction();
+  expect(Reflect.get(provider, "createLocalTemporalManager")).toBeTypeOf("function");
   const root = await mkdtemp(join(tmpdir(), "drawloom-manager-"));
   const first = provider.createLocalTemporalManager({
     dataDirectory: root,
@@ -34,7 +34,7 @@ test("local manager is lazy, excludes concurrent roots, and rejects escaped modu
   }
 });
 test("missing CLI rejects preparation without leaving owned child processes", async () => {
-  expect(Reflect.get(provider, "createLocalTemporalManager")).toBeFunction();
+  expect(Reflect.get(provider, "createLocalTemporalManager")).toBeTypeOf("function");
   const root = await mkdtemp(join(tmpdir(), "drawloom-prerequisite-"));
   const manager = provider.createLocalTemporalManager({
     dataDirectory: root,
@@ -86,7 +86,7 @@ test("host owners persist and list outside plugin installation ownership", async
       }),
     );
     const listHostOwners = Reflect.get(manager, "listHostOwners");
-    expect(listHostOwners).toBeFunction();
+    expect(listHostOwners).toBeTypeOf("function");
     expect(await listHostOwners.call(manager)).toEqual([
       {
         capabilityId: "knowledge-maintenance",
@@ -113,7 +113,7 @@ test("host preparation has a strict host capability scope and no project or inst
   });
   try {
     const prepareHost = Reflect.get(manager, "prepareHost");
-    expect(prepareHost).toBeFunction();
+    expect(prepareHost).toBeTypeOf("function");
     await expect(
       prepareHost.call(manager, {
         capabilityId: "knowledge-maintenance",

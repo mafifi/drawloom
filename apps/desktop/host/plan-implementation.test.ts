@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createSqliteConversationHistory } from "@drawloom/sqlite-conversation-history";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";

@@ -6,12 +6,13 @@ the macOS application. Both use the same local host.
 
 ## Start from source
 
-Use the Bun version pinned in the root `package.json`. From the repository root:
+Use the pnpm and Node versions pinned in the root `package.json`. From the
+repository root:
 
 ```sh
-bun install --frozen-lockfile
-bun run desktop:build
-bun run desktop:start
+pnpm install --frozen-lockfile
+pnpm run desktop:build
+pnpm run desktop:start
 ```
 
 Open the one-use sign-in URL printed by the host. It listens only on
@@ -32,7 +33,7 @@ folder is where your working files live; it is not the application's data folder
 To try a separate installation without touching existing data:
 
 ```sh
-DRAWLOOM_DATA_DIR=/absolute/path/to/separate-drawloom-data bun run desktop:start
+DRAWLOOM_DATA_DIR=/absolute/path/to/separate-drawloom-data pnpm run desktop:start
 ```
 
 Choose the path before running the command. Reuse it to reopen the same local
@@ -119,12 +120,13 @@ dependencies. The supported desktop and its local embedding runtime require
 macOS 14 or later. With the build tools installed and Cargo on your PATH, run:
 
 ```sh
-bun run --cwd apps/desktop tauri build --bundles app
+pnpm --filter ./apps/desktop run tauri build --bundles app
 ```
 
 The output is
 `apps/desktop/src-tauri/target/release/bundle/macos/Drawloom.app`.
-It packages the frontend, compiled Bun host and staged worker dependencies.
+It packages the built frontend, the host as an esbuild bundle executed by the
+pinned Node runtime, and the deployed sidecar runtimes.
 Codex remains a separate prerequisite. Optional workflows also require Node and
 Temporal as described in the
 [Temporal guide](../../packages/orchestration/temporal-orchestration/README.md).

@@ -10,7 +10,7 @@
 - Approved non-draft content deploys automatically after relevant changes reach
   `main` and the same commit passes CI; keep unfinished pieces marked `draft: true`.
   Manual publication uses the CI workflow dispatch on `main`, never bypassing checks.
-- Keep generated media/build output out of source history. Use root Bun catalog
+- Keep generated media/build output out of source history. Use root dependency catalog
   dependencies and never import retained spike modules from this directory.
 - Selected, publication-approved screenshots may be retained in a piece's
   `assets/` directory with provenance. Inspect for private data first; do not

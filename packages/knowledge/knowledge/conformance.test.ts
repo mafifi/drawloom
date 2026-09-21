@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import {
   knowledgeAssessmentConformance,
   knowledgeEmbeddingConformance,
@@ -845,8 +845,8 @@ test("index work conformance covers replay-safe ACK and configuration-scoped cur
 });
 
 test("conformance suites remain independently consumable", () => {
-  expect(knowledgeStorageConformance).toBeFunction();
-  expect(knowledgeAssessmentConformance).toBeFunction();
-  expect(knowledgeEmbeddingConformance).toBeFunction();
-  expect(knowledgeIndexWorkConformance).toBeFunction();
+  expect(knowledgeStorageConformance).toBeTypeOf("function");
+  expect(knowledgeAssessmentConformance).toBeTypeOf("function");
+  expect(knowledgeEmbeddingConformance).toBeTypeOf("function");
+  expect(knowledgeIndexWorkConformance).toBeTypeOf("function");
 });

@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { AgentOperationUsageSchema, AgentSessionSignalSchema } from "./src/index.js";
 
 test("operation usage is optional, bounded, and does not double count cached or reasoning subsets", () => {
@@ -19,12 +19,12 @@ test("operation usage is optional, bounded, and does not double count cached or 
   });
   expect(
     AgentOperationUsageSchema.safeParse({ inputTokens: 10, cachedInputTokens: 11 }).success,
-  ).toBeFalse();
-  expect(
-    AgentOperationUsageSchema.safeParse({ outputTokens: 2, reasoningTokens: 3 }).success,
-  ).toBeFalse();
-  expect(AgentOperationUsageSchema.safeParse({ inputTokens: 1.5 }).success).toBeFalse();
-  expect(AgentOperationUsageSchema.safeParse({}).success).toBeFalse();
+  ).toBe(false);
+  expect(AgentOperationUsageSchema.safeParse({ outputTokens: 2, reasoningTokens: 3 }).success).toBe(
+    false,
+  );
+  expect(AgentOperationUsageSchema.safeParse({ inputTokens: 1.5 }).success).toBe(false);
+  expect(AgentOperationUsageSchema.safeParse({}).success).toBe(false);
   expect(
     AgentSessionSignalSchema.parse({
       kind: "operation.completed",

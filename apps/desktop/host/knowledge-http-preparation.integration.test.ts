@@ -1,4 +1,4 @@
-import { test, expect, spyOn } from "bun:test";
+import { test, expect, vi } from "vitest";
 import * as models from "./models.js";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -228,7 +228,7 @@ async function fixture(
       await configure?.();
     return knowledgeCommand(raw, operation);
   };
-  const server = serveDesktop(app, resolve("apps/desktop/build"));
+  const server = await serveDesktop(app, resolve("apps/desktop/build"));
   const bootstrap = await fetch(server.url, { redirect: "manual" });
   const headers = {
     cookie: bootstrap.headers.get("set-cookie")!.split(";")[0]!,
@@ -852,9 +852,9 @@ test("a completed native turn during preparation dispatches once using a fresh e
 });
 
 test("completed steering target during assembly gets fresh preparation, receipt and model selection", async () => {
-  const discovery = spyOn(models, "desktopModels").mockResolvedValue([
-    { id: "small", title: "Small", efforts: ["low"] },
-  ]);
+  const discovery = vi
+    .spyOn(models, "desktopModels")
+    .mockResolvedValue([{ id: "small", title: "Small", efforts: ["low"] }]);
   const held = deferred();
   const assembler = createDefaultContextAssembler();
   const assembled: string[] = [];

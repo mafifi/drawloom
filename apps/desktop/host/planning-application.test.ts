@@ -1,10 +1,11 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdtemp, mkdir, rm, rename, writeFile, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { RpcMessage } from "@drawloom/host";
 import { createNodeJsonStore } from "@drawloom/node-host";
 import { createDesktopApplication } from "./application.js";
+import { setTimeout as sleep } from "node:timers/promises";
 
 test("installed host path selects planning without a turn and implements the retained proposal exactly once", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-planning-app-"));
@@ -100,7 +101,7 @@ test("installed host path selects planning without a turn and implements the ret
         turn: { id: "turn-1", status: "completed" },
       },
     });
-    for (let i = 0; i < 30; i++) await Bun.sleep(1);
+    for (let i = 0; i < 30; i++) await sleep(1);
     const proposal = (await app.historyPage(conversationId)).entries.find(
       (e) => e.origin.kind === "proposal",
     );
@@ -128,7 +129,7 @@ test("installed host path selects planning without a turn and implements the ret
         turn: { id: "turn-2", status: "completed" },
       },
     });
-    for (let i = 0; i < 30; i++) await Bun.sleep(1);
+    for (let i = 0; i < 30; i++) await sleep(1);
     await expect(
       app.command({
         kind: "implement_plan",
@@ -159,7 +160,7 @@ test("installed host path selects planning without a turn and implements the ret
         turn: { id: "turn-3", status: "completed" },
       },
     });
-    for (let i = 0; i < 30; i++) await Bun.sleep(1);
+    for (let i = 0; i < 30; i++) await sleep(1);
   } finally {
     await app.close();
     await rm(root, { recursive: true, force: true });

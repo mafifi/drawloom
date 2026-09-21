@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -12,7 +12,7 @@ test("10,000-entry public history uses bounded pages, no-body unchanged polls an
   const app = await createDesktopApplication(root);
   const id = (await app.snapshot()).selectedId;
   let store = createSqliteConversationHistory(join(root, "history.sqlite"));
-  let server: ReturnType<typeof serveDesktop> | undefined;
+  let server: Awaited<ReturnType<typeof serveDesktop>> | undefined;
   let sourceBytes = 0,
     peakRss = process.memoryUsage().rss;
   const sample = () => {
@@ -69,7 +69,7 @@ test("10,000-entry public history uses bounded pages, no-body unchanged polls an
       (await store.search({ query: "unique-search-update", conversationIds: [id] })).items[0]
         ?.entryId,
     ).toBe("public-9950");
-    server = serveDesktop(app, resolve("apps/desktop/build"));
+    server = await serveDesktop(app, resolve("apps/desktop/build"));
     const boot = await fetch(server.url, { redirect: "manual" });
     const cookie = boot.headers.get("set-cookie")!.split(";")[0]!;
     const get = (path: string, extra: Record<string, string> = {}) =>

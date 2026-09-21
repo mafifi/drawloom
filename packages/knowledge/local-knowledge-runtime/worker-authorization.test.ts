@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createWorkerAuthorizer } from "./src/worker-authorization.js";
 import { createLocalKnowledgeClient } from "./src/client.js";
 import { createDesktopAuthorization } from "../../../apps/desktop/host/authorization.js";

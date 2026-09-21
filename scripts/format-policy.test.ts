@@ -1,18 +1,21 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
+import { parse as parseYaml } from "yaml";
 
 const manifest = JSON.parse(readFileSync("package.json", "utf8"));
+// The dependency catalog lives in pnpm-workspace.yaml, not the root manifest.
+const workspace = parseYaml(readFileSync("pnpm-workspace.yaml", "utf8"));
 
 describe("formatting policy", () => {
   test("the root commands run the formatter and CI checks the baseline", () => {
     expect(manifest.scripts.format).toBe("biome format --write .");
     expect(manifest.scripts["check:format"]).toBe("biome format .");
-    expect(manifest.scripts["check:ci"].split(" && ")).toContain("bun run check:format");
+    expect(manifest.scripts["check:ci"].split(" && ")).toContain("pnpm run check:format");
   });
 
   test("Biome is an exact root-catalog development dependency", () => {
     expect(manifest.devDependencies["@biomejs/biome"]).toBe("catalog:");
-    expect(manifest.workspaces.catalog["@biomejs/biome"]).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(workspace.catalog["@biomejs/biome"]).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   test("configuration enables formatting without lint or assist rewrites", () => {

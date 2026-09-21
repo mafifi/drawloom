@@ -14,11 +14,13 @@
   ],
   "exports": {
     ".": {
+      "drawloom-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "svelte": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./styles.css": {
+      "drawloom-source": "./src/styles.css",
       "default": "./dist/styles.css"
     }
   },
@@ -54,5 +56,17 @@
   "devDependencies": {
     "@sveltejs/package": "catalog:",
     "svelte-check": "catalog:"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "svelte": "./dist/index.js",
+        "default": "./dist/index.js"
+      },
+      "./styles.css": {
+        "default": "./dist/styles.css"
+      }
+    }
   }
 }

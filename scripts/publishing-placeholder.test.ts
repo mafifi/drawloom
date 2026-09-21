@@ -1,9 +1,9 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { stagePlaceholder } from "./stage-publishing-placeholder";
+import { stagePlaceholder } from "./stage-publishing-placeholder.ts";
 
 const site = fileURLToPath(new URL("../publishing/site/", import.meta.url));
 

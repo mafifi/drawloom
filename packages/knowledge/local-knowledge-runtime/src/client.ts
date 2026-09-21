@@ -339,6 +339,10 @@ export function createManagedLocalKnowledgeClient(options: {
   authority: KnowledgeWorkerAuthority;
   nodePath?: string;
   runtimeEntrypoint?: string;
+  /** Composition seam for observability. A package cannot reach the host's
+   * telemetry, so the composition root supplies the wrapper. It is expected to
+   * record method names only, never parameters or results. */
+  observe?: (rpc: RpcTransport) => RpcTransport;
 }) {
   // Source imports deliberately use .js specifiers, so Node cannot execute the
   // TypeScript sidecar graph directly. Development uses the canonical package
@@ -363,7 +367,8 @@ export function createManagedLocalKnowledgeClient(options: {
     shutdownTimeoutMs: 10_000,
   });
   const stored = createNodeJsonStore(join(options.root, "state"));
-  return createLocalKnowledgeClient(rpc, options.authority, {
+  const observed = options.observe ? options.observe(rpc) : rpc;
+  return createLocalKnowledgeClient(observed, options.authority, {
     readConfiguration: async () =>
       parseStoredLocalKnowledgeConfiguration(
         (await stored.get("configuration")) ?? DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION,

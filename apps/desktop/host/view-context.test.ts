@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createViewContext } from "./view-context.js";
 
 test("context is replaced, scoped and cleared instead of accumulating selected material", () => {

@@ -12,18 +12,21 @@
   ],
   "exports": {
     ".": {
-      "bun": "./src/index.ts",
+      "drawloom-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
   "drawloom": {
     "role": "provider",
-    "runtime": "bun"
+    "runtime": "node"
   },
   "dependencies": {
     "@drawloom/conversation-history": "workspace:*",
     "@drawloom/host": "workspace:*",
     "zod": "catalog:"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
   }
 }

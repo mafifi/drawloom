@@ -76,4 +76,4 @@ for (const kind of ["local", "deterministic"]) {
       revoke() { revoked = true; deterministic.revoke("one"); } });
   } finally { scheduler.shutdown(); }
 }
-console.log("Packed Node replacements: context, contrasting learning, authorization passed; approval public dist export resolved (application conformance runs separately under Bun)");
+console.log("Packed Node replacements: context, contrasting learning, authorization passed; approval public dist export resolved (application conformance runs separately)");

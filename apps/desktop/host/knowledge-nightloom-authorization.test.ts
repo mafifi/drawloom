@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createKnowledgeNightloom, type NightloomKnowledgeService } from "./knowledge-nightloom.js";
 import { DEFAULT_LOCAL_KNOWLEDGE_CONFIGURATION } from "@drawloom/local-knowledge-runtime";
 import type { AuthorizationEvaluationOptions } from "@drawloom/authorization";

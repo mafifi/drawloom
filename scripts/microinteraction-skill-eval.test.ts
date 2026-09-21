@@ -1,8 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const root = resolve(import.meta.dir, "..");
+const root = resolve(import.meta.dirname, "..");
 const skillPath = resolve(root, ".agents/skills/microinteraction-design/SKILL.md");
 const casesPath = resolve(root, ".agents/skills/microinteraction-design/evals/trigger-cases.json");
 const cataloguePath = resolve(

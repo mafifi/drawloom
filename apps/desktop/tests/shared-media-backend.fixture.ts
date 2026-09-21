@@ -14,7 +14,7 @@ const backend: PluginBackendFactory = async ({ configuration }) => {
     .object({ id: z.string(), initial: z.string(), returned: z.string(), blocked: z.string() })
     .parse(configuration);
   const uri = `ui://${c.id}/view.html`;
-  const script = await readFile(join(import.meta.dir, "app.js"), "utf8");
+  const script = await readFile(join(import.meta.dirname, "app.js"), "utf8");
   const server = new McpServer({ name: c.id, version: "1" });
   registerAppResource(server, "Shared media", uri, {}, async () => ({
     contents: [

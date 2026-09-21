@@ -12,12 +12,12 @@
   ],
   "exports": {
     ".": {
-      "bun": "./src/index.ts",
+      "drawloom-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
     "./conformance": {
-      "bun": "./src/conformance.ts",
+      "drawloom-source": "./src/conformance.ts",
       "types": "./dist/conformance.d.ts",
       "import": "./dist/conformance.js"
     }
@@ -30,5 +30,8 @@
     "zod": "catalog:",
     "@drawloom/tools": "workspace:*",
     "@drawloom/workbench": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
   }
 }

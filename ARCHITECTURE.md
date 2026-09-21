@@ -150,10 +150,13 @@ publishing.
 - **Repository organisation:** Keep one authoritative home for each kind of
   information, with local guidance for coding agents.
   [ADR 0001](docs/adr/0001-repository-foundations.md).
-- **Language and toolchain:** Use TypeScript and ESM, Bun for repository tooling,
-  and explicit interfaces for host-specific code. Public packages initially
-  share a release version.
-  [ADR 0003](docs/adr/0003-typescript-bun-and-portable-packages.md).
+- **Language and toolchain:** Use TypeScript and ESM, and explicit interfaces
+  for host-specific code. Public packages initially share a release version.
+  pnpm manages dependencies, Node runs the application, Vitest runs tests,
+  esbuild bundles JavaScript and Tauri packages the desktop application.
+  [ADR 0003](docs/adr/0003-typescript-bun-and-portable-packages.md), whose
+  toolchain and `bun` runtime class are superseded by
+  [ADR 0034](docs/adr/0034-node-toolchain.md).
 - **Interfaces and tests:** Define behaviour before its implementation, validate
   external data with Zod schemas, and run the same conformance tests against
   every implementation.

@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -47,7 +47,7 @@ test("knowledge is exposed only through the authenticated, schema-checked applic
     await mkdtemp(join(tmpdir(), "drawloom-knowledge-http-")),
     { knowledge: { service, declaration: DEFAULT_LOCAL_LEARNING_SCOPE } },
   );
-  const server = serveDesktop(app, resolve("apps/desktop/build"));
+  const server = await serveDesktop(app, resolve("apps/desktop/build"));
   try {
     expect((await fetch(server.origin + "/api/knowledge", { method: "POST" })).status).toBe(401);
     const boot = await fetch(server.url, { redirect: "manual" });

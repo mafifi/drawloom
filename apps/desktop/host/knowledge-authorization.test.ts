@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createDesktopAuthorization } from "./authorization.js";
 
 const operation = () => ({ signal: new AbortController().signal, remainingMs: () => 1000 });

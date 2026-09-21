@@ -225,7 +225,7 @@ or generation permission. See
 
 ## Local consumption
 
-Run `bun run build:packages` from the root, then `bun pm pack` inside each needed
+Run `pnpm run build:packages` from the root, then `bun pm pack` inside each needed
 package. Install the tarballs into your consumer from a local directory outside
 this source checkout. Keep machine-specific paths and tarballs out of commits;
 a gitignored directory with relative `file:` references is suitable.

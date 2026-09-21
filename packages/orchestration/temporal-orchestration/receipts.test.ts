@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -7,6 +7,7 @@ import { command } from "./src/processes.js";
 import { z } from "zod";
 import { matchTaskHandlers, StepFailure } from "@drawloom/orchestration";
 import * as implementation from "./src/receipts.js";
+import { build as esbuild } from "esbuild";
 
 const task = { id: "write", version: "1", input: z.number(), output: z.number() };
 const request = {
@@ -21,14 +22,15 @@ const request = {
 test("self-contained backend StepFailure retains denial and explicit retry semantics", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-bundled-error-"));
   try {
-    await command("bun", [
-      "build",
-      resolve("packages/orchestration/temporal-orchestration/fixtures/bundled-failure.mjs"),
-      "--target",
-      "browser",
-      "--outfile",
-      join(root, "backend.mjs"),
-    ]);
+    await esbuild({
+      entryPoints: [
+        resolve("packages/orchestration/temporal-orchestration/fixtures/bundled-failure.mjs"),
+      ],
+      outfile: join(root, "backend.mjs"),
+      bundle: true,
+      platform: "browser",
+      format: "esm",
+    });
     const backend = (await import(pathToFileURL(join(root, "backend.mjs")).href)) as {
       fail(code: string): never;
     };
@@ -57,7 +59,7 @@ test("self-contained backend StepFailure retains denial and explicit retry seman
   }
 });
 test("durable receipt deduplicates concurrent and reopened completed deliveries", async () => {
-  expect(Reflect.get(implementation, "createReceiptDispatcher")).toBeFunction();
+  expect(Reflect.get(implementation, "createReceiptDispatcher")).toBeTypeOf("function");
   const root = await mkdtemp(join(tmpdir(), "drawloom-receipt-"));
   let calls = 0;
   const handlers = matchTaskHandlers({ workflows: [], tasks: [task] }, [
@@ -84,7 +86,7 @@ test("durable receipt deduplicates concurrent and reopened completed deliveries"
   }
 });
 test("incomplete delivery recovers without rerun; unknown and denied never retry", async () => {
-  expect(Reflect.get(implementation, "createReceiptDispatcher")).toBeFunction();
+  expect(Reflect.get(implementation, "createReceiptDispatcher")).toBeTypeOf("function");
   const root = await mkdtemp(join(tmpdir(), "drawloom-receipt-"));
   let calls = 0;
   const handlers = (code: "unknown" | "denied" | "retryable") =>

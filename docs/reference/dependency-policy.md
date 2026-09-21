@@ -2,13 +2,15 @@
 
 This is the reference for anyone adding a dependency or a new workspace
 package: the package metadata and dependency rules decided by
-[ADR 0003](../adr/0003-typescript-bun-and-portable-packages.md).
+[ADR 0003](../adr/0003-typescript-bun-and-portable-packages.md), whose toolchain
+and `bun` runtime class are superseded by
+[ADR 0034](../adr/0034-node-toolchain.md).
 
 ## Version authority
 
 The root `package.json` is the only authority for external dependency version
-ranges. Its Bun workspace catalog records shared external ranges, while
-`bun.lock` records the exact resolved dependency graph.
+ranges. Its workspace dependency catalog records shared external ranges, while
+`pnpm-lock.yaml` records the exact resolved dependency graph.
 
 Workspace manifests declare usage without repeating version ranges:
 
@@ -33,8 +35,8 @@ Workspace manifests declare usage without repeating version ranges:
 - Put exceptional transitive compatibility overrides in root `overrides` or
   `resolutions`; do not disguise them as catalog policy.
 
-Run `bun install` after changing the root catalog and commit the resulting
-`bun.lock` change.
+Run `pnpm install` after changing the root catalog and commit the resulting
+`pnpm-lock.yaml` change.
 
 The local embeddings package uses a JavaScript worker with a separately built
 llama.cpp executable and Qwen GGUF model. The
@@ -63,7 +65,7 @@ Each workspace manifest declares its architectural role and runtime:
 ```
 
 Allowed roles are `contract`, `provider`, `consumer`, `runtime`, and
-`composition`. Allowed runtime classes are `portable`, `bun`, `node`,
+`composition`. Allowed runtime classes are `portable`, `node`,
 `cloudflare`, and `tauri`.
 
 Application workspaces are private composition roots. Publishable packages use
@@ -73,13 +75,14 @@ versions.
 ## Portability
 
 A portable package may use standard ECMAScript and Web Platform APIs. It must
-not import or expose ambient types or modules owned by Bun, Node.js, Cloudflare,
+not import or expose ambient types or modules owned by Node.js, Cloudflare,
 or Tauri. Host-specific behaviour crosses an explicit contract implemented by a
 host-specific provider and selected at a composition root.
 
-Passing tests under Bun proves Bun behaviour only. A package adds and runs a
-target-specific verification lane before its manifest or documentation claims
-Node.js, Cloudflare, or Tauri compatibility.
+Passing in the Vitest suite proves behaviour against workspace source only. A
+package adds and runs a target-specific verification lane before its manifest or
+documentation claims Cloudflare or Tauri compatibility, and the real-Node lane
+exercises built, packed and deployed files rather than source.
 
 ## Exceptions
 
@@ -104,12 +107,12 @@ not become permanent escape hatches.
 ## Canonical commands
 
 ```sh
-bun install --frozen-lockfile
-bun run check:dependency-policy
-bun run check:types
-bun run test
-bun run check:ci
+pnpm install --frozen-lockfile
+pnpm run check:dependency-policy
+pnpm run check:types
+pnpm run test
+pnpm run check:ci
 ```
 
-`bun run check:ci` is the complete repository gate at the current foundation
+`pnpm run check:ci` is the complete repository gate at the current foundation
 stage.

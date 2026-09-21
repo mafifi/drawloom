@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { authorizationConformance } from "@drawloom/authorization/conformance";
 import { createDeterministicAuthorizer } from "./src/index.js";
 const request = (project: string, context?: { unavailable: boolean }) => ({

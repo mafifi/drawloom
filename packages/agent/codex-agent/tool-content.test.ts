@@ -1,9 +1,10 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { createCodexDriver } from "./src/index.js";
 import type { RpcMessage, RpcTransport } from "@drawloom/host";
 import { createCodexHistoryReader } from "./src/history.js";
 import type { HistoryEntry } from "@drawloom/conversation-history";
 import { createCodexDiscovery } from "./src/discovery.js";
+import { setTimeout as sleep } from "node:timers/promises";
 
 test.each([false, true])(
   "native text-only tool output retains its own failure state (%s)",
@@ -110,7 +111,7 @@ test("concurrent completions returning the same native link receive the same dur
   const store = {
     async get(key: string) {
       const value = saved.get(key);
-      await Bun.sleep(1);
+      await sleep(1);
       return value;
     },
     async set(key: string, value: import("@drawloom/host").JsonValue) {
@@ -270,7 +271,7 @@ test("native MCP results reach capture once without raw provider metadata or cha
     };
     receive(event);
     receive(event);
-    for (let i = 0; i < 20 && !captured.length; i++) await Bun.sleep(2);
+    for (let i = 0; i < 20 && !captured.length; i++) await sleep(2);
     expect(captured).toHaveLength(1);
     expect(captured[0]).toMatchObject({
       operationId: "op",

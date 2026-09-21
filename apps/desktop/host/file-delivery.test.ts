@@ -1,9 +1,10 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { mkdtemp, mkdir, writeFile, rm, symlink, open, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { createDesktopApplication } from "./application.js";
 import { serveDesktop } from "./server.js";
+import { setTimeout as sleep } from "node:timers/promises";
 test("a stalled upload cannot block navigation and cancellation leaves no registered partial asset", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-upload-cancel-"));
   await mkdir(join(root, "working"));
@@ -14,7 +15,7 @@ test("a stalled upload cannot block navigation and cancellation leaves no regist
     workbenchId: "text",
     provider: "synthetic",
   });
-  const host = serveDesktop(app, resolve("apps/desktop/build"));
+  const host = await serveDesktop(app, resolve("apps/desktop/build"));
   const controller = new AbortController();
   await mkdir(join(root, "data", "assets"), { recursive: true });
   let release!: () => void;
@@ -54,7 +55,7 @@ test("a stalled upload cannot block navigation and cancellation leaves no regist
       !(await readdir(join(root, "data", "assets"))).some((name) => name.startsWith(".drawloom-"));
       i++
     )
-      await Bun.sleep(5);
+      await sleep(5);
     const navigation = await fetch(host.origin + "/api/command", {
       method: "POST",
       headers: { cookie, origin: host.origin, "Content-Type": "application/json" },
@@ -66,7 +67,7 @@ test("a stalled upload cannot block navigation and cancellation leaves no regist
     release();
     await upload;
     for (let i = 0; i < 100 && (await readdir(join(root, "data", "assets"))).length; i++)
-      await Bun.sleep(5);
+      await sleep(5);
     expect(await readdir(join(root, "data", "assets"))).toEqual([]);
     expect((await app.snapshot()).operator.artifacts).toHaveLength(0);
   } finally {
@@ -93,7 +94,7 @@ test("authenticated working files stream ranges without importing, and reject di
     workbenchId: "text",
     provider: "synthetic",
   });
-  const host = serveDesktop(app, resolve("apps/desktop/build"));
+  const host = await serveDesktop(app, resolve("apps/desktop/build"));
   try {
     const boot = await fetch(host.url, { redirect: "manual" });
     const cookie = boot.headers.get("set-cookie")!.split(";")[0]!;
@@ -135,7 +136,7 @@ test("17 MiB browser media imports stream, preserve identity and serve a suffix 
     workbenchId: "text",
     provider: "synthetic",
   });
-  const host = serveDesktop(app, resolve("apps/desktop/build"));
+  const host = await serveDesktop(app, resolve("apps/desktop/build"));
   try {
     const boot = await fetch(host.url, { redirect: "manual" });
     const cookie = boot.headers.get("set-cookie")!.split(";")[0]!;

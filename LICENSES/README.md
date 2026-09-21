@@ -33,7 +33,7 @@ failure; it does not admit unreviewed platforms or waive native-binary attributi
   source and notice obligations remain part of artifact review.
 - MPL-2.0 cssparser/selectors also appear through Tauri's proc-macro/codegen path.
   Development/build-only review is distinct from runtime adoption.
-- Runtime archives, models, copied UI source, embedded Node/Bun/Temporal binaries
+- Runtime archives, models, copied UI source, embedded Node/Temporal binaries
   and native transitive components need their own exact-artifact licence payloads.
   The new llama.cpp archive must include its reviewed legal files.
 - Dev-only Remotion/custom SDK terms and optional platform packages remain separate

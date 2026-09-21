@@ -1,9 +1,15 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runUiPolicyHook } from "./ui-policy-hook.ts";
+import { text as readText } from "node:stream/consumers";
+import { once } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
+/** Bun exposed `child.exited`; Node signals completion with an "exit" event. */
+const exitCodeOf = async (child: ChildProcess): Promise<number> =>
+  (await once(child, "exit"))[0] as number;
 
 const script = fileURLToPath(new URL("./ui-policy-hook.ts", import.meta.url));
 const event = JSON.stringify({
@@ -73,15 +79,12 @@ describe("advisory UI policy hook", () => {
   });
 
   test("malformed stdin returns non-blocking, actionable JSON without leaking its input", async () => {
-    const child = Bun.spawn([process.execPath, script], {
-      stdin: new Blob(["not-json private-payload"]),
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const child = spawn(process.execPath, [script]);
+    child.stdin!.end("not-json private-payload");
     const [status, stdout, stderr] = await Promise.all([
-      child.exited,
-      new Response(child.stdout).text(),
-      new Response(child.stderr).text(),
+      exitCodeOf(child),
+      readText(child.stdout!),
+      readText(child.stderr!),
     ]);
     expect(status).toBe(0);
     expect(stderr).toBe("");

@@ -7,7 +7,7 @@ import { z } from "zod";
 import {
   createCodexDriver,
   createCodexToolBridge,
-} from "../packages/agent/codex-agent/src/index.js";
+} from "../packages/agent/codex-agent/src/index.ts";
 import { createLocalToolGateway } from "@drawloom/local-tools";
 import { defineTool } from "@drawloom/tools";
 import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
@@ -18,8 +18,8 @@ import {
   createMcpToolServer,
 } from "@drawloom/node-host";
 import type { AgentSession, AgentSessionSignal, AgentDelegation } from "@drawloom/agent";
-import { mcpReviewConfiguration } from "../apps/desktop/host/composition.js";
-import { finishDisposableCodexThread } from "./codex-thread-cleanup.js";
+import { mcpReviewConfiguration } from "../apps/desktop/host/composition.ts";
+import { finishDisposableCodexThread } from "./codex-thread-cleanup.ts";
 
 if (process.env.DRAWLOOM_LIVE_DELEGATION !== "1")
   throw Error("Explicit native proof consent required");

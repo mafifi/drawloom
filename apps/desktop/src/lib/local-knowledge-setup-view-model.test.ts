@@ -1,20 +1,5 @@
-import { expect, test } from "bun:test";
-import { compileModule } from "svelte/compiler";
-Bun.plugin({
-  name: "local-learning-vm-tests",
-  setup(build) {
-    build.onLoad({ filter: /local-knowledge-setup-view-model\.svelte\.ts$/ }, async ({ path }) => ({
-      contents: compileModule(
-        new Bun.Transpiler({ loader: "ts" }).transformSync(await Bun.file(path).text()),
-        { filename: path, generate: "client" },
-      ).js.code,
-      loader: "js",
-    }));
-  },
-});
-const { createLocalKnowledgeSetupViewModel } = await import(
-  "./local-knowledge-setup-view-model.svelte.js"
-);
+import { expect, test } from "vitest";
+import { createLocalKnowledgeSetupViewModel } from "./local-knowledge-setup-view-model.svelte.js";
 export const localStatus = () => ({
   availability: "ready",
   message: "Text search ready",

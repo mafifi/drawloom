@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -29,7 +29,7 @@ test("workflow HTTP is authenticated, bounded, scope validated and separate from
   const waiting = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const server = serveDesktop(
+  const server = await serveDesktop(
     {
       ...app,
       workflowOwners: async (id) => {

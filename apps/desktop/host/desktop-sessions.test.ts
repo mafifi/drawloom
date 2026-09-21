@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createDesktopSessions } from "./desktop-sessions.js";
 import type { AgentSession } from "@drawloom/agent";
 

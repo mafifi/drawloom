@@ -72,13 +72,18 @@ fn application_context() -> tauri::Context<tauri::Wry> {
 
 fn setup_application(app: &mut tauri::App) -> StartupResult<()> {
     let resources = app.path().resource_dir()?;
-    let binary = std::env::var_os("DRAWLOOM_HOST_BIN")
+    // The host ships as a JavaScript bundle executed by the pinned Node runtime
+    // beside it, rather than a single compiled binary. DRAWLOOM_HOST_BIN still
+    // overrides the runtime for development.
+    let runtime = std::env::var_os("DRAWLOOM_HOST_BIN")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| resources.join("host/drawloom-host"));
+        .unwrap_or_else(|| resources.join("host/host/node"));
+    let entrypoint = resources.join("host/host/main.mjs");
     let web = std::env::var_os("DRAWLOOM_WEB_ROOT")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| resources.join("web"));
-    let mut child = Command::new(binary)
+    let mut child = Command::new(runtime)
+        .arg(entrypoint)
         .env("DRAWLOOM_WEB_ROOT", web)
         .env(
             "DRAWLOOM_ORCHESTRATION_RUNTIME",

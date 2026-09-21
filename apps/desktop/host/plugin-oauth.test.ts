@@ -1,8 +1,11 @@
-import { test, expect, spyOn } from "bun:test";
+import { test, expect, vi } from "vitest";
 import { createHash } from "node:crypto";
 import { createPluginOAuthManager } from "./plugin-oauth.js";
 import { createSessionCredentialStore, type PluginCredentialStore } from "./plugin-credentials.js";
 import type { FetchLike } from "@modelcontextprotocol/sdk/shared/transport.js";
+import { serve } from "@hono/node-server";
+import { once } from "node:events";
+import type { AddressInfo } from "node:net";
 
 const resource = "https://resource.example/mcp",
   issuer = "https://issuer.example";
@@ -83,7 +86,7 @@ async function service(resourceUrl = resource) {
     redirectToken: false,
     requireClientPost: false,
   };
-  const server = Bun.serve({
+  const server = serve({
     hostname: "127.0.0.1",
     port: 0,
     async fetch(request) {
@@ -183,13 +186,15 @@ async function service(resourceUrl = resource) {
       return new Response(null, { status: 404 });
     },
   });
+  await once(server, "listening");
+  const serverUrl = new URL(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`);
   const network: string[] = [];
   const fetch: FetchLike = async (input, init) => {
     const original = new URL(input);
     network.push(original.href);
     if (![issuer, new URL(resource).origin].includes(original.origin))
       throw Error("Outside controlled service");
-    return globalThis.fetch(new URL(original.pathname + original.search, server.url), {
+    return globalThis.fetch(new URL(original.pathname + original.search, serverUrl), {
       ...init,
       redirect: "manual",
     });
@@ -200,7 +205,7 @@ async function service(resourceUrl = resource) {
     fetch,
     network,
     close() {
-      server.stop(true);
+      server.close();
     },
   };
 }
@@ -398,7 +403,7 @@ test("expired callbacks, substituted token resources, and token redirects never 
     const expired = make(),
       returned = await approve(expired, remote);
     const future = Date.now() + 6 * 60_000,
-      now = spyOn(Date, "now").mockReturnValue(future);
+      now = vi.spyOn(Date, "now").mockReturnValue(future);
     try {
       await expect(expired.callback(returned)).rejects.toThrow();
     } finally {

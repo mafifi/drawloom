@@ -1,18 +1,5 @@
-import { afterEach, expect, test } from "bun:test";
-import { compileModule } from "svelte/compiler";
-Bun.plugin({
-  name: "orchestration-view-model-tests",
-  setup(build) {
-    build.onLoad({ filter: /orchestration-view-model\.svelte\.ts$/ }, async ({ path }) => ({
-      contents: compileModule(
-        new Bun.Transpiler({ loader: "ts" }).transformSync(await Bun.file(path).text()),
-        { filename: path, generate: "client" },
-      ).js.code,
-      loader: "js",
-    }));
-  },
-});
-const { createOrchestrationViewModel } = await import("./orchestration-view-model.svelte.js");
+import { afterEach, expect, test } from "vitest";
+import { createOrchestrationViewModel } from "./orchestration-view-model.svelte.js";
 const original = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = original;

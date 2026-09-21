@@ -1,5 +1,5 @@
 import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";

@@ -222,11 +222,10 @@ export interface ConversationHistoryReader {
   ): Promise<HistoryReadBatch>;
 }
 export class HistoryReadError extends Error {
-  constructor(
-    readonly status: "unsupported" | "unavailable" | "error",
-    message: string,
-  ) {
+  readonly status: "unsupported" | "unavailable" | "error";
+  constructor(status: "unsupported" | "unavailable" | "error", message: string) {
     super(message.slice(0, 512));
     this.name = "HistoryReadError";
+    this.status = status;
   }
 }

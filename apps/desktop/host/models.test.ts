@@ -1,4 +1,4 @@
-import { test, expect, spyOn } from "bun:test";
+import { test, expect, vi } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,9 +8,9 @@ import * as catalogue from "./models.js";
 
 test("model selection persists without creating or retargeting conversations; unsupported choices leave it unchanged", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-model-selection-"));
-  const discovery = spyOn(catalogue, "desktopModels").mockResolvedValue([
-    { id: "small", title: "Small", efforts: ["low"] },
-  ]);
+  const discovery = vi
+    .spyOn(catalogue, "desktopModels")
+    .mockResolvedValue([{ id: "small", title: "Small", efforts: ["low"] }]);
   await createNodeJsonStore(join(root, "state")).set("project", {
     version: 1,
     selectedId: "native",

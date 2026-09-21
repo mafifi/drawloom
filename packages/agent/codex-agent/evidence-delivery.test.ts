@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { createCodexDriver } from "./src/index.js";
 import type { RpcMessage, RpcTransport } from "@drawloom/host";
 

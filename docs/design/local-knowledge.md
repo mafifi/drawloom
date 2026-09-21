@@ -245,8 +245,8 @@ For a change to this system, test the affected interfaces and the full source,
 curation or retrieval journey. Keep provider calls opt-in and use synthetic
 records for public tests.
 
-After building packages, `bun run test:temporal` checks the real workflow service
-and `bun run test:orchestration:learning` checks Nightloom recovery with SQLite through
+After building packages, `pnpm run test:temporal` checks the real workflow service
+and `pnpm run test:orchestration:learning` checks Nightloom recovery with SQLite through
 the orchestration contract, using the Temporal implementation. These
 commands use isolated local services and do not call an answering model. They
 require the exact Node and Temporal versions enforced by the local manager; the

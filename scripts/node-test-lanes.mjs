@@ -12,6 +12,9 @@ const ignoredDirectories = new Set([
 
 export const nodeCheckLanes = Object.freeze({
   ci: Object.freeze([
+    "scripts/node-test-lanes.test.mjs",
+    "scripts/packaged-sidecars.test.mjs",
+    "packages/evaluation/braintrust-assessment/offline.test.mjs",
     "packages/knowledge/sqlite-knowledge/sqlite-knowledge.node-check.ts",
     "packages/knowledge/local-embeddings/llama-worker.node-check.mjs",
     "packages/knowledge/local-knowledge-runtime/runtime.node-check.ts",
@@ -24,8 +27,14 @@ export const nodeCheckLanes = Object.freeze({
     "evaluations/knowledge/runner.node-check.ts",
     "evaluations/knowledge/scale-run.node-check.ts",
   ]),
+  // Opt-in: these require a real Temporal server or a deployed runtime, and are
+  // executed by the test:temporal and test:temporal:compiled scripts.
   temporal: Object.freeze([
     "apps/desktop/tests/nightloom-orchestration.integration.node-check.mjs",
+    "packages/evaluation/evaluation-orchestration/real.test.mjs",
+    "packages/orchestration/temporal-orchestration/real.test.mjs",
+    "packages/orchestration/temporal-orchestration/installed-host.test.mjs",
+    "packages/orchestration/temporal-orchestration/compiled-runtime.test.mjs",
   ]),
   // This file's synthetic checks run in CI. Its installed-model conformance test
   // remains skipped unless DRAWLOOM_EMBEDDING_CONFORMANCE_ROOT is explicitly set.
@@ -42,7 +51,12 @@ export async function discoverNodeChecks(repository) {
         if (!entry.name.startsWith(".") && !ignoredDirectories.has(entry.name)) {
           await visit(`${directory}/${entry.name}`);
         }
-      } else if (entry.isFile() && /\.node-check\.(?:[cm]?[jt]s)$/.test(entry.name)) {
+        // `.test.mjs` is deliberately excluded from Vitest (it is the real-Node
+        // lane), so it must be inventoried here or it runs nowhere at all.
+      } else if (
+        entry.isFile() &&
+        (/\.node-check\.(?:[cm]?[jt]s)$/.test(entry.name) || /\.test\.mjs$/.test(entry.name))
+      ) {
         checks.push(relative(repository, `${directory}/${entry.name}`).split(sep).join("/"));
       }
     }
@@ -56,10 +70,10 @@ export function assertCompleteNodeCheckInventory(discovered, lanes) {
   const unassigned = discovered.filter((file) => !assigned.has(file));
   const missing = [...assigned].filter((file) => !discovered.includes(file));
   if (unassigned.length > 0) {
-    throw new Error(`Unassigned maintained .node-check files: ${unassigned.join(", ")}`);
+    throw new Error(`Unassigned maintained Node-lane files: ${unassigned.join(", ")}`);
   }
   if (missing.length > 0) {
-    throw new Error(`Inventoried .node-check files do not exist: ${missing.join(", ")}`);
+    throw new Error(`Inventoried Node-lane files do not exist: ${missing.join(", ")}`);
   }
 }
 

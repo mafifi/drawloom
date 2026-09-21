@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createEvaluationAssessmentResolver } from "./evaluation-composition.js";
 import type { EvaluationAssessmentProvider } from "@drawloom/evaluation";
 

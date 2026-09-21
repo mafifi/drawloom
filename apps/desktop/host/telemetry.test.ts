@@ -1,5 +1,5 @@
 import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
-import { test, expect, afterAll } from "bun:test";
+import { test, expect, afterAll } from "vitest";
 import { context, propagation, trace } from "@opentelemetry/api";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { InMemorySpanExporter, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base";
@@ -23,6 +23,10 @@ import { connectMcpApp } from "./mcp-app.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { fileResponse } from "./file-response.js";
+import { setTimeout as sleep } from "node:timers/promises";
+import { serve } from "@hono/node-server";
+import { once } from "node:events";
+import type { AddressInfo } from "node:net";
 test("file delivery records transferred bytes without file paths or content", async () => {
   exporter.reset();
   const response = await fileResponse(
@@ -100,7 +104,7 @@ test("concurrent observed calls retain their own child spans and never capture a
   exporter.reset();
   const rpc = observedRpc({
     request: async () => {
-      await Bun.sleep(2);
+      await sleep(2);
       throw Error("SECRET_PROMPT");
     },
     notify() {},
@@ -256,7 +260,7 @@ test("standard MCP metadata continues the invocation without changing tool argum
     method: string;
     params?: { _meta?: Record<string, unknown>; arguments?: unknown };
   }[] = [];
-  const server = Bun.serve({
+  const server = serve({
     hostname: "127.0.0.1",
     port: 0,
     async fetch(request) {
@@ -278,12 +282,14 @@ test("standard MCP metadata continues the invocation without changing tool argum
       });
     },
   });
+  await once(server, "listening");
+  const serverUrl = new URL(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`);
   const active = await activatePackage(
     {
       root: "/unused",
       name: "synthetic",
       skills: [],
-      servers: [{ name: "remote", config: { type: "streamable-http", url: server.url.href } }],
+      servers: [{ name: "remote", config: { type: "streamable-http", url: serverUrl.href } }],
       diagnostics: [],
       extensions: {},
     },
@@ -305,7 +311,7 @@ test("standard MCP metadata continues the invocation without changing tool argum
     expect(message.params?._meta?.baggage).toBeUndefined();
   } finally {
     await active.close();
-    server.stop(true);
+    server.close();
   }
 });
 

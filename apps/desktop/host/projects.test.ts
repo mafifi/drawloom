@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { mkdtemp, mkdir, rm, symlink, rename, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

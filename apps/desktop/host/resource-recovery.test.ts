@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { ToolResult } from "@drawloom/tools";
 import { createResourceRecovery } from "./resource-recovery.js";
 import { mkdtemp } from "node:fs/promises";

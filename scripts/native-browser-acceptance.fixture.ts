@@ -1,3 +1,6 @@
+import { serve } from "@hono/node-server";
+import { once } from "node:events";
+import type { AddressInfo } from "node:net";
 /** Manual WKWebView acceptance fixture. No agent, project data or external traffic. */
 const page = `<!doctype html><html lang="en"><meta charset="utf-8">
 <title>Native browser acceptance</title><h1>Native browser acceptance</h1>
@@ -54,7 +57,7 @@ document.getElementById('host').onclick = async () => {
 };
 </script></html>`;
 
-const server = Bun.serve({
+const server = serve({
   hostname: "127.0.0.1",
   port: 4497,
   fetch(request) {
@@ -71,4 +74,6 @@ const server = Bun.serve({
     return new Response(page, { headers: { "Content-Type": "text/html" } });
   },
 });
-console.log(`Native acceptance fixture: ${server.url}`);
+await once(server, "listening");
+const serverUrl = new URL(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`);
+console.log(`Native acceptance fixture: ${serverUrl}`);

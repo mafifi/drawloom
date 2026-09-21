@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { command } from "./dist/processes.js";
+import { build as esbuild } from "esbuild";
 
 // Ordinary Bun discovery must not register tests through its node:test shim.
 if (!process.versions.bun)
@@ -24,14 +25,15 @@ if (!process.versions.bun)
         "--outfile",
         executable,
       ]);
-      await command("bun", [
-        "build",
-        resolve("packages/orchestration/temporal-orchestration/fixtures/recovery.mjs"),
-        "--target",
-        "browser",
-        "--outfile",
-        join(pkg, "workflow.mjs"),
-      ]);
+      await esbuild({
+        entryPoints: [
+          resolve("packages/orchestration/temporal-orchestration/fixtures/recovery.mjs"),
+        ],
+        outfile: join(pkg, "workflow.mjs"),
+        bundle: true,
+        platform: "browser",
+        format: "esm",
+      });
       const runtime = resolve(
         process.env.DRAWLOOM_ORCHESTRATION_RUNTIME ??
           "apps/desktop/src-tauri/binaries/orchestration",

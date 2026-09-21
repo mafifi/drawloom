@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 
 const primitives = readFileSync(new URL("./src/theme/primitives.css", import.meta.url), "utf8");

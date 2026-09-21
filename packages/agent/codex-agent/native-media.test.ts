@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { createCodexDriver } from "./src/index.js";
 import type { RpcMessage } from "@drawloom/host";
 test("native images retain exact operation correlation and precede terminal completion", async () => {
@@ -92,7 +92,14 @@ test("native images retain exact operation correlation and precede terminal comp
     method: "turn/completed",
     params: { threadId: "private-thread", turn: { id: "private-turn", status: "completed" } },
   });
-  await new Promise((r) => setTimeout(r, 5));
+  // Wait for the artifact to be observed rather than guessing a delay: Node and
+  // Bun schedule the capture differently, and a fixed sleep raced the event.
+  const deadline = Date.now() + 5_000;
+  while (
+    !events.some((event) => (event as { kind?: string }).kind === "artifact.available") &&
+    Date.now() < deadline
+  )
+    await new Promise((r) => setTimeout(r, 1));
   await opened.value.close();
   await drain;
   expect(captures).toBe(2);

@@ -19,13 +19,16 @@ jobs:
       ASTRO_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Set up pinned pnpm version
+        uses: pnpm/action-setup@v4
+      - name: Set up pinned Node runtime
+        uses: actions/setup-node@v4
         with:
           node-version: '24.20.0'
-      - uses: oven-sh/setup-bun@v2.2.0
-      - run: bun install --frozen-lockfile
-      - run: bun run journal:render:article
-      - run: bun run journal:build
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run journal:render:article
+      - run: pnpm run journal:build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: publishing/site/dist

@@ -1,6 +1,7 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { RpcTransport } from "@drawloom/host";
 import { finishDisposableCodexThread } from "./codex-thread-cleanup.ts";
+import { setTimeout as sleep } from "node:timers/promises";
 
 function fixture(failArchive = false) {
   const calls: Array<{ method: string; params: unknown }> = [];
@@ -92,7 +93,7 @@ test("closes a cleanup transport that resolves after connection timeout", async 
     { kind: "completed" },
     { threadId: "owned-thread", connect: () => late, timeoutMs: 5 },
   );
-  await Bun.sleep(10);
+  await sleep(10);
   resolve({
     request: async () => ({}),
     notify() {},
@@ -105,7 +106,7 @@ test("closes a cleanup transport that resolves after connection timeout", async 
     },
   });
   const finished = await finishedPromise;
-  await Bun.sleep(1);
+  await sleep(1);
   expect(finished.cleanup.kind).toBe("failed");
   expect(closes).toBe(1);
 });

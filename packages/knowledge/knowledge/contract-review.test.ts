@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import * as contract from "./src/index.js";
 
 test("ranked record identities cannot collide through embedded separators", () => {

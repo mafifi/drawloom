@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 
 test("page, form, collection and viewer layouts have a shared implementation", () => {

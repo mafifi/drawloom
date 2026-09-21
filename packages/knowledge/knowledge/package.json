@@ -12,27 +12,27 @@
   ],
   "exports": {
     ".": {
-      "bun": "./src/index.ts",
+      "drawloom-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
     "./conformance": {
-      "bun": "./src/conformance.ts",
+      "drawloom-source": "./src/conformance.ts",
       "types": "./dist/conformance.d.ts",
       "import": "./dist/conformance.js"
     },
     "./learning-conformance": {
-      "bun": "./src/learning-conformance.ts",
+      "drawloom-source": "./src/learning-conformance.ts",
       "types": "./dist/learning-conformance.d.ts",
       "import": "./dist/learning-conformance.js"
     },
     "./learning": {
-      "bun": "./src/learning.ts",
+      "drawloom-source": "./src/learning.ts",
       "types": "./dist/learning.d.ts",
       "import": "./dist/learning.js"
     },
     "./consent": {
-      "bun": "./src/consent.ts",
+      "drawloom-source": "./src/consent.ts",
       "types": "./dist/consent.d.ts",
       "import": "./dist/consent.js"
     }
@@ -44,5 +44,8 @@
   "dependencies": {
     "zod": "catalog:",
     "@drawloom/authorization": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
   }
 }

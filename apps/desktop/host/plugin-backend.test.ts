@@ -1,14 +1,23 @@
-import { test, expect } from "bun:test";
-import { mkdtemp, writeFile, rm, symlink } from "node:fs/promises";
+import { test, expect } from "vitest";
+import { mkdtemp, writeFile, rm, symlink, readFile, stat, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createBackendLoader } from "./plugin-backend.js";
 import type { PackageInventory } from "@drawloom/plugins";
 import type { Orchestrator } from "@drawloom/orchestration";
 import type { EvaluationComposer } from "@drawloom/evaluation";
+import { text as readText } from "node:stream/consumers";
+import { once } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
+import { build as esbuild } from "esbuild";
+/** Bun exposed `child.exited`; Node signals completion with an "exit" event. */
+const exitCodeOf = async (child: ChildProcess): Promise<number> =>
+  (await once(child, "exit"))[0] as number;
 
 const writeBackend = (root: string, source: string) =>
-  Bun.write(join(root, "org.drawloom", "backend.mjs"), source);
+  mkdir(join(root, "org.drawloom"), { recursive: true }).then(() =>
+    writeFile(join(root, "org.drawloom", "backend.mjs"), source),
+  );
 
 test("fresh host processes load a backend update and recover from a broken replacement without changing its data", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-backend-update-"));
@@ -21,12 +30,14 @@ test("fresh host processes load a backend update and recover from a broken repla
       instructions:await readFile(${JSON.stringify(marker)},'utf8')
     }]},dispose(){}});`;
   const run = async () => {
-    const process = Bun.spawn(
-      [
-        Bun.which("bun")!,
-        "--eval",
-        `
-      import {createBackendLoader} from ${JSON.stringify(loaderUrl)};
+    // The shipped host is an esbuild bundle executed by Node, so the child is
+    // built the same way. Node cannot resolve the repository's `.js` specifiers
+    // to their `.ts` sources; the bundler can, and this exercises what ships.
+    const entry = join(root, "run-entry.mjs");
+    await esbuild({
+      stdin: {
+        contents: `
+      import {createBackendLoader} from "./plugin-backend.ts";
       const loader=createBackendLoader();
       try {
         const result=await loader.activate({root:${JSON.stringify(root)},name:'update-fixture',
@@ -39,11 +50,21 @@ test("fresh host processes load a backend update and recover from a broken repla
           : result));
       } finally {await loader.close();}
     `,
-      ],
-      { stdout: "pipe", stderr: "pipe" },
-    );
-    const output = await new Response(process.stdout).text();
-    expect(await process.exited).toBe(0);
+        resolveDir: import.meta.dirname,
+        loader: "ts",
+      },
+      outfile: entry,
+      bundle: true,
+      platform: "node",
+      format: "esm",
+    });
+    const child = spawn(process.execPath, [entry]);
+    const [output, failure, status] = await Promise.all([
+      readText(child.stdout!),
+      readText(child.stderr!),
+      exitCodeOf(child),
+    ]);
+    expect(status, failure).toBe(0);
     return JSON.parse(output);
   };
   try {
@@ -63,10 +84,10 @@ test("fresh host processes load a backend update and recover from a broken repla
     }
     await writeBackend(root, "throw Error('broken synthetic update')");
     expect((await run()).status).toBe("failed");
-    expect(await Bun.file(marker).text()).toBe("retained synthetic working data");
+    expect(await readFile(marker, "utf8")).toBe("retained synthetic working data");
     await writeBackend(root, backend("1"));
     expect((await run()).skills[0].title).toBe("1");
-    expect(await Bun.file(marker).text()).toBe("retained synthetic working data");
+    expect(await readFile(marker, "utf8")).toBe("retained synthetic working data");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -167,7 +188,12 @@ test("required evaluation and backend trust are checked before importing the mod
     expect((await loader.activate(inventory, { ...options, trusted: true })).status).toBe(
       "unavailable",
     );
-    expect(await Bun.file(marker).exists()).toBe(false);
+    expect(
+      await stat(marker).then(
+        () => true,
+        () => false,
+      ),
+    ).toBe(false);
   } finally {
     await loader.close();
     await rm(root, { recursive: true, force: true });
@@ -401,15 +427,20 @@ test("backend trust and dependencies are checked before module execution; cleanu
     expect((await loader.activate(inventory, { ...options, trusted: true })).status).toBe(
       "unavailable",
     );
-    expect(await Bun.file(marker).exists()).toBe(false);
+    expect(
+      await stat(marker).then(
+        () => true,
+        () => false,
+      ),
+    ).toBe(false);
     inventory.drawloom!.requires = [];
     const active = await loader.activate(inventory, { ...options, trusted: true });
     expect(active.status).toBe("ready");
     expect(await loader.activate(inventory, { ...options, trusted: true })).toBe(active);
-    expect(await Bun.file(marker).text()).toBe("import;;");
+    expect(await readFile(marker, "utf8")).toBe("import;;");
     await loader.close();
     await loader.close();
-    expect(await Bun.file(marker).text()).toBe("import;;dispose;");
+    expect(await readFile(marker, "utf8")).toBe("import;;dispose;");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -419,7 +450,9 @@ test("backend entrypoint cannot escape package via a symlink", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-backend-path-"));
   try {
     const dir = join(root, "package");
-    await Bun.write(join(dir, "org.drawloom", "placeholder"), "");
+    await mkdir(join(dir, "org.drawloom"), { recursive: true });
+    await mkdir(join(dir, "org.drawloom"), { recursive: true });
+    await writeFile(join(dir, "org.drawloom", "placeholder"), "");
     await writeFile(join(root, "outside.mjs"), 'throw Error("must not execute")');
     await symlink(join(root, "outside.mjs"), join(dir, "org.drawloom", "escape.mjs"));
     const loader = createBackendLoader();
@@ -452,7 +485,8 @@ test("backend namespace containment is repeated immediately before activation", 
   const root = await mkdtemp(join(tmpdir(), "drawloom-backend-recheck-"));
   const loader = createBackendLoader();
   try {
-    await Bun.write(
+    await mkdir(join(root, "org.drawloom"), { recursive: true });
+    await writeFile(
       join(root, "org.drawloom", "backend.mjs"),
       "export default () => ({ dispose() {} })",
     );
@@ -524,10 +558,10 @@ test("one synchronous dispose failure still awaits every backend cleanup exactly
     }
     const closing = loader.close();
     await expect(closing).rejects.toThrow();
-    expect(await Bun.file(marker).text()).toBe("first;second;");
+    expect(await readFile(marker, "utf8")).toBe("first;second;");
     expect(loader.close()).toBe(closing);
     await expect(loader.close()).rejects.toThrow("Plugin backend cleanup failed");
-    expect(await Bun.file(marker).text()).toBe("first;second;");
+    expect(await readFile(marker, "utf8")).toBe("first;second;");
   } finally {
     await loader.close().catch(() => {});
     await rm(root, { recursive: true, force: true });

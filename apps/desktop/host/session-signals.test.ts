@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { AgentSession, AgentSessionSignal } from "@drawloom/agent";
 import type { HistoryEntry } from "@drawloom/conversation-history";
 import type { Asset } from "@drawloom/host";

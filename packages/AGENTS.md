@@ -14,7 +14,7 @@ manifest:
 - `composition`: concrete provider selection and wiring.
 
 Every package also declares one runtime class under `drawloom.runtime`:
-`portable`, `bun`, `node`, `cloudflare`, or `tauri`. A package may claim only a
+`portable`, `node`, `cloudflare`, or `tauri`. A package may claim only a
 runtime exercised by its verification suite.
 
 ## Dependency constraints
@@ -32,13 +32,13 @@ runtime exercised by its verification suite.
   another package's internals.
 - Shared code must have an explicit domain owner; do not create generic dumping
   grounds.
-- External dependencies use `catalog:` or an approved named Bun catalog.
+- External dependencies use `catalog:` or an approved named catalog.
 - Internal Drawloom dependencies use `workspace:*`.
 - Direct external versions and `*` are forbidden unless the root manifest
   records a specific, reasoned exception.
 - Publishable packages use the root `drawloom.releaseVersion` until a later ADR
   adopts independent releases.
-- Portable packages must not import or expose Bun, Node.js, Cloudflare, or Tauri
+- Portable packages must not import or expose Node.js, Cloudflare, or Tauri
   runtime types.
 
 New capability work begins with its contract and failing conformance examples,
@@ -48,7 +48,7 @@ then adds providers and integration.
 
 - Express public capability behaviour with TypeScript interfaces; do not
   require providers to inherit from an abstract base class.
-- Define trust-boundary data with Zod 4 schemas referenced through the root Bun
+- Define trust-boundary data with Zod 4 schemas referenced through the root
   catalog, and infer the corresponding TypeScript types from those schemas.
 - Parse boundary values from `unknown`; a type assertion is not validation.
 - Export one provider-neutral conformance suite from each contract package and
@@ -58,4 +58,4 @@ then adds providers and integration.
 See [ADR 0004](../docs/adr/0004-standardise-capability-contracts.md) for the
 complete contract and conformance standard.
 
-Run `bun run check:dependency-policy` after changing any package manifest.
+Run `pnpm run check:dependency-policy` after changing any package manifest.

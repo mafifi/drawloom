@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { messageFile } from "./message-file.js";
 
 test("message files use the bound project and existing file route", () => {

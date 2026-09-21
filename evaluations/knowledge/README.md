@@ -185,7 +185,7 @@ desktop-driver journey or proof of native-tool isolation.
 
 ```sh
 node --experimental-strip-types --test evaluations/knowledge/metrics.node-check.ts evaluations/knowledge/runner.node-check.ts
-bun x --no-install tsc -p evaluations/knowledge/tsconfig.json
+pnpm exec tsc -p evaluations/knowledge/tsconfig.json
 ```
 
 ## Historical context

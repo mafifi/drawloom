@@ -23,6 +23,10 @@ test("the default CI lane includes deterministic answer and metrics checks", () 
 test("Temporal and installed-model checks stay opt-in", () => {
   assert.deepEqual(nodeCheckLanes.temporal, [
     "apps/desktop/tests/nightloom-orchestration.integration.node-check.mjs",
+    "packages/evaluation/evaluation-orchestration/real.test.mjs",
+    "packages/orchestration/temporal-orchestration/real.test.mjs",
+    "packages/orchestration/temporal-orchestration/installed-host.test.mjs",
+    "packages/orchestration/temporal-orchestration/compiled-runtime.test.mjs",
   ]);
   assert.deepEqual(nodeCheckLanes.modelEnabled, [
     "packages/knowledge/local-knowledge-runtime/embedding-conformance.node-check.ts",
@@ -42,6 +46,14 @@ test("Temporal and installed-model checks stay opt-in", () => {
   );
 });
 
+test("the inventory covers .test.mjs, which Vitest does not collect", () => {
+  assert.ok(
+    nodeCheckLanes.ci.includes("packages/evaluation/braintrust-assessment/offline.test.mjs"),
+  );
+  assert.ok(nodeCheckLanes.ci.includes("scripts/node-test-lanes.test.mjs"));
+  assert.ok(nodeCheckLanes.ci.includes("scripts/packaged-sidecars.test.mjs"));
+});
+
 test("inventory rejects an unassigned maintained check", () => {
   assert.throws(
     () =>
@@ -50,6 +62,6 @@ test("inventory rejects an unassigned maintained check", () => {
         temporal: [],
         modelEnabled: [],
       }),
-    /Unassigned maintained \.node-check files: packages\/example\/unassigned\.node-check\.ts/,
+    /Unassigned maintained Node-lane files: packages\/example\/unassigned\.node-check\.ts/,
   );
 });

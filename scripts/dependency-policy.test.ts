@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,7 +15,7 @@ const root = (overrides: Partial<RootManifest> = {}): RootManifest => ({
   version: "0.0.0",
   private: true,
   type: "module",
-  packageManager: "bun@1.2.23",
+  packageManager: "pnpm@12.5.1",
   workspaces: {
     packages: ["apps/*", "packages/*/*"],
     catalog: {

@@ -2,7 +2,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve, basename } from "node:path";
-const root = resolve(import.meta.dir, "..");
+const root = resolve(import.meta.dirname, "..");
 const inventory = JSON.parse(
   readFileSync(
     resolve(root, "docs/reference/evidence/generated/dependency-licenses/inventory.json"),

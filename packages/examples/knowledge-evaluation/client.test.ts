@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createKnowledgeEvaluationPresentationClient } from "./src/client.js";
 
 test("presentation adapter narrows starts to a fixed definition reference and validates every response", async () => {

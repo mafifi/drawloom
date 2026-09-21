@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import { createLocalToolGateway } from "@drawloom/local-tools";
 import { defineTool, type ToolResult } from "@drawloom/tools";

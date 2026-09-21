@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { z } from "zod";
 import { pluginConformance } from "../plugins/src/conformance.js";
 import { definePlugin } from "../plugins/src/index.js";

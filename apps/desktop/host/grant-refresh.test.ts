@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createGrantRefresh } from "./grant-refresh.js";
 
 test("a delayed older snapshot cannot overwrite a newer revocation or expose a partial group", async () => {

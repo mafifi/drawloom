@@ -48,5 +48,5 @@ This guide applies under `apps/`.
   command boundary; core product contracts and capability logic remain
   TypeScript.
 
-Run `bun run check:dependency-policy` after changing an application manifest.
-Run `bun run check:ui-policy` after changing maintained UI source.
+Run `pnpm run check:dependency-policy` after changing an application manifest.
+Run `pnpm run check:ui-policy` after changing maintained UI source.

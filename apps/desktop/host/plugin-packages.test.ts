@@ -1,6 +1,6 @@
 import { toolAuthorizationFixture } from "@drawloom/tools/conformance";
-import { test, expect } from "bun:test";
-import { mkdtemp, mkdir, writeFile, rm, realpath, readFile } from "node:fs/promises";
+import { test, expect } from "vitest";
+import { mkdtemp, mkdir, writeFile, rm, realpath, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createNodeJsonStore } from "@drawloom/node-host";
@@ -17,6 +17,10 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { createElicitationPresenter } from "./elicitation.js";
 import type { AssetLibrary } from "@drawloom/host";
 import { createSqliteEvaluationStore } from "@drawloom/sqlite-evaluation";
+import { setTimeout as sleep } from "node:timers/promises";
+import { serve } from "@hono/node-server";
+import { once } from "node:events";
+import type { AddressInfo } from "node:net";
 
 function unusedAssets(): AssetLibrary {
   const unused = async (): Promise<never> => {
@@ -61,8 +65,8 @@ test("installed package branding reaches discovery without replacing plugin iden
     const entry = catalogue.entries.find(
       (e) => e.presentation?.displayName === "Public Test Plugin",
     );
-    expect(entry?.presentation?.icon?.light).toStartWith("data:image/svg+xml;base64,");
-    expect(entry?.name).toStartWith("package:");
+    expect((entry?.presentation?.icon?.light).startsWith("data:image/svg+xml;base64,")).toBe(true);
+    expect((entry?.name).startsWith("package:")).toBe(true);
     expect(entry?.selectable).toBe(false);
   } finally {
     await app.close();
@@ -82,7 +86,7 @@ test("desktop package activation shares installation setup and binds each projec
       join(installation.root, "mcp.json"),
       JSON.stringify({
         $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-        mcpServers: { remote: { type: "stdio", command: "bun", args: ["./server.mjs"] } },
+        mcpServers: { remote: { type: "stdio", command: "node", args: ["./server.mjs"] } },
       }),
     );
     await writeFile(
@@ -117,7 +121,7 @@ createInterface({input:process.stdin}).on('line', line => { const m=JSON.parse(l
   }
 });
 
-function packageServer(
+async function packageServer(
   label = "owner",
   tools: Tool[] = [
     {
@@ -130,7 +134,7 @@ function packageServer(
 ) {
   const events: string[] = [];
   const handshakes: unknown[] = [];
-  const server = Bun.serve({
+  const server = serve({
     hostname: "127.0.0.1",
     port: 0,
     async fetch(request) {
@@ -178,16 +182,20 @@ function packageServer(
       return Response.json({ jsonrpc: "2.0", id: message.id, result });
     },
   });
-  return { server, events, handshakes };
+  await once(server, "listening");
+  const serverUrl = new URL(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`);
+  return { server, serverUrl, events, handshakes };
 }
 
 test("installed connection policy survives reconnect without affecting consent-enabled peers", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-policy-reconnect-"));
-  const remote = packageServer("documents", [{ name: "inspect", inputSchema: { type: "object" } }]);
+  const remote = await packageServer("documents", [
+    { name: "inspect", inputSchema: { type: "object" } },
+  ]);
   try {
-    const parallel = await installedFixture(root, "parallel-documents", remote.server.url.href);
+    const parallel = await installedFixture(root, "parallel-documents", remote.serverUrl.href);
     parallel.elicitationDisabledServers = ["remote"];
-    const consent = await installedFixture(root, "consent-documents", remote.server.url.href);
+    const consent = await installedFixture(root, "consent-documents", remote.serverUrl.href);
     const loaded = await loadInstalledPackages({
       root,
       installations: [parallel, consent],
@@ -205,7 +213,7 @@ test("installed connection policy survives reconnect without affecting consent-e
       await loaded.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -247,6 +255,7 @@ async function installedFixture(
           ],
         }
       : {};
+    await mkdir(join(pkg, "org.drawloom"), { recursive: true });
     await writeFile(
       join(pkg, "org.drawloom", "backend.mjs"),
       `export default () => ({ contributions: ${JSON.stringify(contribution)}, dispose() {} });`,
@@ -276,13 +285,13 @@ const ownerPlacement = {
 
 test("installed evaluation prepares only for trusted declared consumers and survives unavailable orchestration", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-evaluation-loading-"));
-  const remote = packageServer();
+  const remote = await packageServer();
   const events: string[] = [];
   try {
     const installation = await installedFixture(
       root,
       "evaluation-documents",
-      remote.server.url.href,
+      remote.serverUrl.href,
       {
         version: 1,
         backend: { entrypoint: "./org.drawloom/backend.mjs" },
@@ -339,7 +348,7 @@ test("installed evaluation prepares only for trusted declared consumers and surv
     });
     await untrusted.close();
     expect(events).toEqual([]);
-    const unrelated = await installedFixture(root, "unrelated-documents", remote.server.url.href, {
+    const unrelated = await installedFixture(root, "unrelated-documents", remote.serverUrl.href, {
       version: 1,
       backend: { entrypoint: "./org.drawloom/backend.mjs" },
     });
@@ -356,17 +365,17 @@ test("installed evaluation prepares only for trusted declared consumers and surv
     }
     expect(events).toEqual(["workflow", "evaluation", "attach", "stop", "storage-close"]);
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("failed backend activation releases its prepared evaluation immediately and only once", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-evaluation-failed-backend-"));
-  const remote = packageServer();
+  const remote = await packageServer();
   let closes = 0;
   try {
-    const installation = await installedFixture(root, "failed-evaluation", remote.server.url.href, {
+    const installation = await installedFixture(root, "failed-evaluation", remote.serverUrl.href, {
       version: 1,
       backend: { entrypoint: "./org.drawloom/backend.mjs" },
       requires: [{ kind: "capability", id: "evaluation" }],
@@ -399,27 +408,22 @@ test("failed backend activation releases its prepared evaluation immediately and
     await loaded.close();
     expect(closes).toBe(1);
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("installed workflow preparation is trusted, precedes backend activation, and closes before backend cleanup", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-workflow-loading-"));
-  const remote = packageServer();
+  const remote = await packageServer();
   const events: string[] = [];
   try {
-    const installation = await installedFixture(
-      root,
-      "workflow-documents",
-      remote.server.url.href,
-      {
-        version: 1,
-        backend: { entrypoint: "./org.drawloom/backend.mjs" },
-        workflows: { entrypoint: "./org.drawloom/workflows.mjs" },
-        optional: [{ kind: "capability", id: "orchestration" }],
-      },
-    );
+    const installation = await installedFixture(root, "workflow-documents", remote.serverUrl.href, {
+      version: 1,
+      backend: { entrypoint: "./org.drawloom/backend.mjs" },
+      workflows: { entrypoint: "./org.drawloom/workflows.mjs" },
+      optional: [{ kind: "capability", id: "orchestration" }],
+    });
     await writeFile(
       join(installation.root, "org.drawloom", "workflows.mjs"),
       "export default {workflows:[],tasks:[]}",
@@ -468,14 +472,14 @@ test("installed workflow preparation is trusted, precedes backend activation, an
     await trusted.close();
     expect(events).toEqual(["prepare", "attach", "close"]);
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("desktop discovery shows friendly standard and app-only tools without executing them", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-package-discovery-"));
-  const remote = packageServer("documents", [
+  const remote = await packageServer("documents", [
     { name: "inspect", title: "Inspect document", inputSchema: { type: "object" } },
     {
       name: "save",
@@ -485,7 +489,7 @@ test("desktop discovery shows friendly standard and app-only tools without execu
     },
   ]);
   try {
-    const installation = await installedFixture(root, "documents", remote.server.url.href);
+    const installation = await installedFixture(root, "documents", remote.serverUrl.href);
     const store = createNodeJsonStore(join(root, "state"));
     await store.set("plugin-installations", { version: 1, installations: [installation] });
     const app = await createDesktopApplication(root);
@@ -516,16 +520,16 @@ test("desktop discovery shows friendly standard and app-only tools without execu
       await app.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("desktop supplies scoped saved evaluation to installed backends across restart without running checks", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-desktop-evaluation-"));
-  const remote = packageServer();
+  const remote = await packageServer();
   try {
-    const installation = await installedFixture(root, "evaluation-reader", remote.server.url.href, {
+    const installation = await installedFixture(root, "evaluation-reader", remote.serverUrl.href, {
       version: 1,
       backend: { entrypoint: "./org.drawloom/backend.mjs" },
       requires: [{ kind: "capability", id: "evaluation" }],
@@ -587,16 +591,16 @@ test("desktop supplies scoped saved evaluation to installed backends across rest
       await reopened.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("backend collision with built-in workbench is isolated without losing standard skills", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-reserved-workbench-"));
-  const remote = packageServer();
+  const remote = await packageServer();
   try {
-    const installation = await installedFixture(root, "collision", remote.server.url.href, {
+    const installation = await installedFixture(root, "collision", remote.serverUrl.href, {
       version: 1,
       backend: { entrypoint: "./org.drawloom/backend.mjs" },
     });
@@ -622,7 +626,7 @@ test("backend collision with built-in workbench is isolated without losing stand
       await app.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -652,13 +656,15 @@ test("installed HTTP package tools present standard elicitation only after indep
     return { content: [{ type: "text", text: JSON.stringify(answer) }] };
   });
   await mcp.connect(transport);
-  const http = Bun.serve({
+  const http = serve({
     port: 0,
     hostname: "127.0.0.1",
     fetch: (request) => transport.handleRequest(request),
   });
+  await once(http, "listening");
+  const httpUrl = new URL(`http://127.0.0.1:${(http.address() as AddressInfo).port}/`);
   try {
-    const installation = await installedFixture(root, "stationery", http.url.href);
+    const installation = await installedFixture(root, "stationery", httpUrl.href);
     const loaded = await loadInstalledPackages({
       root,
       installations: [installation],
@@ -701,7 +707,7 @@ test("installed HTTP package tools present standard elicitation only after indep
     }
   } finally {
     await mcp.close();
-    http.stop(true);
+    http.close();
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -714,7 +720,7 @@ test("reconnected package cancellation removes its form and exposes the replacem
   const presenter = createElicitationPresenter((operation) =>
     operation === "operation" ? "conversation" : undefined,
   );
-  const http = Bun.serve({
+  const http = serve({
     port: 0,
     hostname: "127.0.0.1",
     async fetch(request) {
@@ -747,8 +753,10 @@ test("reconnected package cancellation removes its form and exposes the replacem
       return response;
     },
   });
+  await once(http, "listening");
+  const httpUrl = new URL(`http://127.0.0.1:${(http.address() as AddressInfo).port}/`);
   try {
-    const installation = await installedFixture(root, "stationery", http.url.href);
+    const installation = await installedFixture(root, "stationery", httpUrl.href);
     const loaded = await loadInstalledPackages({
       root,
       installations: [installation],
@@ -788,7 +796,7 @@ test("reconnected package cancellation removes its form and exposes the replacem
         attempts < 100 && loaded.statuses[0]?.servers[0]?.status === "connected";
         attempts++
       )
-        await Bun.sleep(5);
+        await sleep(5);
       expect(loaded.statuses[0]?.servers[0]).toMatchObject({
         name: "remote",
         status: "failed",
@@ -799,16 +807,16 @@ test("reconnected package cancellation removes its form and exposes the replacem
     }
   } finally {
     await Promise.all(servers.map((server) => server.close()));
-    http.stop(true);
+    http.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("standard resource discovery is cached and source-bound without executing tools", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-package-resources-"));
-  const remote = packageServer();
+  const remote = await packageServer();
   try {
-    const installation = await installedFixture(root, "resources", remote.server.url.href);
+    const installation = await installedFixture(root, "resources", remote.serverUrl.href);
     const loaded = await loadInstalledPackages({
       root,
       installations: [installation],
@@ -832,7 +840,7 @@ test("standard resource discovery is cached and source-bound without executing t
       await loaded.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -903,6 +911,7 @@ test("invalid backend contributions do not poison standard package activation", 
         },
       }),
     );
+    await mkdir(join(root, "org.drawloom"), { recursive: true });
     await writeFile(
       join(root, "org.drawloom", "backend.mjs"),
       "export default async () => ({ contributions: { workbenches: [null] }, dispose: async () => {} });",
@@ -935,13 +944,13 @@ test("invalid backend contributions do not poison standard package activation", 
 
 test("a placement cannot replace another installation owned view", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-placement-owner-"));
-  const owner = packageServer("owner"),
-    other = packageServer("other");
+  const owner = await packageServer("owner"),
+    other = await packageServer("other");
   try {
     const first = await installedFixture(
       root,
       "owner-package",
-      owner.server.url.href,
+      owner.serverUrl.href,
       {
         version: 1,
         backend: { entrypoint: "./org.drawloom/backend.mjs" },
@@ -949,7 +958,7 @@ test("a placement cannot replace another installation owned view", async () => {
       },
       true,
     );
-    const second = await installedFixture(root, "other-package", other.server.url.href, {
+    const second = await installedFixture(root, "other-package", other.serverUrl.href, {
       version: 1,
       workbenches: [ownerPlacement],
     });
@@ -966,15 +975,15 @@ test("a placement cannot replace another installation owned view", async () => {
       await loaded.close();
     }
   } finally {
-    owner.server.stop(true);
-    other.server.stop(true);
+    owner.server.close();
+    other.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("opening resource must match the owning registered view", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-placement-resource-"));
-  const remote = packageServer("wrong", [
+  const remote = await packageServer("wrong", [
     {
       name: "open",
       inputSchema: { type: "object" },
@@ -985,7 +994,7 @@ test("opening resource must match the owning registered view", async () => {
     const installation = await installedFixture(
       root,
       "owner-package",
-      remote.server.url.href,
+      remote.serverUrl.href,
       {
         version: 1,
         backend: { entrypoint: "./org.drawloom/backend.mjs" },
@@ -1006,19 +1015,19 @@ test("opening resource must match the owning registered view", async () => {
       await loaded.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("duplicate placement declarations are rejected before a view connects", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-placement-duplicate-"));
-  const remote = packageServer();
+  const remote = await packageServer();
   try {
     const installation = await installedFixture(
       root,
       "owner-package",
-      remote.server.url.href,
+      remote.serverUrl.href,
       {
         version: 1,
         backend: { entrypoint: "./org.drawloom/backend.mjs" },
@@ -1038,20 +1047,20 @@ test("duplicate placement declarations are rejected before a view connects", asy
       await loaded.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("unresolved extension requirements gate placements even without a backend, not standard tools", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-placement-requirements-"));
-  const remote = packageServer();
+  const remote = await packageServer();
   try {
     for (const backend of [false, true]) {
       const installation = await installedFixture(
         root,
         backend ? "with-backend" : "without-backend",
-        remote.server.url.href,
+        remote.serverUrl.href,
         {
           version: 1,
           ...(backend ? { backend: { entrypoint: "./org.drawloom/backend.mjs" } } : {}),
@@ -1075,14 +1084,14 @@ test("unresolved extension requirements gate placements even without a backend, 
       }
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("app-only and unsupported-schema tools cannot satisfy backend dependencies", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-tool-requirements-"));
-  const remote = packageServer("reference", [
+  const remote = await packageServer("reference", [
     { name: "echo", inputSchema: { type: "object" } },
     { name: "hidden", inputSchema: { type: "object" }, _meta: { ui: { visibility: ["app"] } } },
     {
@@ -1092,7 +1101,7 @@ test("app-only and unsupported-schema tools cannot satisfy backend dependencies"
   ]);
   try {
     for (const dependency of ["hidden", "invalid"]) {
-      const installation = await installedFixture(root, dependency, remote.server.url.href, {
+      const installation = await installedFixture(root, dependency, remote.serverUrl.href, {
         version: 1,
         backend: { entrypoint: "./org.drawloom/backend.mjs" },
         requires: [{ kind: "tool", id: `package:${dependency}:remote:${dependency}` }],
@@ -1109,23 +1118,30 @@ test("app-only and unsupported-schema tools cannot satisfy backend dependencies"
       });
       try {
         expect(loaded.toolIds.size).toBe(1);
-        expect(await Bun.file(join(installation.root, "executed")).exists()).toBe(false);
+        expect(
+          await stat(join(installation.root, "executed")).then(
+            () => true,
+            () => false,
+          ),
+        ).toBe(false);
         expect(loaded.statuses[0]?.codes).toContain("extension:unavailable");
       } finally {
         await loaded.close();
       }
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("required origin-qualified tool names invoke their real aliases with unchanged grants and evidence", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-tool-alias-"));
-  const remote = packageServer("reference", [{ name: "echo", inputSchema: { type: "object" } }]);
+  const remote = await packageServer("reference", [
+    { name: "echo", inputSchema: { type: "object" } },
+  ]);
   try {
-    const installation = await installedFixture(root, "reference", remote.server.url.href, {
+    const installation = await installedFixture(root, "reference", remote.serverUrl.href, {
       version: 1,
       backend: { entrypoint: "./org.drawloom/backend.mjs" },
       requires: [
@@ -1186,19 +1202,19 @@ test("required origin-qualified tool names invoke their real aliases with unchan
       await loaded.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("reconnecting a server used by an active view requires restart without replacing its session", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-view-reconnect-"));
-  const remote = packageServer();
+  const remote = await packageServer();
   try {
     const installation = await installedFixture(
       root,
       "owner-package",
-      remote.server.url.href,
+      remote.serverUrl.href,
       {
         version: 1,
         backend: { entrypoint: "./org.drawloom/backend.mjs" },
@@ -1221,16 +1237,16 @@ test("reconnecting a server used by an active view requires restart without repl
       await loaded.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("OAuth actions remain bound to prepared startup inventory after the manifest changes", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-oauth-inventory-"));
-  const remote = packageServer();
+  const remote = await packageServer();
   try {
-    const installation = await installedFixture(root, "reference", remote.server.url.href);
+    const installation = await installedFixture(root, "reference", remote.serverUrl.href);
     const host = packageHost(root);
     await host.store.set("plugin-installations", { version: 1, installations: [installation] });
     const application = await createDesktopApplication(root);
@@ -1260,16 +1276,18 @@ test("OAuth actions remain bound to prepared startup inventory after the manifes
       await application.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("a dependency absent from the provided gateway cannot activate its backend", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-filtered-gateway-"));
-  const remote = packageServer("reference", [{ name: "echo", inputSchema: { type: "object" } }]);
+  const remote = await packageServer("reference", [
+    { name: "echo", inputSchema: { type: "object" } },
+  ]);
   try {
-    const installation = await installedFixture(root, "reference", remote.server.url.href, {
+    const installation = await installedFixture(root, "reference", remote.serverUrl.href, {
       version: 1,
       backend: { entrypoint: "./org.drawloom/backend.mjs" },
       requires: [
@@ -1304,14 +1322,16 @@ test("a dependency absent from the provided gateway cannot activate its backend"
       await loaded.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("dependency identities use inspected package names and reject ambiguous installations", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-ambiguous-dependency-"));
-  const remote = packageServer("reference", [{ name: "echo", inputSchema: { type: "object" } }]);
+  const remote = await packageServer("reference", [
+    { name: "echo", inputSchema: { type: "object" } },
+  ]);
   try {
     const extension: DrawloomPackageExtension = {
       version: 1,
@@ -1321,8 +1341,8 @@ test("dependency identities use inspected package names and reject ambiguous ins
         { kind: "tool", id: "package:reference:remote:echo" },
       ],
     };
-    const first = await installedFixture(root, "previous-name", remote.server.url.href, extension);
-    const second = await installedFixture(root, "reference", remote.server.url.href);
+    const first = await installedFixture(root, "previous-name", remote.serverUrl.href, extension);
+    const second = await installedFixture(root, "reference", remote.serverUrl.href);
     await writeFile(
       join(first.root, "plugin.json"),
       JSON.stringify({
@@ -1347,7 +1367,7 @@ test("dependency identities use inspected package names and reject ambiguous ins
       await loaded.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -1355,9 +1375,9 @@ test("dependency identities use inspected package names and reject ambiguous ins
 test("package resource captures distinguish changed revisions and reuse unchanged captures across reconnect", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-resource-revisions-"));
   const resource = { revision: 1, text: "First contents" },
-    remote = packageServer("reference", [], resource);
+    remote = await packageServer("reference", [], resource);
   try {
-    const installation = await installedFixture(root, "reference", remote.server.url.href);
+    const installation = await installedFixture(root, "reference", remote.serverUrl.href);
     await packageHost(root).store.set("plugin-installations", {
       version: 1,
       installations: [installation],
@@ -1403,20 +1423,22 @@ test("package resource captures distinguish changed revisions and reuse unchange
       await app.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });
 
 test("enhanced workbench and plugin requirements resolve canonical standard tool and skill references", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-enhanced-references-"));
-  const remote = packageServer("reference", [{ name: "echo", inputSchema: { type: "object" } }]);
+  const remote = await packageServer("reference", [
+    { name: "echo", inputSchema: { type: "object" } },
+  ]);
   try {
     const requires = [
       { kind: "tool" as const, id: "package:reference:remote:echo" },
       { kind: "skill" as const, id: "package:reference:skill:editing" },
     ];
-    const installation = await installedFixture(root, "reference", remote.server.url.href, {
+    const installation = await installedFixture(root, "reference", remote.serverUrl.href, {
       version: 1,
       backend: { entrypoint: "./org.drawloom/backend.mjs" },
       requires,
@@ -1451,7 +1473,7 @@ test("enhanced workbench and plugin requirements resolve canonical standard tool
       await loaded.close();
     }
   } finally {
-    remote.server.stop(true);
+    remote.server.close();
     await rm(root, { recursive: true, force: true });
   }
 });

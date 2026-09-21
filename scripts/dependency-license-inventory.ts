@@ -13,13 +13,26 @@ import { parseConfigFileTextToJson } from "typescript";
 import {
   KnownLlamaRuntime,
   KnownModelManifests,
-} from "../packages/knowledge/local-embeddings/src/manifest.js";
-import { runtimeDependencies } from "./runtime-dependencies.js";
-const root = resolve(import.meta.dir, "..");
-const lock = parseConfigFileTextToJson(
-  "bun.lock",
-  readFileSync(join(root, "bun.lock"), "utf8"),
-).config;
+} from "../packages/knowledge/local-embeddings/src/manifest.ts";
+import { runtimeDependencies } from "./runtime-dependencies.ts";
+import { parse as parseToml } from "smol-toml";
+import { parseAllDocuments as parseAllYamlDocuments } from "yaml";
+const root = resolve(import.meta.dirname, "..");
+// pnpm's lockfile keys `packages:` by `name@version`, with peer-dependency
+// suffixes in parentheses. One entry per resolved package, integrity included.
+type PnpmLock = { packages?: Record<string, { resolution?: { integrity?: string } }> };
+// pnpm 12 writes the lockfile as multiple YAML documents and MORE THAN ONE can
+// carry `packages:`. Every document is merged: taking a single one silently
+// under-reports the inventory, which is the one failure a licence gate must not
+// have. The count is asserted below against the resolved dependency graph.
+const lock: PnpmLock = {
+  packages: Object.assign(
+    {},
+    ...parseAllYamlDocuments(readFileSync(join(root, "pnpm-lock.yaml"), "utf8")).map(
+      (document) => (document.toJS() as PnpmLock)?.packages ?? {},
+    ),
+  ),
+};
 const installed = new Map<string, any[]>(),
   visited = new Set<string>();
 function scan(modules: string) {
@@ -42,6 +55,12 @@ function scan(modules: string) {
   }
 }
 scan(join(root, "node_modules"));
+// pnpm materialises every resolved package under node_modules/.pnpm and links
+// the rest. `scan` skips dot-directories, so that store is walked explicitly or
+// the inventory sees only the root's declared dependencies.
+const store = join(root, "node_modules", ".pnpm");
+if (existsSync(store))
+  for (const entry of readdirSync(store)) scan(join(store, entry, "node_modules"));
 function legalFiles(path: string) {
   const result: string[] = [];
   function walk(dir: string, depth: number, legal = false) {
@@ -109,11 +128,13 @@ for (const m of manifests.filter((m) => /^(apps|packages)\//.test(m.path)))
   closure(dirname(join(root, m.path)));
 const npm = [
   ...new Map(
-    Object.values(lock.packages)
-      .filter((v: any) => typeof v[0] === "string" && !v[0].startsWith("workspace:"))
-      .map((v: any) => [v[0], v]),
+    Object.entries(lock.packages ?? {}).map(([key, value]) => {
+      // strip the peer-dependency suffix: `zod@4.6.5(react@19.2.8)` -> `zod@4.6.5`
+      const bare = key.includes("(") ? key.slice(0, key.indexOf("(")) : key;
+      return [bare, value] as const;
+    }),
   ).entries(),
-].map(([key, v]: any) => {
+].map(([key, value]: any) => {
   const found = installed.get(key)?.[0],
     split = key.lastIndexOf("@"),
     name = key.slice(0, split),
@@ -121,7 +142,7 @@ const npm = [
   return {
     name,
     version,
-    integrity: v.at(-1),
+    integrity: value?.resolution?.integrity,
     license: found?.p.license ?? found?.p.licenses ?? null,
     legalFiles: found ? legalFiles(found.path) : [],
     installed: !!found,
@@ -132,7 +153,7 @@ const npm = [
     directDeclarations: direct.filter((d) => d.name === name),
   };
 });
-const cargo = Bun.TOML.parse(
+const cargo = parseToml(
   readFileSync(join(root, "apps/desktop/src-tauri/Cargo.lock"), "utf8"),
 ) as any;
 const registry = join(process.env.HOME ?? "", ".cargo/registry/src");
@@ -144,7 +165,7 @@ const rust = cargo.package
       .map((r) => join(r, p.name + "-" + p.version))
       .find((r) => existsSync(join(r, "Cargo.toml")));
     const metadata = directory
-      ? (Bun.TOML.parse(readFileSync(join(directory, "Cargo.toml"), "utf8")) as any).package
+      ? (parseToml(readFileSync(join(directory, "Cargo.toml"), "utf8")) as any).package
       : undefined;
     return {
       name: p.name,

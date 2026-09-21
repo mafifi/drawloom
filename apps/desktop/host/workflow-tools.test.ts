@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createDesktopAuthorization } from "./authorization.js";
 import { createLocalToolGateway } from "@drawloom/local-tools";
 import type { JsonValue } from "@drawloom/host";

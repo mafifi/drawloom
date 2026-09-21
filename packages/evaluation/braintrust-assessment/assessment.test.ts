@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { z } from "zod";
 import type { AgentDriver, AgentSessionSignal } from "@drawloom/agent";
 import { createCodexDriver } from "@drawloom/codex-agent";
@@ -22,13 +22,12 @@ test("Braintrust runs exactly one local assessment without network or a case sch
   let calls = 0;
   let fetches = 0;
   const original = globalThis.fetch;
-  globalThis.fetch = Object.assign(
-    async () => {
-      fetches++;
-      throw Error("network forbidden");
-    },
-    { preconnect: original.preconnect },
-  );
+  // Bun's `fetch` type carried `preconnect`, so the mock had to copy it.
+  // Node's does not, and nothing under test calls it.
+  globalThis.fetch = async () => {
+    fetches++;
+    throw Error("network forbidden");
+  };
   try {
     let receivedContext: unknown;
     const scorer: EvaluationScorer = {
@@ -549,7 +548,7 @@ test("Braintrust waits for an active selected scorer to settle after scheduling 
   await active;
   abort.abort();
   await new Promise((resolve) => setTimeout(resolve, 10));
-  expect(returned).toBeFalse();
+  expect(returned).toBe(false);
   release({
     outcome: "uncertain",
     findings: [

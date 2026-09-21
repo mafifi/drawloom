@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { createProcessShutdown } from "./process-shutdown.js";
 
 test("process shutdown still flushes telemetry after application close fails and returns failure", async () => {

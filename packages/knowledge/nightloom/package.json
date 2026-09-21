@@ -12,12 +12,12 @@
   ],
   "exports": {
     ".": {
-      "bun": "./src/index.ts",
+      "drawloom-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
     "./workflows": {
-      "bun": "./src/workflows.ts",
+      "drawloom-source": "./src/workflows.ts",
       "types": "./dist/workflows.d.ts",
       "import": "./dist/workflows.js"
     }
@@ -30,5 +30,8 @@
     "@drawloom/knowledge": "workspace:*",
     "@drawloom/orchestration": "workspace:*",
     "zod": "catalog:"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
   }
 }

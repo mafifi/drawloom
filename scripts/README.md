@@ -9,17 +9,17 @@ Product runtime tools do not belong here; they live behind contracts under
 
 Current checks:
 
-- `bun run check:dependency-policy` validates root dependency authority,
+- `pnpm run check:dependency-policy` validates root dependency authority,
   workspace protocols, package roles, runtime declarations, exceptions, and
   lockstep publishable versions. It also rejects known private package names
   and aliases in root/workspace dependencies and catalogs, regardless of
   dependency-version exceptions.
-- `bun run check:architecture` validates module-boundary rules, currently
+- `pnpm run check:architecture` validates module-boundary rules, currently
   preventing every non-spike module from importing retained spike code, known
   private package imports, and analysed source imports outside the checkout.
-- `bun run check:types` checks repository automation with strict TypeScript.
-- `bun run test` runs the Bun test suite.
-- `bun run check:ci` runs the complete current gate in CI order.
+- `pnpm run check:types` checks repository automation with strict TypeScript.
+- `pnpm run test` runs the test suite.
+- `pnpm run check:ci` runs the complete current gate in CI order.
 
 `public-boundary-policy.json` owns the known-private package pattern used by
 both checks. `architecture-boundary.test.ts` runs the real checker against

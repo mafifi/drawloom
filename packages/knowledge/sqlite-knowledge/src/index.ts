@@ -49,8 +49,6 @@ import {
   type TrustedKnowledgeSubject,
 } from "@drawloom/knowledge";
 
-type Database = DatabaseSync;
-
 class PolicyFailure extends Error {
   readonly code: AuthorizationFailureCode;
   constructor(code: AuthorizationFailureCode) {
@@ -1234,7 +1232,7 @@ export function createSqliteKnowledge(options: SqliteKnowledgeOptions): SqliteKn
 const digestIndex = (...parts: readonly string[]) =>
   createHash("sha256").update(json(parts)).digest("hex").slice(0, 32);
 
-function initialize(db: Database): void {
+function initialize(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE metadata(key TEXT PRIMARY KEY, value TEXT NOT NULL);
     INSERT INTO metadata(key,value) VALUES ('epoch','0');
@@ -1285,7 +1283,7 @@ function linkFrom(value: Row): KnowledgeLink {
 }
 
 async function thisExpand(
-  db: Database,
+  db: DatabaseSync,
   allowed: (subject: TrustedKnowledgeSubject, action: string, ref?: RecordRef) => Promise<boolean>,
   cursor: (
     kind: string,
@@ -1363,7 +1361,7 @@ async function thisExpand(
 }
 
 async function thisEvidence(
-  db: Database,
+  db: DatabaseSync,
   allowed: (subject: TrustedKnowledgeSubject, action: string, ref?: RecordRef) => Promise<boolean>,
   cursor: (
     kind: string,
@@ -1624,7 +1622,7 @@ function workUnitFrom(value: Row) {
 }
 
 function publish(
-  db: Database,
+  db: DatabaseSync,
   input: ReturnType<typeof PublicationInputSchema.parse>,
   subject: TrustedKnowledgeSubject,
   current: (ref: RecordRef) => Current | undefined,
@@ -1769,7 +1767,7 @@ function publish(
   return { kind: "published", checkpoint: `published-${input.batch.checkpoint}`, remaining };
 }
 
-function embedding(db: Database): KnowledgeEmbeddingIndex {
+function embedding(db: DatabaseSync): KnowledgeEmbeddingIndex {
   const configurationMatches = (
     left: Row,
     right: { id: string; fingerprint: string; dimensions: number },

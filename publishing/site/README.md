@@ -35,10 +35,10 @@ Publication still requires editorial approval, independent of a successful build
 From the repository root:
 
 ```sh
-bun install --frozen-lockfile
-bun run journal:check
-bun run journal:render
-bun run journal:preview
+pnpm install --frozen-lockfile
+pnpm run journal:check
+pnpm run journal:render
+pnpm run journal:preview
 ```
 
 The local preview includes drafts at `http://127.0.0.1:4321/`. Its example
@@ -46,7 +46,7 @@ is synthetic, visibly labelled and marked `noindex`. Reading requires no client
 JavaScript. The current animation is silent; its visible transcript provides the
 complete explanation. Spoken material must add captions before publication.
 
-`bun run journal:build` produces production HTML in ignored `dist/`, excluding
+`pnpm run journal:build` produces production HTML in ignored `dist/`, excluding
 draft pages and links even if `JOURNAL_DRAFTS` is inherited in the environment.
 `journal:preview` explicitly enables draft output. Both builds copy only media
 referenced by emitted HTML from ignored `publishing/.generated/media/<slug>/`.
@@ -67,13 +67,13 @@ copy fixtures. Actual rendering and browser playback are separate checks.
 
 The author authorised the journal and “Why Drawloom?” for publication on
 2026-09-05. CI runs the canonical checks once. After success, it calls the
-same-commit, main-only Pages workflow to run `bun run journal:render:article`
-and `bun run journal:build`, then deploy
+same-commit, main-only Pages workflow to run `pnpm run journal:render:article`
+and `pnpm run journal:build`, then deploy
 `publishing/site/dist`. The illustrative example remains a draft and is excluded.
 Selected screenshots are retained in the piece's `assets/`; the build copies
 only referenced files, preferring those sources to generated media.
 
-`bun run publishing:placeholder` remains available to stage the original fallback
+`pnpm run publishing:placeholder` remains available to stage the original fallback
 page. Pushes to `main` touching `publishing/**`, the build script, root dependency
 files, the plugin contract sources or either workflow trigger deployment after CI
 succeeds. Unrelated changes skip publication. Manual dispatch of **CI** on `main`

@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import {
   existsSync,
   mkdirSync,
@@ -11,15 +11,22 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { articleMetadata } from "../publishing/site/src/article-metadata";
-import { DrawloomPackageExtensionJsonSchema } from "../packages/plugins/plugins/src/package";
+import { articleMetadata } from "../publishing/site/src/article-metadata.ts";
+import { DrawloomPackageExtensionJsonSchema } from "../packages/plugins/plugins/dist/package.js";
+import { spawnSync } from "node:child_process";
+import { text as readText } from "node:stream/consumers";
+import { once } from "node:events";
+import { spawn, type ChildProcess } from "node:child_process";
+/** Bun exposed `child.exited`; Node signals completion with an "exit" event. */
+const exitCodeOf = async (child: ChildProcess): Promise<number> =>
+  (await once(child, "exit"))[0] as number;
 
-const configInspection = Bun.spawnSync([
-  "bun",
+const configInspection = spawnSync(process.execPath, [
+  "--input-type=module",
   "-e",
   'import("./publishing/site/astro.config.mjs").then(({ default: config }) => console.log(JSON.stringify({ site: config.site, base: config.base, integrations: config.integrations?.map(({ name }) => name) })))',
 ]);
-if (!configInspection.success) throw new Error(configInspection.stderr.toString());
+if (configInspection.status !== 0) throw new Error(configInspection.stderr.toString());
 const journalConfig = JSON.parse(configInspection.stdout.toString());
 
 test("publishing and OAuth share the canonical root domain", () => {
@@ -174,23 +181,22 @@ test("production excludes draft routes and media; explicit preview renders acces
     }
     for (const preview of [false, true]) {
       const output = join(temporary, preview ? "preview" : "production");
-      const process = Bun.spawn(
-        ["bun", "run", "scripts/build-journal.ts", ...(preview ? ["--drafts"] : [])],
+      const child = spawn(
+        process.execPath,
+        ["scripts/build-journal.ts", ...(preview ? ["--drafts"] : [])],
         {
           env: {
-            ...Bun.env,
+            ...process.env,
             JOURNAL_OUT_DIR: output,
             JOURNAL_MEDIA_DIR: media,
             JOURNAL_DRAFTS: "1",
           },
-          stdout: "pipe",
-          stderr: "pipe",
         },
       );
       const [stdout, stderr, status] = await Promise.all([
-        new Response(process.stdout).text(),
-        new Response(process.stderr).text(),
-        process.exited,
+        readText(child.stdout!),
+        readText(child.stderr!),
+        exitCodeOf(child),
       ]);
       expect(status, stdout + stderr).toBe(0);
       const files = readdirSync(output, { recursive: true }).map(String);

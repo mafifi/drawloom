@@ -1,11 +1,12 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 
 // Removing a boundary rule must allow the corresponding invalid import and
 // fail these tests. Exercise the installed checker, not the config's text.
-const repository = resolve(import.meta.dir, "..");
+const repository = resolve(import.meta.dirname, "..");
 
 for (const [source, vendor, allowed] of [
   ["packages/evaluation/braintrust-assessment/src/index.ts", "braintrust", true],
@@ -32,16 +33,12 @@ for (const [source, vendor, allowed] of [
       }
       await writeFile(join(fixture, "tsconfig.json"), "{}");
       await writeFile(join(fixture, source), `import ${JSON.stringify(vendor)};`);
-      const result = Bun.spawnSync(
-        [
-          join(repository, "node_modules/.bin/depcruise"),
-          "--config",
-          join(repository, ".dependency-cruiser.mjs"),
-          source,
-        ],
+      const result = spawnSync(
+        join(repository, "node_modules/.bin/depcruise"),
+        ["--config", join(repository, ".dependency-cruiser.mjs"), source],
         { cwd: fixture },
       );
-      expect(result.exitCode, result.stdout.toString() + result.stderr.toString()).toBe(
+      expect(result.status, result.stdout.toString() + result.stderr.toString()).toBe(
         allowed ? 0 : 1,
       );
     } finally {
@@ -81,16 +78,16 @@ for (const [role, target, forbidden] of [
         );
       }
       await writeFile(join(fixture, "tsconfig.json"), "{}");
-      const result = Bun.spawnSync(
+      const result = spawnSync(
+        join(repository, "node_modules/.bin/depcruise"),
         [
-          join(repository, "node_modules/.bin/depcruise"),
           "--config",
           join(repository, ".dependency-cruiser.mjs"),
           "packages/example/source/index.ts",
         ],
         { cwd: fixture },
       );
-      expect(result.exitCode, result.stdout.toString() + result.stderr.toString()).toBe(
+      expect(result.status, result.stdout.toString() + result.stderr.toString()).toBe(
         forbidden ? 1 : 0,
       );
     } finally {
@@ -155,9 +152,9 @@ for (const [label, source, forbidden] of [
         join(checkout, "entry.ts"),
         source === "absolute" ? `import ${JSON.stringify(join(fixture, "outside.ts"))};` : source,
       );
-      const result = Bun.spawnSync(
+      const result = spawnSync(
+        join(repository, "node_modules/.bin/depcruise"),
         [
-          join(repository, "node_modules/.bin/depcruise"),
           "--config",
           join(repository, ".dependency-cruiser.mjs"),
           "--output-type",
@@ -167,7 +164,7 @@ for (const [label, source, forbidden] of [
         { cwd: checkout },
       );
       const output = result.stderr.toString() + result.stdout.toString();
-      expect(result.exitCode, output).toBe(forbidden ? 1 : 0);
+      expect(result.status, output).toBe(forbidden ? 1 : 0);
       if (forbidden) expect(output).toContain("error no-");
     } finally {
       await rm(fixture, { recursive: true, force: true });

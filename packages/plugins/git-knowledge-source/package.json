@@ -15,12 +15,13 @@
   ],
   "exports": {
     "./protocol": {
+      "drawloom-source": "./src/source.ts",
       "types": "./dist/source.d.ts",
       "import": "./dist/source.js"
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && bun build ./src/server.ts --target=node --outfile ./dist/server.mjs"
+    "build": "tsc -p tsconfig.json && esbuild ./src/server.ts --bundle --platform=node --format=esm --outfile=./dist/server.mjs"
   },
   "drawloom": {
     "role": "provider",

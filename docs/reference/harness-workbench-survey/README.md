@@ -198,7 +198,7 @@ This updates Drawloom's follow-up status, not the upstream inspection claims.
 ## Local verification
 
 - Frozen Bun install completed without dependency changes.
-- Drawloom `bun run check:ci` passed: 225 Bun tests, zero failures; Node shared
+- Drawloom `pnpm run check:ci` passed: 225 Bun tests, zero failures; Node shared
   conformance also passed. The build reported a 503 kB client-chunk size warning;
   no application code was changed in this survey.
 - Inventory outputs reproduced exactly from the two recorded checkouts.

@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { mediaPolicy } from "./mcp-media-policy.js";
 test("MCP resource declarations are validated without a second approval or extra permissions", () => {
   const declaration = { csp: { resourceDomains: ["https://media.example"] } };

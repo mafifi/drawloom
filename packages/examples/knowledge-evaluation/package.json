@@ -22,23 +22,23 @@
   ],
   "exports": {
     ".": {
-      "bun": "./src/index.ts",
+      "drawloom-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
     "./backend": {
-      "bun": "./org.drawloom/backend.js",
+      "drawloom-source": "./org.drawloom/backend.js",
       "types": "./org.drawloom/backend.d.ts",
       "import": "./org.drawloom/backend.js"
     },
     "./workflows": {
-      "bun": "./org.drawloom/workflows.js",
+      "drawloom-source": "./org.drawloom/workflows.js",
       "types": "./org.drawloom/workflows.d.ts",
       "import": "./org.drawloom/workflows.js"
     }
   },
   "scripts": {
-    "build": "bun run build.ts"
+    "build": "node build.ts"
   },
   "drawloom": {
     "role": "composition",
@@ -56,10 +56,14 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "playwright": "catalog:",
+    "@drawloom/host": "workspace:*",
+    "@drawloom/node-host": "workspace:*",
+    "@drawloom/orchestration": "workspace:*",
+    "@drawloom/temporal-orchestration": "workspace:*",
     "@sveltejs/vite-plugin-svelte": "catalog:",
     "@tailwindcss/vite": "catalog:",
-    "@types/node": "catalog:node-runtime",
+    "@types/node": "catalog:",
+    "playwright": "catalog:",
     "vite": "catalog:"
   }
 }

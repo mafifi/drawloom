@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { assertPlanningIdle, assertGoalActivation } from "./planning-control.js";
 
 test("planning requires settled execution and a confirmed non-active native goal", () => {

@@ -6,6 +6,9 @@ import { createNodeJsonStore } from "@drawloom/node-host";
 import { createInstallationStore } from "../host/plugin-installations.js";
 import { createDesktopApplication } from "../host/application.js";
 import { serveDesktop } from "../host/server.js";
+import { serve } from "@hono/node-server";
+import { once } from "node:events";
+import { build as esbuild } from "esbuild";
 const root = await realpath(await mkdtemp(join(tmpdir(), "drawloom-shared-browser-")));
 const requests: { origin: string; path: string; referer: string | null }[] = [];
 const png = Buffer.from(
@@ -14,7 +17,7 @@ const png = Buffer.from(
 );
 let redirectOrigin = "";
 const media = (id: string) =>
-  Bun.serve({
+  serve({
     hostname: "127.0.0.1",
     port: 0,
     fetch(r) {
@@ -43,16 +46,16 @@ for (const id of ["producer", "consumer"]) {
   const pkg = join(root, id);
   await mkdir(join(pkg, "org.drawloom"), { recursive: true });
   for (const [entry, target, name] of [
-    ["shared-media-backend.fixture.ts", "bun", "backend.mjs"],
+    ["shared-media-backend.fixture.ts", "node", "backend.mjs"],
     ["shared-media-app.fixture.ts", "browser", "app.js"],
   ] as const) {
-    const build = await Bun.build({
-      entrypoints: [resolve(import.meta.dir, entry)],
-      target,
-      outdir: name === "backend.mjs" ? join(pkg, "org.drawloom") : pkg,
-      naming: name,
+    await esbuild({
+      entryPoints: [resolve(import.meta.dirname, entry)],
+      outfile: join(name === "backend.mjs" ? join(pkg, "org.drawloom") : pkg, name),
+      bundle: true,
+      platform: target,
+      format: "esm",
     });
-    if (!build.success) throw Error(String(build.logs));
   }
   await writeFile(
     join(pkg, "plugin.json"),
@@ -88,7 +91,7 @@ const state = await app.command({
   workbenchId: "consumer",
   provider: "synthetic",
 });
-const host = serveDesktop(app, resolve("apps/desktop/build"));
+const host = await serveDesktop(app, resolve("apps/desktop/build"));
 const meta = {
   root,
   url: host.url,

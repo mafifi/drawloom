@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { scanUiPolicy } from "./ui-policy.ts";
+import { text as readStdin } from "node:stream/consumers";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 const rerun = "Run bun run check:ui-policy from the repository root for the complete result.";
@@ -50,6 +51,6 @@ export async function runUiPolicyHook(input: string, root = repositoryRoot): Pro
 }
 
 if (import.meta.main) {
-  const output = await runUiPolicyHook(await Bun.stdin.text());
+  const output = await runUiPolicyHook(await readStdin(process.stdin));
   if (output) console.log(output);
 }

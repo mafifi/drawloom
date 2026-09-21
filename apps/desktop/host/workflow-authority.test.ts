@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { RegisteredTaskHandler, TaskContext } from "@drawloom/orchestration";
 import { createWorkflowAuthority } from "./workflow-authority.js";
 

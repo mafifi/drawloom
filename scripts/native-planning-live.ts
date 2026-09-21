@@ -7,7 +7,8 @@ import { createCodexDriver } from "@drawloom/codex-agent";
 import { createStdioTransport } from "@drawloom/node-host";
 import type { AgentSession, AgentSessionSignal } from "@drawloom/agent";
 import type { JsonValue } from "@drawloom/host";
-import { finishDisposableCodexThread } from "./codex-thread-cleanup.js";
+import { finishDisposableCodexThread } from "./codex-thread-cleanup.ts";
+import { setTimeout as sleep } from "node:timers/promises";
 
 if (process.env.DRAWLOOM_LIVE_PLANNING !== "1")
   throw Error("Explicit native planning proof required");
@@ -56,7 +57,7 @@ const waitFor = async (operationId: string) => {
       events.some((e) => e.kind === "operation.failed" && e.operationId === operationId)
     )
       throw Error("Native planning proof did not complete; no submission retried");
-    await Bun.sleep(100);
+    await sleep(100);
   }
 };
 try {

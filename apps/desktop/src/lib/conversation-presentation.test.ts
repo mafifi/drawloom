@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import type { HistoryEntry } from "@drawloom/conversation-history";
 import { projectConversation } from "./conversation-presentation.js";
 

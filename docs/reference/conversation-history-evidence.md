@@ -109,7 +109,7 @@ synthetic conversations. No personal conversation was captured.
 [narrow dark](generated/conversation-history/mobile-dark.png) captures are generated
 evidence, not design source. Regenerate them; do not hand-edit them.
 
-To reproduce, build the desktop, run `bun run scripts/history-browser-fixture.ts`,
+To reproduce, build the desktop, run `pnpm run scripts/history-browser-fixture.ts`,
 then pass its one-use bootstrap URL to `node scripts/verify-history-browser.mjs`.
 Set `DRAWLOOM_PLAYWRIGHT_PATH` to an existing Playwright module; optionally choose
 `DRAWLOOM_BROWSER_CHANNEL` and `DRAWLOOM_BROWSER_EVIDENCE_DIR`. Playwright is not a
@@ -118,17 +118,17 @@ its own temporary installation.
 
 ## Verification gate
 
-On 9 September 2026, `bun install --frozen-lockfile` passed without dependency
-changes and `bun run check:ci` passed: **292 tests, 0 failures, 1,531 assertions**,
+On 9 September 2026, `pnpm install --frozen-lockfile` passed without dependency
+changes and `pnpm run check:ci` passed: **292 tests, 0 failures, 1,531 assertions**,
 plus Node shared conformance and the portable history schema/export smoke.
 Svelte reported 0 errors and 0 warnings. The desktop production build retains
 its non-blocking large-chunk advisory; no bundle-size improvement is claimed.
 The separate installed Codex protocol check passed. Browser verification passed
 in both themes with no console/page errors and zero scroll-anchor displacement.
 
-Run `bun install --frozen-lockfile` and `bun run check:ci` from the repository root.
+Run `pnpm install --frozen-lockfile` and `pnpm run check:ci` from the repository root.
 The gate includes dependency/private/spike/UI guards, package build/artifacts,
 Svelte and TypeScript checks, publishing checks, Bun tests and Node conformance.
-`bun run scripts/verify-codex-history-protocol.ts` separately checks the installed
+`pnpm run scripts/verify-codex-history-protocol.ts` separately checks the installed
 App Server schema. Actual model-backed compatibility/performance remains a distinct
 future measurement; synthetic evidence must not be relabelled as live evidence.

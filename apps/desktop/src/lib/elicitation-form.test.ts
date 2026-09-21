@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect } from "vitest";
 import { elicitationContent } from "./elicitation-form.js";
 import type { ToolElicitationRequest } from "@drawloom/tools";
 

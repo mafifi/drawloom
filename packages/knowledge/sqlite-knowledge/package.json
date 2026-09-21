@@ -12,11 +12,13 @@
   ],
   "exports": {
     ".": {
+      "drawloom-source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "test:node": "node --experimental-strip-types --test sqlite-knowledge.node-check.ts"
   },
   "drawloom": {
@@ -30,6 +32,6 @@
     "@drawloom/authorization": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "catalog:node-runtime"
+    "@types/node": "catalog:"
   }
 }

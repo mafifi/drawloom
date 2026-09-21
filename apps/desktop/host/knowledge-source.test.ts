@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { defineTool } from "@drawloom/tools";
 import { z } from "zod";
 import { createInstalledGitKnowledgeFeed } from "./knowledge-source.js";
