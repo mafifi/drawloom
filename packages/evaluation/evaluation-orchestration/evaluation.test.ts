@@ -965,3 +965,95 @@ test("cancellation reaches an active target and never starts a scorer after a ca
   expect((await store.getResult(results.items[0]!.id))?.result.status).toBe("cancelled");
   expect(scorerCalls).toBe(0);
 });
+
+test("material a scorer's own schemas reject never reaches it", async () => {
+  // The orchestration parses input, output and expected against the scorer's
+  // declared schemas BEFORE invoking, and this is where that belongs: the
+  // scorer contract suite deliberately does not require every scorer to
+  // re-validate what its caller already validated. What matters is that a
+  // rejected value produces a durable failure WITHOUT the scorer running, so a
+  // scorer never has to defend against material it declared it cannot take.
+  const seen: { input: unknown; output: unknown; expected: unknown; hasExpected: boolean }[] = [];
+  const strict: EvaluationScorer = {
+    id: "strict",
+    revision: "r1",
+    input: z.string(),
+    output: z.string(),
+    expected: z.string(),
+    async score(args) {
+      seen.push({
+        input: args.input,
+        output: args.output,
+        expected: args.expected,
+        hasExpected: "expected" in args,
+      });
+      return { outcome: "succeeded", findings: [] };
+    },
+  };
+  const { service, orchestration, store } = await fixture({ scorers: [strict] });
+  const definition = {
+    ...existingDefinition,
+    id: "strict-definition",
+    scorers: [{ id: "strict", revision: "r1" }],
+    cases: [
+      // Valid JSON, but not what the scorer declared it takes.
+      {
+        id: "bad-input",
+        revision: "r1",
+        input: 42,
+        expected: "e",
+        suppliedOutput: "o",
+        references: [],
+      },
+      {
+        id: "bad-output",
+        revision: "r1",
+        input: "i",
+        expected: "e",
+        suppliedOutput: 42,
+        references: [],
+      },
+      {
+        id: "bad-expected",
+        revision: "r1",
+        input: "i",
+        expected: 42,
+        suppliedOutput: "o",
+        references: [],
+      },
+      // A case may legitimately carry no expected material even when the
+      // scorer declares a schema for it. The scorer must be invoked, and must
+      // not be handed an `expected` key at all.
+      { id: "no-expected", revision: "r1", input: "i", suppliedOutput: "o", references: [] },
+    ],
+  };
+  const started = await service.assess({ requestId: "strict-request", definition });
+  if (started.kind !== "started") throw Error("not started");
+  await orchestration.engine.result(started.orchestrationRunId);
+
+  expect(seen, "only the well-formed case reaches the scorer").toEqual([
+    { input: "i", output: "o", expected: undefined, hasExpected: false },
+  ]);
+
+  const page = await store.listResults({ runId: started.evaluationRunId });
+  const findings = new Map<string, unknown>();
+  for (const item of page.items) {
+    const result = await store.getResult(item.id);
+    findings.set(result!.result.caseId, result!.findings);
+  }
+  // Each rejected case is a durable, generic failure against the scorer's
+  // identity — not a silent skip, and not a leak of what was wrong with it.
+  const rejected = [
+    {
+      id: "strict",
+      name: "strict",
+      outcome: "error",
+      error: { code: "scorer_failed", message: "Scorer assessment failed" },
+      references: [],
+    },
+  ];
+  expect(findings.get("bad-input")).toEqual(rejected);
+  expect(findings.get("bad-output")).toEqual(rejected);
+  expect(findings.get("bad-expected")).toEqual(rejected);
+  expect(findings.get("no-expected"), "the well-formed case ran").toEqual([]);
+});

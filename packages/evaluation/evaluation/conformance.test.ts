@@ -1,5 +1,6 @@
-import { test } from "vitest";
-import { evaluationStoreConformance } from "./src/conformance.js";
+import { expect, test } from "vitest";
+import { z } from "zod";
+import { evaluationStoreConformance, scorerConformance } from "./src/conformance.js";
 import {
   CheckpointSelectorSchema,
   EvaluationDefinitionSchema,
@@ -17,6 +18,7 @@ import {
   ResultPageOptionsSchema,
   ScorerCheckpointSchema,
   TargetCheckpointSchema,
+  type EvaluationScorer,
   VersionedReferenceSchema,
   type EvaluationDefinition,
   type EvaluationFeedback,
@@ -459,4 +461,46 @@ function deterministicStore(scopeInput: EvaluationScope): EvaluationStore {
 test("a deterministic test-only implementation satisfies evaluation storage conformance", async () => {
   states.clear();
   await evaluationStoreConformance(deterministicStore);
+});
+
+test("scorerConformance rejects scorers that break the contract", async () => {
+  const base = {
+    id: "probe",
+    revision: "r1",
+    input: z.string(),
+    output: z.string(),
+    async score() {
+      return { outcome: "succeeded" as const, findings: [] };
+    },
+  };
+  const valid = { input: "i", output: "o" } as const;
+  const broken: Record<string, EvaluationScorer> = {
+    "missing id": { ...base, id: "" },
+    "missing revision": { ...base, revision: "" },
+    "malformed result": { ...base, score: async () => ({ outcome: "succeeded" }) as never },
+    "scored finding without a score": {
+      ...base,
+      score: async () =>
+        ({
+          outcome: "succeeded",
+          findings: [{ id: "f", name: "F", outcome: "scored", references: [] }],
+        }) as never,
+    },
+    "throws when a case carries no expected material": {
+      ...base,
+      expected: z.string(),
+      async score(args) {
+        if (args.expected === undefined) throw Error("expected material is required");
+        return { outcome: "succeeded" as const, findings: [] };
+      },
+    },
+  };
+  for (const [label, scorer] of Object.entries(broken))
+    await expect(
+      scorerConformance({
+        scorer,
+        valid: scorer.expected ? { ...valid, expected: "e" } : valid,
+      }),
+      label,
+    ).rejects.toThrow();
 });

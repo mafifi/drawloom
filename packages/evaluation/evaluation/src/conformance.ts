@@ -3,9 +3,13 @@ import {
   EvaluationStartAttemptSchema,
   EvaluationStoreError,
   ScorerCheckpointSchema,
+  ScorerInvocationResultSchema,
   type EvaluationCase,
   type EvaluationDefinition,
   type EvaluationFeedback,
+  type EvaluationInvocationContext,
+  type EvaluationJson,
+  type EvaluationScorer,
   type EvaluationResultRecord,
   type EvaluationScope,
   type EvaluationStore,
@@ -678,4 +682,114 @@ export async function evaluationStoreConformance(
   } finally {
     await store.close();
   }
+}
+
+/**
+ * One scorer, with values its own schemas accept. Scorers differ in how wide
+ * those schemas are — one takes any JSON, another is typed to strings — so the
+ * suite cannot invent inputs and the caller supplies them.
+ */
+export interface ScorerConformanceFixture {
+  readonly scorer: EvaluationScorer<EvaluationJson, EvaluationJson, EvaluationJson>;
+  /** Accepted by the scorer's declared schemas AND usable by `score()`. */
+  readonly valid: {
+    readonly input: EvaluationJson;
+    readonly output: EvaluationJson;
+    readonly expected?: EvaluationJson;
+  };
+  /**
+   * Values the declared schemas must reject. Omit for a scorer that genuinely
+   * accepts all JSON; an empty list is not a failure, it is a statement.
+   */
+  readonly rejects?: {
+    readonly input?: readonly unknown[];
+    readonly output?: readonly unknown[];
+    readonly expected?: readonly unknown[];
+  };
+}
+
+/**
+ * Conformance for `EvaluationScorer`, the contract surface ADR 0004 says is not
+ * described as conforming until a shared suite runs against it.
+ *
+ * SCOPE, and why it is this narrow. The orchestration already parses `input`,
+ * `output` and `expected` against the scorer's own schemas BEFORE invoking, and
+ * parses the returned `ScorerInvocationResult` after
+ * (`evaluation-orchestration/src/index.ts`). Requiring every scorer to repeat
+ * that would mandate duplicating work its caller already does. So this checks
+ * what only the scorer can answer — that its declared schemas mean what it
+ * needs, and that `score()` honours the result contract — and the boundary
+ * behaviour is tested where it lives, in the orchestration's own tests.
+ */
+export async function scorerConformance(fixture: ScorerConformanceFixture): Promise<void> {
+  const { scorer, valid } = fixture;
+
+  check(typeof scorer.id === "string" && scorer.id.length > 0, "Scorer must carry an id");
+  check(
+    typeof scorer.revision === "string" && scorer.revision.length > 0,
+    "Scorer must carry a revision",
+  );
+  // Identity is recorded in every checkpoint, so it cannot be computed per read.
+  check(scorer.id === scorer.id && scorer.revision === scorer.revision, "Identity must be stable");
+
+  check(
+    scorer.input.safeParse(valid.input).success,
+    "Declared input schema rejected a value the scorer accepts",
+  );
+  check(
+    scorer.output.safeParse(valid.output).success,
+    "Declared output schema rejected a value the scorer accepts",
+  );
+  if (valid.expected !== undefined) {
+    check(scorer.expected !== undefined, "Fixture supplies expected material but none is declared");
+    check(
+      scorer.expected?.safeParse(valid.expected).success === true,
+      "Declared expected schema rejected a value the scorer accepts",
+    );
+  }
+
+  for (const [field, values] of [
+    ["input", fixture.rejects?.input],
+    ["output", fixture.rejects?.output],
+    ["expected", fixture.rejects?.expected],
+  ] as const) {
+    const schema = field === "expected" ? scorer.expected : scorer[field];
+    if (!schema) continue;
+    for (const value of values ?? [])
+      check(!schema.safeParse(value).success, `Declared ${field} schema accepted ${String(value)}`);
+  }
+
+  const context: EvaluationInvocationContext = {
+    signal: new AbortController().signal,
+    invocationId: "conformance-invocation",
+    operationId: "conformance-operation",
+    runId: "conformance-run",
+  };
+
+  const scored = ScorerInvocationResultSchema.parse(
+    await scorer.score(
+      {
+        input: valid.input,
+        output: valid.output,
+        ...(valid.expected === undefined ? {} : { expected: valid.expected }),
+        references: [],
+      },
+      context,
+    ),
+  );
+  check(
+    scored.findings.every((f) => f.outcome !== "scored" || typeof f.score === "number"),
+    "A scored finding must carry a score",
+  );
+
+  /**
+   * A case may carry no expected material even when the scorer declares a schema
+   * for it: the orchestration passes `expected` only when the case has it. A
+   * scorer must answer rather than throw — reporting `unscored` is the honest
+   * answer, and is what the exact-match scorer does.
+   */
+  if (scorer.expected !== undefined)
+    ScorerInvocationResultSchema.parse(
+      await scorer.score({ input: valid.input, output: valid.output, references: [] }, context),
+    );
 }

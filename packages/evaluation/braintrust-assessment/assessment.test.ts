@@ -4,9 +4,11 @@ import type { AgentDriver, AgentSessionSignal } from "@drawloom/agent";
 import { createCodexDriver } from "@drawloom/codex-agent";
 import type { JsonValue, RpcMessage, RpcTransport } from "@drawloom/host";
 import type { EvaluationScorer } from "@drawloom/evaluation";
+import { scorerConformance } from "@drawloom/evaluation/conformance";
 import {
   AGENT_RUBRIC_SCORER,
   AUTOEVALS_EXACT_MATCH_SCORER,
+  AUTOEVALS_LEVENSHTEIN_SCORER,
   createAgentRubricScorer,
   createBraintrustAssessmentProvider,
 } from "./src/index.js";
@@ -636,4 +638,33 @@ test("agent rubric interrupts pending approvals and input without resolving them
     });
     expect({ interrupted, closes }).toEqual({ interrupted: true, closes: 1 });
   }
+});
+
+test("supported scorers conform to the EvaluationScorer contract", async () => {
+  const provider = createBraintrustAssessmentProvider();
+  const scorers = provider.scorers ?? [];
+  expect(scorers.length).toBeGreaterThan(0);
+
+  const byId = new Map(scorers.map((value) => [value.id, value]));
+  const exact = byId.get(AUTOEVALS_EXACT_MATCH_SCORER.id);
+  const levenshtein = byId.get(AUTOEVALS_LEVENSHTEIN_SCORER.id);
+  expect(exact, "exact-match scorer is published").toBeDefined();
+  expect(levenshtein, "levenshtein scorer is published").toBeDefined();
+
+  // Exact match declares EvaluationJsonSchema throughout, so it accepts any
+  // JSON; stating that with an empty rejection list is more honest than
+  // pretending it validates a shape it does not.
+  await scorerConformance({
+    scorer: exact!,
+    valid: { input: "question", output: "answer", expected: "answer" },
+  });
+
+  // Levenshtein is typed to strings, so its declared schemas must actually
+  // refuse non-strings — this is the case that would catch a scorer widening
+  // its schemas without meaning to.
+  await scorerConformance({
+    scorer: levenshtein!,
+    valid: { input: "question", output: "answer", expected: "answe" },
+    rejects: { input: [42, null, {}], output: [42, null, {}], expected: [42, null, {}] },
+  });
 });

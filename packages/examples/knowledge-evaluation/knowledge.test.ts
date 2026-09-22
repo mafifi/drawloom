@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { EvaluationDefinitionSchema, ScorerInvocationResultSchema } from "@drawloom/evaluation";
+import { scorerConformance } from "@drawloom/evaluation/conformance";
 import { loadKnowledgeEvaluation, knowledgeEvaluationSourceIdentity } from "./src/index.js";
 import { parseKnowledgeEvaluationAssets } from "./src/assets.js";
 
@@ -169,4 +170,37 @@ describe("frozen supported knowledge evaluation", () => {
       "imported historical evidence, not freshly judged",
     );
   });
+});
+
+test("every published scorer conforms to the EvaluationScorer contract", async () => {
+  const bundle = await loadKnowledgeEvaluation();
+  const byId = new Map(bundle.scorers.map((scorer) => [scorer.id, scorer]));
+  const covered = new Set<string>();
+
+  // Each definition declares which scorers apply to its cases, so the pairing
+  // comes from the package rather than from fixtures invented here. These
+  // scorers declare EvaluationJsonSchema but re-parse a much narrower shape
+  // inside score(), so only real case material exercises them honestly.
+  for (const definition of bundle.definitions) {
+    const sample = definition.cases[0];
+    if (!sample) continue;
+    for (const reference of definition.scorers) {
+      const scorer = byId.get(reference.id);
+      expect(scorer, `definition ${definition.id} names scorer ${reference.id}`).toBeDefined();
+      if (covered.has(reference.id)) continue;
+      await scorerConformance({
+        scorer: scorer!,
+        valid: {
+          input: sample.input,
+          output: sample.suppliedOutput!,
+          ...(sample.expected === undefined ? {} : { expected: sample.expected }),
+        },
+      });
+      covered.add(reference.id);
+    }
+  }
+
+  expect([...covered].sort(), "every published scorer is reached by a definition").toEqual(
+    bundle.scorers.map((scorer) => scorer.id).sort(),
+  );
 });
