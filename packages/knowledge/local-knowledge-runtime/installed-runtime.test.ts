@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { mkdtemp, rm, readdir, readlink, realpath, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, readdir, readlink, realpath, stat } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { dirname, join, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
@@ -30,6 +30,10 @@ test("installed worker entrypoint uses the same host authority without checkout 
   const repositoryRoot = resolve(import.meta.dirname, "../../..");
   // Deployed inside the repository: pnpm rewrites the patched-dependency path
   // relative to the deploy target, which cannot cross filesystem roots.
+  // `.deploy` is gitignored, so it is absent on a clean checkout, and `mkdtemp`
+  // does not create parents. Without this the test fails with ENOENT for
+  // anyone who has not already run something that happens to create it.
+  await mkdir(join(repositoryRoot, ".deploy"), { recursive: true });
   const destination = await mkdtemp(join(repositoryRoot, ".deploy", "installed-authority-"));
   const temporary = await mkdtemp(join(tmpdir(), "drawloom-installed-authority-"));
   const authority = createDesktopAuthorization({

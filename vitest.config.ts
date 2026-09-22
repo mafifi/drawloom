@@ -35,6 +35,12 @@ export default defineConfig({
       "**/build/**",
       "**/.svelte-kit/**",
       "spikes/**",
+      // Local, untracked snapshot archives from earlier sessions. They contain
+      // copies of real test files that no longer compile against current
+      // sources. `.dependency-cruiser.mjs` already excludes this path; the test
+      // runner must too, or a developer with these on disk fails the gate for
+      // work that is not in the repository.
+      "**/.superpowers/**",
       // deployed installations contain a copy of the sources they were built from
       "**/.deploy/**",
       "**/*.test.mjs",
