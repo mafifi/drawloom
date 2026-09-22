@@ -14,6 +14,7 @@ export interface UiPolicyIssue {
     | "stateful-control"
     | "conversation-composition"
     | "theme-token"
+    | "view-responsibility"
     | "parse-error";
   message: string;
 }
@@ -230,6 +231,62 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
     );
     return issues;
   }
+  /**
+   * A view may not reach a service or validate a response. Both belong in a
+   * `*-view-model.svelte.ts` module, which is testable without a DOM.
+   *
+   * Targeted on purpose. An earlier draft of this rule failed on any `.parse(`,
+   * which also catches `JSON.parse`, `parseInt` and date parsing — a rule that
+   * fires on correct code teaches people to suppress it. This matches network
+   * and service access by name, and schema validation only where the receiver
+   * is an imported schema or `zod` is imported at all.
+   */
+  const schemaNames = new Set<string>();
+  let importsZod = false;
+  visit(ast, (node) => {
+    if (node.type !== "ImportDeclaration") return;
+    const source = record(node.source)?.value;
+    if (source === "zod") importsZod = true;
+    for (const specifier of Array.isArray(node.specifiers) ? node.specifiers : []) {
+      const entry = record(specifier);
+      const local = record(entry?.local)?.name;
+      // A schema is recognised by the convention the repository already uses.
+      if (typeof local === "string" && /Schema$/.test(local)) schemaNames.add(local);
+    }
+  });
+  const serviceCalls = new Set(["fetch", "EventSource", "WebSocket", "XMLHttpRequest"]);
+  visit(ast, (node) => {
+    if (node.type === "ImportDeclaration" && record(node.source)?.value === "zod")
+      report(
+        "view-responsibility",
+        node.start,
+        "A view must not import zod. Move schema validation into a *-view-model.svelte.ts module.",
+      );
+    if (node.type !== "CallExpression" && node.type !== "NewExpression") return;
+    const callee = record(node.callee);
+    const name = typeof callee?.name === "string" ? callee.name : undefined;
+    if (name && serviceCalls.has(name))
+      report(
+        "view-responsibility",
+        node.start,
+        `A view must not call ${name} directly. Move the request into a *-view-model.svelte.ts module so it can be tested without a DOM.`,
+      );
+    // `SomeSchema.parse(...)` / `.safeParse(...)` on an imported schema.
+    if (callee?.type === "MemberExpression") {
+      const property = record(callee.property)?.name;
+      const object = record(callee.object)?.name;
+      if (
+        (property === "parse" || property === "safeParse") &&
+        ((typeof object === "string" && schemaNames.has(object)) || (importsZod && !object))
+      )
+        report(
+          "view-responsibility",
+          node.start,
+          "A view must not validate a response. Move schema validation into a *-view-model.svelte.ts module.",
+        );
+    }
+  });
+
   const sharedButtons = new Set<string>();
   visit(ast, (node) => {
     if (

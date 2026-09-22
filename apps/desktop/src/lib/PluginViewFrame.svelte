@@ -1,10 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { z } from 'zod';
   import { Alert } from '@drawloom/ui';
-  import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
-  import { McpUiMessageResultSchema, type McpUiMessageRequest, type McpUiUpdateModelContextRequest } from '@modelcontextprotocol/ext-apps';
   import { PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge';
+  import { createPluginViewSession } from './plugin-view-session.js';
   import type { RegisteredWorkbenchView } from '@drawloom/plugins';
   import { closePluginViewBridge, createPluginViewBridge, updatePluginViewTheme } from './plugin-view-bridge.js';
 
@@ -29,37 +27,16 @@
     const appearance = matchMedia('(prefers-color-scheme: dark)');
     const theme = () => appearance.matches ? 'dark' as const : 'light' as const;
     const abort = new AbortController();
-    const mount = fetch('/api/view-session', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...target, action: 'open' }),
-    }).then(async response => {
-      if (!response.ok) throw Error('View unavailable');
-      const opened = z.object({ mountId: z.string().uuid(), mediaRevision: z.string().min(1) }).parse(await response.json());
+    const session = createPluginViewSession({ target, signal: abort.signal });
+    const mount = session.opened.then(opened => {
       if (!abort.signal.aborted) onmounted(opened.mediaRevision, generation);
       return opened.mountId;
     });
-    const release = () => { void mount.then(mountId => fetch('/api/view-session', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
-      body: JSON.stringify({ ...target, mountId, action: 'close' }),
-    })).catch(() => {}); };
-    const interact = async (request: McpUiMessageRequest | McpUiUpdateModelContextRequest) => {
-      const mountId = await mount;
-      const response = await fetch('/api/view-interaction', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        signal: abort.signal,
-        body: JSON.stringify({ ...target, mountId, request }),
-      });
-      if (!response.ok) throw Error('Conversation request failed');
-      return McpUiMessageResultSchema.parse(await response.json());
-    };
+    const release = () => session.release();
     const bridge = createPluginViewBridge({ theme: theme(),
-      message: params => interact({ method: 'ui/message', params }),
-      updateContext: params => interact({ method: 'ui/update-model-context', params }),
-      callTool: async request => {
-        const response = await fetch('/api/view-request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: abort.signal, body: JSON.stringify({ ...target, request }) });
-        if (!response.ok) throw Error('View request failed');
-        return CallToolResultSchema.parse(await response.json());
-      },
+      message: params => session.interact({ method: 'ui/message', params }),
+      updateContext: params => session.interact({ method: 'ui/update-model-context', params }),
+      callTool: request => session.callTool(request),
     });
     // Keep the iframe alive for the bounded standard cleanup exchange, including
     // when an ancestor pane/conversation is removed. No new calls while closing.

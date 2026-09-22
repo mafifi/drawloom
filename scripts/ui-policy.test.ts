@@ -460,3 +460,51 @@ describe("shared UI boundary", () => {
     expect(checkUiSource(path, "<button />")).toEqual([]);
   });
 });
+
+describe("views do not own service access or validation", () => {
+  const view = (body: string) => `<script lang="ts">\n${body}\n</script>\n<p>ok</p>\n`;
+  const kinds = (source: string) =>
+    checkUiSource("apps/desktop/src/lib/Probe.svelte", source).map((issue) => issue.kind);
+
+  test("a direct request from a view is a violation", () => {
+    expect(kinds(view("async function f(){ await fetch('/api/models'); }"))).toContain(
+      "view-responsibility",
+    );
+  });
+
+  test("other service constructors are caught too", () => {
+    for (const service of ["new EventSource('/x')", "new WebSocket('/x')"])
+      expect(kinds(view(`const s = ${service};`)), service).toContain("view-responsibility");
+  });
+
+  test("validating a response against an imported schema is a violation", () => {
+    expect(
+      kinds(
+        view(
+          "import { AgentModelSchema } from '@drawloom/agent';\nconst v = AgentModelSchema.parse({});",
+        ),
+      ),
+    ).toContain("view-responsibility");
+  });
+
+  test("importing zod into a view is a violation on its own", () => {
+    expect(kinds(view("import { z } from 'zod';"))).toContain("view-responsibility");
+  });
+
+  test("ordinary parsing is not a violation", () => {
+    // The rule is targeted for a reason: a check that fires on correct code
+    // gets suppressed, and then it protects nothing.
+    const source = view(
+      "const a = JSON.parse('{}');\nconst b = parseInt('1', 10);\nconst c = Date.parse('2026-01-01');",
+    );
+    expect(kinds(source)).not.toContain("view-responsibility");
+  });
+
+  test("a view model is not a view, and may do both", () => {
+    const issues = checkUiSource(
+      "apps/desktop/src/lib/example-view-model.svelte.ts",
+      "import { z } from 'zod';\nexport async function load(){ return z.object({}).parse(await (await fetch('/api/x')).json()); }",
+    );
+    expect(issues.map((issue) => issue.kind)).not.toContain("view-responsibility");
+  });
+});
