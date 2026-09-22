@@ -251,13 +251,23 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
     for (const specifier of Array.isArray(node.specifiers) ? node.specifiers : []) {
       const entry = record(specifier);
       const local = record(entry?.local)?.name;
-      if (entry?.type === "ImportNamespaceSpecifier" && typeof local === "string" &&
-          typeof source === "string" && /view-model\.svelte\.(?:js|ts)$/.test(source))
+      if (
+        entry?.type === "ImportNamespaceSpecifier" &&
+        typeof local === "string" &&
+        typeof source === "string" &&
+        /view-model\.svelte\.(?:js|ts)$/.test(source)
+      )
         desktopViewModelNamespaces.add(local);
-      if (record(entry?.imported)?.name === "DesktopViewModel" &&
-          typeof source === "string" && /view-model\.svelte\.(?:js|ts)$/.test(source))
-        report("view-responsibility", node.start,
-          "A View must receive narrow presentation and actions props instead of DesktopViewModel.");
+      if (
+        record(entry?.imported)?.name === "DesktopViewModel" &&
+        typeof source === "string" &&
+        /view-model\.svelte\.(?:js|ts)$/.test(source)
+      )
+        report(
+          "view-responsibility",
+          node.start,
+          "A View must receive narrow presentation and actions props instead of DesktopViewModel.",
+        );
       // A schema is recognised by the convention the repository already uses.
       if (typeof local === "string" && /Schema$/.test(local)) schemaNames.add(local);
     }
@@ -298,9 +308,16 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
     if (node.type !== "TSQualifiedName") return;
     const left = record(node.left)?.name;
     const right = record(node.right)?.name;
-    if (typeof left === "string" && desktopViewModelNamespaces.has(left) && right === "DesktopViewModel")
-      report("view-responsibility", node.start,
-        "A View must receive narrow presentation and actions props instead of DesktopViewModel.");
+    if (
+      typeof left === "string" &&
+      desktopViewModelNamespaces.has(left) &&
+      right === "DesktopViewModel"
+    )
+      report(
+        "view-responsibility",
+        node.start,
+        "A View must receive narrow presentation and actions props instead of DesktopViewModel.",
+      );
   });
 
   const sharedButtons = new Set<string>();

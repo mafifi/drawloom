@@ -119,7 +119,9 @@ test("release still closes a mount that resolved after teardown began", async ()
   session.release();
   release?.({ mountId, mediaRevision: "r1" });
   await new Promise((resolve) => setTimeout(resolve, 0));
-  expect(calls.filter((call) => (call.body as { action?: string })?.action === "close")).toHaveLength(1);
+  expect(
+    calls.filter((call) => (call.body as { action?: string })?.action === "close"),
+  ).toHaveLength(1);
 });
 
 test("interaction and tool calls carry the abort signal, close does not", async () => {
@@ -153,5 +155,5 @@ test("an aborted mounted session rejects bridge work before contacting the host"
   abort.abort();
   await expect(session.interact({ method: "ui/message", params: {} } as never)).rejects.toThrow();
   await expect(session.callTool({ name: "example", arguments: {} })).rejects.toThrow();
-  expect(calls.map(call => call.path)).toEqual(["/api/view-session"]);
+  expect(calls.map((call) => call.path)).toEqual(["/api/view-session"]);
 });

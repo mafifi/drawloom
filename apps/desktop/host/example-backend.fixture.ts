@@ -13,7 +13,11 @@ const backend: PluginBackendFactory = async ({ capabilities }) => {
   const uri = "ui://example/view.html";
   const server = new McpServer({ name: "public-choice", version: "1.0.0" });
   registerAppResource(server, "Choices", uri, {}, async () => ({
-    contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: `<!doctype html><p>Public fixture</p><p id="bridge-ready"></p><script>
+    contents: [
+      {
+        uri,
+        mimeType: RESOURCE_MIME_TYPE,
+        text: `<!doctype html><p>Public fixture</p><p id="bridge-ready"></p><script>
       let initialized = false;
       const send = message => parent.postMessage(message, '*');
       addEventListener('message', event => {
@@ -34,7 +38,9 @@ const backend: PluginBackendFactory = async ({ capabilities }) => {
         }
       });
       send({ jsonrpc: '2.0', id: 'fixture-initialize', method: 'ui/initialize', params: { appCapabilities: {}, appInfo: { name: 'Public fixture', version: '1.0.0' }, protocolVersion: '2025-06-18' } });
-    </script>` }],
+    </script>`,
+      },
+    ],
   }));
   const current = async () => ({
     content: [],
