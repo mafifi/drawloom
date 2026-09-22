@@ -632,15 +632,23 @@ test("installed plugin view mounts, loads once, and closes its exact mount on co
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     await page.addInitScript(() => {
       const messageListeners = new Set<EventListenerOrEventListenerObject>();
-      const addEventListener = window.addEventListener;
-      const removeEventListener = window.removeEventListener;
-      window.addEventListener = function (type, listener, options) {
+      const addEventListener = window.addEventListener.bind(window);
+      const removeEventListener = window.removeEventListener.bind(window);
+      window.addEventListener = function (
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | AddEventListenerOptions,
+      ) {
         if (type === "message") messageListeners.add(listener);
-        return addEventListener.call(this, type, listener, options);
+        return addEventListener(type, listener, options);
       };
-      window.removeEventListener = function (type, listener, options) {
+      window.removeEventListener = function (
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: boolean | EventListenerOptions,
+      ) {
         if (type === "message") messageListeners.delete(listener);
-        return removeEventListener.call(this, type, listener, options);
+        return removeEventListener(type, listener, options);
       };
       Object.defineProperty(window, "__drawloomMessageListenerCount", {
         get: () => messageListeners.size,
