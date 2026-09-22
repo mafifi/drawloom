@@ -48,3 +48,25 @@ toolchain executable at `/Users/afifim/.cargo/bin/cargo` was used instead.
   development worker-runtime override remains possible. Production defaults to
   the bundled runtime.
 
+## Round 1 review correction
+
+Review found that the first implementation incorrectly used a development
+`DRAWLOOM_HOST_BIN` override as the implicit worker runtime. The launch helper
+now keeps those concerns separate: bundled launches default workers to
+`host/host/node`, host overrides do not inject a worker path, and an explicit
+`DRAWLOOM_NODE_PATH` is preserved in either branch.
+
+Additional failing-first coverage was added for the host-override and explicit
+worker-runtime cases. The bundled fixture clears `PATH` for the launched
+process, while environment assertions inspect only command-configured values,
+so ambient developer variables cannot affect the result.
+
+Round 1 verification:
+
+- The pre-fix test compile failed because the helper did not accept the worker
+  override distinction (`host_command` took two arguments but the regression
+  required three).
+- `/Users/afifim/.cargo/bin/cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml` — passed.
+- `/Users/afifim/.cargo/bin/cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml` — **31 passed, 0 failed**.
+- `/Users/afifim/.cargo/bin/cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml` — passed.
+- `git diff --check` — passed.

@@ -75,18 +75,22 @@ fn setup_application(app: &mut tauri::App) -> StartupResult<()> {
     let web = std::env::var_os("DRAWLOOM_WEB_ROOT")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| resources.join("web"));
-    let mut child = host_command(&resources, std::env::var_os("DRAWLOOM_HOST_BIN"))
-        .env("DRAWLOOM_WEB_ROOT", web)
-        .env(
-            "DRAWLOOM_ORCHESTRATION_RUNTIME",
-            resources.join("orchestration"),
-        )
-        .env("DRAWLOOM_KNOWLEDGE_RUNTIME", resources.join("knowledge"))
-        .env("DRAWLOOM_MANAGED", "1")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .spawn()?;
+    let mut child = host_command(
+        &resources,
+        std::env::var_os("DRAWLOOM_HOST_BIN"),
+        std::env::var_os("DRAWLOOM_NODE_PATH"),
+    )
+    .env("DRAWLOOM_WEB_ROOT", web)
+    .env(
+        "DRAWLOOM_ORCHESTRATION_RUNTIME",
+        resources.join("orchestration"),
+    )
+    .env("DRAWLOOM_KNOWLEDGE_RUNTIME", resources.join("knowledge"))
+    .env("DRAWLOOM_MANAGED", "1")
+    .stdin(Stdio::piped())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::inherit())
+    .spawn()?;
     // Keep the child locally owned until all startup resources and the
     // main window succeed. Every early-return error drains and reaps it.
     configure_host(&mut child, |child| {
@@ -111,18 +115,24 @@ fn setup_application(app: &mut tauri::App) -> StartupResult<()> {
     Ok(())
 }
 
-fn host_command(resources: &std::path::Path, host_override: Option<std::ffi::OsString>) -> Command {
+fn host_command(
+    resources: &std::path::Path,
+    host_override: Option<std::ffi::OsString>,
+    worker_override: Option<std::ffi::OsString>,
+) -> Command {
     let bundled = host_override.is_none();
     let runtime = host_override
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| resources.join("host/host/node"));
-    let worker_runtime =
-        std::env::var_os("DRAWLOOM_NODE_PATH").unwrap_or_else(|| runtime.clone().into_os_string());
-    let mut command = Command::new(runtime);
+    let mut command = Command::new(&runtime);
     if bundled {
         command.arg(resources.join("host/host/main.mjs"));
     }
-    command.env("DRAWLOOM_NODE_PATH", worker_runtime);
+    if let Some(worker_runtime) =
+        worker_override.or_else(|| bundled.then(|| runtime.clone().into_os_string()))
+    {
+        command.env("DRAWLOOM_NODE_PATH", worker_runtime);
+    }
     command
 }
 
@@ -256,13 +266,46 @@ mod tests {
         )
         .unwrap();
 
-        let output = host_command(&root, None).output().unwrap();
+        let mut command = host_command(&root, None, None);
+        command.env("PATH", "");
+        let output = command.output().unwrap();
         let _ = std::fs::remove_dir_all(&root);
         assert!(output.status.success());
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.starts_with("native-launch-ok:"));
         assert!(stdout.contains("/host/host/main.mjs:"));
         assert!(stdout.ends_with("/host/host/node\n"));
+    }
+
+    #[test]
+    fn host_override_does_not_become_worker_runtime_without_explicit_override() {
+        let command = host_command(
+            std::path::Path::new("/resources"),
+            Some(std::ffi::OsString::from("/development/host-launcher")),
+            None,
+        );
+        assert!(command
+            .get_envs()
+            .all(|(key, _)| key != std::ffi::OsStr::new("DRAWLOOM_NODE_PATH")));
+    }
+
+    #[test]
+    fn explicit_worker_runtime_override_is_preserved_for_bundled_and_host_launches() {
+        let worker = std::ffi::OsString::from("/development/node");
+        for host_override in [None, Some(std::ffi::OsString::from("/development/host"))] {
+            let command = host_command(
+                std::path::Path::new("/resources"),
+                host_override,
+                Some(worker.clone()),
+            );
+            assert_eq!(
+                command
+                    .get_envs()
+                    .find(|(key, _)| *key == std::ffi::OsStr::new("DRAWLOOM_NODE_PATH"))
+                    .and_then(|(_, value)| value),
+                Some(worker.as_os_str())
+            );
+        }
     }
 
     #[test]
