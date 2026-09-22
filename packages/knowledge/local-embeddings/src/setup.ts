@@ -14,7 +14,7 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { LocalEmbeddingsError } from "./errors.js";
 import {
@@ -83,9 +83,21 @@ const runtimeArchivePath = "llama.cpp-darwin-arm64.tar.gz";
 const runtimeArchiveRoot = "drawloom-llama-runtime";
 const execFileAsync = promisify(execFile);
 
+/**
+ * Is `candidate` inside `root`? Pinned by `pathContainmentConformance` from
+ * `@drawloom/host/conformance`; see `containment.test.ts`.
+ *
+ * This previously used `startsWith("..")` and `includes("../")`, which rejected
+ * legitimate paths: a directory named `..draft` fails the first, and one named
+ * `b..` fails the second. Both are separator-unaware string tests standing in
+ * for a path comparison. The failure mode was refusing real paths, not
+ * admitting escapes.
+ */
 function isSubpath(root: string, candidate: string): boolean {
   const between = relative(resolve(root), resolve(candidate));
-  return between === "" || (!between.startsWith("..") && !between.includes("../"));
+  return (
+    between === "" || (!isAbsolute(between) && between !== ".." && !between.startsWith(".." + sep))
+  );
 }
 
 function artifactFile(root: string, path: string): string {
@@ -154,7 +166,9 @@ async function ownedTargetState(
   target: string,
 ): Promise<OwnedTargetState> {
   const between = relative(resolve(root), resolve(target));
-  if (!between || between.startsWith("..") || between.includes("../")) return "unsafe";
+  // Containment, plus this caller's own rule: the root itself is not an owned
+  // target, so an empty delta is "unsafe" here even though it is inside.
+  if (!between || !isSubpath(root, target)) return "unsafe";
   let current = root;
   for (const part of between.split("/")) {
     current = join(current, part);

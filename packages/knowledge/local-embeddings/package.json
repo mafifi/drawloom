@@ -30,6 +30,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@drawloom/host": "workspace:*",
     "@types/node": "catalog:"
   }
 }
