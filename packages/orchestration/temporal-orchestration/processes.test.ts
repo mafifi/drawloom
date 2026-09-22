@@ -6,6 +6,20 @@ import { command } from "./src/processes.js";
 
 const node = process.execPath;
 
+async function expectChildTerminated(marker: string): Promise<void> {
+  const pid = Number(await readFile(marker, "utf8"));
+  await expect
+    .poll(() => {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch (error) {
+        return !(error instanceof Error && "code" in error && error.code === "ESRCH");
+      }
+    })
+    .toBe(false);
+}
+
 test("command preserves a complete large UTF-8 result after fragmented writes", async () => {
   const expected = `${"dependency,".repeat(7_000)}${"🌙".repeat(3_000)}`;
   const source = [
@@ -27,17 +41,7 @@ test("command rejects an output overflow and terminates its child", async () => 
   ].join("");
   try {
     await expect(command(node, ["-e", source], 5_000)).rejects.toThrow("output exceeded");
-    const pid = Number(await readFile(marker, "utf8"));
-    await expect
-      .poll(() => {
-        try {
-          process.kill(pid, 0);
-          return true;
-        } catch (error) {
-          return !(error instanceof Error && "code" in error && error.code === "ESRCH");
-        }
-      })
-      .toBe(false);
+    await expectChildTerminated(marker);
   } finally {
     await rm(marker, { force: true });
   }
@@ -47,8 +51,17 @@ test("command keeps failure, timeout, and spawn errors explicit", async () => {
   await expect(
     command(node, ["-e", "process.stderr.write('failed'); process.exit(3)"]),
   ).rejects.toThrow("failed (3): failed");
-  await expect(command(node, ["-e", "setInterval(() => {}, 1_000)"], 10)).rejects.toThrow(
-    "timed out",
-  );
+  const marker = join(tmpdir(), `drawloom-command-timeout-${crypto.randomUUID()}`);
+  try {
+    const timeoutSource = [
+      "const { writeFileSync } = require('node:fs');",
+      `writeFileSync(${JSON.stringify(marker)}, String(process.pid));`,
+      "setInterval(() => {}, 1_000);",
+    ].join("");
+    await expect(command(node, ["-e", timeoutSource], 200)).rejects.toThrow("timed out");
+    await expectChildTerminated(marker);
+  } finally {
+    await rm(marker, { force: true });
+  }
   await expect(command(join(tmpdir(), "missing-drawloom-command"), [])).rejects.toThrow();
 });

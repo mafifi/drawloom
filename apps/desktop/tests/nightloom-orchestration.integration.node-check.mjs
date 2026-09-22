@@ -4,8 +4,9 @@ import { spawn, execFileSync } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { test } from "node:test";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createNodeJsonStore } from "@drawloom/node-host";
 import {
   createLocalTemporalManager,
@@ -106,6 +107,51 @@ test("real manager prepares Nightloom's prebuilt dependency manifest over 64 KiB
     await registration.close();
   } finally {
     await manager.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("staged orchestration runtime prepares the deployed Nightloom dependency manifest over 64 KiB", {
+  timeout: 90_000,
+}, async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-nightloom-staged-manifest-"));
+  const staging = resolve(".deploy", `nightloom-manifest-${randomUUID()}`);
+  const runtime = join(staging, "orchestration");
+  const nightloom = join(staging, "nightloom");
+  let manager;
+  try {
+    execFileSync("pnpm", ["--filter", "@drawloom/temporal-orchestration", "run", "build"], {
+      stdio: "inherit",
+    });
+    execFileSync(
+      "pnpm",
+      ["--filter", "@drawloom/temporal-orchestration", "deploy", "--prod", runtime],
+      { stdio: "inherit" },
+    );
+    execFileSync("pnpm", ["--filter", "@drawloom/nightloom", "run", "build"], {
+      stdio: "inherit",
+    });
+    execFileSync("pnpm", ["--filter", "@drawloom/nightloom", "deploy", "--prod", nightloom], {
+      stdio: "inherit",
+    });
+    const { createLocalTemporalManager: createStagedManager } = await import(
+      pathToFileURL(join(runtime, "dist", "index.js")).href
+    );
+    manager = createStagedManager({
+      dataDirectory: join(root, "temporal"),
+      runtimeDirectory: runtime,
+      nodePath: process.execPath,
+    });
+    const registration = await manager.prepareHost({
+      capabilityId: "knowledge-maintenance",
+      packageDirectory: nightloom,
+      entrypoint: "dist/workflows.js",
+    });
+    assert.ok(registration.registry.tasks.length > 0);
+    await registration.close();
+  } finally {
+    await manager?.close();
+    await rm(staging, { recursive: true, force: true });
     await rm(root, { recursive: true, force: true });
   }
 });
