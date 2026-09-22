@@ -36,6 +36,9 @@ export function createPluginViewSession(options: {
 }) {
   const request = options.fetch ?? telemetryFetch;
   const { target, signal } = options;
+  const active = () => {
+    if (signal.aborted) throw signal.reason ?? new DOMException("Aborted", "AbortError");
+  };
   const post = async (path: string, body: unknown, init?: RequestInit) => {
     const response = await request(path, {
       method: "POST",
@@ -77,11 +80,13 @@ export function createPluginViewSession(options: {
       value: McpUiMessageRequest | McpUiUpdateModelContextRequest,
     ): Promise<z.infer<typeof McpUiMessageResultSchema>> {
       const { mountId } = await opened;
+      active();
       return McpUiMessageResultSchema.parse(
         await post("/api/view-interaction", { ...target, mountId, request: value }, { signal }),
       );
     },
     async callTool(value: unknown): Promise<z.infer<typeof CallToolResultSchema>> {
+      active();
       return CallToolResultSchema.parse(
         await post("/api/view-request", { ...target, request: value }, { signal }),
       );

@@ -545,7 +545,14 @@ test('installed plugin view mounts, loads once, and closes its exact mount on co
     page.on('pageerror', error => errors.push(error.message));
     const sessionCalls: Array<{ action: string; conversationId: string; mountId?: string }> = [];
     const viewRequests: string[] = [];
-    page.on('request', request => { if (/\/api\/(?:views\/|view-interaction|view-request)/.test(request.url())) viewRequests.push(request.url()); });
+    const bridgeRequests: Array<{ path: string; conversationId?: string }> = [];
+    page.on('request', request => {
+      if (/\/api\/(?:views\/|view-interaction|view-request)/.test(request.url())) viewRequests.push(request.url());
+      if (/\/api\/(?:view-interaction|view-request)$/.test(new URL(request.url()).pathname)) {
+        const body = request.postDataJSON() as { conversationId?: string };
+        bridgeRequests.push({ path: new URL(request.url()).pathname, conversationId: body.conversationId });
+      }
+    });
     let holdNextOpen = false;
     let releaseHeld: (() => void) | undefined;
     let heldStartedResolve: (() => void) | undefined;
@@ -564,13 +571,15 @@ test('installed plugin view mounts, loads once, and closes its exact mount on co
     const frame = page.locator('iframe[title="Example view"]');
     await frame.waitFor();
     await page.frameLocator('iframe[title="Example view"]').getByText('Public fixture').waitFor();
+    await page.frameLocator('iframe[title="Example view"]').getByText('Bridge ready').waitFor();
     assert.equal(await page.getByText('The view navigated away and was disconnected.').count(), 0, 'initial iframe load must not disconnect');
     assert.equal(sessionCalls.filter(call => call.action === 'open' && call.conversationId === firstId).length, 1);
     const oldFrame = await frame.elementHandle();
     await page.getByRole('button', { name: 'Second view conversation', exact: true }).click();
-    await page.waitForTimeout(650);
+    await page.waitForTimeout(3500);
     assert.equal(await oldFrame?.evaluate(el => el.isConnected), false, 'conversation switch removes old frame');
     assert.equal(sessionCalls.filter(call => call.action === 'close' && call.conversationId === firstId).length, 1, 'one close for first mount');
+    assert.deepEqual(bridgeRequests.filter(request => request.conversationId === firstId), [], 'destroyed rendered bridge cannot deliver its delayed message or tool request');
     if (await frame.count() === 0) await page.getByRole('button', { name: 'Toggle artifact pane' }).click();
     await page.frameLocator('iframe[title="Example view"]').getByText('Public fixture').waitFor();
     assert.equal(sessionCalls.filter(call => call.action === 'open' && call.conversationId === secondId).length, 1, 'new conversation has one mount');
@@ -643,21 +652,18 @@ test('rendered Codex model choices ignore an older response after conversation s
     await page.goto(server.url);
     await page.getByRole('button', { name: 'Model', exact: true }).click();
     await firstStarted;
-    await page.getByRole('button', { name: 'Model', exact: true }).click();
+    await page.getByRole('button', { name: 'Second model conversation', exact: true }).click();
+    await page.getByRole('heading', { name: 'Second model conversation', exact: true }).waitFor();
     await page.getByRole('button', { name: 'Model', exact: true }).click();
     await secondStarted;
     await page.locator('.viewport-menu').getByRole('button', { name: 'Codex default', exact: true }).click();
     await page.getByText('Current model', { exact: true }).waitFor();
     releaseFirst?.();
     await page.waitForTimeout(100);
-    assert.equal(modelCalls, 2, 'a new selector starts a separate request for the new conversation');
-    assert.equal(await page.getByText('Stale model', { exact: true }).count(), 0, 'late old model is not visible');
-    await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Second model conversation', exact: true }).click();
-    await page.getByRole('heading', { name: 'Second model conversation', exact: true }).waitFor();
-    await page.getByRole('button', { name: 'Model', exact: true }).click();
-    await page.locator('.viewport-menu').getByRole('button', { name: 'Codex default', exact: true }).click();
-    await page.getByText('Current model', { exact: true }).waitFor();
+    assert.equal(modelCalls, 2, 'the keyed selector starts a separate request for the new conversation');
+    assert.equal(await page.getByText('Stale model', { exact: true }).count(), 0, 'late old model is not visible after the keyed switch');
+    assert.equal(await page.getByText('Models unavailable. Check the Codex connection.', { exact: true }).count(), 0, 'old settlement cannot add an error to the new selector');
+    assert.equal(await page.getByText('Current model', { exact: true }).isVisible(), true, 'new options remain after old settlement');
     await page.getByText('Current model', { exact: true }).click();
     assert.ok(commands.some(command => command.kind === 'set_model' && command.conversationId === secondId), 'selection targets current conversation');
     assert.deepEqual(errors, []);

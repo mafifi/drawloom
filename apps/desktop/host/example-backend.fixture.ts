@@ -13,7 +13,28 @@ const backend: PluginBackendFactory = async ({ capabilities }) => {
   const uri = "ui://example/view.html";
   const server = new McpServer({ name: "public-choice", version: "1.0.0" });
   registerAppResource(server, "Choices", uri, {}, async () => ({
-    contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: "<!doctype html><p>Public fixture</p>" }],
+    contents: [{ uri, mimeType: RESOURCE_MIME_TYPE, text: `<!doctype html><p>Public fixture</p><p id="bridge-ready"></p><script>
+      let initialized = false;
+      const send = message => parent.postMessage(message, '*');
+      addEventListener('message', event => {
+        const message = event.data;
+        if (!message || message.jsonrpc !== '2.0') return;
+        if (message.id === 'fixture-initialize') {
+          initialized = true;
+          document.querySelector('#bridge-ready').textContent = 'Bridge ready';
+          send({ jsonrpc: '2.0', method: 'ui/notifications/initialized' });
+          setTimeout(() => {
+            if (!initialized) return;
+            send({ jsonrpc: '2.0', id: 'late-message', method: 'ui/message', params: { role: 'user', content: [{ type: 'text', text: 'Late fixture message' }] } });
+            send({ jsonrpc: '2.0', id: 'late-tool', method: 'tools/call', params: { name: 'example.inspect', arguments: { choice: 'second' } } });
+          }, 3000);
+        } else if (message.method === 'ui/resource-teardown') {
+          initialized = false;
+          send({ jsonrpc: '2.0', id: message.id, result: {} });
+        }
+      });
+      send({ jsonrpc: '2.0', id: 'fixture-initialize', method: 'ui/initialize', params: { appCapabilities: {}, appInfo: { name: 'Public fixture', version: '1.0.0' }, protocolVersion: '2025-06-18' } });
+    </script>` }],
   }));
   const current = async () => ({
     content: [],

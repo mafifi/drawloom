@@ -142,3 +142,16 @@ test("interaction and tool calls carry the abort signal, close does not", async 
     undefined,
   );
 });
+
+test("an aborted mounted session rejects bridge work before contacting the host", async () => {
+  const abort = new AbortController();
+  const { fetch, calls } = transport({
+    "/api/view-session": () => ({ mountId, mediaRevision: "r1" }),
+  });
+  const session = createPluginViewSession({ target, signal: abort.signal, fetch });
+  await session.opened;
+  abort.abort();
+  await expect(session.interact({ method: "ui/message", params: {} } as never)).rejects.toThrow();
+  await expect(session.callTool({ name: "example", arguments: {} })).rejects.toThrow();
+  expect(calls.map(call => call.path)).toEqual(["/api/view-session"]);
+});
