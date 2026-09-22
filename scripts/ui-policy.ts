@@ -242,6 +242,7 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
    * is an imported schema or `zod` is imported at all.
    */
   const schemaNames = new Set<string>();
+  const schemaNamespaces = new Set<string>();
   const desktopViewModelNamespaces = new Set<string>();
   let importsZod = false;
   visit(ast, (node) => {
@@ -251,6 +252,7 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
     for (const specifier of Array.isArray(node.specifiers) ? node.specifiers : []) {
       const entry = record(specifier);
       const local = record(entry?.local)?.name;
+      const imported = record(entry?.imported)?.name;
       if (
         entry?.type === "ImportNamespaceSpecifier" &&
         typeof local === "string" &&
@@ -259,7 +261,7 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
       )
         desktopViewModelNamespaces.add(local);
       if (
-        record(entry?.imported)?.name === "DesktopViewModel" &&
+        imported === "DesktopViewModel" &&
         typeof source === "string" &&
         /view-model\.svelte\.(?:js|ts)$/.test(source)
       )
@@ -268,8 +270,16 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
           node.start,
           "A View must receive narrow presentation and actions props instead of DesktopViewModel.",
         );
-      // A schema is recognised by the convention the repository already uses.
-      if (typeof local === "string" && /Schema$/.test(local)) schemaNames.add(local);
+      // Schema ownership follows the imported binding, not the local spelling.
+      // Namespace imports retain the same convention at member access.
+      if (entry?.type === "ImportNamespaceSpecifier" && typeof local === "string")
+        schemaNamespaces.add(local);
+      else if (
+        typeof local === "string" &&
+        typeof imported === "string" &&
+        /Schema$/.test(imported)
+      )
+        schemaNames.add(local);
     }
   });
   const serviceCalls = new Set(["fetch", "EventSource", "WebSocket", "XMLHttpRequest"]);
@@ -282,7 +292,16 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
       );
     if (node.type !== "CallExpression" && node.type !== "NewExpression") return;
     const callee = record(node.callee);
-    const name = typeof callee?.name === "string" ? callee.name : undefined;
+    const qualifiedObject = record(callee?.object)?.name;
+    const qualifiedProperty = record(callee?.property)?.name;
+    const name =
+      typeof callee?.name === "string"
+        ? callee.name
+        : callee?.type === "MemberExpression" &&
+            qualifiedObject === "globalThis" &&
+            typeof qualifiedProperty === "string"
+          ? qualifiedProperty
+          : undefined;
     if (name && serviceCalls.has(name))
       report(
         "view-responsibility",
@@ -292,10 +311,18 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
     // `SomeSchema.parse(...)` / `.safeParse(...)` on an imported schema.
     if (callee?.type === "MemberExpression") {
       const property = record(callee.property)?.name;
-      const object = record(callee.object)?.name;
+      const receiver = record(callee.object);
+      const object = receiver?.name;
+      const namespace = record(receiver?.object)?.name;
+      const member = record(receiver?.property)?.name;
       if (
         (property === "parse" || property === "safeParse") &&
-        ((typeof object === "string" && schemaNames.has(object)) || (importsZod && !object))
+        ((typeof object === "string" && schemaNames.has(object)) ||
+          (typeof namespace === "string" &&
+            schemaNamespaces.has(namespace) &&
+            typeof member === "string" &&
+            /Schema$/.test(member)) ||
+          (importsZod && !object))
       )
         report(
           "view-responsibility",

@@ -487,6 +487,28 @@ describe("views do not own service access or validation", () => {
     ).toContain("view-responsibility");
   });
 
+  test("schema imports are tracked by source binding through aliases and namespaces", () => {
+    for (const source of [
+      view(
+        "import { AgentModelSchema as Model } from '@drawloom/agent';\nconst v = Model.parse({});",
+      ),
+      view(
+        "import * as Agent from '@drawloom/agent';\nconst v = Agent.AgentModelSchema.safeParse({});",
+      ),
+    ])
+      expect(kinds(source)).toContain("view-responsibility");
+  });
+
+  test("service calls qualified by the standard global object are violations", () => {
+    for (const service of [
+      "globalThis.fetch('/x')",
+      "new globalThis.EventSource('/x')",
+      "new globalThis.WebSocket('/x')",
+      "new globalThis.XMLHttpRequest()",
+    ])
+      expect(kinds(view(`const service = ${service};`)), service).toContain("view-responsibility");
+  });
+
   test("importing zod into a view is a violation on its own", () => {
     expect(kinds(view("import { z } from 'zod';"))).toContain("view-responsibility");
   });
@@ -495,7 +517,7 @@ describe("views do not own service access or validation", () => {
     // The rule is targeted for a reason: a check that fires on correct code
     // gets suppressed, and then it protects nothing.
     const source = view(
-      "const a = JSON.parse('{}');\nconst b = parseInt('1', 10);\nconst c = Date.parse('2026-01-01');",
+      "const a = JSON.parse('{}');\nconst b = parseInt('1', 10);\nconst c = Date.parse('2026-01-01');\nconst d = parser.parse('{}');\nconst e = client.fetch('/local');",
     );
     expect(kinds(source)).not.toContain("view-responsibility");
   });
