@@ -28,13 +28,13 @@ export const nodeCheckLanes = Object.freeze({
     "evaluations/knowledge/scale-run.node-check.ts",
   ]),
   // Opt-in: these require a real Temporal server or a deployed runtime, and are
-  // executed by the test:temporal and test:temporal:compiled scripts.
+  // executed by the test:temporal and test:temporal:bundled scripts.
   temporal: Object.freeze([
     "apps/desktop/tests/nightloom-orchestration.integration.node-check.mjs",
     "packages/evaluation/evaluation-orchestration/real.test.mjs",
     "packages/orchestration/temporal-orchestration/real.test.mjs",
     "packages/orchestration/temporal-orchestration/installed-host.test.mjs",
-    "packages/orchestration/temporal-orchestration/compiled-runtime.test.mjs",
+    "packages/orchestration/temporal-orchestration/bundled-runtime.test.mjs",
   ]),
   // This file's synthetic checks run in CI. Its installed-model conformance test
   // remains skipped unless DRAWLOOM_EMBEDDING_CONFORMANCE_ROOT is explicitly set.

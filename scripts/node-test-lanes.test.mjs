@@ -26,7 +26,7 @@ test("Temporal and installed-model checks stay opt-in", () => {
     "packages/evaluation/evaluation-orchestration/real.test.mjs",
     "packages/orchestration/temporal-orchestration/real.test.mjs",
     "packages/orchestration/temporal-orchestration/installed-host.test.mjs",
-    "packages/orchestration/temporal-orchestration/compiled-runtime.test.mjs",
+    "packages/orchestration/temporal-orchestration/bundled-runtime.test.mjs",
   ]);
   assert.deepEqual(nodeCheckLanes.modelEnabled, [
     "packages/knowledge/local-knowledge-runtime/embedding-conformance.node-check.ts",
