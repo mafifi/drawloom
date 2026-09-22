@@ -50,7 +50,6 @@
     "spike:adr-0025": "node spikes/adr-0025-evaluation/verify-local.mjs",
     "test:temporal": "DRAWLOOM_TEMPORAL_TEST=1 node --test --test-concurrency=1 packages/orchestration/temporal-orchestration/real.test.mjs packages/orchestration/temporal-orchestration/installed-host.test.mjs",
     "test:orchestration:learning": "node --test --test-concurrency=1 apps/desktop/tests/nightloom-orchestration.integration.node-check.mjs && node apps/desktop/tests/learning-journey-orchestration.integration.ts",
-    "test:temporal:compiled": "pnpm run build:packages && pnpm --filter @drawloom/temporal-orchestration deploy --prod .deploy/temporal && DRAWLOOM_TEMPORAL_COMPILED=1 node --test packages/orchestration/temporal-orchestration/compiled-runtime.test.mjs",
     "test": "vitest run",
     "spike:adr-0005": "bun run spikes/adr-0005-tool-exposure/run-live-spike.ts",
     "spike:adr-0007": "bun run spikes/adr-0007-codex-app-server/run-live.ts",
@@ -58,7 +57,8 @@
     "spike:adr-0017": "bun run build:packages && node --experimental-strip-types --test spikes/adr-0017-orchestration/temporal-host.test.ts && bun build spikes/adr-0017-orchestration/temporal-worker.ts --target node --packages external --outdir spikes/adr-0017-orchestration/dist && node --experimental-strip-types spikes/adr-0017-orchestration/temporal-run.ts",
     "check:docs": "node scripts/check-docs.ts",
     "test:watch": "vitest",
-    "desktop:bundle-host": "esbuild apps/desktop/host/main.ts --bundle --platform=node --format=esm --external:@napi-rs/keyring --banner:js='import { createRequire as __drawloomRequire } from \"node:module\"; const require = __drawloomRequire(import.meta.url);' --outfile=apps/desktop/.dev/host/main.mjs"
+    "desktop:bundle-host": "esbuild apps/desktop/host/main.ts --bundle --platform=node --format=esm --external:@napi-rs/keyring --banner:js='import { createRequire as __drawloomRequire } from \"node:module\"; const require = __drawloomRequire(import.meta.url);' --outfile=apps/desktop/.dev/host/main.mjs",
+    "test:temporal:bundled": "pnpm run build:packages && pnpm --filter @drawloom/temporal-orchestration deploy --prod .deploy/temporal && DRAWLOOM_TEMPORAL_BUNDLED=1 DRAWLOOM_ORCHESTRATION_RUNTIME=.deploy/temporal node --test packages/orchestration/temporal-orchestration/bundled-runtime.test.mjs"
   },
   "devDependencies": {
     "@astrojs/check": "catalog:",

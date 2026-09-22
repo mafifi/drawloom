@@ -357,16 +357,20 @@ if (!process.versions.bun) {
     }
   });
 
-  test("desktop client makes actual service requests against Node-only workers", {
+  test("a separate client process makes actual service requests against Node workers", {
     skip: process.env.DRAWLOOM_TEMPORAL_TEST !== "1",
     timeout: 60000,
   }, async () => {
+    // Spawned with this runtime's own executable: the point is a distinct
+    // process holding its own manager, not a second runtime. Before the Node
+    // migration this ran the client under Bun, which meant the lane passed
+    // only where Bun happened to be installed.
     const output = await command(
-      "bun",
-      [resolve("packages/orchestration/temporal-orchestration/fixtures/bun-client.mjs")],
+      process.execPath,
+      [resolve("packages/orchestration/temporal-orchestration/fixtures/client.mjs")],
       55000,
     );
-    assert.match(output, /BUN_CLIENT_OK/);
+    assert.match(output, /CLIENT_OK/);
   });
 
   test("whole-host process loss reclaims dead ownership and reopens durable input without redispatch", {
