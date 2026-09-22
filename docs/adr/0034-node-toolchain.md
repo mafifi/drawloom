@@ -162,3 +162,14 @@ library validation stays enabled and Node's `get-task-allow` never ships.
   across unchanged because pnpm uses the same `catalog:` syntax.
 - Retained spikes keep their Bun code as historical evidence. They are not built
   or run, and the ADRs that recorded why Bun was chosen remain intact.
+
+## Editorial status note (22 September 2026)
+
+This note records a current implementation status; it does not amend this
+accepted decision, its rationale, or its historical release evidence. The F8
+inventory consequence is now implemented: `KnownNodeRuntime` identifies the
+distributed runtime, staging verifies the upstream runtime bytes and its notice,
+and the final `bundle:host` step checks the staged artifact. The dependency-graph
+gate, `check:licenses`, remains necessary but does not by itself inventory the
+bytes that survive packaging. See the [F8 closeout in the pre-publication
+audit](../plans/pre-publication-audit.md#f8-the-licence-inventory-cannot-see-compiled-in-runtimes-medium-addressed).

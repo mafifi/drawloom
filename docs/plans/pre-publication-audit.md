@@ -3,8 +3,9 @@
 Audited at `4afd8fb`. Tracked through `48eceb3` and `16ad5e0`.
 
 Findings keep their original text. Each carries a status line naming the commit
-that closed it, or what remains. **Five of nine closed, one partly closed,
-three open — one of which needs a maintainer decision before release.**
+that closed it, or what remains. **Six of nine closed, one partly closed, one
+mostly closed, one open — the open finding needs a maintainer decision before
+release.**
 
 Verified by running the checks, not by reading the claims. At each closeout the
 commit, statuses and artifacts were checked in the committed tree rather than
@@ -14,12 +15,12 @@ Not covered: runtime behaviour of the desktop app, the private workbench
 repository, Rust sources under `src-tauri`, and the retained spikes beyond their
 boundary rules.
 
-## Status at `16ad5e0`
+## Current status, 22 September 2026
 
 | ID | Finding | Severity | Status |
 | --- | --- | --- | --- |
 | F7 | LGPL components in the distributed host runtime | High | Closed at `6f76337` — migrated to Node ([ADR 0034](../adr/0034-node-toolchain.md)) |
-| F8 | Licence inventory cannot see compiled-in runtimes | Medium | **Open — now shipping a Node runtime, so this is live** |
+| F8 | Licence inventory cannot see compiled-in runtimes | Medium | Addressed at `fa2d157` — `KnownNodeRuntime`, the upstream runtime bytes and notice, and the staged bundle are verified during `bundle:host`; `check:licenses` remains dependency-graph-only |
 | F4 | Composition root resisted decomposition | Medium | **Open — worse: 2,481 → 2,818 lines** |
 | F1b | Domain vocabulary is not in the code | Medium | Partly closed |
 | F6 | Loose ends from the documentation rewrite | Low | Mostly closed — two items |
@@ -525,4 +526,4 @@ Carried here so a follow-up does not rediscover them as findings:
 - The 0.52 floor is a policy for the current Qwen3-Embedding-0.6B Q8_0 GGUF
   model, not a portable score contract. A replacement model requires independent
   calibration.
-- Release qualification is not finished. F7 and F8 are open against it.
+- Release qualification is not finished. F9 remains open by the approved manual-gate choice; A4 is still partial, and Developer ID signing, notarisation and clean-machine installation remain outstanding. F8 is addressed by the artifact-specific `bundle:host` gate; `check:licenses` alone does not inventory bundled bytes.

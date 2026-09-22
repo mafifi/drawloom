@@ -444,10 +444,8 @@ test("the packaged knowledge sidecar answers its real protocol and fails as spec
       try {
         frames.push(JSON.parse(line));
       } catch {
-        // A non-JSON line is not a frame. The timeout below reports what did
-        // arrive, so swallowing it here loses nothing.
-        // A non-JSON line is not a frame; keep it in `raw` for diagnostics
-        // rather than throwing inside the listener and losing the reader.
+        // A non-JSON line is not a frame. The line reader keeps collecting
+        // frames, and `take` reports their metadata if the operation times out.
       }
     });
     const send = (value) => worker.stdin.write(`${JSON.stringify(value)}\n`);

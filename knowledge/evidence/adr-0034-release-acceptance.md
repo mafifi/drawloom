@@ -7,6 +7,20 @@ This is the manual pre-release gate described in
 [the desktop guide](../../apps/desktop/README.md). No CI job produces or checks
 this artifact; that gap is audit finding F9.
 
+## Current-status supersession (22 September 2026)
+
+This immutable record remains evidence for only the revision and artifact named
+below. Its statements that F11's UI lane did not run and that F8 was a live
+inventory blind spot describe that recorded run, not current guidance. The
+[current F8 closeout](../../docs/plans/pre-publication-audit.md#f8-the-licence-inventory-cannot-see-compiled-in-runtimes-medium-addressed)
+and [current F11 closeout](../../docs/plans/pre-publication-audit.md#f11-testui-has-been-broken-since-the-migration-high-closed)
+record the later artifact-specific inventory gate and separate CI UI lane.
+
+No new release-acceptance record is linked yet: the final artifact receipt for
+the frozen candidate is pending. This note neither backfills its results into
+this run nor treats the current implementation as proof of a new signed
+artifact.
+
 ## Revision and toolchain
 
 | | |
@@ -65,7 +79,9 @@ wrote inside the `.app` and broke its own signature.
   It exercises the same hardened runtime and library validation, so every check
   above is meaningful — but the artifact is NOT distributable and cannot be
   notarised. A release means re-signing with the Developer ID and re-running
-  this, because the signing team changes.
+  this because the certificate and distribution requirements change. Both the
+  Apple Development and Developer ID certificates use Team ID `QJJ98A74J8`; this
+  is not a signing-team change.
 - **A4 is only partly established.** Check 9 kills the host and confirms state
   survives; it does not interrupt work in flight. The synthetic provider
   completes a turn faster than the check can observe, and forcing a pending
@@ -85,6 +101,7 @@ wrote inside the `.app` and broke its own signature.
   Team ID mismatch was rejected by library validation and credentials silently
   degraded. A pre-migration test asserted `store.mode === "os"` for exactly
   this; it depended on the deleted Bun builder and was not ported. Worth adding
-  when the Developer ID signing run happens, since that changes the signing team.
+  when the Developer ID signing run happens, since that changes the certificate
+  and distribution requirements, not the Team ID.
 - Notarisation, and installation on a clean machine.
 - Any CI equivalent of this gate (F9).
