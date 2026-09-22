@@ -44,6 +44,15 @@ these responsibilities still work together across navigation, restart and shutdo
 
 ## Starting and stopping safely
 
+The host alone selects the installation directory (explicit override,
+existing legacy directory, or `~/.drawloom`). In managed native startup its first
+stdout line is a JSON readiness record: `{ "url": <one-use loopback bootstrap
+URL>, "dataDirectory": <absolute selected directory> }`. The shell validates
+both fields and uses that same directory for browser state; it must not select
+a second Tauri application-data directory. This private parent/child handshake
+is not telemetry or a frontend API. Unmanaged CLI startup prints only the URL.
+An invalid readiness record fails startup and drains the owned host.
+
 Shutdown first stops new work and cancels supported preparation and local setup.
 Already admitted work must settle before its dependencies close. Closing the
 application more than once joins the same shutdown; it does not repeat cleanup.

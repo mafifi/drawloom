@@ -273,6 +273,39 @@ decisions after reopen, and execution recovery tests fence unresolved work; thos
 are not a substitute for an actual active-model crash test. The earlier optional
 live native approval and mounted evaluation-viewer lanes remain unrun here.
 
+### Ordinary-launch regression, 2026-09-20
+
+> Recorded before the move to Node ([ADR 0034](../adr/0034-node-toolchain.md)).
+> "The Bun host" below is the same host process this repository now runs on
+> Node; the defect and its fix are unrelated to the runtime.
+
+
+A subsequent normal app launch (without the development data-directory override)
+failed. Inspection found an older default history database at schema version 4;
+the explicit working installation was at version 5. Refusing the older schema
+was intentional, but the earlier explicitly configured lifecycle runs did not
+establish that normal Finder/Dock launch opened the intended installation.
+Neither database was reset or implicitly converted.
+
+Inspection also found that the native browser independently selected Tauri's
+application-data directory when no override was present, unlike the Bun host's
+default selector. The managed readiness handshake now conveys the host-selected
+directory and validates it before browser initialization; its contract is in the
+[desktop host guide](../design/desktop-host.md#starting-and-stopping-safely).
+Targeted Bun tests and 28 Rust tests passed; the unsigned app rebuilt. The public
+canonical gate passed (1,637 Bun tests, eight optional skips, zero failures, plus
+its Node and installed-consumer lanes). Existing media and installed Python
+environments have absolute references, so physical relocation must not be treated
+as a blind directory copy.
+
+After maintainer approval to complete startup recovery, the old default directory
+was renamed to a dated backup and the default path linked to the working
+installation. A normal Launch Services launch, with no environment overrides,
+opened the retained conversation and project. Graceful quit stopped both app and
+host; a second normal launch succeeded. The native app uses an OS-assigned
+loopback port by default, not the development-only fixed port. This was a local
+data-selection repair, not a new installation or a history conversion.
+
 Final verified checkpoint: the public canonical gate passed with 1,638 tests,
 six optional skips and no failures, with Keychain and Temporal checks enabled.
 The rendered UI matrix passed; all 27 Rust tests passed. The private consumer

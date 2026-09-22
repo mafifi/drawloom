@@ -7,6 +7,7 @@ import { initializeObservability } from "@drawloom/otel-host";
 import { createTelemetryRelay } from "./telemetry-relay.js";
 import { pickMacProjectDirectory } from "./folder-picker.js";
 import { createProcessShutdown } from "./process-shutdown.js";
+import { startupReadiness } from "./startup-readiness.js";
 import { describeShutdownFailures } from "./shutdown-report.js";
 async function main() {
   const selectedMode = process.env.DRAWLOOM_TELEMETRY ?? "disabled";
@@ -66,7 +67,10 @@ async function main() {
     relay,
     process.platform === "darwin" ? { pickDirectory: pickMacProjectDirectory } : {},
   );
-  console.log(server.url);
+  // The shell must not choose a second data directory: the host has already
+  // applied the selection rules, and a divergence points the native browser
+  // at a different installation than the one serving it.
+  console.log(startupReadiness(server.url, root, process.env.DRAWLOOM_MANAGED === "1"));
   const stop = createProcessShutdown({
     closeApplication: () => server.close(),
     shutdownTelemetry: () => telemetry.shutdown(),

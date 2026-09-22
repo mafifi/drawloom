@@ -72,18 +72,13 @@ fn application_context() -> tauri::Context<tauri::Wry> {
 
 fn setup_application(app: &mut tauri::App) -> StartupResult<()> {
     let resources = app.path().resource_dir()?;
-    // The host ships as a JavaScript bundle executed by the pinned Node runtime
-    // beside it, rather than a single compiled binary. DRAWLOOM_HOST_BIN still
-    // overrides the runtime for development.
-    let runtime = std::env::var_os("DRAWLOOM_HOST_BIN")
+    let binary = std::env::var_os("DRAWLOOM_HOST_BIN")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| resources.join("host/host/node"));
-    let entrypoint = resources.join("host/host/main.mjs");
+        .unwrap_or_else(|| resources.join("host/drawloom-host"));
     let web = std::env::var_os("DRAWLOOM_WEB_ROOT")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| resources.join("web"));
-    let mut child = Command::new(runtime)
-        .arg(entrypoint)
+    let mut child = Command::new(binary)
         .env("DRAWLOOM_WEB_ROOT", web)
         .env(
             "DRAWLOOM_ORCHESTRATION_RUNTIME",
@@ -98,16 +93,14 @@ fn setup_application(app: &mut tauri::App) -> StartupResult<()> {
     // Keep the child locally owned until all startup resources and the
     // main window succeed. Every early-return error drains and reaps it.
     configure_host(&mut child, |child| {
-        let url = read_host_startup(child)?;
+        let ready = read_host_startup(child)?;
+        let url = ready.url;
         let origin = url
             .split("/bootstrap")
             .next()
             .ok_or("Invalid host origin")?
             .to_owned();
-        let directory = std::env::var_os("DRAWLOOM_DATA_DIR")
-            .map(std::path::PathBuf::from)
-            .unwrap_or(app.path().app_data_dir()?);
-        app.manage(browser::Browser::load(origin.clone(), directory));
+        app.manage(browser::Browser::load(origin.clone(), ready.data_directory));
         app.add_capability(browser_capability(&origin))?;
         tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::External(url.parse()?))
             .title("Drawloom")
@@ -130,7 +123,22 @@ fn browser_capability(origin: &str) -> String {
             }).to_string()
 }
 
-fn read_host_startup(child: &mut Child) -> StartupResult<String> {
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct HostReadiness {
+    url: String,
+    data_directory: std::path::PathBuf,
+}
+
+fn parse_host_startup(line: &str) -> StartupResult<HostReadiness> {
+    let ready: HostReadiness = serde_json::from_str(line)?;
+    if !valid_startup_url(&ready.url) || !ready.data_directory.is_absolute() {
+        return Err("Invalid host readiness".into());
+    }
+    Ok(ready)
+}
+
+fn read_host_startup(child: &mut Child) -> StartupResult<HostReadiness> {
     let stdout = child.stdout.take().ok_or("Host output unavailable")?;
     let (sender, receiver) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
@@ -138,7 +146,7 @@ fn read_host_startup(child: &mut Child) -> StartupResult<String> {
         let _ = sender.send(line);
     });
     match receiver.recv_timeout(std::time::Duration::from_secs(45)) {
-        Ok(Ok(Some(line))) if valid_startup_url(&line) => Ok(line),
+        Ok(Ok(Some(line))) => parse_host_startup(&line),
         _ => Err("Local host did not become ready".into()),
     }
 }
@@ -203,6 +211,27 @@ fn valid_startup_url(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn readiness_uses_host_directory_and_rejects_missing_or_relative_directory() {
+        let url = format!("http://127.0.0.1:4488/bootstrap?token={}", "a".repeat(64));
+        let line = serde_json::json!({"url": url, "dataDirectory": "/installation with spaces"})
+            .to_string();
+        let ready = parse_host_startup(&line).unwrap();
+        assert_eq!(
+            ready.data_directory,
+            std::path::PathBuf::from("/installation with spaces")
+        );
+        assert_eq!(ready.url, url);
+        for invalid in [
+            serde_json::json!({"url": url}).to_string(),
+            serde_json::json!({"url": url, "dataDirectory": "relative"}).to_string(),
+            serde_json::json!({"url": "https://example.org", "dataDirectory": "/installation"})
+                .to_string(),
+            url,
+        ] {
+            assert!(parse_host_startup(&invalid).is_err());
+        }
+    }
     #[test]
     fn browser_command_acl_allows_only_main_at_the_exact_runtime_origin() {
         let mut context = application_context();
