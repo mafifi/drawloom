@@ -412,6 +412,9 @@ test("host state loss retires stale approval and active-work controls before any
   expect(h.vm.state?.delegation?.supported).toBe(false);
   expect(h.vm.state?.forking?.supported).toBe(false);
   expect(h.vm.approvals).toEqual([]);
+  expect(h.vm.canEditDraft).toBe(true);
+  expect(h.vm.canExecute).toBe(false);
+  expect(h.vm.canSend).toBe(false);
   expect(h.vm.draft).toBe("Preserve this draft");
   expect(h.vm.history.entries[0]?.text).toBe("Saved history");
   expect(await h.vm.command({ kind: "stop", conversationId: "conversation-a" })).toBe(false);
@@ -432,6 +435,8 @@ test("fresh authoritative state restores commands after disconnect without retry
   unavailable = false;
   await h.vm.start();
   h.vm.stopPolling();
+  expect(h.vm.canExecute).toBe(true);
+  expect(h.vm.canSend).toBe(true);
   expect(await h.vm.command({ kind: "select_project", projectId: "project-a" })).toBe(true);
   expect(h.commands).toEqual([{ kind: "select_project", projectId: "project-a" }]);
 });

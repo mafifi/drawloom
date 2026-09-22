@@ -1,6 +1,10 @@
 import { expect, test } from "vitest";
 import type { DesktopViewModel } from "./view-model.svelte.js";
-import { composerResourcesPresentation, discoveryPickerPresentation } from "./composer-view.js";
+import {
+  composerPresentation,
+  composerResourcesPresentation,
+  discoveryPickerPresentation,
+} from "./composer-view.js";
 
 test("picker projection orders injected actions and context without committing a suggestion", () => {
   const vm = {
@@ -49,4 +53,53 @@ test("resource projection includes only the selected conversation workbench", ()
     openedResources: [],
   } as unknown as DesktopViewModel;
   expect(composerResourcesPresentation(vm).views.map((view) => view.id)).toEqual(["current"]);
+});
+
+test("composer projection distinguishes safe draft editing from unavailable live execution", () => {
+  const vm = {
+    draft: "Retained draft",
+    canEditDraft: true,
+    canExecute: false,
+    canSend: false,
+    busy: false,
+    error: "Local host unavailable",
+    pendingCommand: undefined,
+    attachments: [],
+    importing: false,
+    delegationReferences: [],
+    conversation: { id: "conversation", workbenchId: "text", provider: "codex" },
+    conversationContextIds: [],
+    selectedDiscoveries: [],
+    contextIds: [],
+    selectedResources: [],
+    pickerOpen: false,
+    pickerActiveId: "",
+    contextOpen: false,
+    forkRequested: false,
+    state: {
+      activeContext: "",
+      controls: { steer: false, interrupt: false, reviewerModes: ["human"] },
+      selectedId: "conversation",
+      conversations: [],
+    },
+    nativeResources: [],
+    nativeResourceMatchCount: 0,
+    resourceListings: {},
+    openedResources: [],
+    pickerEntries: [],
+    composerActions: [],
+    pickerKind: "add",
+    pickerQuery: "",
+    pickerContextOptions: [],
+    pickerMatchCount: 0,
+    catalogue: undefined,
+    cataloguePending: false,
+    catalogueError: "",
+  } as unknown as DesktopViewModel;
+  expect(composerPresentation(vm)).toMatchObject({
+    draft: "Retained draft",
+    canEditDraft: true,
+    canExecute: false,
+    canSend: false,
+  });
 });

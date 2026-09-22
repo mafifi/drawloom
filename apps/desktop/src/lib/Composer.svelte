@@ -65,16 +65,16 @@
   {@render goal?.()}
   <form
     class="composer"
-    ondragover={(event) => { if (event.dataTransfer?.types.includes('Files')) event.preventDefault(); }}
-    ondrop={(event) => { if (event.dataTransfer?.files.length) { event.preventDefault(); void actions.importFiles(event.dataTransfer.files); } }}
+    ondragover={(event) => { if (p.canExecute && event.dataTransfer?.types.includes('Files')) event.preventDefault(); }}
+    ondrop={(event) => { if (p.canExecute && event.dataTransfer?.files.length) { event.preventDefault(); void actions.importFiles(event.dataTransfer.files); } }}
     onsubmit={(event) => {
       event.preventDefault();
-      void actions.send();
+      if (p.canSend) void actions.send();
     }}
   >
     <Collapsible.Root open={p.contextOpen} onOpenChange={actions.setContextOpen}>
       <Field.Label for="message-draft" class="sr-only">Message</Field.Label>
-      <PromptInput.Root value={p.draft} onValueChange={value => actions.setDraft(value)} disabled={!p.canExecute} class="relative bg-muted border-transparent" bind:ref={anchor}>
+      <PromptInput.Root value={p.draft} onValueChange={value => actions.setDraft(value)} disabled={!p.canEditDraft} class="relative bg-muted border-transparent" bind:ref={anchor}>
           {#if p.delegationReferences.length}
             <div class="layout-row px-3 pt-3">
               {#each p.delegationReferences as reference (reference.id)}
@@ -87,13 +87,13 @@
             </div>
           {/if}
           {#if p.conversation?.mode === 'plan'}
-            <div class="layout-row px-3 pt-3"><Button type="button" size="sm" variant="secondary" disabled={p.busy || !!p.state?.activeOperation} aria-label="Leave Plan mode" onclick={()=>void actions.setMode('default')}>Plan mode <CloseIcon aria-hidden="true" /></Button></div>
+            <div class="layout-row px-3 pt-3"><Button type="button" size="sm" variant="secondary" disabled={!p.canExecute || p.busy || !!p.state?.activeOperation} aria-label="Leave Plan mode" onclick={()=>void actions.setMode('default')}>Plan mode <CloseIcon aria-hidden="true" /></Button></div>
           {/if}
           <PromptInput.Textarea
             id="message-draft"
             class="min-h-20 max-h-60 px-3 pt-3 scroll-fade scroll-fade-2"
             placeholder="Ask or make a change…"
-            disabled={!p.canExecute}
+            disabled={!p.canEditDraft}
             bind:ref={messageInput}
             role="combobox"
             aria-autocomplete="list"
@@ -105,7 +105,7 @@
             onclick={()=>{if(p.pickerOpen)updateToken();}}
             onselect={()=>{if(p.pickerOpen && messageInput && messageInput.selectionStart!==messageInput.selectionEnd)updateToken();}}
             oninput={typedReference}
-            onpaste={(event) => { const files = event.clipboardData?.files; if (files?.length) { event.preventDefault(); void actions.importFiles(files); } }}
+            onpaste={(event) => { const files = event.clipboardData?.files; if (p.canExecute && files?.length) { event.preventDefault(); void actions.importFiles(files); } }}
             onkeydown={(event) => {
               if (event.isComposing) return;
               if (p.pickerOpen) {
@@ -114,7 +114,7 @@
               }
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
-                if (!p.busy) void actions.send();
+                if (!p.busy && p.canSend) void actions.send();
               }
             }}
           />
@@ -133,7 +133,7 @@
             <Attachment.Actions><Attachment.Action type="button" aria-label={`Remove ${attachment.name}`} onclick={() => actions.removeAttachment(attachment.id)}><CloseIcon aria-hidden="true" /></Attachment.Action></Attachment.Actions>
           </Attachment.Root>
           {#if attachment.asset && !attachment.asset.mediaType.startsWith('image/')}<Collapsible.Root><Collapsible.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost" size="sm">Preview file</Button>{/snippet}</Collapsible.Trigger><Collapsible.Content><ArtifactViewer artifact={{ id: attachment.id, title: attachment.name, content: { kind: 'asset', asset: attachment.asset } }} /></Collapsible.Content></Collapsible.Root>{/if}
-          {#if attachment.status === 'failed'}<p role="status" class="text-xs text-muted-foreground">{attachment.error}</p><StatefulButton variant="ghost" size="sm" disabled={p.importing || !actions.canRetryAttachment(attachment.id)} onclick={() => actions.retryAttachment(attachment.id)}>Retry</StatefulButton>{:else if attachment.status === 'ready' && !attachment.mediaType.startsWith('image/') && !attachment.mediaType.startsWith('text/')}<p class="text-xs text-muted-foreground">Preview available; not a direct model input. Remove before sending.</p>{/if}
+          {#if attachment.status === 'failed'}<p role="status" class="text-xs text-muted-foreground">{attachment.error}</p><StatefulButton variant="ghost" size="sm" disabled={!p.canExecute || p.importing || !actions.canRetryAttachment(attachment.id)} onclick={() => actions.retryAttachment(attachment.id)}>Retry</StatefulButton>{:else if attachment.status === 'ready' && !attachment.mediaType.startsWith('image/') && !attachment.mediaType.startsWith('text/')}<p class="text-xs text-muted-foreground">Preview available; not a direct model input. Remove before sending.</p>{/if}
         </div>{/each}
       </Attachment.Group>{/if}
       <div class="flex w-full flex-wrap gap-2 px-3">
@@ -150,6 +150,7 @@
           type="file"
           bind:ref={fileInput}
           multiple
+          disabled={!p.canExecute}
           accept="image/png,image/jpeg,image/webp,image/gif,audio/*,video/mp4,video/webm,application/pdf,text/plain,.md"
           onchange={() => {
             if (fileInput) {
@@ -172,7 +173,7 @@
           <DropdownMenu.Trigger>
             {#snippet child({ props })}
               <StatefulButton {...props} variant="ghost" class="rounded-full" aria-label="Execution review"
-                disabled={p.busy || Boolean(p.state?.activeOperation)}
+                disabled={!p.canExecute || p.busy || Boolean(p.state?.activeOperation)}
                 pending={p.pendingCommand?.kind === 'set_reviewer'} pendingLabel="Saving review mode">
                 <ShieldIcon aria-hidden="true" /><span class="composer-review-label">{p.conversation?.reviewer === 'delegated' ? 'Approve for me' : 'Ask me'}</span>
               </StatefulButton>
@@ -184,17 +185,17 @@
               if (p.conversation && (reviewer === 'human' || reviewer === 'delegated'))
                 void actions.setReviewer(reviewer);
             }}>
-              <DropdownMenu.RadioItem value="human" class="gap-3 p-2 pr-8">
+              <DropdownMenu.RadioItem value="human" disabled={!p.canExecute} class="gap-3 p-2 pr-8">
                 <HandIcon aria-hidden="true" /><span><span class="block">Ask for approval</span><span class="block text-sm text-muted-foreground">You decide when Codex requests approval.</span></span>
               </DropdownMenu.RadioItem>
-              <DropdownMenu.RadioItem value="delegated" disabled={!p.state?.controls.reviewerModes.includes('delegated')} class="gap-3 p-2 pr-8">
+              <DropdownMenu.RadioItem value="delegated" disabled={!p.canExecute || !p.state?.controls.reviewerModes.includes('delegated')} class="gap-3 p-2 pr-8">
                 <ShieldIcon aria-hidden="true" /><span><span class="block">Approve for me</span><span class="block text-sm text-muted-foreground">{p.state?.controls.reviewerModes.includes('delegated') ? 'Codex reviews actions within your permissions.' : 'Not available with the current agent.'}</span></span>
               </DropdownMenu.RadioItem>
             </DropdownMenu.RadioGroup>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
         {#if p.conversation?.provider==='codex'}
-          {#key p.conversation.id}<CodexModelSelector selection={p.conversation.modelSelection} disabled={p.busy||Boolean(p.state?.activeOperation)} onSelect={selection=>{if(p.conversation)void actions.setModel(selection);}} />{/key}
+          {#key p.conversation.id}<CodexModelSelector selection={p.conversation.modelSelection} disabled={!p.canExecute||p.busy||Boolean(p.state?.activeOperation)} onSelect={selection=>{if(p.conversation)void actions.setModel(selection);}} />{/key}
         {/if}
         {#if p.state?.activeOperation}<StatefulButton
             variant="ghost"
@@ -255,7 +256,7 @@
     <Dialog.Footer>
       <Button variant="outline" disabled={p.busy} onclick={() => actions.setForkRequested(false)}>Cancel</Button>
       <StatefulButton pending={p.pendingCommand?.kind === 'fork_conversation'}
-        pendingLabel="Creating fork" disabled={p.busy || !!p.state?.activeOperation}
+        pendingLabel="Creating fork" disabled={!p.canExecute || p.busy || !!p.state?.activeOperation}
         onclick={() => void actions.forkConversation()}>Fork conversation</StatefulButton>
     </Dialog.Footer>
   </Dialog.Content>

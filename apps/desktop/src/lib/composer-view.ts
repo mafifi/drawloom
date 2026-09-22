@@ -10,6 +10,7 @@ type ComposerState = Pick<
 type ComposerReadFields = Pick<
   DesktopViewModel,
   | "draft"
+  | "canEditDraft"
   | "canExecute"
   | "canSend"
   | "busy"
@@ -237,6 +238,7 @@ export function composerPresentation(vm: DesktopViewModel): ComposerPresentation
   const state = vm.state;
   return {
     draft: vm.draft,
+    canEditDraft: vm.canEditDraft,
     canExecute: vm.canExecute,
     canSend: vm.canSend,
     busy: vm.busy,

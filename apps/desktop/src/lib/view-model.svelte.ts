@@ -341,7 +341,10 @@ export function createDesktopViewModel() {
   const conversationProject = $derived(
     state?.projects.find((item) => item.id === conversation?.projectId),
   );
-  const canExecute = $derived(Boolean(conversation && conversationProject?.available));
+  const canEditDraft = $derived(Boolean(conversation));
+  const canExecute = $derived(
+    Boolean(hostAvailable && conversation && conversationProject?.available),
+  );
   const group = $derived(state?.operator.groups?.find((g) => g.id === groupId));
   const candidates = $derived(
     state?.operator.candidates.filter((c) => !group || group.candidateIds.includes(c.id)) ?? [],
@@ -1492,7 +1495,10 @@ export function createDesktopViewModel() {
       return conversationProject;
     },
     get canCreate() {
-      return Boolean(selectedProject?.available);
+      return Boolean(hostAvailable && selectedProject?.available);
+    },
+    get canEditDraft() {
+      return canEditDraft;
     },
     get canExecute() {
       return canExecute;
