@@ -11,7 +11,7 @@ this artifact; that gap is audit finding F9.
 
 | | |
 | --- | --- |
-| Revision | `d9ae2166c567a0d97b80aa5c3cd716153058c001` on `node-migration` |
+| Revision | `20730884a9e91ac0740eefdb9022fd0bd61190e0` on `feature/replaceable-capabilities` |
 | Working tree | clean at build time |
 | Node | v24.20.0 (pinned; `engines.node` asserted against the runtime manifest) |
 | pnpm | 12.5.1 |
@@ -31,33 +31,51 @@ different numbers for the same file and must never be compared to each other.
 | Artifact | SHA-256 |
 | --- | --- |
 | Node runtime, **upstream** (checked before signing) | `9d050fd455b56426e25d4d603c7c501cbb2630348e836cf221dcce748e90588a` |
-| Node runtime, **as signed in the bundle** | `621cb078d69f460dd85432c0420a57bd64036ab04bbae3bc1a322e7669eb1993` |
+| Node runtime, **as signed in the bundle** | `2badfaf5d0c9c23e0fde2a3fcbd782fbc395a34ba21d0f76049cd7a370d78eda` |
 | `LICENSE.node` (not signed; digest stable) | `5888dbb9a1d2b18f2c3e6c5f6af1b39de658372b402a0577b002777f14c62ace` |
-| Application executable, as signed | `6a94252c5021f5422e0538779aa86db091a6d5c6cbcca59dc78d6826cc3952ec` |
+| Application executable, as signed | `102863168c3e1a0b5f16c1d0a403579babef0d377a904917e17261caecc94c13` |
 
 ## Result
 
-`pnpm run release:verify` — **8/8**:
+`pnpm run release:verify` — **9/9**:
 
 1. resources present — host, web and both sidecars
 2. shipped Node runtime matches its manifest and ships its notice
 3. sidecar closures survived the resource copy
-4. signature is valid and hardened
-5. entitlements are the reviewed minimum — `allow-jit` only
-6. native modules load under the hardened runtime — keychain, sqlite-vec, core-bridge
-7. host serves and shuts down cleanly
-8. restart and forced termination — state preserved; a killed operation
-   recovers without claiming completion
+4. **both packaged sidecars answer their protocols** — knowledge completes a
+   framed request including the authorization exchange; orchestration bundles a
+   workflow and reports a fingerprint. Run by the shipped `node` from inside the
+   signed bundle.
+5. signature is valid and hardened
+6. **entitlements are the reviewed minimum, and scoped to the host** —
+   `allow-jit` on the Node runtime, and NOT on the UI shell
+7. native modules load under the hardened runtime — keychain, sqlite-vec, core-bridge
+8. host serves and shuts down cleanly
+9. restart and forced termination — state survives a graceful restart and a
+   SIGKILL, and recovery reports nothing as running
 
-Checks 2 and 8 did not exist before this record. Check 2 exists because
-`bundle:host` shipped the Node runtime without its licence notice. Check 8
-exists because graceful shutdown was the only lifecycle being proved.
+Checks 2, 4, 6 and 9 did not exist before this work. The run was repeated
+immediately on the same artifact and returned 9/9 again, which is how the
+verifier is shown to leave the bundle unmodified — an earlier version of check 4
+wrote inside the `.app` and broke its own signature.
 
 ## Not covered
 
-- The Tauri shell is not launched. It opens a window and needs a session this
-  check cannot assume; it spawns exactly this host from exactly this bundle,
-  so state and recovery are covered and the GUI is not.
-- Notarisation.
-- Installation on a clean machine.
-- Any CI equivalent (F9).
+- **The signing identity is a development certificate**, not the Developer ID.
+  It exercises the same hardened runtime and library validation, so every check
+  above is meaningful — but the artifact is NOT distributable and cannot be
+  notarised. A release means re-signing with the Developer ID and re-running
+  this, because the signing team changes.
+- **A4 is only partly established.** Check 9 kills the host and confirms state
+  survives; it does not interrupt work in flight. The synthetic provider
+  completes a turn faster than the check can observe, and forcing a pending
+  approval needs an injected driver. No-duplicate-execution and
+  unknown-rather-than-guessed recovery are proved by `test:temporal` against a
+  real Temporal server. See audit finding F12.
+- **The Tauri shell is never launched.** It opens a window and needs a session
+  this check cannot assume. It spawns exactly this host from exactly this
+  bundle, so state and recovery are covered and the GUI is not.
+- **`test:ui` does not run at all** — broken since the migration, audit finding
+  F11. The browser acceptance matrix is exercised nowhere.
+- Notarisation, and installation on a clean machine.
+- Any CI equivalent of this gate (F9).
