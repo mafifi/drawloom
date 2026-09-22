@@ -1,27 +1,22 @@
 <script lang="ts">
-  import { Alert, GoalBar, StatefulButton } from "@drawloom/ui";
-  import type { AgentGoalSnapshot } from "@drawloom/agent";
-  import type { DesktopViewModel } from "./view-model.svelte.js";
-  import { createGoalViewModel, type GoalReadiness, type GoalViewModelAction } from "./goal-view-model.svelte.js";
+  import { untrack } from "svelte";
+  import { Alert, GoalBar, Marker, Spinner, StatefulButton } from "@drawloom/ui";
+  import { createGoalViewModel, type GoalViewModelAction } from "./goal-view-model.svelte.js";
+  import type { GoalControlsActions, GoalControlsPresentation } from "./goal-controls.js";
 
-  let { vm, onDismiss }: { vm: DesktopViewModel; onDismiss(): void } = $props();
+  let { presentation, actions, onDismiss }: { presentation: GoalControlsPresentation; actions: GoalControlsActions; onDismiss(): void } = $props();
   let reading = $state(false);
   let requested = $state(false);
   let visible = $state(true);
   function visibilityChanged() {
     visible = document.visibilityState === 'visible';
-    if (visible && vm.state?.goal?.supported) void readGoal();
+    if (visible && presentation.supported) void readGoal();
   }
 
-  function source(): { snapshot: AgentGoalSnapshot | null | undefined; readiness: GoalReadiness } {
-    const goal = vm.state?.goal;
-    if (!vm.state || (goal?.supported && goal.snapshot === undefined)) return { snapshot: undefined, readiness: "loading" };
-    if (!goal?.supported) return { snapshot: undefined, readiness: "unavailable" };
-    return { snapshot: goal.snapshot ?? null, readiness: "ready" };
-  }
-  const initial = source();
-  const goal = createGoalViewModel(initial.snapshot, initial.readiness, async (action: GoalViewModelAction) => {
-    const accepted = await vm.goalCommand(action.kind === "create"
+  // Only the initial snapshot/readiness seed the goal view model; every later
+  // change reaches it through the $effect below, which explicitly syncs it.
+  const goal = createGoalViewModel(untrack(() => presentation.snapshot), untrack(() => presentation.readiness), async (action: GoalViewModelAction) => {
+    const accepted = await actions.goalCommand(action.kind === "create"
       ? { action: "create", objective: action.objective }
       : action.kind === "edit"
         ? { action: "edit", revision: action.revision, objective: action.objective }
@@ -29,14 +24,13 @@
     if (!accepted) throw Error("Goal action is unavailable. Refresh the conversation and try again.");
   });
   $effect(() => {
-    const next = source();
-    goal.actions.sync(vm.conversation?.id ?? "", next.snapshot, next.readiness);
+    goal.actions.sync(presentation.conversationId, presentation.snapshot, presentation.readiness);
   });
   async function readGoal() {
     if (reading) return;
     reading = true;
     try {
-      await vm.goalCommand({ action: "read" });
+      await actions.goalCommand({ action: "read" });
     } finally {
       reading = false;
     }
@@ -44,28 +38,27 @@
   export async function createGoal() {
     if (reading) return;
     requested = true;
-    if (vm.state?.goal?.snapshot === undefined || vm.state?.goal?.error) await readGoal();
-    const next = source();
-    goal.actions.sync(vm.conversation?.id ?? "", next.snapshot, next.readiness);
-    if (next.readiness === "ready" && !vm.state?.goal?.error) goal.actions.beginEdit();
+    if (presentation.snapshot === undefined || presentation.error) await readGoal();
+    goal.actions.sync(presentation.conversationId, presentation.snapshot, presentation.readiness);
+    if (presentation.readiness === "ready" && !presentation.error) goal.actions.beginEdit();
   }
 </script>
 
 <svelte:document onvisibilitychange={visibilityChanged} />
 
-{#if vm.state?.goal?.supported && vm.state.goal.error && (requested || vm.state.goal.snapshot)}
+{#if presentation.supported && presentation.error && (requested || presentation.snapshot)}
   <div class="composer-feedback">
     <Alert.Root variant="destructive">
       <Alert.Title>Goal unavailable</Alert.Title>
-      <Alert.Description>{vm.state.goal.error}</Alert.Description>
+      <Alert.Description>{presentation.error}</Alert.Description>
       <Alert.Action><StatefulButton variant="outline" pending={reading} pendingLabel="Refreshing goal" onclick={readGoal}>Refresh goal</StatefulButton></Alert.Action>
     </Alert.Root>
   </div>
 {:else if requested && reading}
   <div class="composer-feedback">
-    <p role="status">Loading goal…</p>
+    <Marker.Root role="status"><Marker.Icon><Spinner /></Marker.Icon><Marker.Content>Loading goal…</Marker.Content></Marker.Root>
   </div>
 {/if}
-{#if goal.presentation && (goal.presentation.mode === 'goal' || goal.presentation.editing) && !vm.state?.goal?.error}
-    <GoalBar presentation={goal.presentation.mode === 'goal' && goal.presentation.clock ? {...goal.presentation, clock: {...goal.presentation.clock, running: goal.presentation.clock.running && visible && !vm.error}} : goal.presentation} actions={{...goal.actions, cancelEdit() { goal.actions.cancelEdit(); if (goal.presentation?.mode === 'create' && !goal.presentation.editing) { requested = false; onDismiss(); } }}} />
+{#if goal.presentation && (goal.presentation.mode === 'goal' || goal.presentation.editing) && !presentation.error}
+    <GoalBar presentation={goal.presentation.mode === 'goal' && goal.presentation.clock ? {...goal.presentation, clock: {...goal.presentation.clock, running: goal.presentation.clock.running && visible && !presentation.appErrored}} : goal.presentation} actions={{...goal.actions, cancelEdit() { goal.actions.cancelEdit(); if (goal.presentation?.mode === 'create' && !goal.presentation.editing) { requested = false; onDismiss(); } }}} />
 {/if}

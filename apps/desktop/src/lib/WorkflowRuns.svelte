@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Button, Badge, Empty, ActivityIcon, ChevronRightIcon, StatefulButton, WorkflowRun, Textarea, Field, Separator, Collapsible } from '@drawloom/ui';
+  import { Alert, Button, Badge, Empty, ActivityIcon, ChevronRightIcon, StatefulButton, WorkflowRun, Textarea, Field, Separator, Collapsible } from '@drawloom/ui';
   import { createOrchestrationViewModel } from './orchestration-view-model.svelte.js';
 
   let { projectId }: { projectId?: string } = $props();
@@ -33,7 +33,7 @@
       <p class="text-muted-foreground">{owner.title}: {owner.readiness.message ?? (owner.readiness.status === 'ready' ? 'Ready' : 'Orchestration unavailable; other work remains available.')}</p>
     {/each}
     {#if !vm.loading && !vm.knowledgeOwnerLoading && !vm.error && !vm.owners.length && !vm.knowledgeOwner}<Empty.Root class="py-12"><Empty.Header><Empty.Media variant="icon"><ActivityIcon /></Empty.Media><Empty.Title>No activity yet</Empty.Title><Empty.Description>Runs from your workbenches will appear here.</Empty.Description></Empty.Header></Empty.Root>{/if}
-    {#if vm.error}<p role="alert" class="text-destructive">{vm.error}</p>{/if}
+    {#if vm.error}<Alert.Root variant="destructive"><Alert.Description>{vm.error}</Alert.Description></Alert.Root>{/if}
     {#each vm.runs as run (run.runId)}
       {@const stepPage = vm.stepPage?.runId === run.runId ? vm.stepPage : undefined}
       <Button class="collection-row" variant="ghost" aria-expanded={selectedRunId===run.runId} onclick={()=>selectedRunId=selectedRunId===run.runId?'':run.runId}><ActivityIcon class="size-4 shrink-0" /><span class="min-w-0 flex-1 truncate text-left">{run.workflow}</span><Badge variant="outline">{'displayStatus' in run ? run.displayStatus : run.unresolvedEffects.length?'Needs checking':run.cancellationRequested?'Cancelling':run.pendingInputs.length?'Waiting for input':run.status}</Badge><ChevronRightIcon class="size-4 shrink-0" /></Button>

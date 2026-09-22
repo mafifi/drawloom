@@ -37,6 +37,8 @@
   import ResourceCard from './ResourceCard.svelte';
   import ElicitationForm from './ElicitationForm.svelte';
   import ApprovalView from './ApprovalView.svelte';
+  import { elicitationFormActions, elicitationFormPresentation } from './elicitation-form.js';
+  import { goalControlsActions, goalControlsPresentation } from './goal-controls.js';
   import { groupToolActivity, toolActivityTitle } from './tool-outcome.js';
   import ToolActivity from './ToolActivity.svelte';
   import type { DesktopViewModel } from "./view-model.svelte.js";
@@ -273,7 +275,7 @@
             : ""}</span
         ><span>Open</span></Button
       >{/if}
-    {#each vm.state?.elicitations ?? [] as request (request.requestId)}<ElicitationForm {vm} {request} />{/each}
+    {#each vm.state?.elicitations ?? [] as request (request.requestId)}<ElicitationForm presentation={elicitationFormPresentation(vm, request.requestId)} actions={elicitationFormActions(vm, request.requestId)} {request} />{/each}
     {#each vm.approvals as approval (approval.id)}<ApprovalView presentation={approval.presentation} actions={approval.actions} />{/each}
     {#each vm.state?.signals ?? [] as signal}
       {#if signal.kind === "input.requested" && vm.state?.activeOperation === signal.request.operationId && !vm.state.signals.some((s) => s.kind === "input.resolved" && s.requestId === signal.request.requestId)}
@@ -341,6 +343,6 @@
   </ChatContainer.Root>
   </div>
   <Composer {vm} bind:this={composer} onCreateGoal={() => void goalControls?.createGoal()}>
-    {#snippet goal()}{#key vm.conversation?.id}<GoalControls {vm} bind:this={goalControls} onDismiss={() => composer?.focus()} />{/key}{/snippet}
+    {#snippet goal()}{#key vm.conversation?.id}<GoalControls presentation={goalControlsPresentation(vm)} actions={goalControlsActions(vm)} bind:this={goalControls} onDismiss={() => composer?.focus()} />{/key}{/snippet}
   </Composer>
 </main>

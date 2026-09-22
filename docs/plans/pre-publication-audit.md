@@ -207,14 +207,61 @@ release. The right repair is to reach the plugin frame from the existing
 Playwright acceptance, which needs an installed package with a workbench view
 in the synthetic fixture.
 
-**Also open, and deliberately not attempted here:** seven views still take the
-concrete `DesktopViewModel` rather than a projected `{ presentation, actions }`
-as `DetailsPane.svelte` does; the inline-error paragraph is duplicated across
-eight components, one of which (`Sidebar.svelte`) is missing
-`text-destructive`, so the duplication is not even self-consistent; loading
-states have four different markups; and `PrimaryView.svelte` coerces form
-values in template markup. These are real, and none of them is a correctness
-risk — they are the kind of change that should follow a release rather than
+**Closed: five of the seven views, the error/loading duplication, and the
+form coercion.** `ElicitationForm.svelte`, `DiscoveryInventory.svelte`,
+`GoalControls.svelte`, `PrimaryView.svelte`, and `Sidebar.svelte` now take a
+projected `{ presentation, actions }`, each with its own
+`*.ts` module (`elicitation-form.ts`, `discovery-inventory.ts`,
+`goal-controls.ts`, `primary-view.ts`, `sidebar.ts`) built the same way
+`details-pane.ts` builds `DetailsPane.svelte`'s props, and wired from
+`+page.svelte` (or, for `ElicitationForm`/`GoalControls`, from
+`Conversation.svelte`, which still holds a `DesktopViewModel` — see below).
+`GoalControls.svelte` no longer derives goal readiness itself; that
+derivation moved into `goalControlsPresentation` in `goal-controls.ts`.
+`PrimaryView.svelte` no longer coerces workbench-configuration form values in
+its `onsubmit` handler; `configureField` in `primary-view.ts` does the
+boolean/number/string coercion and dispatches the command.
+
+The inline-error paragraph's eight occurrences (`ArchivedConversations`,
+`ConversationSearch`, `KnowledgeDisclosureView`, `KnowledgeView`,
+`LocalKnowledgeSetupView`, `ProjectActivitySummary`, `Sidebar`,
+`WorkflowRuns`) are now one shape: `Alert.Root variant="destructive"` with
+`Alert.Description`, both already in `packages/ui/ui`. No new primitive was
+added. This also fixes `Sidebar.svelte`'s settings-panel error, which was
+missing `text-destructive` before — it now gets the same `Alert.Root` as
+every other error, so it cannot drift out of sync again. The four
+inconsistent loading markups (`Conversation.svelte`'s two, `GoalControls.svelte`,
+`Sidebar.svelte`, `ProjectActivitySummary.svelte`) now all use the
+`Marker.Root` + `Marker.Icon`/`Spinner` + `Marker.Content` composition that
+`Conversation.svelte` already used for its own loading states, again with no
+new primitive.
+
+**Still open: `Composer.svelte` and `Conversation.svelte`.** Both still take
+the concrete `DesktopViewModel`, and so do `ComposerResources.svelte` and
+`DiscoveryPicker.svelte`, which `Composer.svelte` renders directly with
+`{vm}`. This was a deliberate stop, not an oversight. `Conversation.svelte`
+alone reads or writes on the order of sixty distinct `vm` members —
+attachments, mentions, delegation, tool activity, goal state, elicitations,
+scroll bookkeeping, and more — and `Composer.svelte` adds the picker,
+attachment upload, and model/reviewer selection on top. Narrowing them
+properly means designing a presentation/actions surface for each, deciding
+where the nested pieces for `ComposerResources`/`DiscoveryPicker`/
+`ElicitationForm`/`GoalControls` get built (probably `+page.svelte`, by the
+same pattern used for `PrimaryView`'s `DiscoveryInventory` slice), and
+re-threading every call site without a rendered test to catch a mistake.
+That is a change of a different order than the other five, on the two
+components every conversation actually runs through, and it deserves its own
+pass rather than being folded into this one. `ElicitationForm.svelte` and
+`GoalControls.svelte` were narrowed anyway, ahead of `Conversation.svelte`
+itself: their call sites in `Conversation.svelte` now build
+`elicitationFormPresentation(vm, …)`/`goalControlsPresentation(vm)` inline,
+since `Conversation.svelte` still has `vm` to build them from.
+
+None of this was a correctness risk before, and closing five of the seven
+views, the whole error-paragraph split, and the form coercion did not change
+behavior anywhere — `pnpm run test`, `pnpm run desktop:check`, and
+`pnpm --filter ./apps/desktop run build` all still pass. The remaining two
+views are the kind of change that should follow a release rather than
 precede one.
 
 ### F11 — `test:ui` has been broken since the migration (High, closed)

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Collapsible, ChevronRightIcon, StatefulButton } from '@drawloom/ui';
+  import { Alert, Button, Collapsible, ChevronRightIcon, StatefulButton } from '@drawloom/ui';
   import type { KnowledgeDisclosurePresentation } from './knowledge-disclosure.js';
   import type { KnowledgeActions, KnowledgePresentation } from './knowledge-presentation.js';
   let { presentation: p, evidence, actions: a }: {
@@ -21,7 +21,7 @@
           <p class="text-sm text-muted-foreground break-all">{reference.ref.origin} · {reference.ref.id} · {reference.ref.revision}</p>
         </div>
       {/each}
-      {#if evidence.error}<p role="alert" class="text-sm text-destructive">{evidence.error}</p>{/if}
+      {#if evidence.error}<Alert.Root variant="destructive"><Alert.Description>{evidence.error}</Alert.Description></Alert.Root>{/if}
       {#each evidence.evidence?.records ?? [] as record (JSON.stringify(record.ref))}
         <article class="space-y-2">
           <p class="text-sm text-muted-foreground">{record.status}{'freshness' in record ? ` · ${record.freshness}` : ''}</p>

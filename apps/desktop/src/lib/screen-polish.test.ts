@@ -15,7 +15,7 @@ test("knowledge does not reserve an empty results grid before searching", () => 
 });
 test("workbench settings use bound conversation context without internal summaries", () => {
   const view = source("PrimaryView.svelte");
-  expect(view).toContain("vm.conversation?.workbenchId");
+  expect(view).toContain("presentation.conversation?.workbenchId");
   expect(view).not.toContain("Workbench configuration");
   expect(view).not.toContain("{vm.state?.operator.summary}");
 });

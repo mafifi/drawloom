@@ -14,6 +14,8 @@
   import PrimaryView from '$lib/PrimaryView.svelte';
   import ConversationSearch from '$lib/ConversationSearch.svelte';
   import { detailsPaneActions, detailsPanePresentation } from '$lib/details-pane.js';
+  import { primaryViewActions, primaryViewPresentation } from '$lib/primary-view.js';
+  import { sidebarActions, sidebarPresentation } from '$lib/sidebar.js';
   import './app.css';
   const vm = createDesktopViewModel();
   const compactNavigation = new MediaQuery('(max-width: 1024px)');
@@ -23,6 +25,10 @@
   const drawer = $derived(workspaceNeedsFullWidth(availableWidth));
   const workspacePresentation = $derived(detailsPanePresentation(vm, vm.primaryView === 'conversation', drawer));
   const workspaceActions = detailsPaneActions(vm);
+  const primaryPresentation = $derived(primaryViewPresentation(vm));
+  const primaryActions = primaryViewActions(vm);
+  const sidebarViewPresentation = $derived(sidebarPresentation(vm));
+  const sidebarViewActions = sidebarActions(vm);
   const browserTabs = $derived(vm.browser.snapshot.tabs.filter(tab=>tab.conversationId===vm.state?.selectedId));
   const browserTab = $derived(browserTabs.find(tab=>tab.id===vm.browser.selectedId));
   let documentVisible = $state(true);
@@ -69,7 +75,7 @@
 <ConversationSearch presentation={searchPresentation} actions={searchActions} />
 <BrowserPermissionPrompt request={vm.browser.snapshot.requests[0]} pending={vm.browser.pending==='decide'?vm.browser.pendingKey:''} error={vm.browser.error} decide={(requestId,choice)=>vm.browser.command({kind:'decide',requestId,choice})}/>
 <SidebarUI.Provider bind:open={navigationOpen} class="h-dvh min-h-0" style="--sidebar-width: 240px">
-  <Sidebar {vm}/>
+  <Sidebar presentation={sidebarViewPresentation} actions={sidebarViewActions}/>
   <div
     class="app-shell"
     bind:clientWidth={availableWidth}
@@ -108,6 +114,6 @@
         {#if vm.browserOpen}<div class="min-h-0 flex-1"><BrowserPanel presentation={browserPresentation} actions={browserActions}/></div>{/if}
       </div>
     </div>
-    {#if vm.primaryView !== 'conversation'}<PrimaryView {vm}/>{/if}
+    {#if vm.primaryView !== 'conversation'}<PrimaryView presentation={primaryPresentation} actions={primaryActions}/>{/if}
   </div>
 </SidebarUI.Provider>

@@ -69,11 +69,11 @@ test("projects use shared sidebar controls and a compact main-view directory for
   const projects = await source("./Projects.svelte").catch(() => "");
   const conversation = await source("./Conversation.svelte");
   expect(sidebar).toContain("<Sidebar.GroupLabel>Projects</Sidebar.GroupLabel>");
-  expect(sidebar).toContain("vm.selectProject(");
+  expect(sidebar).toContain("actions.selectProject(");
   expect(primary).toContain(
     "<Projects presentation={projectPresentation} actions={projectActions}",
   );
-  expect(primary).toContain("vm.addProject(");
+  expect(primary).toContain("actions.addProject(");
   expect(projects).toContain("a.add(directory, name)");
   expect(projects).toContain("<Input");
   expect(projects).not.toContain("Sheet.Root");
@@ -133,7 +133,7 @@ test("primary destinations are main-content views while artifact details remain 
   const page = await source("../routes/+page.svelte");
   const details = await source("./DetailsPane.svelte");
 
-  expect(page).toContain("<PrimaryView {vm}");
+  expect(page).toContain("<PrimaryView presentation={primaryPresentation} actions={primaryActions}");
   expect(page).toContain("vm.primaryView === 'conversation'");
   expect(page).toContain("class:workspace-pane-full={drawer || vm.detailsExpanded}");
   expect(page).toContain("bind:clientWidth={availableWidth}");

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Field, Input, StatefulButton, Collapsible, ChevronRightIcon, Badge, DownloadProgress, ModelSelector, Dialog } from '@drawloom/ui';
+  import { Alert, Button, Field, Input, StatefulButton, Collapsible, ChevronRightIcon, Badge, DownloadProgress, ModelSelector, Dialog } from '@drawloom/ui';
   import CodexModelSelector from './CodexModelSelector.svelte';
   import type { LocalKnowledgeSetupPresentation, LocalKnowledgeSetupActions } from './local-knowledge-setup-presentation.js';
   let { presentation: p, actions: a }: { presentation: LocalKnowledgeSetupPresentation; actions: LocalKnowledgeSetupActions } = $props();
@@ -8,7 +8,7 @@
   const configuredAssessmentModel=$derived(p.configuration?.assessmentModel??'');
   $effect(()=>{assessmentModel=configuredAssessmentModel;});
 </script>
-{#if p.error}<p role="alert" class="text-destructive">{p.error}</p>{/if}
+{#if p.error}<Alert.Root variant="destructive"><Alert.Description>{p.error}</Alert.Description></Alert.Root>{/if}
 {#if p.notice}<p role="status" class="text-sm text-muted-foreground">{p.notice}</p>{/if}
   <section class="flex flex-col gap-3" aria-label={p.copy.setup}>
     <div class="flex flex-wrap items-start justify-between gap-3"><div class="min-w-0 flex-1 space-y-2"><h2>{p.copy.setup}</h2><p class="text-muted-foreground">{p.copy.setupHelp}</p></div>

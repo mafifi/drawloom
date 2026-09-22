@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Checkbox, Field, Input, Separator, StatefulButton, Tabs, Collapsible, Empty, SearchIcon, ChevronRightIcon } from '@drawloom/ui';
+  import { Alert, Button, Checkbox, Field, Input, Separator, StatefulButton, Tabs, Collapsible, Empty, SearchIcon, ChevronRightIcon } from '@drawloom/ui';
   import type { Snippet } from 'svelte';
   import type { KnowledgePresentation, KnowledgeActions } from './knowledge-presentation.js';
   let { presentation: p, actions: a, localSetup }: { presentation: KnowledgePresentation; actions: KnowledgeActions; localSetup?: Snippet | undefined } = $props();
@@ -9,9 +9,9 @@
 <div class="primary-view-content layout-stack">
   <Tabs.Root bind:value={selectedTab} class="space-y-8">
   <Tabs.List aria-label="Knowledge sections"><Tabs.Trigger value="search">Search</Tabs.Trigger><Tabs.Trigger value="sources">Sources</Tabs.Trigger><Tabs.Trigger value="settings">Settings</Tabs.Trigger></Tabs.List>
-  {#if p.error}<p role="alert" class="text-destructive">{p.error}</p>{/if}
-  {#if p.status?.capture.state === 'pending'}<p role="alert" class="text-sm text-destructive">{p.status.capture.message}</p>{/if}
-  {#each p.recoveryNotices as message}<p role="alert" class="text-sm text-destructive">{message}</p>{/each}
+  {#if p.error}<Alert.Root variant="destructive"><Alert.Description>{p.error}</Alert.Description></Alert.Root>{/if}
+  {#if p.status?.capture.state === 'pending'}<Alert.Root variant="destructive"><Alert.Description>{p.status.capture.message}</Alert.Description></Alert.Root>{/if}
+  {#each p.recoveryNotices as message}<Alert.Root variant="destructive"><Alert.Description>{message}</Alert.Description></Alert.Root>{/each}
   {#if p.notice}<p role="status" class="text-sm text-muted-foreground">{p.notice}</p>{/if}
   <Tabs.Content value="search" class="space-y-8">
   <form class="screen-toolbar" onsubmit={event => { event.preventDefault(); void a.search(); }}>

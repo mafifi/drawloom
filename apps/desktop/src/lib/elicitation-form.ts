@@ -1,4 +1,55 @@
 import type { ToolElicitationRequest, ToolElicitationResult } from "@drawloom/tools";
+import type { DesktopViewModel } from "./view-model.svelte.js";
+
+export type ElicitationFormPresentation = Readonly<{
+  busy: boolean;
+  pendingAccept: boolean;
+  pendingDecline: boolean;
+  pendingCancel: boolean;
+}>;
+
+export type ElicitationFormActions = Readonly<{
+  choice(name: string, fallback?: string): string;
+  choose(name: string, value: string): void;
+  submit(form: FormData): Promise<boolean>;
+  resolve(action: "decline" | "cancel"): Promise<boolean>;
+}>;
+
+export function elicitationFormPresentation(
+  vm: DesktopViewModel,
+  requestId: string,
+): ElicitationFormPresentation {
+  const pending = (action: string) =>
+    vm.pendingCommand?.kind === "elicitation" &&
+    vm.pendingCommand.requestId === requestId &&
+    vm.pendingCommand.result.action === action;
+  return {
+    busy: vm.busy,
+    pendingAccept: pending("accept"),
+    pendingDecline: pending("decline"),
+    pendingCancel: pending("cancel"),
+  };
+}
+
+export function elicitationFormActions(
+  vm: DesktopViewModel,
+  requestId: string,
+): ElicitationFormActions {
+  return {
+    choice: (name, fallback = "") => vm.elicitationChoice(requestId, name, fallback),
+    choose: (name, value) => vm.chooseElicitation(requestId, name, value),
+    submit: (form) => vm.submitElicitation(requestId, form),
+    resolve: (action) =>
+      vm.state
+        ? vm.command({
+            kind: "elicitation",
+            conversationId: vm.state.selectedId,
+            requestId,
+            result: { action },
+          })
+        : Promise.resolve(false),
+  };
+}
 
 export function elicitationContent(
   params: ToolElicitationRequest["params"],

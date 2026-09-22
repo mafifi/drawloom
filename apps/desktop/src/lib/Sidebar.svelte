@@ -1,37 +1,37 @@
 <script lang="ts">
-  import { Sidebar, Collapsible, ChevronRightIcon, StatefulButton, Button, DropdownMenu, Dialog, Input, Field, toast } from '@drawloom/ui';
+  import { Sidebar, Collapsible, ChevronRightIcon, StatefulButton, Button, DropdownMenu, Dialog, Input, Field, Alert, Marker, Spinner, toast } from '@drawloom/ui';
   import { ActivityIcon, KnowledgeIcon, CloseIcon, PlusIcon, FolderIcon, FolderOpenIcon, SearchIcon, DocumentIcon, PlugIcon, SettingsIcon, MoreIcon, RenameIcon, ArchiveIcon } from "@drawloom/ui";
   import { settingsSections } from './settings-navigation.js';
   import ConversationNavItem from './ConversationNavItem.svelte';
-  import type { DesktopViewModel } from './view-model.svelte.js';
-  let { vm }: { vm: DesktopViewModel } = $props();
+  import type { SidebarActions, SidebarPresentation } from './sidebar.js';
+  let { presentation, actions }: { presentation: SidebarPresentation; actions: SidebarActions } = $props();
   const sidebar = Sidebar.useSidebar();
   let collapsedProjects = $state<Record<string, boolean>>({});
   let creatingProject = $state('');
   let renamingProject = $state('');
   let projectName = $state('');
   async function newInProject(id: string) {
-    if (vm.busy || creatingProject) return;
+    if (presentation.busy || creatingProject) return;
     creatingProject = id;
     try {
-      if (await vm.newConversationInProject(id)) {
+      if (await actions.newConversationInProject(id)) {
         collapsedProjects[id] = false;
         sidebar.setOpenMobile(false);
       }
     } finally { creatingProject = ''; }
   }
-  function showPane(pane: 'settings' | 'plugins' | 'projects' | 'knowledge' | 'activity' | 'archived') { vm.primaryView = pane; sidebar.setOpenMobile(false); }
-  async function archive(id: string) { if (await vm.command({ kind: 'archive_conversation', conversationId: id })) toast.success('Conversation archived'); }
-  function archiveBlocked(id: string) { return vm.state?.archiveBlockedConversationIds.includes(id) ?? false; }
+  function showPane(pane: 'settings' | 'plugins' | 'projects' | 'knowledge' | 'activity' | 'archived') { actions.setPrimaryView(pane); sidebar.setOpenMobile(false); }
+  async function archive(id: string) { if (await actions.archiveConversation(id)) toast.success('Conversation archived'); }
+  function archiveBlocked(id: string) { return presentation.archiveBlockedConversationIds.includes(id); }
 </script>
 
-<Dialog.Root open={!!renamingProject} onOpenChange={(open) => { if (!open && !vm.busy) renamingProject = ''; }}>
+<Dialog.Root open={!!renamingProject} onOpenChange={(open) => { if (!open && !presentation.busy) renamingProject = ''; }}>
   <Dialog.Content>
     <Dialog.Header><Dialog.Title>Rename project</Dialog.Title><Dialog.Description>Changes the display name only. Files and conversation bindings stay where they are.</Dialog.Description></Dialog.Header>
-    <form class="space-y-4" onsubmit={async event => { event.preventDefault(); if (await vm.command({ kind: 'rename_project', projectId: renamingProject, name: projectName.trim() })) { renamingProject = ''; toast.success('Project renamed'); } }}>
+    <form class="space-y-4" onsubmit={async event => { event.preventDefault(); if (await actions.renameProject(renamingProject, projectName.trim())) { renamingProject = ''; toast.success('Project renamed'); } }}>
       <Field.Field><Field.Label for="rename-project-name">Project name</Field.Label><Input id="rename-project-name" bind:value={projectName} maxlength={120} required /></Field.Field>
-      {#if vm.error}<p role="alert" class="text-destructive">{vm.error}</p>{/if}
-      <Dialog.Footer><Button type="button" variant="ghost" disabled={vm.busy} onclick={() => renamingProject = ''}>Cancel</Button><StatefulButton type="submit" pending={vm.pendingCommand?.kind === 'rename_project'} disabled={vm.busy || !projectName.trim()} pendingLabel="Renaming">Save name</StatefulButton></Dialog.Footer>
+      {#if presentation.error}<Alert.Root variant="destructive"><Alert.Description>{presentation.error}</Alert.Description></Alert.Root>{/if}
+      <Dialog.Footer><Button type="button" variant="ghost" disabled={presentation.busy} onclick={() => renamingProject = ''}>Cancel</Button><StatefulButton type="submit" pending={presentation.pendingCommand?.kind === 'rename_project'} disabled={presentation.busy || !projectName.trim()} pendingLabel="Renaming">Save name</StatefulButton></Dialog.Footer>
     </form>
   </Dialog.Content>
 </Dialog.Root>
@@ -41,17 +41,17 @@
     <div class="flex items-center justify-between gap-2 px-2 py-1">
       <span class="text-base font-medium">Drawloom</span>
       <div class="flex items-center">
-        <Button variant="ghost" size="icon" class="size-7" aria-label="Search conversations" title="Search conversations (⌘K)" onclick={() => { vm.navigation.openSearch(); sidebar.setOpenMobile(false); }}><SearchIcon aria-hidden="true" /></Button>
+        <Button variant="ghost" size="icon" class="size-7" aria-label="Search conversations" title="Search conversations (⌘K)" onclick={() => { actions.openSearch(); sidebar.setOpenMobile(false); }}><SearchIcon aria-hidden="true" /></Button>
       {#if sidebar.isMobile}<Button variant="ghost" size="icon" aria-label="Close navigation" onclick={() => sidebar.setOpenMobile(false)}><CloseIcon aria-hidden="true" /></Button>{/if}
       </div>
     </div>
-    <Button variant="ghost" class="justify-start" onclick={() => { if (vm.conversation) vm.openWorkbench(vm.conversation.workbenchId); else vm.primaryView = 'project'; sidebar.setOpenMobile(false); }} disabled={vm.busy}><PlusIcon aria-hidden="true" /><span>New conversation</span></Button>
+    <Button variant="ghost" class="justify-start" onclick={() => { if (presentation.conversation) actions.openWorkbench(presentation.conversation.workbenchId); else actions.setPrimaryView('project'); sidebar.setOpenMobile(false); }} disabled={presentation.busy}><PlusIcon aria-hidden="true" /><span>New conversation</span></Button>
   </Sidebar.Header>
   <Sidebar.Content>
     <Sidebar.Group>
       <Sidebar.GroupLabel>Workbenches</Sidebar.GroupLabel>
-      <Sidebar.Menu>{#each vm.state?.workbenches ?? [] as workbench}<Sidebar.MenuItem><Sidebar.MenuButton class="justify-start" aria-current={workbench.id === vm.conversation?.workbenchId ? 'true' : undefined}>
-        {#snippet child({ props })}<Button {...props} variant="ghost" disabled={vm.busy} onclick={() => { vm.openWorkbench(workbench.id); sidebar.setOpenMobile(false); }}><DocumentIcon aria-hidden="true" /><span>{workbench.title}</span></Button>{/snippet}
+      <Sidebar.Menu>{#each presentation.workbenches as workbench}<Sidebar.MenuItem><Sidebar.MenuButton class="justify-start" aria-current={workbench.id === presentation.conversation?.workbenchId ? 'true' : undefined}>
+        {#snippet child({ props })}<Button {...props} variant="ghost" disabled={presentation.busy} onclick={() => { actions.openWorkbench(workbench.id); sidebar.setOpenMobile(false); }}><DocumentIcon aria-hidden="true" /><span>{workbench.title}</span></Button>{/snippet}
       </Sidebar.MenuButton></Sidebar.MenuItem>{/each}</Sidebar.Menu>
     </Sidebar.Group>
     <Sidebar.Group><Sidebar.Menu>
@@ -65,7 +65,7 @@
         <Button variant="ghost" size="icon" class="sidebar-reveal size-7" aria-label="Add project" title="Add project" onclick={() => showPane('projects')}><PlusIcon aria-hidden="true" /></Button>
       </div>
       <Sidebar.Menu>
-        {#each vm.state?.projects ?? [] as project (project.id)}
+        {#each presentation.projects as project (project.id)}
           <Sidebar.MenuItem>
             <Collapsible.Root open={!collapsedProjects[project.id]} onOpenChange={(open) => { collapsedProjects[project.id] = !open; }}>
               <div class="sidebar-project-row flex items-center">
@@ -81,24 +81,24 @@
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger>{#snippet child({ props })}<Button {...props} variant="ghost" size="icon" class="sidebar-reveal size-7 shrink-0" aria-label={'Project actions for ' + project.name}><MoreIcon aria-hidden="true" /></Button>{/snippet}</DropdownMenu.Trigger>
                   <DropdownMenu.Content align="end">
-                    <DropdownMenu.Item disabled={vm.busy} onclick={async () => { if (await vm.selectProject(project.id)) sidebar.setOpenMobile(false); }}><FolderOpenIcon aria-hidden="true" />Open project</DropdownMenu.Item>
-                    <DropdownMenu.Item disabled={vm.busy} onclick={() => { projectName = project.name; renamingProject = project.id; }}><RenameIcon aria-hidden="true" />Rename project</DropdownMenu.Item>
+                    <DropdownMenu.Item disabled={presentation.busy} onclick={async () => { if (await actions.selectProject(project.id)) sidebar.setOpenMobile(false); }}><FolderOpenIcon aria-hidden="true" />Open project</DropdownMenu.Item>
+                    <DropdownMenu.Item disabled={presentation.busy} onclick={() => { projectName = project.name; renamingProject = project.id; }}><RenameIcon aria-hidden="true" />Rename project</DropdownMenu.Item>
                   </DropdownMenu.Content>
                 </DropdownMenu.Root>
-                <StatefulButton variant="ghost" size="icon" class="sidebar-reveal size-7 shrink-0" aria-label={'New conversation in ' + project.name} disabled={vm.busy || !project.available} pending={creatingProject === project.id} pendingLabel="Creating conversation" onclick={() => newInProject(project.id)}><PlusIcon aria-hidden="true" /></StatefulButton>
+                <StatefulButton variant="ghost" size="icon" class="sidebar-reveal size-7 shrink-0" aria-label={'New conversation in ' + project.name} disabled={presentation.busy || !project.available} pending={creatingProject === project.id} pendingLabel="Creating conversation" onclick={() => newInProject(project.id)}><PlusIcon aria-hidden="true" /></StatefulButton>
               </div>
               <Collapsible.Content>
                 <Sidebar.MenuSub class="mx-0 translate-x-0 border-0 px-0">
-                  {#each vm.state?.conversations.filter(item => !item.archived && item.projectId === project.id).toSorted((a,b)=>Number(Boolean(b.pinned))-Number(Boolean(a.pinned))) ?? [] as conversation (conversation.id)}
+                  {#each presentation.conversations.filter(item => !item.archived && item.projectId === project.id).toSorted((a,b)=>Number(Boolean(b.pinned))-Number(Boolean(a.pinned))) as conversation (conversation.id)}
                     <ConversationNavItem presentation={{
-                      title:conversation.title, projectName:vm.state?.projects.find(p=>p.id===conversation.projectId)?.name ?? 'Unassigned',
-                      active:conversation.id===vm.state?.selectedId, pinned:conversation.pinned ?? false,
-                      busy:vm.busy, archiveBlocked:archiveBlocked(conversation.id),
-                      pending: vm.pendingCommand?.kind === 'select_conversation' && vm.pendingCommand.conversationId === conversation.id ? 'open' : vm.pendingCommand?.kind === 'set_conversation_pinned' && vm.pendingCommand.conversationId === conversation.id ? 'pin' : vm.pendingCommand?.kind === 'archive_conversation' && vm.pendingCommand.conversationId === conversation.id ? 'archive' : undefined
+                      title:conversation.title, projectName:presentation.projects.find(p=>p.id===conversation.projectId)?.name ?? 'Unassigned',
+                      active:conversation.id===presentation.selectedId, pinned:conversation.pinned ?? false,
+                      busy:presentation.busy, archiveBlocked:archiveBlocked(conversation.id),
+                      pending: presentation.pendingCommand?.kind === 'select_conversation' && presentation.pendingCommand.conversationId === conversation.id ? 'open' : presentation.pendingCommand?.kind === 'set_conversation_pinned' && presentation.pendingCommand.conversationId === conversation.id ? 'pin' : presentation.pendingCommand?.kind === 'archive_conversation' && presentation.pendingCommand.conversationId === conversation.id ? 'archive' : undefined
                     }} actions={{
-                      open:async()=>{if(await vm.select(conversation.id))sidebar.setOpenMobile(false);},
-                      rename:()=>vm.navigation.beginRename(conversation),
-                      pin:async()=>{if(await vm.command({kind:'set_conversation_pinned',conversationId:conversation.id,pinned:!conversation.pinned}))toast.success(conversation.pinned?'Conversation unpinned':'Conversation pinned');},
+                      open:async()=>{if(await actions.selectConversation(conversation.id))sidebar.setOpenMobile(false);},
+                      rename:()=>actions.beginRename(conversation),
+                      pin:async()=>{if(await actions.setConversationPinned(conversation.id,!conversation.pinned))toast.success(conversation.pinned?'Conversation unpinned':'Conversation pinned');},
                       archive:()=>void archive(conversation.id)
                     }} />
                   {/each}
@@ -110,19 +110,19 @@
       </Sidebar.Menu>
     </Sidebar.Group>
 
-    {#if vm.state?.conversations.some(item => !item.archived && !item.projectId)}
+    {#if presentation.conversations.some(item => !item.archived && !item.projectId)}
     <Sidebar.Group>
       <Sidebar.GroupLabel>Unassigned conversations</Sidebar.GroupLabel>
-      <Sidebar.Menu>{#each vm.state?.conversations.filter(item => !item.archived && !item.projectId).toSorted((a,b)=>Number(Boolean(b.pinned))-Number(Boolean(a.pinned))) ?? [] as conversation (conversation.id)}
+      <Sidebar.Menu>{#each presentation.conversations.filter(item => !item.archived && !item.projectId).toSorted((a,b)=>Number(Boolean(b.pinned))-Number(Boolean(a.pinned))) as conversation (conversation.id)}
         <ConversationNavItem presentation={{
-                      title:conversation.title, projectName:vm.state?.projects.find(p=>p.id===conversation.projectId)?.name ?? 'Unassigned',
-                      active:conversation.id===vm.state?.selectedId, pinned:conversation.pinned ?? false,
-                      busy:vm.busy, archiveBlocked:archiveBlocked(conversation.id),
-                      pending: vm.pendingCommand?.kind === 'select_conversation' && vm.pendingCommand.conversationId === conversation.id ? 'open' : vm.pendingCommand?.kind === 'set_conversation_pinned' && vm.pendingCommand.conversationId === conversation.id ? 'pin' : vm.pendingCommand?.kind === 'archive_conversation' && vm.pendingCommand.conversationId === conversation.id ? 'archive' : undefined
+                      title:conversation.title, projectName:presentation.projects.find(p=>p.id===conversation.projectId)?.name ?? 'Unassigned',
+                      active:conversation.id===presentation.selectedId, pinned:conversation.pinned ?? false,
+                      busy:presentation.busy, archiveBlocked:archiveBlocked(conversation.id),
+                      pending: presentation.pendingCommand?.kind === 'select_conversation' && presentation.pendingCommand.conversationId === conversation.id ? 'open' : presentation.pendingCommand?.kind === 'set_conversation_pinned' && presentation.pendingCommand.conversationId === conversation.id ? 'pin' : presentation.pendingCommand?.kind === 'archive_conversation' && presentation.pendingCommand.conversationId === conversation.id ? 'archive' : undefined
                     }} actions={{
-                      open:async()=>{if(await vm.select(conversation.id))sidebar.setOpenMobile(false);},
-                      rename:()=>vm.navigation.beginRename(conversation),
-                      pin:async()=>{if(await vm.command({kind:'set_conversation_pinned',conversationId:conversation.id,pinned:!conversation.pinned}))toast.success(conversation.pinned?'Conversation unpinned':'Conversation pinned');},
+                      open:async()=>{if(await actions.selectConversation(conversation.id))sidebar.setOpenMobile(false);},
+                      rename:()=>actions.beginRename(conversation),
+                      pin:async()=>{if(await actions.setConversationPinned(conversation.id,!conversation.pinned))toast.success(conversation.pinned?'Conversation unpinned':'Conversation pinned');},
                       archive:()=>void archive(conversation.id)
                     }} />
       {/each}</Sidebar.Menu>
@@ -130,7 +130,7 @@
     {/if}
   </Sidebar.Content>
   <Sidebar.Footer><Sidebar.Menu>
-    {#if vm.error}<li class="px-2 text-sm text-destructive" role="alert">{vm.error}</li>{/if}
+    {#if presentation.error}<li class="px-2"><Alert.Root variant="destructive"><Alert.Description>{presentation.error}</Alert.Description></Alert.Root></li>{/if}
     <Sidebar.MenuItem>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>{#snippet child({ props })}<Sidebar.MenuButton {...props} class="h-11" aria-label="Settings and more"><SettingsIcon aria-hidden="true" /><span>Settings &amp; more</span></Sidebar.MenuButton>{/snippet}</DropdownMenu.Trigger>
@@ -146,20 +146,20 @@
 {/snippet}
 
   <Sidebar.Root id="workspace-navigation" aria-label="Workspace navigation">
-    {#if vm.primaryView === 'settings'}
-      <Sidebar.Header class="p-3"><Button variant="ghost" class="justify-start" onclick={() => { vm.closeSettings(); sidebar.setOpenMobile(false); }}>← Back to app</Button></Sidebar.Header>
+    {#if presentation.primaryView === 'settings'}
+      <Sidebar.Header class="p-3"><Button variant="ghost" class="justify-start" onclick={() => { actions.closeSettings(); sidebar.setOpenMobile(false); }}>← Back to app</Button></Sidebar.Header>
       <Sidebar.Content>
         <Sidebar.Group><Sidebar.GroupLabel>Settings</Sidebar.GroupLabel><Sidebar.Menu>
           {#each settingsSections as section}
-            <Sidebar.MenuItem><Sidebar.MenuButton isActive={vm.settingsSection === section.id} aria-current={vm.settingsSection === section.id ? 'page' : undefined} onclick={() => { vm.settingsSection = section.id; sidebar.setOpenMobile(false); }}>{section.title}</Sidebar.MenuButton></Sidebar.MenuItem>
+            <Sidebar.MenuItem><Sidebar.MenuButton isActive={presentation.settingsSection === section.id} aria-current={presentation.settingsSection === section.id ? 'page' : undefined} onclick={() => { actions.setSettingsSection(section.id); sidebar.setOpenMobile(false); }}>{section.title}</Sidebar.MenuButton></Sidebar.MenuItem>
           {/each}
         </Sidebar.Menu></Sidebar.Group>
-        {#if vm.pluginSettingsLoading}<p class="px-4 text-sm text-muted-foreground" role="status">Loading plugin settings…</p>{/if}
-        {#if vm.pluginSettingsError}<p class="px-4 text-sm" role="alert">{vm.pluginSettingsError}</p>{/if}
-        {#each vm.pluginSettingsGroups as group}
+        {#if presentation.pluginSettingsLoading}<div class="px-4"><Marker.Root role="status"><Marker.Icon><Spinner /></Marker.Icon><Marker.Content>Loading plugin settings…</Marker.Content></Marker.Root></div>{/if}
+        {#if presentation.pluginSettingsError}<div class="px-4"><Alert.Root variant="destructive"><Alert.Description>{presentation.pluginSettingsError}</Alert.Description></Alert.Root></div>{/if}
+        {#each presentation.pluginSettingsGroups as group}
           <Sidebar.Group><Sidebar.GroupLabel>{group.title}</Sidebar.GroupLabel><Sidebar.Menu>
             {#each group.entries as entry}
-            <Sidebar.MenuItem><Sidebar.MenuButton isActive={vm.settingsSection === entry.key} aria-current={vm.settingsSection === entry.key ? 'page' : undefined} onclick={() => { vm.settingsSection = entry.key; sidebar.setOpenMobile(false); }}>{entry.label}{entry.page.status !== 'available' ? ` · ${entry.page.status}` : ''}</Sidebar.MenuButton></Sidebar.MenuItem>
+            <Sidebar.MenuItem><Sidebar.MenuButton isActive={presentation.settingsSection === entry.key} aria-current={presentation.settingsSection === entry.key ? 'page' : undefined} onclick={() => { actions.setSettingsSection(entry.key); sidebar.setOpenMobile(false); }}>{entry.label}{entry.page.status !== 'available' ? ` · ${entry.page.status}` : ''}</Sidebar.MenuButton></Sidebar.MenuItem>
             {/each}
           </Sidebar.Menu></Sidebar.Group>
         {/each}
