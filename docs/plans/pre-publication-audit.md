@@ -217,7 +217,7 @@ values in template markup. These are real, and none of them is a correctness
 risk — they are the kind of change that should follow a release rather than
 precede one.
 
-### F11 — `test:ui` has been broken since the migration (High, open)
+### F11 — `test:ui` has been broken since the migration (High, closed)
 
 `pnpm run test:ui` fails immediately:
 
@@ -239,15 +239,41 @@ This is the whole point of naming the lane explicitly in a verification list. A
 green `check:ci` says nothing about it, and the migration's evidence never
 covered it.
 
-**Repair options, none yet chosen.** Run the file under Vitest, which already
-resolves `.js` to `.ts` and is the repository's test runner — its body is a
-490-line top-level script rather than declared tests, so this means wrapping it.
-Or register a `module.registerHooks` resolver, which is a standard Node 24 API
-but is infrastructure ADR 0034 would rather not add. Or build the host to `dist`
-so the specifiers resolve as the packages' do. The first keeps the toolchain
-uniform; the third is the most honest about why the others need help.
+**Closed.** Took the first repair option: the script's 490-line top-level
+`try { ... } finally { ... }` body is now the body of a single
+`test("desktop UI acceptance: ...", { timeout: 120_000 }, async () => { ... })`
+in `scripts/test-ui-browser.ts` — a mechanical reindent, no logic changed. It
+runs under a new dedicated config, `vitest.config.ui.ts`, whose `test.include`
+names only that one file, and `test:ui` now runs
+`vitest run --config vitest.config.ui.ts` instead of `node
+scripts/test-ui-browser.ts`. Vitest already resolves the host's `.js`
+specifiers to their `.ts` files the same way it does for the default sweep, so
+the host imports load without a compatibility shim.
 
-Until it is fixed, the browser acceptance matrix is not running anywhere.
+`vitest.config.ui.ts` does not `mergeConfig` the default `vitest.config.ts`: that
+was tried first and rejected, because Vite/Vitest's config merge concatenates
+array options such as `test.include` instead of replacing them — a merged
+config re-ran the *entire* default sweep in addition to this file. The dedicated
+config instead duplicates the small amount of shared setup it needs (the Svelte
+plugin and `drawloom-source` resolve conditions) and sets its own `include`
+outright. `test:ui` stays the separate, slow Playwright/Chromium lane it always
+was — it is still not part of `check:ci`, and CI still runs it as its own job.
+
+Verified: `pnpm run test:ui` exits 0 and launches Chromium against the real
+built desktop host (`apps/desktop/build`), exercising the full browser
+acceptance matrix — themes, narrow layouts, JSON rendering, chronology,
+scrolling, zoom, native-task actions and the scripted browser panel/settings —
+in ~11s, ending with the script's own
+`"Public UI acceptance: ... passed."` log line. `pnpm run test` (the default
+Vitest sweep) still collects exactly 258 test files, matching the count before
+this change, confirming the UI lane did not join it. `pnpm run check:ci` still
+passes.
+
+The registerHooks-resolver and build-to-`dist` alternatives were not taken:
+the first is exactly the bespoke infrastructure ADR 0034 asks to avoid when a
+standard tool already does the job, and the second would mean giving the
+desktop host a `dist` build step it does not otherwise need, just to satisfy
+one script.
 
 ### F12 — A4 is not established: nothing interrupts real work (Medium, open)
 

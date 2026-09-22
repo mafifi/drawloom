@@ -42,7 +42,7 @@
     "licenses:inventory": "node scripts/dependency-license-inventory.ts",
     "licenses:export": "node scripts/export-license-notices.ts",
     "check:ui-policy": "node scripts/check-ui-policy.ts",
-    "test:ui": "node scripts/test-ui-browser.ts",
+    "test:ui": "vitest run --config vitest.config.ui.ts",
     "check:architecture": "pnpm run check:ui-policy && depcruise --config .dependency-cruiser.mjs .",
     "check:dependency-policy": "node scripts/check-dependency-policy.ts",
     "check:design": "designmd lint DESIGN.md && designmd lint publishing/DESIGN.md",
