@@ -576,6 +576,10 @@ importers:
         version: 4.6.5
 
   apps/desktop:
+    dependencies:
+      '@drawloom/nightloom':
+        specifier: workspace:*
+        version: link:../../packages/knowledge/nightloom
     devDependencies:
       '@drawloom/agent':
         specifier: workspace:*
@@ -634,9 +638,6 @@ importers:
       '@drawloom/local-tools':
         specifier: workspace:*
         version: link:../../packages/tools/local-tools
-      '@drawloom/nightloom':
-        specifier: workspace:*
-        version: link:../../packages/knowledge/nightloom
       '@drawloom/node-host':
         specifier: workspace:*
         version: link:../../packages/host/node-host

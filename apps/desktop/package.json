@@ -13,6 +13,9 @@
   "optionalDependencies": {
     "@napi-rs/keyring": "catalog:"
   },
+  "dependencies": {
+    "@drawloom/nightloom": "workspace:*"
+  },
   "scripts": {
     "bundle:icon": "node ../../scripts/build-app-icon.ts",
     "build": "vite build",
@@ -40,7 +43,6 @@
     "@drawloom/local-knowledge-runtime": "workspace:*",
     "@drawloom/local-plugin-packages": "workspace:*",
     "@drawloom/local-tools": "workspace:*",
-    "@drawloom/nightloom": "workspace:*",
     "@drawloom/node-host": "workspace:*",
     "@drawloom/orchestration": "workspace:*",
     "@drawloom/otel-host": "workspace:*",

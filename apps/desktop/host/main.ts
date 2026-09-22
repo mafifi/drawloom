@@ -30,6 +30,7 @@ async function main() {
   console.error(`Drawloom data: ${root}`);
   const web = resolve(process.env.DRAWLOOM_WEB_ROOT ?? resolve(import.meta.dirname, "../build"));
   const knowledgeRuntime = process.env.DRAWLOOM_KNOWLEDGE_RUNTIME;
+  const nightloomRuntime = process.env.DRAWLOOM_NIGHTLOOM_RUNTIME;
   const app = await createDesktopApplication(root, {
     experimentalPluginDiscovery: process.env.DRAWLOOM_EXPERIMENTAL_PLUGIN_DISCOVERY !== "0",
     mediaOrigins: (process.env.DRAWLOOM_MEDIA_ORIGINS ?? "")
@@ -54,7 +55,7 @@ async function main() {
         ? {
             // `pnpm deploy` writes the deployed package at the target root.
             runtimeEntrypoint: resolve(knowledgeRuntime, "dist/sidecar.js"),
-            nightloomDirectory: resolve(knowledgeRuntime, "node_modules/@drawloom/nightloom"),
+            ...(nightloomRuntime ? { nightloomDirectory: nightloomRuntime } : {}),
           }
         : {}),
     },

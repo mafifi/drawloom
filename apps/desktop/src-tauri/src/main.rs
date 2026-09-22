@@ -86,6 +86,10 @@ fn setup_application(app: &mut tauri::App) -> StartupResult<()> {
         resources.join("orchestration"),
     )
     .env("DRAWLOOM_KNOWLEDGE_RUNTIME", resources.join("knowledge"))
+    .env(
+        "DRAWLOOM_NIGHTLOOM_RUNTIME",
+        resources.join("host/node_modules/@drawloom/nightloom"),
+    )
     .env("DRAWLOOM_MANAGED", "1")
     .stdin(Stdio::piped())
     .stdout(Stdio::piped())
