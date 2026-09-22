@@ -14,6 +14,7 @@ import {
   KnownLlamaRuntime,
   KnownModelManifests,
 } from "../packages/knowledge/local-embeddings/src/manifest.ts";
+import { KnownNodeRuntime } from "../apps/desktop/host/node-runtime.ts";
 import { runtimeDependencies } from "./runtime-dependencies.ts";
 import { parse as parseToml } from "smol-toml";
 import { parseAllDocuments as parseAllYamlDocuments } from "yaml";
@@ -183,7 +184,31 @@ const runtimeBuildRevision = readFileSync(join(root, runtimeBuildAuthority), "ut
 )?.[1];
 if (runtimeBuildRevision !== KnownLlamaRuntime.revision)
   throw Error("llama.cpp build revision does not match the supported runtime manifest");
+// The shipped Node is pinned in one place for development, CI and packaging.
+// A version bump that misses the manifest must fail here, not reach a release.
+const pinnedNodeVersion = (
+  JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
+    engines?: { node?: string };
+  }
+).engines?.node;
+if (pinnedNodeVersion !== KnownNodeRuntime.version)
+  throw Error(
+    `engines.node (${pinnedNodeVersion}) does not match the shipped Node runtime manifest (${KnownNodeRuntime.version})`,
+  );
 const externalArtifacts = [
+  {
+    kind: "native-runtime",
+    id: KnownNodeRuntime.id,
+    revision: KnownNodeRuntime.version,
+    binarySha256: KnownNodeRuntime.binarySha256,
+    license: KnownNodeRuntime.license,
+    licenseSha256: KnownNodeRuntime.licenseSha256,
+    authority: "apps/desktop/host/node-runtime.ts#KnownNodeRuntime",
+    buildAuthority: "package.json#engines.node",
+    // Unlike llama.cpp, this one is inside the application bundle.
+    bundled: true,
+    releaseReview: "required",
+  },
   {
     kind: "native-runtime",
     id: KnownLlamaRuntime.id,

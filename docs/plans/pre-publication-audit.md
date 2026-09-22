@@ -86,16 +86,28 @@ This entry records the architectural cost of each option, not a legal opinion.
 
 **Related inventory items, each resolvable without an exception:**
 
-- `r-efi` is `MIT OR Apache-2.0 OR LGPL-2.1-or-later`. ADR 0026 already permits
-  selecting the permissive alternative from a dual licence; record the selection
-  as was done for Linux `sqlite-vec`.
 - `javascriptcore-rs` and `javascriptcore-rs-sys` are MIT, and macOS 14 uses the
   system WKWebView rather than a distributed WebKit.
-- `@img/sharp-libvips-darwin-arm64` is LGPL-3.0-or-later but appears to reach the
-  tree through Astro build tooling. Confirm explicitly that it does not leak into
-  a product artifact — ADR 0026 requires that check for development tools.
+- `r-efi` is `MIT OR Apache-2.0 OR LGPL-2.1-or-later`. **Recorded:** MIT is
+  selected for both locked versions (5.3.0, 6.0.0) in `LICENSES/README.md`,
+  following the Linux `sqlite-vec` precedent.
+- `@img/sharp-libvips-darwin-arm64` is LGPL-3.0-or-later. **The assumption here
+  was wrong, and the correction is recorded in `LICENSES/README.md`.** It does
+  not reach the tree only through Astro build tooling: `@temporalio/worker`
+  depends on `webpack` to bundle workflows, webpack pulls
+  `minimizer-webpack-plugin`, and that pulls `sharp`. A `pnpm deploy --prod` of
+  `@drawloom/temporal-orchestration` — a shipped sidecar — was verified to
+  contain the LGPL library.
 
-### F8 — The licence inventory cannot see compiled-in runtimes (Medium, open)
+  It does not reach the built `.app`, but only because the packaging prune
+  removes it as *size* dead weight; that script's list carries no licence
+  reason, so the obligation was satisfied by accident and an edit made for size
+  reasons would have shipped it. `scripts/check-bundled-licenses.ts` now makes
+  the requirement explicit at the artifact, where it is the only thing that can
+  be checked. Verified both ways: clean against the staged trees, blocking
+  against an unpruned deploy.
+
+### F8 — The licence inventory cannot see compiled-in runtimes (Medium, addressed)
 
 `check:licenses` scans npm and Rust package metadata. The runtime that
 `bun build --compile` embeds is not an npm package, so it never enters the scan.
@@ -113,6 +125,31 @@ finishes regardless of how F7 is decided.
 **Repair.** Add a release inventory step covering the bundled runtime's own
 components, and record it where `check:licenses` results are reported so the
 0-blockers line cannot be read as covering more than it does.
+
+**Done, 22 September 2026.** The shipped Node runtime is declared in
+`apps/desktop/host/node-runtime.ts#KnownNodeRuntime`, emitted into the inventory
+as a bundled native artifact, and mirrored in the policy check's expected list,
+so an unrecorded artifact blocks the gate — verified by deleting it. The
+determination for Node's aggregate LICENSE, including why its two GPL sections
+(ICU4C's `aclocal.m4` and `config.guess`, under the standard Autoconf exception)
+do not engage ADR 0026, is in `LICENSES/NODE-RUNTIME.md`. `engines.node` is
+asserted against the same manifest, so a version bump that misses it fails.
+
+Two things were found while closing this, and both mattered more than the
+bookkeeping:
+
+1. **The notice was not shipping.** `bundle:host` copied the executable and not
+   the `LICENSE` beside it, so the bundle carried a distributed runtime with no
+   notice at all. `scripts/stage-node-runtime.ts` now copies both and re-derives
+   version, architecture and both digests from the files it just wrote;
+   `verify-macos-app.mjs` fails the release if the notice is absent or its digest
+   differs. The upstream digest is deliberately kept distinct from the signed
+   artifact's, because signing rewrites the Mach-O.
+2. **A metadata gate cannot see a bundle.** `check:licenses` reasons about the
+   dependency graph, which is not the set of files that survives `pnpm deploy`
+   and the packaging prune. `scripts/check-bundled-licenses.ts` now assesses the
+   licence of every package actually staged, and runs as the last step of
+   `bundle:host`. This is what exposed the corrected `sharp` finding below.
 
 ### F4 — The composition root resisted decomposition (Medium, open)
 

@@ -33,9 +33,31 @@ failure; it does not admit unreviewed platforms or waive native-binary attributi
   source and notice obligations remain part of artifact review.
 - MPL-2.0 cssparser/selectors also appear through Tauri's proc-macro/codegen path.
   Development/build-only review is distinct from runtime adoption.
-- Runtime archives, models, copied UI source, embedded Node/Temporal binaries
-  and native transitive components need their own exact-artifact licence payloads.
-  The new llama.cpp archive must include its reviewed legal files.
+- Runtime archives, models, copied UI source and native transitive components
+  need their own exact-artifact licence payloads. The new llama.cpp archive must
+  include its reviewed legal files. The **shipped Node runtime** is now
+  determined and its notice ships with it; see
+  [NODE-RUNTIME.md](NODE-RUNTIME.md).
+- `r-efi` (5.3.0 and 6.0.0) offers `MIT OR Apache-2.0 OR LGPL-2.1-or-later`.
+  ADR 0026 permits selecting a permissive alternative from a dual licence, and
+  **MIT** is selected for both locked versions, as was done for Linux
+  `sqlite-vec`. This is an exact-version selection; it does not admit the
+  LGPL alternative or other versions. `r-efi` reaches the tree only through the
+  Rust target graph, which the inventory records without resolving final-binary
+  inclusion.
+- `@img/sharp-libvips-darwin-arm64` is LGPL-3.0-or-later, which ADR 0026
+  excludes from anything Drawloom distributes. **It is not only build tooling.**
+  It reaches a runtime dependency path: `@temporalio/worker` depends on `webpack`
+  to bundle workflows, webpack pulls `minimizer-webpack-plugin`, and that pulls
+  `sharp`. A plain `pnpm deploy --prod` of `@drawloom/temporal-orchestration`
+  therefore contains the LGPL library, which was verified directly.
+  It does **not** reach the shipped bundle, because
+  `scripts/prune-orchestration-sidecar-runtime.mjs` removes it — but that
+  script's removal list is a size list, so the obligation was being met
+  incidentally. `scripts/check-bundled-licenses.ts` now assesses the licence of
+  every package actually staged into the bundle and fails on an excluded one; it
+  runs as the last step of `bundle:host`. Verified both ways: clean against the
+  staged trees, and blocking against an unpruned deploy.
 - Dev-only Remotion/custom SDK terms and optional platform packages remain separate
   inventory findings. This change does not replace unrelated dependencies.
 

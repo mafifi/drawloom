@@ -7,6 +7,7 @@ import {
   KnownLlamaRuntime,
   KnownModelManifests,
 } from "../packages/knowledge/local-embeddings/src/manifest.ts";
+import { KnownNodeRuntime } from "../apps/desktop/host/node-runtime.ts";
 
 test("inventory routes supported external artifacts to separate release review", () => {
   const root = resolve(import.meta.dirname, "..");
@@ -33,6 +34,19 @@ test("inventory routes supported external artifacts to separate release review",
     expect(inventory).not.toHaveProperty("python");
     expect(inventory.summary).not.toHaveProperty("python");
     expect(inventory.externalArtifacts).toEqual([
+      {
+        kind: "native-runtime",
+        id: KnownNodeRuntime.id,
+        revision: KnownNodeRuntime.version,
+        binarySha256: KnownNodeRuntime.binarySha256,
+        license: KnownNodeRuntime.license,
+        licenseSha256: KnownNodeRuntime.licenseSha256,
+        authority: "apps/desktop/host/node-runtime.ts#KnownNodeRuntime",
+        buildAuthority: "package.json#engines.node",
+        // The runtime inside the bundle, unlike llama.cpp which is downloaded.
+        bundled: true,
+        releaseReview: "required",
+      },
       {
         kind: "native-runtime",
         id: KnownLlamaRuntime.id,

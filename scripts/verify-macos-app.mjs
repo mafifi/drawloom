@@ -23,10 +23,14 @@
  *   node scripts/verify-macos-app.mjs <path to Drawloom.app>
  */
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
+// The single authority for what runtime ships; importing it keeps this check
+// from becoming a second declaration that can agree with nothing.
+import { KnownNodeRuntime } from "../apps/desktop/host/node-runtime.ts";
 
 const app = resolve(process.argv[2] ?? "");
 if (!app || !existsSync(app)) {
@@ -61,6 +65,40 @@ check("resources present", () => {
   ])
     must(existsSync(join(resources, asset)), `missing ${asset}`);
   return "host, web and both sidecars";
+});
+
+check("shipped Node runtime matches its manifest and ships its notice", () => {
+  // Drawloom distributes this runtime, so its aggregate LICENSE is an obligation.
+  // `bundle:host` used to copy the executable alone, leaving the notice behind.
+  //
+  // The binary is compared by VERSION and ARCHITECTURE only: signing rewrites
+  // the Mach-O, so a signed bundle cannot match the upstream digest.
+  // `scripts/stage-node-runtime.ts` checks that digest before signing; the
+  // signed artifact's own checksum belongs in the release record.
+  const binary = join(resources, "host/host/node");
+  const notice = join(resources, "host/host/LICENSE.node");
+  must(existsSync(notice), "LICENSE.node is not beside the shipped node binary");
+
+  const reported = execFileSync(binary, ["--version"], { encoding: "utf8" }).trim();
+  must(
+    reported === `v${KnownNodeRuntime.version}`,
+    `shipped node reports ${reported}, expected v${KnownNodeRuntime.version}`,
+  );
+  const architecture = execFileSync(binary, ["-p", "process.arch"], { encoding: "utf8" }).trim();
+  must(
+    architecture === KnownNodeRuntime.arch,
+    `shipped node reports ${architecture}, expected ${KnownNodeRuntime.arch}`,
+  );
+  const noticeDigest = createHash("sha256").update(readFileSync(notice)).digest("hex");
+  must(
+    noticeDigest === KnownNodeRuntime.licenseSha256,
+    "LICENSE.node does not match the digest recorded in the manifest",
+  );
+  must(
+    statSync(binary).size === KnownNodeRuntime.bytes,
+    "shipped node is not the size recorded in the manifest",
+  );
+  return `node v${KnownNodeRuntime.version} ${architecture} with its notice`;
 });
 
 check("sidecar closures survived the resource copy", () => {

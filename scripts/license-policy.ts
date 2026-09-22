@@ -41,6 +41,37 @@ const reviewedMpl = new Set(
     "lightningcss-win32-x64-msvc",
   ].map((name) => `${name}@1.33.0`),
 );
+/**
+ * Packages that declare no licence in metadata but retain an unambiguous upstream
+ * text. Keyed by exact version AND the exact SHA256 of that text, so a changed or
+ * substituted file falls back to review rather than inheriting a determination.
+ *
+ * This is not a waiver. The text is preserved byte-for-byte under LICENSES/texts
+ * and mapped in THIRD_PARTY_NOTICES.md; this records the reading of it.
+ *
+ * Consumed by `check-bundled-licenses.ts`, which assesses what is staged into the
+ * application bundle. `assessLicense` deliberately still reports missing metadata
+ * as needing review, so the existing inventory gate's output is unchanged.
+ */
+const retainedTextDeterminations: Readonly<
+  Record<string, { readonly license: string; readonly textSha256: string }>
+> = {
+  // Standard Unlicense public-domain dedication; read 2026-09-22. Reaches the
+  // orchestration sidecar through @temporalio/worker's memfs dependency.
+  "unionfs@4.6.0": {
+    license: "Unlicense",
+    textSha256: "6b0382b16279f26ff69014300541967a356a666eb0b91b422f6862f6b7dad17e",
+  },
+};
+export function retainedTextDetermination(
+  identity: string,
+  textSha256: string,
+): string | undefined {
+  const determination = retainedTextDeterminations[identity];
+  return determination && determination.textSha256 === textSha256
+    ? determination.license
+    : undefined;
+}
 export function isReviewedMpl(identity: string, textSha256: string): boolean {
   return (
     reviewedMpl.has(identity) &&

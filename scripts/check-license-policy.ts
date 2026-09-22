@@ -5,6 +5,7 @@ import {
   KnownLlamaRuntime,
   KnownModelManifests,
 } from "../packages/knowledge/local-embeddings/src/manifest.ts";
+import { KnownNodeRuntime } from "../apps/desktop/host/node-runtime.ts";
 import { assessLicense, isReviewedMpl, selectedLicense } from "./license-policy.ts";
 
 const root = resolve(import.meta.dirname, "..");
@@ -79,6 +80,18 @@ for (const missing of inventory.unresolvedRuntime.filter(
 }
 const supportedModel = KnownModelManifests["qwen3-embedding-0.6b-gguf"];
 const expectedExternalArtifacts = [
+  {
+    kind: "native-runtime",
+    id: KnownNodeRuntime.id,
+    revision: KnownNodeRuntime.version,
+    binarySha256: KnownNodeRuntime.binarySha256,
+    license: KnownNodeRuntime.license,
+    licenseSha256: KnownNodeRuntime.licenseSha256,
+    authority: "apps/desktop/host/node-runtime.ts#KnownNodeRuntime",
+    buildAuthority: "package.json#engines.node",
+    bundled: true,
+    releaseReview: "required",
+  },
   {
     kind: "native-runtime",
     id: KnownLlamaRuntime.id,
