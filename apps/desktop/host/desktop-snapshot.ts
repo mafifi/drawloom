@@ -1,10 +1,6 @@
 import { z } from "zod";
 import { OperatorSnapshotSchema } from "@drawloom/workbench";
-import {
-  DesktopSnapshotSchema,
-  ProjectSchema,
-  type DesktopSnapshot,
-} from "../src/lib/protocol.js";
+import { DesktopSnapshotSchema, ProjectSchema, type DesktopSnapshot } from "../src/lib/protocol.js";
 import type { createDesktopSessions } from "./desktop-sessions.js";
 import type { createMediaPolicy } from "./media-policy.js";
 import type { createDesktopEvidence } from "./evidence.js";
@@ -14,20 +10,14 @@ import type { createElicitationPresenter } from "./elicitation.js";
 type Project = z.infer<typeof ProjectSchema>;
 type Runtime = {
   packages: {
-    toolPresentation: ReadonlyMap<
-      string,
-      { available: boolean; name: string; origin: string }
-    >;
+    toolPresentation: ReadonlyMap<string, { available: boolean; name: string; origin: string }>;
   };
   registry: {
     workbenches: ReadonlyArray<DesktopSnapshot["workbenches"][number]>;
     views: ReadonlyArray<DesktopSnapshot["views"][number]>;
     plugins: ReadonlyArray<{ id: string }>;
   };
-  controllers: ReadonlyMap<
-    string,
-    { snapshot(): Promise<z.infer<typeof OperatorSnapshotSchema>> }
-  >;
+  controllers: ReadonlyMap<string, { snapshot(): Promise<z.infer<typeof OperatorSnapshotSchema>> }>;
   packageToolIds: ReadonlySet<string>;
   packageGrants: Record<string, readonly string[] | undefined>;
   knowledgeToolIds: ReadonlySet<string>;
@@ -49,9 +39,7 @@ export function createDesktopSnapshot(options: {
   project(): Project;
   live: ReturnType<typeof createDesktopSessions>;
   mediaPolicy: Awaited<ReturnType<typeof createMediaPolicy>>;
-  evidenceFor(
-    conversationId: string,
-  ): Promise<Awaited<ReturnType<typeof createDesktopEvidence>>>;
+  evidenceFor(conversationId: string): Promise<Awaited<ReturnType<typeof createDesktopEvidence>>>;
   approvals: ReturnType<typeof createApprovalPresentationHost>;
   elicitation: ReturnType<typeof createElicitationPresenter>;
   archiveBlocked(conversationId: string): boolean;
@@ -71,13 +59,9 @@ export function createDesktopSnapshot(options: {
       knowledgeGrants,
     } = await options.runtime();
     const project = options.project();
-    const conversation = project.conversations.find(
-      (entry) => entry.id === project.selectedId,
-    );
+    const conversation = project.conversations.find((entry) => entry.id === project.selectedId);
     const state = options.live.get(project.selectedId);
-    const controller = conversation
-      ? controllers.get(conversation.workbenchId)
-      : undefined;
+    const controller = conversation ? controllers.get(conversation.workbenchId) : undefined;
     const original = controller ? await controller.snapshot() : unavailable;
     const operator = {
       ...original,
@@ -86,22 +70,18 @@ export function createDesktopSnapshot(options: {
         ...[...knowledgeToolIds].map((toolName) => ({
           toolName,
           allowed: conversation
-            ? (knowledgeGrants[conversation.workbenchId]?.includes(toolName) ??
-              false)
+            ? (knowledgeGrants[conversation.workbenchId]?.includes(toolName) ?? false)
             : false,
         })),
         ...[...packageToolIds].map((toolName) => ({
           toolName,
           allowed: conversation
-            ? (packageGrants[conversation.workbenchId]?.includes(toolName) ??
-              false)
+            ? (packageGrants[conversation.workbenchId]?.includes(toolName) ?? false)
             : false,
         })),
       ],
     };
-    const retained = conversation
-      ? await options.evidenceFor(conversation.id)
-      : undefined;
+    const retained = conversation ? await options.evidenceFor(conversation.id) : undefined;
     return DesktopSnapshotSchema.parse({
       mediaPolicy: options.mediaPolicy.snapshot(),
       toolLabels: [...packages.toolPresentation]
@@ -112,24 +92,18 @@ export function createDesktopSnapshot(options: {
           origin: tool.origin,
         })),
       workspace:
-        project.projects.find((entry) => entry.id === project.selectedProjectId)
-          ?.name ?? "Choose a project",
+        project.projects.find((entry) => entry.id === project.selectedProjectId)?.name ??
+        "Choose a project",
       projects: await Promise.all(
-        project.projects.map(
-          async ({ device: _device, inode: _inode, ...entry }) => ({
-            ...entry,
-            available: await options
-              .verifyProject({ ...entry, device: _device, inode: _inode })
-              .then(
-                () => true,
-                () => false,
-              ),
-          }),
-        ),
+        project.projects.map(async ({ device: _device, inode: _inode, ...entry }) => ({
+          ...entry,
+          available: await options.verifyProject({ ...entry, device: _device, inode: _inode }).then(
+            () => true,
+            () => false,
+          ),
+        })),
       ),
-      ...(project.selectedProjectId
-        ? { selectedProjectId: project.selectedProjectId }
-        : {}),
+      ...(project.selectedProjectId ? { selectedProjectId: project.selectedProjectId } : {}),
       conversations: project.conversations,
       workbenches: registry.workbenches,
       views: registry.views,
@@ -137,16 +111,12 @@ export function createDesktopSnapshot(options: {
       signals: state?.signals ?? [],
       modes: [...(state?.session.modes ?? [])],
       goal: {
-        supported: state
-          ? !!state.session.goals
-          : conversation?.provider === "codex",
+        supported: state ? !!state.session.goals : conversation?.provider === "codex",
         ...(state?.goal !== undefined ? { snapshot: state.goal } : {}),
         ...(state?.goalError ? { error: state.goalError } : {}),
       },
       delegation: {
-        supported: Boolean(
-          state?.session.delegations && !state.delegationError,
-        ),
+        supported: Boolean(state?.session.delegations && !state.delegationError),
         children: [...(state?.delegations?.values() ?? [])],
         ...(state?.delegationError ? { error: state.delegationError } : {}),
       },
@@ -169,9 +139,7 @@ export function createDesktopSnapshot(options: {
           : result),
       })),
       pendingTools: retained?.pending() ?? [],
-      elicitations: conversation
-        ? options.elicitation.pending(conversation.id)
-        : [],
+      elicitations: conversation ? options.elicitation.pending(conversation.id) : [],
       operator,
       ...(state?.active ? { activeOperation: state.active } : {}),
       archiveBlockedConversationIds: project.conversations

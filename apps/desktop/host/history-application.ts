@@ -39,14 +39,11 @@ export function createHistoryApplication(options: {
   observeCache(hit: boolean, entries?: number): void;
 }) {
   const hasConversation = (conversationId: string) =>
-    options
-      .project()
-      .conversations.some((conversation) => conversation.id === conversationId);
+    options.project().conversations.some((conversation) => conversation.id === conversationId);
 
   return {
     async historyPage(conversationId: string, raw: HistoryPageOptions = {}) {
-      if (!hasConversation(conversationId))
-        throw Error("Conversation unavailable");
+      if (!hasConversation(conversationId)) throw Error("Conversation unavailable");
       const pageOptions = HistoryPageOptionsSchema.parse(raw);
       await options.recoverResources(conversationId);
       let page = await options.history.page(conversationId, pageOptions);
@@ -59,11 +56,7 @@ export function createHistoryApplication(options: {
         const session = options.live.get(conversationId)?.session;
         if (session?.history) {
           cacheHit = false;
-          await options.synchronizeHistory(
-            conversationId,
-            session.history,
-            "older",
-          );
+          await options.synchronizeHistory(conversationId, session.history, "older");
           page = await options.history.page(conversationId, pageOptions);
         }
       }
@@ -82,12 +75,8 @@ export function createHistoryApplication(options: {
           ? { ...page, status: { ...page.status, sync: "syncing" as const } }
           : page;
     },
-    async historyChanges(
-      conversationId: string,
-      raw: HistoryChangeOptions = {},
-    ) {
-      if (!hasConversation(conversationId))
-        throw Error("Conversation unavailable");
+    async historyChanges(conversationId: string, raw: HistoryChangeOptions = {}) {
+      if (!hasConversation(conversationId)) throw Error("Conversation unavailable");
       const changes = await options.history.changes(
         conversationId,
         HistoryChangeOptionsSchema.parse(raw),
@@ -110,12 +99,8 @@ export function createHistoryApplication(options: {
           : changes;
     },
     async historyAround(conversationId: string, raw: HistoryAroundOptions) {
-      if (!hasConversation(conversationId))
-        throw Error("Conversation unavailable");
-      return options.history.around(
-        conversationId,
-        HistoryAroundOptionsSchema.parse(raw),
-      );
+      if (!hasConversation(conversationId)) throw Error("Conversation unavailable");
+      return options.history.around(conversationId, HistoryAroundOptionsSchema.parse(raw));
     },
     async searchConversations(raw: unknown) {
       const input = conversationSearchSchema.parse(raw);
@@ -130,9 +115,7 @@ export function createHistoryApplication(options: {
         historyCursor: string | undefined;
       if (input.cursor)
         try {
-          const parsed = JSON.parse(
-            Buffer.from(input.cursor, "base64url").toString("utf8"),
-          ) as {
+          const parsed = JSON.parse(Buffer.from(input.cursor, "base64url").toString("utf8")) as {
             scope: string;
             titleOffset: number;
             historyCursor?: string;
@@ -155,32 +138,23 @@ export function createHistoryApplication(options: {
         (conversation) =>
           (!input.projectId || conversation.projectId === input.projectId) &&
           (input.archived === "all" ||
-            (conversation.archived === true) ===
-              (input.archived === "archived")),
+            (conversation.archived === true) === (input.archived === "archived")),
       );
       const titleMatches = eligible
         .filter((conversation) =>
-          conversation.title
-            .toLocaleLowerCase()
-            .includes(input.query.toLocaleLowerCase()),
+          conversation.title.toLocaleLowerCase().includes(input.query.toLocaleLowerCase()),
         )
         .sort(
-          (left, right) =>
-            left.title.localeCompare(right.title) ||
-            left.id.localeCompare(right.id),
+          (left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
         );
-      const eligibleById = new Map(
-        eligible.map((conversation) => [conversation.id, conversation]),
-      );
+      const eligibleById = new Map(eligible.map((conversation) => [conversation.id, conversation]));
       const metadata = (conversationId: string) => {
         const conversation = eligibleById.get(conversationId)!;
         return {
           conversationId: conversation.id,
           title: conversation.title,
           projectId: conversation.projectId,
-          projectName: project.projects.find(
-            (entry) => entry.id === conversation.projectId,
-          )?.name,
+          projectName: project.projects.find((entry) => entry.id === conversation.projectId)?.name,
           workbenchId: conversation.workbenchId,
           provider: conversation.provider,
           archived: conversation.archived === true,
@@ -219,9 +193,7 @@ export function createHistoryApplication(options: {
       const hasMore =
         titleOffset < titleMatches.length ||
         messageHasMore ||
-        (!searchedMessages &&
-          items.length === input.limit &&
-          titleOffset === titleMatches.length);
+        (!searchedMessages && items.length === input.limit && titleOffset === titleMatches.length);
       return {
         items,
         ...(hasMore
