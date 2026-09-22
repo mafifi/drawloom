@@ -471,9 +471,13 @@ export async function createDesktopApplication(
         ),
     ]);
   }
-  function runtimeForConversation(id: string) {
+  function requireConversation(id: string) {
     const conversation = project.conversations.find((c) => c.id === id);
     if (!conversation) throw Error("Conversation unavailable");
+    return conversation;
+  }
+  function runtimeForConversation(id: string) {
+    const conversation = requireConversation(id);
     return runtimeFor(project.projects.find((p) => p.id === conversation.projectId));
   }
   async function requireProject(id: string) {
@@ -791,8 +795,7 @@ export async function createDesktopApplication(
   async function connect(conversationId: string): Promise<Live> {
     const binding = await requireProject(conversationId);
     const state = await live.connect(conversationId, async (own) => {
-      const conversation = project.conversations.find((c) => c.id === conversationId);
-      if (!conversation) throw Error("Conversation unavailable");
+      const conversation = requireConversation(conversationId);
       const runtime = await runtimeForConversation(conversationId);
       const { registry, controllers, packageToolIds, knowledgeToolIds, grants, text } = runtime;
       void lifecycle
@@ -1247,8 +1250,7 @@ export async function createDesktopApplication(
   ): Promise<DesktopCatalogue> {
     const { packages, registry, packageToolIds, knowledgeToolIds, mcpApps } =
       await runtimeForConversation(conversationId);
-    const conversation = project.conversations.find((c) => c.id === conversationId);
-    if (!conversation) throw Error("Conversation unavailable");
+    const conversation = requireConversation(conversationId);
     const workbench = registry.workbenches.find((w) => w.id === conversation.workbenchId)!;
     const entries: DesktopCatalogue["entries"] = registry.plugins.map((p) => ({
       id: `drawloom:plugin:${p.id}`,
@@ -1727,8 +1729,7 @@ export async function createDesktopApplication(
         throw error;
       }
     } else if (command.kind === "rename_conversation") {
-      const conversation = project.conversations.find((c) => c.id === command.conversationId);
-      if (!conversation) throw Error("Conversation unavailable");
+      const conversation = requireConversation(command.conversationId);
       const previous = {
         title: conversation.title,
         manualTitle: conversation.manualTitle,
@@ -1747,8 +1748,7 @@ export async function createDesktopApplication(
         throw error;
       }
     } else if (command.kind === "set_conversation_pinned") {
-      const conversation = project.conversations.find((c) => c.id === command.conversationId);
-      if (!conversation) throw Error("Conversation unavailable");
+      const conversation = requireConversation(command.conversationId);
       const previous = {
         pinned: conversation.pinned,
         metadataRevision: project.metadataRevision,
@@ -1763,8 +1763,7 @@ export async function createDesktopApplication(
         throw error;
       }
     } else if (command.kind === "archive_conversation") {
-      const conversation = project.conversations.find((c) => c.id === command.conversationId);
-      if (!conversation) throw Error("Conversation unavailable");
+      const conversation = requireConversation(command.conversationId);
       if (archiveBlocked(conversation.id))
         throw Error("Conversation cannot be archived while work or approval is active");
       const previous = {
@@ -1787,8 +1786,7 @@ export async function createDesktopApplication(
         throw error;
       }
     } else if (command.kind === "restore_conversation") {
-      const conversation = project.conversations.find((c) => c.id === command.conversationId);
-      if (!conversation) throw Error("Conversation unavailable");
+      const conversation = requireConversation(command.conversationId);
       const previous = {
         archived: conversation.archived,
         metadataRevision: project.metadataRevision,
