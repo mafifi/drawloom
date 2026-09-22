@@ -21,7 +21,9 @@ export type DiscoveryInventoryActions = Readonly<{
   authenticateIntegration(id: string): Promise<void>;
 }>;
 
-export function discoveryInventoryPresentation(vm: DesktopViewModel): DiscoveryInventoryPresentation {
+export function discoveryInventoryPresentation(
+  vm: DesktopViewModel,
+): DiscoveryInventoryPresentation {
   return {
     catalogue: vm.catalogue,
     cataloguePending: vm.cataloguePending,

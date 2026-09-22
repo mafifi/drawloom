@@ -133,7 +133,9 @@ test("primary destinations are main-content views while artifact details remain 
   const page = await source("../routes/+page.svelte");
   const details = await source("./DetailsPane.svelte");
 
-  expect(page).toContain("<PrimaryView presentation={primaryPresentation} actions={primaryActions}");
+  expect(page).toContain(
+    "<PrimaryView presentation={primaryPresentation} actions={primaryActions}",
+  );
   expect(page).toContain("vm.primaryView === 'conversation'");
   expect(page).toContain("class:workspace-pane-full={drawer || vm.detailsExpanded}");
   expect(page).toContain("bind:clientWidth={availableWidth}");

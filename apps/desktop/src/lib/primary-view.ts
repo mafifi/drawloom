@@ -48,7 +48,10 @@ export type PrimaryViewActions = Readonly<{
   chooseProjectDirectory(): Promise<string | undefined>;
   addProject(directory: string, name: string): Promise<boolean>;
   restoreConversation(id: string): Promise<boolean>;
-  setModel(conversationId: string, selection?: NonNullable<DesktopViewModel["conversation"]>["modelSelection"]): Promise<boolean>;
+  setModel(
+    conversationId: string,
+    selection?: NonNullable<DesktopViewModel["conversation"]>["modelSelection"],
+  ): Promise<boolean>;
   /**
    * Coerces a submitted form value to the workbench configuration field's
    * declared type before dispatching it. This used to happen inline in
@@ -87,7 +90,11 @@ export function primaryViewPresentation(vm: DesktopViewModel): PrimaryViewPresen
     operatorGrants: vm.state?.operator.grants ?? [],
     toolLabels: vm.state?.toolLabels ?? [],
     activeOperation: vm.state?.activeOperation,
-    browser: { snapshot: vm.browser.snapshot, pending: vm.browser.pendingKey, error: vm.browser.error },
+    browser: {
+      snapshot: vm.browser.snapshot,
+      pending: vm.browser.pendingKey,
+      error: vm.browser.error,
+    },
     discoveryInventory: discoveryInventoryPresentation(vm),
   };
 }
@@ -123,7 +130,8 @@ export function primaryViewActions(vm: DesktopViewModel): PrimaryViewActions {
       return vm.operator({ kind: "configure", key: field.key, value });
     },
     setToolGrant: (toolName, allowed) => vm.operator({ kind: "set_tool_grant", toolName, allowed }),
-    browserForget: (origin, permission) => vm.browser.command({ kind: "forget", origin, permission }),
+    browserForget: (origin, permission) =>
+      vm.browser.command({ kind: "forget", origin, permission }),
     discoveryInventory: discoveryInventoryActions(vm),
   };
 }
