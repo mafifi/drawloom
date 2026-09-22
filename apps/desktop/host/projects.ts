@@ -1,6 +1,6 @@
 import { realpath, stat } from "node:fs/promises";
 import { isAbsolute, parse } from "node:path";
-import { containsPath } from "./path-containment.ts";
+import { containsPath } from "./path-containment.js";
 export interface DirectoryBinding {
   directory: string;
   device: string;

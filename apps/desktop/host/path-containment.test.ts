@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { pathContainmentConformance } from "@drawloom/host/conformance";
-import { containsPath } from "./path-containment.ts";
+import { containsPath } from "./path-containment.js";
 
 test("the shared containment helper conforms to the contract's meaning", () => {
   expect(() => pathContainmentConformance(containsPath)).not.toThrow();

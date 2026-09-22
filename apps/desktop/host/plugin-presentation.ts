@@ -6,7 +6,7 @@ import { open, realpath, lstat } from "node:fs/promises";
 export type FileOpen = { open: typeof open };
 import { constants } from "node:fs";
 import { resolve, extname, join } from "node:path";
-import { containsPath } from "./path-containment.ts";
+import { containsPath } from "./path-containment.js";
 import { homedir } from "node:os";
 import { DiscoveryPresentationSchema, type DiscoveryPresentation } from "@drawloom/agent";
 import type { DrawloomPackageExtension } from "@drawloom/plugins";

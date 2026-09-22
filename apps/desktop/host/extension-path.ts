@@ -1,6 +1,6 @@
 import { lstat, realpath, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { containsPath } from "./path-containment.ts";
+import { containsPath } from "./path-containment.js";
 import { DRAWLOOM_EXTENSION } from "@drawloom/plugins";
 
 /** Rechecks physical extension namespace containment immediately before activation. */
