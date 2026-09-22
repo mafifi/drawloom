@@ -495,6 +495,9 @@ describe("views do not own service access or validation", () => {
       view(
         "import * as Agent from '@drawloom/agent';\nconst v = Agent.AgentModelSchema.safeParse({});",
       ),
+      view(
+        "import AgentModelSchema from './model-schema.js';\nconst v = AgentModelSchema.parse({});",
+      ),
     ])
       expect(kinds(source)).toContain("view-responsibility");
   });

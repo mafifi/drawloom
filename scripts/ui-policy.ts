@@ -276,8 +276,8 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
         schemaNamespaces.add(local);
       else if (
         typeof local === "string" &&
-        typeof imported === "string" &&
-        /Schema$/.test(imported)
+        ((typeof imported === "string" && /Schema$/.test(imported)) ||
+          (entry?.type === "ImportDefaultSpecifier" && /Schema$/.test(local)))
       )
         schemaNames.add(local);
     }
