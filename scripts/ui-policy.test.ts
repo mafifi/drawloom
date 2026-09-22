@@ -500,6 +500,14 @@ describe("views do not own service access or validation", () => {
     expect(kinds(source)).not.toContain("view-responsibility");
   });
 
+  test("concrete DesktopViewModel props are rejected without banning ordinary parsing", () => {
+    for (const declaration of [
+      "import type { DesktopViewModel } from './view-model.svelte.js'; let { vm }: { vm: DesktopViewModel } = $props();",
+      "import type { DesktopViewModel as VM } from './view-model.svelte.js'; let { model }: { model: VM } = $props();",
+    ]) expect(kinds(view(declaration))).toContain("view-responsibility");
+    expect(kinds(view("const a = JSON.parse('{}'); const b = parseInt('1', 10);"))).not.toContain("view-responsibility");
+  });
+
   test("a view model is not a view, and may do both", () => {
     const issues = checkUiSource(
       "apps/desktop/src/lib/example-view-model.svelte.ts",

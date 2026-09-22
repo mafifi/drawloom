@@ -16,6 +16,8 @@
   import { detailsPaneActions, detailsPanePresentation } from '$lib/details-pane.js';
   import { primaryViewActions, primaryViewPresentation } from '$lib/primary-view.js';
   import { sidebarActions, sidebarPresentation } from '$lib/sidebar.js';
+  import { conversationActions, conversationPresentation } from '$lib/conversation-view.js';
+  import { composerActions, composerPresentation } from '$lib/composer-view.js';
   import './app.css';
   const vm = createDesktopViewModel();
   const compactNavigation = new MediaQuery('(max-width: 1024px)');
@@ -29,6 +31,10 @@
   const primaryActions = primaryViewActions(vm);
   const sidebarViewPresentation = $derived(sidebarPresentation(vm));
   const sidebarViewActions = sidebarActions(vm);
+  const conversationViewPresentation = $derived(conversationPresentation(vm));
+  const conversationViewActions = conversationActions(vm);
+  const composerViewPresentation = $derived(composerPresentation(vm));
+  const composerViewActions = composerActions(vm);
   const browserTabs = $derived(vm.browser.snapshot.tabs.filter(tab=>tab.conversationId===vm.state?.selectedId));
   const browserTab = $derived(browserTabs.find(tab=>tab.id===vm.browser.selectedId));
   let documentVisible = $state(true);
@@ -84,7 +90,7 @@
     style:--workspace-width={vm.detailsWidth + 'px'}
   >
     <div class="workspace-conversation" class:workspace-conversation-hidden={vm.primaryView !== 'conversation' || vm.detailsOpen && (drawer || vm.detailsExpanded)}>
-      <Conversation {vm}/>
+      <Conversation presentation={conversationViewPresentation} actions={conversationViewActions} composerPresentation={composerViewPresentation} composerActions={composerViewActions}/>
     </div>
     <div class="workspace-pane" class:workspace-pane-hidden={vm.primaryView !== 'conversation' || !vm.detailsOpen} class:workspace-pane-full={drawer || vm.detailsExpanded}>
       <div class="flex h-full min-h-0 flex-col">

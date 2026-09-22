@@ -250,6 +250,10 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
     for (const specifier of Array.isArray(node.specifiers) ? node.specifiers : []) {
       const entry = record(specifier);
       const local = record(entry?.local)?.name;
+      if (record(entry?.imported)?.name === "DesktopViewModel" &&
+          typeof source === "string" && /view-model\.svelte\.(?:js|ts)$/.test(source))
+        report("view-responsibility", node.start,
+          "A View must receive narrow presentation and actions props instead of DesktopViewModel.");
       // A schema is recognised by the convention the repository already uses.
       if (typeof local === "string" && /Schema$/.test(local)) schemaNames.add(local);
     }
