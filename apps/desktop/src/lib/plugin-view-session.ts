@@ -51,6 +51,7 @@ export function createPluginViewSession(options: {
     ...target,
     action: "open",
   }).then((value) => OpenedSchema.parse(value));
+  let released = false;
 
   return {
     /** Resolves once the host has a mount for this view. */
@@ -62,6 +63,10 @@ export function createPluginViewSession(options: {
      * It is never given the abort signal — aborting is what triggers it.
      */
     release(): void {
+      // The frame's outro and onMount cleanup can both release the same mount.
+      // Only the first path may dispatch a close, even if opening resolves late.
+      if (released) return;
+      released = true;
       void opened
         .then(({ mountId }) =>
           post("/api/view-session", { ...target, mountId, action: "close" }, { keepalive: true }),

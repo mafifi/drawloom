@@ -46,31 +46,28 @@ test("a slow response cannot overwrite the result of a newer request", async () 
   const view = createCodexModelViewModel({ load: async () => responses[call++]! });
 
   const slow = view.refresh();
-  // `refresh` ignores a second call while one is in flight, so settle the first
-  // and start the next; the point is that the FIRST response lands last.
+  await view.refresh();
+  expect(view.models.map((m) => m.id)).toEqual(["new"]);
   release?.({ models: [model("stale")] });
   await slow;
-  expect(view.models.map((m) => m.id)).toEqual(["stale"]);
-
-  await view.refresh();
   expect(view.models.map((m) => m.id)).toEqual(["new"]);
 });
 
-test("a second refresh while one is in flight does not start a duplicate request", async () => {
+test("a second refresh supersedes an in-flight request", async () => {
   let calls = 0;
-  let release: ((value: unknown) => void) | undefined;
+  const releases: Array<(value: unknown) => void> = [];
   const view = createCodexModelViewModel({
     load: async () => {
       calls++;
       return new Promise((resolve) => {
-        release = resolve;
+        releases.push(resolve);
       });
     },
   });
   const first = view.refresh();
   const second = view.refresh();
   expect(view.loading).toBe(true);
-  release?.({ models: [model("a")] });
+  for (const release of releases) release({ models: [model("a")] });
   await Promise.all([first, second]);
-  expect(calls, "the in-flight request is reused rather than duplicated").toBe(1);
+  expect(calls).toBe(2);
 });

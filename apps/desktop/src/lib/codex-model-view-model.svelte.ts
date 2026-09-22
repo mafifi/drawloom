@@ -42,7 +42,6 @@ export function createCodexModelViewModel(options: { load?: () => Promise<unknow
       return error;
     },
     async refresh(): Promise<void> {
-      if (loading) return;
       const life = ++epoch;
       loading = true;
       error = "";

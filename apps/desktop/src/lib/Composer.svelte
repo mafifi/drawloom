@@ -194,7 +194,7 @@
           </DropdownMenu.Content>
         </DropdownMenu.Root>
         {#if p.conversation?.provider==='codex'}
-          <CodexModelSelector selection={p.conversation.modelSelection} disabled={p.busy||Boolean(p.state?.activeOperation)} onSelect={selection=>{if(p.conversation)void actions.setModel(selection);}} />
+          {#key p.conversation.id}<CodexModelSelector selection={p.conversation.modelSelection} disabled={p.busy||Boolean(p.state?.activeOperation)} onSelect={selection=>{if(p.conversation)void actions.setModel(selection);}} />{/key}
         {/if}
         {#if p.state?.activeOperation}<StatefulButton
             variant="ghost"

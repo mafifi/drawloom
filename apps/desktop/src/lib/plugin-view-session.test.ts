@@ -116,12 +116,10 @@ test("release still closes a mount that resolved after teardown began", async ()
     fetch,
   });
   session.release();
+  session.release();
   release?.({ mountId, mediaRevision: "r1" });
   await new Promise((resolve) => setTimeout(resolve, 0));
-  expect(
-    calls.some((call) => (call.body as { action?: string })?.action === "close"),
-    "a mount that opens during teardown is still released",
-  ).toBe(true);
+  expect(calls.filter((call) => (call.body as { action?: string })?.action === "close")).toHaveLength(1);
 });
 
 test("interaction and tool calls carry the abort signal, close does not", async () => {

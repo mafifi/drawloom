@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { chromium } from "playwright";
@@ -9,6 +9,10 @@ import { serveDesktop } from "../apps/desktop/host/server.ts";
 import { createSqliteConversationHistory } from "@drawloom/sqlite-conversation-history";
 import type { HistoryEntry } from "@drawloom/conversation-history";
 import { verifyBrowserPanel } from "./browser-panel-ui.fixture.ts";
+import { build as esbuild } from 'esbuild';
+import { createNodeJsonStore } from '@drawloom/node-host';
+import { createInstallationStore } from '../apps/desktop/host/plugin-installations.ts';
+import { createTestDesktopApplication } from '../apps/desktop/host/test-project.fixture.ts';
 
 // Public synthetic acceptance, isolated from user installations and model providers.
 // Runs under a dedicated Vitest project (see vitest.config.ui.ts) so it never
@@ -503,6 +507,163 @@ test("desktop UI acceptance: themes, narrow layouts, scrolling, zoom, native-tas
     await browser?.close();
     if (server) await server.close();
     else await app?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+// A real installed public package supplies the rendered iframe. Browser routes
+// only hold/reorder the host responses; they do not create a fake production API.
+test('installed plugin view mounts, loads once, and closes its exact mount on conversation switch', { timeout: 120_000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-ui-view-'));
+  let app: Awaited<ReturnType<typeof createTestDesktopApplication>> | undefined;
+  let server: Awaited<ReturnType<typeof serveDesktop>> | undefined;
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+  try {
+    const installations = await createInstallationStore(createNodeJsonStore(join(root, 'state')));
+    const pkg = join(root, 'example');
+    await mkdir(join(pkg, 'org.drawloom'), { recursive: true });
+    await esbuild({ entryPoints: [resolve(import.meta.dirname, '../apps/desktop/host/example-backend.fixture.ts')], outfile: join(pkg, 'org.drawloom', 'backend.mjs'), bundle: true, platform: 'node', format: 'esm' });
+    await writeFile(join(pkg, 'plugin.json'), JSON.stringify({
+      $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json', name: 'example',
+      extensions: { 'org.drawloom': { version: 1, backend: { entrypoint: './org.drawloom/backend.mjs' },
+        requires: [{ kind: 'capability', id: 'host' }], workbenches: [{ id: 'example', title: 'Example', openingTool: { server: 'editor', tool: 'example.open' } }] } },
+    }));
+    const installationId = await installations.add(pkg);
+    await installations.configure(installationId, { enabled: true, trustedBackend: true, servers: [], configuration: {} });
+    app = await createTestDesktopApplication(root);
+    await app.command({ kind: 'create_conversation', workbenchId: 'example', provider: 'synthetic' });
+    const firstId = (await app.snapshot()).selectedId;
+    await app.command({ kind: 'rename_conversation', conversationId: firstId, title: 'First view conversation' });
+    await app.command({ kind: 'create_conversation', workbenchId: 'example', provider: 'synthetic' });
+    const secondId = (await app.snapshot()).selectedId;
+    await app.command({ kind: 'rename_conversation', conversationId: secondId, title: 'Second view conversation' });
+    await app.command({ kind: 'select_conversation', conversationId: firstId });
+    server = await serveDesktop(app, resolve(process.env.DRAWLOOM_WEB_BUILD_DIR ?? 'apps/desktop/build'));
+    browser = await chromium.launch({ headless: true, ...(process.env.DRAWLOOM_BROWSER_EXECUTABLE ? { executablePath: process.env.DRAWLOOM_BROWSER_EXECUTABLE } : {}) });
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    const sessionCalls: Array<{ action: string; conversationId: string; mountId?: string }> = [];
+    const viewRequests: string[] = [];
+    page.on('request', request => { if (/\/api\/(?:views\/|view-interaction|view-request)/.test(request.url())) viewRequests.push(request.url()); });
+    let holdNextOpen = false;
+    let releaseHeld: (() => void) | undefined;
+    let heldStartedResolve: (() => void) | undefined;
+    await page.route('**/api/view-session', async route => {
+      const body = route.request().postDataJSON() as { action: string; conversationId: string; mountId?: string };
+      sessionCalls.push(body);
+      if (body.action === 'open' && holdNextOpen) {
+        holdNextOpen = false;
+        const response = await route.fetch();
+        await new Promise<void>(resolve => { releaseHeld = resolve; heldStartedResolve?.(); });
+        await route.fulfill({ response });
+      } else await route.continue();
+    });
+    await page.goto(server.url);
+    await page.getByRole('button', { name: 'Toggle artifact pane' }).click();
+    const frame = page.locator('iframe[title="Example view"]');
+    await frame.waitFor();
+    await page.frameLocator('iframe[title="Example view"]').getByText('Public fixture').waitFor();
+    assert.equal(await page.getByText('The view navigated away and was disconnected.').count(), 0, 'initial iframe load must not disconnect');
+    assert.equal(sessionCalls.filter(call => call.action === 'open' && call.conversationId === firstId).length, 1);
+    const oldFrame = await frame.elementHandle();
+    await page.getByRole('button', { name: 'Second view conversation', exact: true }).click();
+    await page.waitForTimeout(650);
+    assert.equal(await oldFrame?.evaluate(el => el.isConnected), false, 'conversation switch removes old frame');
+    assert.equal(sessionCalls.filter(call => call.action === 'close' && call.conversationId === firstId).length, 1, 'one close for first mount');
+    if (await frame.count() === 0) await page.getByRole('button', { name: 'Toggle artifact pane' }).click();
+    await page.frameLocator('iframe[title="Example view"]').getByText('Public fixture').waitFor();
+    assert.equal(sessionCalls.filter(call => call.action === 'open' && call.conversationId === secondId).length, 1, 'new conversation has one mount');
+    assert.equal(viewRequests.filter(url => url.includes('/api/views/')).length, 2, 'each mounted frame navigates exactly once');
+    assert.equal(await page.getByText('The view navigated away and was disconnected.').count(), 0, 'one real navigation is still safe');
+    await frame.evaluate(el => { (el as HTMLIFrameElement).src = 'about:blank#second-load'; });
+    await page.getByText('The view navigated away and was disconnected.', { exact: false }).waitFor();
+    assert.equal(await frame.isHidden(), true, 'second iframe load is disconnected and hidden');
+
+    // A later mount response must not navigate a frame that was destroyed by
+    // another conversation selection. The close belongs to that exact mount.
+    holdNextOpen = true;
+    const heldStarted = new Promise<void>(resolve => { heldStartedResolve = resolve; });
+    await page.getByRole('button', { name: 'First view conversation', exact: true }).click();
+    await heldStarted;
+    const navigationCount = viewRequests.filter(url => url.includes('/api/views/')).length;
+    await page.getByRole('button', { name: 'Second view conversation', exact: true }).click();
+    releaseHeld?.();
+    await page.waitForTimeout(700);
+    assert.equal(viewRequests.filter(url => url.includes('/api/views/')).length, navigationCount + 1, 'only the current conversation navigates after a held open');
+    assert.equal(sessionCalls.filter(call => call.action === 'close' && call.conversationId === firstId).length, 2, 'each old mount closes exactly once');
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser?.close();
+    if (server) await server.close(); else await app?.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('rendered Codex model choices ignore an older response after conversation switch', { timeout: 120_000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'drawloom-ui-models-'));
+  let app: Awaited<ReturnType<typeof createDesktopApplication>> | undefined;
+  let server: Awaited<ReturnType<typeof serveDesktop>> | undefined;
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+  try {
+    const working = join(root, 'working');
+    await mkdir(working);
+    app = await createDesktopApplication(join(root, 'data'));
+    await app.command({ kind: 'add_project', directory: working });
+    await app.command({ kind: 'create_conversation', workbenchId: 'text', provider: 'codex' });
+    const firstId = (await app.snapshot()).selectedId;
+    await app.command({ kind: 'rename_conversation', conversationId: firstId, title: 'First model conversation' });
+    await app.command({ kind: 'create_conversation', workbenchId: 'text', provider: 'codex' });
+    const secondId = (await app.snapshot()).selectedId;
+    await app.command({ kind: 'rename_conversation', conversationId: secondId, title: 'Second model conversation' });
+    await app.command({ kind: 'select_conversation', conversationId: firstId });
+    server = await serveDesktop(app, resolve(process.env.DRAWLOOM_WEB_BUILD_DIR ?? 'apps/desktop/build'));
+    browser = await chromium.launch({ headless: true, ...(process.env.DRAWLOOM_BROWSER_EXECUTABLE ? { executablePath: process.env.DRAWLOOM_BROWSER_EXECUTABLE } : {}) });
+    const page = await browser.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    let modelCalls = 0;
+    let releaseFirst: (() => void) | undefined;
+    let firstStartedResolve: (() => void) | undefined;
+    const firstStarted = new Promise<void>(resolve => { firstStartedResolve = resolve; });
+    let secondStartedResolve: (() => void) | undefined;
+    const secondStarted = new Promise<void>(resolve => { secondStartedResolve = resolve; });
+    await page.route('**/api/models', async route => {
+      modelCalls++;
+      if (modelCalls === 1) {
+        await new Promise<void>(resolve => { releaseFirst = resolve; firstStartedResolve?.(); });
+        await route.fulfill({ json: { models: [{ id: 'stale-model', title: 'Stale model', efforts: ['low'] }] } });
+      } else { secondStartedResolve?.(); await route.fulfill({ json: { models: [{ id: 'current-model', title: 'Current model', efforts: ['low'] }] } }); }
+    });
+    const commands: Array<{ kind: string; conversationId?: string }> = [];
+    await page.route('**/api/command', async route => {
+      commands.push(route.request().postDataJSON() as { kind: string; conversationId?: string });
+      await route.continue();
+    });
+    await page.goto(server.url);
+    await page.getByRole('button', { name: 'Model', exact: true }).click();
+    await firstStarted;
+    await page.getByRole('button', { name: 'Model', exact: true }).click();
+    await page.getByRole('button', { name: 'Model', exact: true }).click();
+    await secondStarted;
+    await page.locator('.viewport-menu').getByRole('button', { name: 'Codex default', exact: true }).click();
+    await page.getByText('Current model', { exact: true }).waitFor();
+    releaseFirst?.();
+    await page.waitForTimeout(100);
+    assert.equal(modelCalls, 2, 'a new selector starts a separate request for the new conversation');
+    assert.equal(await page.getByText('Stale model', { exact: true }).count(), 0, 'late old model is not visible');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Second model conversation', exact: true }).click();
+    await page.getByRole('heading', { name: 'Second model conversation', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Model', exact: true }).click();
+    await page.locator('.viewport-menu').getByRole('button', { name: 'Codex default', exact: true }).click();
+    await page.getByText('Current model', { exact: true }).waitFor();
+    await page.getByText('Current model', { exact: true }).click();
+    assert.ok(commands.some(command => command.kind === 'set_model' && command.conversationId === secondId), 'selection targets current conversation');
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser?.close();
+    if (server) await server.close(); else await app?.close();
     await rm(root, { recursive: true, force: true });
   }
 });
