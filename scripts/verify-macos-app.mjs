@@ -23,7 +23,7 @@
  *   node scripts/verify-macos-app.mjs <path to Drawloom.app>
  */
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { mkdtempSync } from "node:fs";
@@ -71,8 +71,12 @@ check("shipped Node runtime matches its manifest and ships its notice", () => {
   // Drawloom distributes this runtime, so its aggregate LICENSE is an obligation.
   // `bundle:host` used to copy the executable alone, leaving the notice behind.
   //
-  // The binary is compared by VERSION and ARCHITECTURE only: signing rewrites
-  // the Mach-O, so a signed bundle cannot match the upstream digest.
+  // The binary is compared by VERSION and ARCHITECTURE only. Signing rewrites
+  // the Mach-O, so a signed bundle matches neither the upstream digest NOR the
+  // upstream SIZE -- the signature is appended to the file. An earlier version
+  // of this check excluded the digest and kept the size, and failed here for
+  // exactly that reason. The notice is not signed, so its digest is stable and
+  // is still asserted.
   // `scripts/stage-node-runtime.ts` checks that digest before signing; the
   // signed artifact's own checksum belongs in the release record.
   const binary = join(resources, "host/host/node");
@@ -93,10 +97,6 @@ check("shipped Node runtime matches its manifest and ships its notice", () => {
   must(
     noticeDigest === KnownNodeRuntime.licenseSha256,
     "LICENSE.node does not match the digest recorded in the manifest",
-  );
-  must(
-    statSync(binary).size === KnownNodeRuntime.bytes,
-    "shipped node is not the size recorded in the manifest",
   );
   return `node v${KnownNodeRuntime.version} ${architecture} with its notice`;
 });
