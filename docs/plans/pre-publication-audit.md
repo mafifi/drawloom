@@ -3,9 +3,9 @@
 Audited at `4afd8fb`. Tracked through `48eceb3` and `16ad5e0`.
 
 Findings keep their original text. Each carries a status line naming the commit
-that closed it, or what remains. **Six of nine closed, one partly closed, one
-mostly closed, one open — the open finding needs a maintainer decision before
-release.**
+that closed it, or what remains. **Six of the original nine are closed, two are
+partly closed, and one is mostly closed. Later F9 remains open; F10 is closed
+for its rendered-test gap but retains the explicitly deferred View narrowing.**
 
 Verified by running the checks, not by reading the claims. At each closeout the
 commit, statuses and artifacts were checked in the committed tree rather than
@@ -21,7 +21,7 @@ boundary rules.
 | --- | --- | --- | --- |
 | F7 | LGPL components in the distributed host runtime | High | Closed at `6f76337` — migrated to Node ([ADR 0034](../adr/0034-node-toolchain.md)) |
 | F8 | Licence inventory cannot see compiled-in runtimes | Medium | Addressed at `fa2d157` — `KnownNodeRuntime`, the upstream runtime bytes and notice, and the staged bundle are verified during `bundle:host`; `check:licenses` remains dependency-graph-only |
-| F4 | Composition root resisted decomposition | Medium | **Open — worse: 2,481 → 2,818 lines** |
+| F4 | Composition root resisted decomposition | Medium | Partly closed at `951f10c` — four owned application slices were extracted; the remaining root is still large |
 | F1b | Domain vocabulary is not in the code | Medium | Partly closed |
 | F6 | Loose ends from the documentation rewrite | Low | Mostly closed — two items |
 | F1 | Half the memory-to-context chain was missing | High | Closed at `48eceb3` |
@@ -189,24 +189,32 @@ imported at all. It fires on real violations and stays silent on `JSON.parse`,
 `parseInt` and `Date.parse`, both directions tested. The violations cannot
 return unseen.
 
-**Open: nothing renders a component.** 0 of 39 `.svelte` files have a rendered
-test. A view-model test does not exercise mount order, teardown, or reactivity,
-and the cases that matter for the plugin frame are exactly those: mount and
-unmount, a response arriving after the component is gone, switching
-conversations while a request is in flight, and the frame's close sequence and
-`loads` counter.
+**Historical stop: nothing rendered a component.** At that point, 0 of 39
+`.svelte` files had a rendered test. A view-model test does not exercise mount
+order, teardown, or reactivity, and the cases that matter for the plugin frame
+are exactly those: mount and unmount, a response arriving after the component
+is gone, switching conversations while a request is in flight, and the frame's
+close sequence and `loads` counter.
 
-The session-level races are covered without a DOM — a mount that resolves
-during teardown is still released, and close carries `keepalive` but not the
-abort signal — but the DOM-bound half is not.
+At that stop, the session-level races were covered without a DOM — a mount that
+resolved during teardown was still released, and close carried `keepalive` but
+not the abort signal — but the DOM-bound half was not.
 
-This is not closed because the repository tests its UI in a real browser
-against the real host (`test:ui`, Playwright), and has no jsdom,
-happy-dom or testing-library. Adding a component-rendering stack would
-introduce a second testing paradigm and new dependencies immediately before a
-release. The right repair is to reach the plugin frame from the existing
-Playwright acceptance, which needs an installed package with a workbench view
-in the synthetic fixture.
+The repository tests its UI in a real browser against the real host (`test:ui`,
+Playwright), and has no jsdom, happy-dom or testing-library. Adding a second
+component-rendering stack was rejected immediately before release. The repair
+therefore had to reach the plugin frame from the existing Playwright acceptance
+with an installed public package and workbench view in the synthetic fixture.
+
+**Current status: the rendered-test gap is closed at `b9ae94d`, strengthened at
+`f7b675c`.** The enforced `test:ui` lane mounts the installed plugin view through
+the real host, verifies its first load and second-load disconnect, switches
+conversations with an open request held past actual iframe removal and outro
+cleanup, and asserts exact session close, no late navigation or interaction,
+and restoration of the pre-settlement message-listener count. A separate
+rendered test rejects an older model response after a conversation switch. This
+closes the stated DOM-lifecycle gap; it is not a claim that every View state is
+rendered or that the separately deferred View narrowing below is complete.
 
 **Closed: five of the seven views, the error/loading duplication, and the
 form coercion.** `ElicitationForm.svelte`, `DiscoveryInventory.svelte`,
@@ -351,7 +359,7 @@ application level; and launching the Tauri shell, which the check still never
 does. Until those exist, A4 is partially met and the acceptance record should
 not be read as establishing it.
 
-### F4 — The composition root resisted decomposition (Medium, open)
+### F4 — The composition root resisted decomposition (Medium, partly closed)
 
 `createDesktopApplication` in `apps/desktop/host/application.ts` was a single
 function of roughly 1,280 lines — 46 top-level bindings and 44 inner closures —
@@ -371,6 +379,14 @@ like-for-like comparison — `b517ddf` reformatted maintained source with Biome,
 expanding previously dense lines. The substantive position is unchanged:
 `createDesktopApplication` is still the only top-level function in the file.
 `21f43e2` did extract `evaluation-composition.ts`, so the direction is right.
+
+**Current status at `951f10c`: partly closed.** History, snapshot projection,
+discovery, and package administration now live in their existing-owner modules,
+with their handlers spread back into the same top-level application interface.
+The extraction kept raw closure calls and lazy initialization intact and reduced
+`application.ts` to 2,246 lines. The remaining root still owns deliberately
+deferred, higher-coupling paths, so this update records progress rather than
+claiming the composition root or the broader architecture is cleared.
 
 ### F1b — Domain vocabulary is not in the code (Medium, partly closed)
 
