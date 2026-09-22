@@ -3,10 +3,28 @@ import { open, realpath, lstat } from "node:fs/promises";
 /** File-open seam. Production always uses `node:fs/promises`. Tests substitute
  * `open` to replace the resolved path between resolution and open — precisely
  * the race the post-open inode comparison below exists to defeat. */
+/**
+ * Is `child` inside `parent`? Both must already be resolved.
+ *
+ * This duplicates `path-containment.ts` ON PURPOSE. `plugin-presentation.test.ts`
+ * loads this module in a bare `node --input-type=module -e` child to prove a FIFO
+ * cannot block an icon read, and that child has no bundler and no resolver help:
+ * a relative `./x.js` specifier will not resolve to an `x.ts` that exists only as
+ * source, and a `./x.ts` specifier fails `desktop:check`, which does not enable
+ * `allowImportingTsExtensions`. So this file must keep ZERO relative imports.
+ *
+ * The behaviour is shared instead of the code, exactly as it is for the
+ * providers: `plugin-presentation.test.ts` runs `pathContainmentConformance`
+ * against this function, so a divergence fails a test rather than going unseen.
+ */
+function containsPath(parent: string, child: string): boolean {
+  const delta = relative(parent, child);
+  return delta === "" || (!isAbsolute(delta) && delta !== ".." && !delta.startsWith(".." + sep));
+}
+
 export type FileOpen = { open: typeof open };
 import { constants } from "node:fs";
-import { resolve, extname, join } from "node:path";
-import { containsPath } from "./path-containment.js";
+import { resolve, relative, isAbsolute, sep, extname, join } from "node:path";
 import { homedir } from "node:os";
 import { DiscoveryPresentationSchema, type DiscoveryPresentation } from "@drawloom/agent";
 import type { DrawloomPackageExtension } from "@drawloom/plugins";

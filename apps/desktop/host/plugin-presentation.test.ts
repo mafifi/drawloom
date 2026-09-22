@@ -1,9 +1,10 @@
 import { expect, test } from "vitest";
 import { mkdtemp, mkdir, writeFile, symlink, rm, open } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, relative, sep } from "node:path";
 import { readPluginIcon, packagePresentation } from "./plugin-presentation.js";
 import type { FileOpen } from "./plugin-presentation.js";
+import { pathContainmentConformance } from "@drawloom/host/conformance";
 import { spawnSync } from "node:child_process";
 import { spawn } from "node:child_process";
 
@@ -103,4 +104,15 @@ test("host loads bounded package icons and rejects escapes, active content and n
     await rm(root, { recursive: true });
     await rm(outside, { recursive: true });
   }
+});
+
+test("the module's private containment copy means the same as the shared rule", () => {
+  // This module keeps its own copy because it must have zero relative imports:
+  // the FIFO test above loads it in a bare Node child. Conformance is what stops
+  // that copy drifting, so the copy is restated here and pinned.
+  const containsPath = (parent: string, child: string) => {
+    const delta = relative(parent, child);
+    return delta === "" || (!isAbsolute(delta) && delta !== ".." && !delta.startsWith(".." + sep));
+  };
+  expect(() => pathContainmentConformance(containsPath)).not.toThrow();
 });
