@@ -174,6 +174,49 @@ signing are not continuous. That makes the gap honest; it does not close it.
 an ad-hoc signing identity, which is enough to catch a broken closure, a missing
 notice or a stale runtime without holding release credentials in CI.
 
+### F10 — The view layer has no rendered tests (Medium, partly closed)
+
+`check:ui-policy` passed on 892 files while `PluginViewFrame.svelte` and
+`CodexModelSelector.svelte` each did their own `fetch` and schema parsing. The
+gate could not see either, because it never looked inside a `.svelte` file for
+service access or validation.
+
+**Closed for the rule itself.** Both are now view models with tests, and the
+gate is AST-based and targeted: network and service access by name, schema
+validation only where the receiver is an imported `*Schema` or `zod` is
+imported at all. It fires on real violations and stays silent on `JSON.parse`,
+`parseInt` and `Date.parse`, both directions tested. The violations cannot
+return unseen.
+
+**Open: nothing renders a component.** 0 of 39 `.svelte` files have a rendered
+test. A view-model test does not exercise mount order, teardown, or reactivity,
+and the cases that matter for the plugin frame are exactly those: mount and
+unmount, a response arriving after the component is gone, switching
+conversations while a request is in flight, and the frame's close sequence and
+`loads` counter.
+
+The session-level races are covered without a DOM — a mount that resolves
+during teardown is still released, and close carries `keepalive` but not the
+abort signal — but the DOM-bound half is not.
+
+This is not closed because the repository tests its UI in a real browser
+against the real host (`test:ui`, Playwright), and has no jsdom,
+happy-dom or testing-library. Adding a component-rendering stack would
+introduce a second testing paradigm and new dependencies immediately before a
+release. The right repair is to reach the plugin frame from the existing
+Playwright acceptance, which needs an installed package with a workbench view
+in the synthetic fixture.
+
+**Also open, and deliberately not attempted here:** seven views still take the
+concrete `DesktopViewModel` rather than a projected `{ presentation, actions }`
+as `DetailsPane.svelte` does; the inline-error paragraph is duplicated across
+eight components, one of which (`Sidebar.svelte`) is missing
+`text-destructive`, so the duplication is not even self-consistent; loading
+states have four different markups; and `PrimaryView.svelte` coerces form
+values in template markup. These are real, and none of them is a correctness
+risk — they are the kind of change that should follow a release rather than
+precede one.
+
 ### F4 — The composition root resisted decomposition (Medium, open)
 
 `createDesktopApplication` in `apps/desktop/host/application.ts` was a single
