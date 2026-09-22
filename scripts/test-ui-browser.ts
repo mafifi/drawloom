@@ -113,7 +113,42 @@ test("desktop UI acceptance: themes, narrow layouts, scrolling, zoom, native-tas
     const page = await browser.newPage();
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    await page.route("**/api/state*", (route) => route.abort("connectionfailed"));
     await page.goto(server.url);
+    const composer = page.locator("form.composer textarea");
+    const send = page.getByRole("button", { name: "Send message", exact: true });
+    assert.equal(
+      (await send.count()) === 0 || (await send.isDisabled()),
+      true,
+      "Send starts unavailable without host authority",
+    );
+    await page.unroute("**/api/state*");
+    await composer.waitFor();
+    await composer.fill("Keep this draft through host recovery.");
+    await send.waitFor({ state: "visible" });
+    await page.waitForFunction(
+      () =>
+        !(document.querySelector('button[aria-label="Send message"]') as HTMLButtonElement | null)
+          ?.disabled,
+    );
+    assert.equal(await composer.isEnabled(), true, "Validated state enables draft editing");
+    assert.equal(await send.isEnabled(), true, "Validated state enables live composer actions");
+    await page.route("**/api/state*", (route) => route.abort("connectionfailed"));
+    await page.waitForFunction(
+      () =>
+        (document.querySelector('button[aria-label="Send message"]') as HTMLButtonElement | null)
+          ?.disabled === true,
+    );
+    assert.equal(await composer.isEnabled(), true, "Cached conversation remains inspectable");
+    assert.equal(await composer.inputValue(), "Keep this draft through host recovery.");
+    await page.unroute("**/api/state*");
+    await page.waitForFunction(
+      () =>
+        !(document.querySelector('button[aria-label="Send message"]') as HTMLButtonElement | null)
+          ?.disabled,
+    );
+    assert.equal(await composer.inputValue(), "Keep this draft through host recovery.");
+    await composer.fill("");
     await page.locator('[data-history-id="tool-failed"]').waitFor();
     const scroll = page.locator(".conversation-scroll");
     await page.waitForFunction(() => {
@@ -406,7 +441,6 @@ test("desktop UI acceptance: themes, narrow layouts, scrolling, zoom, native-tas
     await page.reload();
     const task = page.locator('[data-history-id="native-child"]');
     await task.getByRole("button", { name: "Follow up", exact: true }).waitFor();
-    const composer = page.locator("form.composer textarea");
     for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme, reducedMotion: "reduce" });
       for (const width of [1280, 390]) {

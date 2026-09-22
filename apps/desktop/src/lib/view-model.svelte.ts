@@ -99,7 +99,7 @@ const DraftReferencesSchema = z.strictObject({
 });
 export function createDesktopViewModel() {
   let state = $state<DesktopSnapshot>();
-  let hostAvailable = false;
+  let hostAvailable = $state(false);
   let hostAvailabilityError = false;
   let history = $state<HistoryPresentation>({
     entries: [],
