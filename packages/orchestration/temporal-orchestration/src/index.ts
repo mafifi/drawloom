@@ -26,6 +26,7 @@ import { createReceiptDispatcher } from "./receipts.js";
 import { stepFailureCode } from "./failures.js";
 import { observe } from "./telemetry.js";
 import { LOCAL_TEMPORAL_NODE_VERSION } from "./runtime-version.js";
+import { insidePath } from "./containment.js";
 export { LOCAL_TEMPORAL_NODE_VERSION } from "./runtime-version.js";
 export { isLocalExecutionPaused } from "./signals.js";
 
@@ -299,8 +300,11 @@ export function createLocalTemporalManager(options: LocalTemporalOptions) {
     const packageDirectory = await realpath(input.packageDirectory);
     if (isAbsolute(input.entrypoint)) throw new Error("Workflow entrypoint containment failed");
     const entry = await realpath(resolve(packageDirectory, input.entrypoint));
-    const local = relative(packageDirectory, entry);
-    if (local.startsWith("..") || isAbsolute(local) || !/\.(?:c|m)?js$/.test(entry))
+    // Containment, plus this caller's rules: the entrypoint must be prebuilt
+    // JavaScript, and `isAbsolute(input.entrypoint)` above already refused an
+    // absolute request. `startsWith("..")` without a separator used to stand in
+    // for containment here, which refused a directory named `..draft`.
+    if (!insidePath(packageDirectory, entry) || !/\.(?:c|m)?js$/.test(entry))
       throw new Error("Workflow entrypoint containment failed");
     const ownerPath = join(ownerDirectory, `${owner}.json`);
     const old = await readJson(ownerPath);

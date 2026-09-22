@@ -17,6 +17,7 @@ import { ApplicationFailure } from "@temporalio/common";
 import { digest, workflowFingerprint } from "./storage.js";
 import { stopChild, isAlive } from "./processes.js";
 import type { ActivityRequest } from "./workflow.js";
+import { insidePath } from "./containment.js";
 
 const configuration = z
   .strictObject({
@@ -86,10 +87,7 @@ if (configuration.mode === "service") {
   );
   const packageRoot = await realpath(configuration.packageDirectory!);
   const runtimeRoot = await realpath(dirname(runtime));
-  const inside = (root: string, path: string) => {
-    const rel = relative(root, path);
-    return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
-  };
+  const inside = insidePath;
   const dependencies = new Map<string, string>();
   const bundle = await bundleWorkflowCode({
     workflowsPath: entry,
