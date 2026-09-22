@@ -217,6 +217,38 @@ values in template markup. These are real, and none of them is a correctness
 risk — they are the kind of change that should follow a release rather than
 precede one.
 
+### F11 — `test:ui` has been broken since the migration (High, open)
+
+`pnpm run test:ui` fails immediately:
+
+```
+ERR_MODULE_NOT_FOUND .../apps/desktop/host/cleanup.js
+```
+
+`scripts/test-ui-browser.ts` imports the desktop host's SOURCE, and those
+sources use `.js` specifiers that point at `.ts` files. Bun resolved that
+mapping automatically, so the lane worked before the migration. Plain Node does
+not, and `node scripts/test-ui-browser.ts` cannot load the host at all.
+
+It went unnoticed because `test:ui` is not part of `check:ci` — it is a separate
+command, and nothing in the migration ran it. Every other Node lane escapes the
+problem for a different reason: `test-packages-node.mjs` imports built `dist/`
+output, which has real `.js` files on disk.
+
+This is the whole point of naming the lane explicitly in a verification list. A
+green `check:ci` says nothing about it, and the migration's evidence never
+covered it.
+
+**Repair options, none yet chosen.** Run the file under Vitest, which already
+resolves `.js` to `.ts` and is the repository's test runner — its body is a
+490-line top-level script rather than declared tests, so this means wrapping it.
+Or register a `module.registerHooks` resolver, which is a standard Node 24 API
+but is infrastructure ADR 0034 would rather not add. Or build the host to `dist`
+so the specifiers resolve as the packages' do. The first keeps the toolchain
+uniform; the third is the most honest about why the others need help.
+
+Until it is fixed, the browser acceptance matrix is not running anywhere.
+
 ### F4 — The composition root resisted decomposition (Medium, open)
 
 `createDesktopApplication` in `apps/desktop/host/application.ts` was a single
