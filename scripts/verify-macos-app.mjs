@@ -23,7 +23,7 @@
  *   node scripts/verify-macos-app.mjs <path to Drawloom.app>
  */
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { mkdtempSync } from "node:fs";
@@ -203,6 +203,166 @@ await new Promise((done) => {
     );
   });
 });
+
+/**
+ * Lifecycle, against the SIGNED bundle and a disposable data directory.
+ *
+ * The check above starts the host, serves one page and quits gracefully. That
+ * is the easy half. The half that matters is a FORCED termination with work
+ * outstanding, because that is where a recovery path can quietly invent an
+ * answer: reporting a killed operation as completed or failed is worse than
+ * admitting it is unknown.
+ *
+ * The Tauri shell is deliberately not launched here -- it opens a window and
+ * needs a session a release check cannot assume. It spawns exactly this host
+ * from exactly this bundle, so the state and recovery behaviour is what is
+ * exercised; driving the GUI shell remains a separate, manual step.
+ */
+const lifecycle = async () => {
+  const data = mkdtempSync(join(tmpdir(), "drawloom-lifecycle-"));
+  // A project directory may not sit inside the installation data directory,
+  // and the host refuses either containing the other. Disposable, and named.
+  const working = mkdtempSync(join(tmpdir(), "drawloom-lifecycle-project-"));
+  const start = () => {
+    const child = spawn(
+      join(resources, "host/host/node"),
+      [join(resources, "host/host/main.mjs")],
+      {
+        cwd: "/",
+        env: {
+          PATH: process.env.PATH,
+          HOME: process.env.HOME,
+          DRAWLOOM_DATA_DIR: data,
+          DRAWLOOM_WEB_ROOT: join(resources, "web"),
+          DRAWLOOM_KNOWLEDGE_RUNTIME: join(resources, "knowledge"),
+          DRAWLOOM_ORCHESTRATION_RUNTIME: join(resources, "orchestration"),
+          DRAWLOOM_MANAGED: "1",
+        },
+      },
+    );
+    let out = "";
+    child.stdout.on("data", (d) => (out += d));
+    child.stderr.on("data", (d) => (out += d));
+    const ready = new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(Error(`did not start within 60s: ${out}`)), 60_000);
+      child.stdout.on("data", () => {
+        const match = out.match(/http:\/\/\S+bootstrap\S+/);
+        if (!match) return;
+        clearTimeout(timer);
+        resolve(match[0]);
+      });
+    });
+    return { child, ready, output: () => out };
+  };
+
+  /** One authenticated session against a running host. */
+  const session = async (bootstrap) => {
+    const port = new URL(bootstrap).port;
+    const boot = await fetch(bootstrap, { redirect: "manual" });
+    const cookie = (boot.headers.getSetCookie() ?? [])[0]?.split(";")[0] ?? "";
+    const origin = `http://127.0.0.1:${port}`;
+    const call = async (path, body) => {
+      // Non-GET requests must carry a matching Origin and a JSON content type;
+      // the host refuses anything else as an invalid command channel.
+      const response = await fetch(`${origin}${path}`, {
+        method: body === undefined ? "GET" : "POST",
+        headers: {
+          cookie,
+          ...(body === undefined ? {} : { origin, "Content-Type": "application/json" }),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+      return { status: response.status, value: await response.json().catch(() => undefined) };
+    };
+    return { call };
+  };
+
+  const stop = (child, signal) =>
+    new Promise((resolve) => {
+      child.once("exit", (code, received) => resolve({ code, received }));
+      child.kill(signal);
+    });
+
+  try {
+    // 1. Establish state a restart must preserve.
+    const first = start();
+    const one = await session(await first.ready);
+    const added = await one.call("/api/command", { kind: "add_project", directory: working });
+    must(added.status === 200, `could not add a project: ${added.status}`);
+    const created = await one.call("/api/command", {
+      kind: "create_conversation",
+      workbenchId: "text",
+      provider: "synthetic",
+    });
+    must(created.status === 200, `could not create a conversation: ${created.status}`);
+    const conversationId = created.value?.selectedId;
+    must(Boolean(conversationId), "no conversation was selected");
+
+    // 2. Graceful quit, then relaunch: the work must still be there.
+    const quit = await stop(first.child, "SIGINT");
+    must(quit.code === 0, `graceful quit exited ${quit.code}`);
+    const second = start();
+    const two = await session(await second.ready);
+    const restored = await two.call("/api/state");
+    must(restored.status === 200, `state unavailable after restart: ${restored.status}`);
+    const restoredState = JSON.stringify(restored.value);
+    must(
+      restoredState.includes(conversationId),
+      "a conversation did not survive a graceful restart",
+    );
+    must(restoredState.includes(working), "a project did not survive a graceful restart");
+
+    // 3. FORCED termination with work outstanding. SIGKILL cannot be trapped,
+    //    so nothing gets to tidy up on the way out.
+    void two.call("/api/command", {
+      kind: "send",
+      conversationId,
+      text: "work outstanding at the moment of the kill",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 750));
+    const killed = await stop(second.child, "SIGKILL");
+    must(killed.received === "SIGKILL", `expected SIGKILL, saw ${killed.received}`);
+
+    // 4. Recover. The bar is that it starts, keeps what it had, and does not
+    //    claim an outcome it cannot know.
+    const third = start();
+    const three = await session(await third.ready);
+    const after = await three.call("/api/state");
+    must(after.status === 200, `did not recover after a kill: ${after.status}`);
+    const recovered = JSON.stringify(after.value);
+    must(
+      recovered.includes(conversationId),
+      "the conversation did not survive a forced termination",
+    );
+    must(recovered.includes(working), "the project did not survive a forced termination");
+    // A killed operation must not come back claiming to be running. Recovery
+    // may report it as unknown or as ended; what it may not do is resume a
+    // liveness it cannot have.
+    must(
+      !/"status":"(?:running|active|streaming)"/.test(recovered),
+      "an operation killed mid-flight is reported as still running after recovery",
+    );
+    const settled = await stop(third.child, "SIGINT");
+    must(settled.code === 0, `post-recovery quit exited ${settled.code}`);
+    return "restart preserves state; a killed operation recovers without claiming completion";
+  } finally {
+    rmSync(data, { recursive: true, force: true });
+    rmSync(working, { recursive: true, force: true });
+  }
+};
+results.push(
+  await (async () => {
+    try {
+      return { name: "restart and forced termination", ok: true, detail: await lifecycle() };
+    } catch (error) {
+      return {
+        name: "restart and forced termination",
+        ok: false,
+        detail: error instanceof Error ? error.message : String(error),
+      };
+    }
+  })(),
+);
 
 for (const { name, ok, detail } of results)
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? ` — ${detail}` : ""}`);
