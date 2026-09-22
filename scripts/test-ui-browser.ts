@@ -630,6 +630,22 @@ test("installed plugin view mounts, loads once, and closes its exact mount on co
         : {}),
     });
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    await page.addInitScript(() => {
+      const messageListeners = new Set<EventListenerOrEventListenerObject>();
+      const addEventListener = window.addEventListener;
+      const removeEventListener = window.removeEventListener;
+      window.addEventListener = function (type, listener, options) {
+        if (type === "message") messageListeners.add(listener);
+        return addEventListener.call(this, type, listener, options);
+      };
+      window.removeEventListener = function (type, listener, options) {
+        if (type === "message") messageListeners.delete(listener);
+        return removeEventListener.call(this, type, listener, options);
+      };
+      Object.defineProperty(window, "__drawloomMessageListenerCount", {
+        get: () => messageListeners.size,
+      });
+    });
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     const sessionCalls: Array<{ action: string; conversationId: string; mountId?: string }> = [];
@@ -736,20 +752,49 @@ test("installed plugin view mounts, loads once, and closes its exact mount on co
     });
     await page.getByRole("button", { name: "First view conversation", exact: true }).click();
     await heldStarted;
+    const heldFrame = await frame.last().elementHandle();
     const navigationCount = viewRequests.filter((url) => url.includes("/api/views/")).length;
+    const oldInteractionCount = bridgeRequests.filter(
+      (request) => request.conversationId === firstId,
+    ).length;
     await page.getByRole("button", { name: "Second view conversation", exact: true }).click();
+    await page.waitForTimeout(700);
+    assert.equal(
+      await heldFrame?.evaluate((el) => el.isConnected),
+      false,
+      "held frame is gone and its outro cleanup completed before the response settles",
+    );
+    const listenerCountBeforeLateOpen = await page.evaluate(
+      () =>
+        (window as Window & { __drawloomMessageListenerCount?: number })
+          .__drawloomMessageListenerCount,
+    );
     releaseHeld?.();
     await page.waitForTimeout(700);
     assert.equal(
       viewRequests.filter((url) => url.includes("/api/views/")).length,
-      navigationCount + 1,
-      "only the current conversation navigates after a held open",
+      navigationCount,
+      "a held open cannot navigate after its frame has been destroyed",
     );
     assert.equal(
       sessionCalls.filter((call) => call.action === "close" && call.conversationId === firstId)
         .length,
       2,
       "each old mount closes exactly once",
+    );
+    assert.equal(
+      bridgeRequests.filter((request) => request.conversationId === firstId).length,
+      oldInteractionCount,
+      "late open cannot restore interaction for the destroyed frame",
+    );
+    assert.equal(
+      await page.evaluate(
+        () =>
+          (window as Window & { __drawloomMessageListenerCount?: number })
+            .__drawloomMessageListenerCount,
+      ),
+      listenerCountBeforeLateOpen,
+      "late open leaves the main-window message-listener count at its pre-settlement baseline",
     );
     assert.deepEqual(errors, []);
   } finally {

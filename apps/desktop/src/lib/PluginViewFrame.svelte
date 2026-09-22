@@ -61,9 +61,17 @@
     appearance.addEventListener('change', updateTheme);
     frame.addEventListener('load', loaded);
     // Install parent checks before navigation can execute the plugin's script.
-    void mount.then(() => bridge.connect(new PostMessageTransport(source, source))).then(() => {
-      if (!abort.signal.aborted) frame.src = '/api/views/' + encodeURIComponent(view.id) + '?conversationId=' + encodeURIComponent(conversationId);
-    }).catch(() => { failed = true; });
+    void mount.then(async () => {
+      if (abort.signal.aborted) return;
+      try {
+        await bridge.connect(new PostMessageTransport(source, source));
+        if (!abort.signal.aborted) frame.src = '/api/views/' + encodeURIComponent(view.id) + '?conversationId=' + encodeURIComponent(conversationId);
+      } finally {
+        // Teardown can win while connection establishment is pending. Cleanup
+        // already closed the old bridge once, so close the late connection too.
+        if (abort.signal.aborted) await bridge.close();
+      }
+    }).catch(() => { if (!abort.signal.aborted) failed = true; });
     return () => { void bridge.close(); abort.abort(); release(); appearance.removeEventListener('change', updateTheme); frame.removeEventListener('load', loaded); };
   });
 </script>
