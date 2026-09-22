@@ -214,3 +214,68 @@ export async function hostConformance(
     await fixture.close();
   }
 }
+
+/**
+ * Shared meaning for lexical path containment: is `child` inside `parent`?
+ *
+ * ADR 0004's idiom, applied to a rule rather than a store. The rule was
+ * reimplemented nine times across four packages and three of those copies
+ * disagreed, so the behaviour is shared here even though the implementation
+ * cannot be: `.dependency-cruiser.mjs` forbids provider-to-provider imports, and
+ * every contract is `runtime: portable`, so a `node:path` helper has no legal
+ * home. Each caller keeps its own implementation and proves it means the same
+ * thing by running this.
+ *
+ * SCOPE. This is a lexical predicate over already-resolved strings, and the
+ * expected answers here are fixed — a caller does not get to disagree.
+ * Deliberately NOT covered, because they are not containment:
+ *
+ *   - Symlink resolution. Whether a caller calls `realpath` first, or refuses
+ *     links outright, is its own decision; it belongs in that caller's tests.
+ *   - Excluding the root itself. Containment answers `true` for the root,
+ *     always. A caller that must reject the root layers that on top.
+ *   - Whether the path exists, or is a regular file.
+ *
+ * Inputs are POSIX-form absolute paths. Every consumer today is
+ * `runtime: node`, and a caller must use its platform separator rather than a
+ * hardcoded "/" — that was one of the observed divergences.
+ */
+export function pathContainmentConformance(
+  contains: (parent: string, child: string) => boolean,
+): void {
+  /**
+   * Reject ESCAPE, not traversal. A `..` segment that stays inside the parent is
+   * legitimate: `/a/sub/../file` resolves to `/a/file`. A suite demanding "no
+   * `..` anywhere" would mandate breaking valid paths.
+   */
+  const inside: readonly (readonly [string, string, string])[] = [
+    ["/a", "/a", "the root is inside itself; excluding it is a caller's policy"],
+    ["/a", "/a/b", "a nested child"],
+    ["/a", "/a/b/c/d", "a deeply nested child"],
+    ["/a", "/a/sub/../file", "traversal that stays inside"],
+    ["/a", "/a/./b", "a redundant current-directory segment"],
+    // The cases that catch `startsWith("..")` without a separator, and
+    // `.includes("../")`. These are all valid directory names.
+    ["/a", "/a/..draft/file", "a name beginning with two dots"],
+    ["/a", "/a/...", "a name of three dots"],
+    ["/a", "/a/..b/c", "a two-dot-prefixed directory"],
+    ["/a", "/a/b../c", "a directory ending in two dots"],
+  ];
+  const outside: readonly (readonly [string, string, string])[] = [
+    ["/a", "/a/../b", "traversal that escapes to a sibling"],
+    ["/a", "/a/sub/../../b", "traversal that escapes through a child"],
+    ["/a", "/b", "an unrelated absolute path"],
+    ["/a", "/", "the parent of the root"],
+    // `/a/bc` shares a textual prefix with `/a/b` but is not inside it. This is
+    // what a naive `startsWith(parent)` gets wrong.
+    ["/a/b", "/a/bc", "a sibling sharing a textual prefix"],
+    ["/a/b", "/a/b-other", "a sibling sharing a prefix with a separator-like suffix"],
+  ];
+
+  for (const [parent, child, why] of inside)
+    if (!contains(parent, child))
+      throw Error(`Containment rejected a path that is inside: ${child} in ${parent} (${why})`);
+  for (const [parent, child, why] of outside)
+    if (contains(parent, child))
+      throw Error(`Containment accepted a path that is outside: ${child} in ${parent} (${why})`);
+}
