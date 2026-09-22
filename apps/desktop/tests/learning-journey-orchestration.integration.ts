@@ -120,7 +120,7 @@ async function connect(cwd: string): Promise<RpcTransport> {
         return {
           thread: {
             id: requestedThreadId,
-            cwd,
+            cwd: state.cwd,
             ...(p.includeTurns
               ? { turns: state.turns.map(({ id, status }) => ({ id, status })) }
               : {}),
@@ -637,6 +637,11 @@ try {
   const other = join(root, "other-project");
   await mkdir(other);
   await app!.command({ kind: "add_project", directory: other });
+  const foreignConnector = await connect(other);
+  const foreignRead = (await foreignConnector.request("thread/read", {
+    threadId: deliveries.at(-1)!.threadId,
+  })) as { thread: { cwd: string } };
+  assert.equal(foreignRead.thread.cwd, await realpath(repository));
   assert.equal((await app!.snapshot()).activeOperation, undefined);
   await send(sourceRecall, "earlier inspection counted");
   assert.equal(deliveries.at(-1)!.cwd, await realpath(repository));
