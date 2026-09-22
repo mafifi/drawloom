@@ -173,3 +173,9 @@ and the final `bundle:host` step checks the staged artifact. The dependency-grap
 gate, `check:licenses`, remains necessary but does not by itself inventory the
 bytes that survive packaging. See the [F8 closeout in the pre-publication
 audit](../plans/pre-publication-audit.md#f8-the-licence-inventory-cannot-see-compiled-in-runtimes-medium-addressed).
+
+The [final native acceptance record](../../knowledge/evidence/adr-0034-final-native-acceptance.md)
+identifies the later Developer ID-signed artifact, exact checksums, canonical and
+clean-clone gates, and native pending-work recovery results. It preserves the
+earlier artifact's history and distinguishes executed acceptance from the still
+outstanding notarisation and clean-machine installation gates.

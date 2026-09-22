@@ -16,10 +16,10 @@ inventory blind spot describe that recorded run, not current guidance. The
 and [current F11 closeout](../../docs/plans/pre-publication-audit.md#f11-testui-has-been-broken-since-the-migration-high-closed)
 record the later artifact-specific inventory gate and separate CI UI lane.
 
-No new release-acceptance record is linked yet: the final artifact receipt for
-the frozen candidate is pending. This note neither backfills its results into
-this run nor treats the current implementation as proof of a new signed
-artifact.
+The [final native acceptance record](adr-0034-final-native-acceptance.md) now
+identifies a later Developer ID-signed artifact and its executed recovery checks.
+It does not backfill those results into this historical run. Notarisation and
+clean-machine acceptance remain separate.
 
 ## Revision and toolchain
 
