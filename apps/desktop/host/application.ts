@@ -44,6 +44,7 @@ import { createPluginOAuthManager } from "./plugin-oauth.js";
 import { readClientRegistration } from "./plugin-registration.js";
 import { createDiscoveryCache } from "./discovery-cache.js";
 import { createHistoryApplication } from "./history-application.js";
+import { createDesktopSnapshot } from "./desktop-snapshot.js";
 import { PackageOAuthActionSchema } from "../src/lib/package-protocol.js";
 import { createSqliteConversationHistory } from "@drawloom/sqlite-conversation-history";
 import {
@@ -75,7 +76,6 @@ import {
 } from "@drawloom/workbench";
 import {
   DesktopCommandSchema,
-  DesktopSnapshotSchema,
   ProjectSchema,
   ViewTargetSchema,
   DesktopViewRequestSchema,
@@ -1175,15 +1175,6 @@ export async function createDesktopApplication(
     },
   });
   const syntheticInvoke = new Map<string, (operation: string, input: string) => Promise<void>>();
-  const unavailable = {
-    artifacts: [],
-    candidates: [],
-    reviews: [],
-    readiness: "unavailable" as const,
-    summary: "Install a matching trusted operator controller at startup.",
-    configuration: [],
-    grants: [],
-  };
   const pendingKnowledgeRevocations = new Map<
     symbol,
     { conversationId: string; workbenchId: string; toolName: string }
@@ -1380,119 +1371,22 @@ export async function createDesktopApplication(
     });
   }
 
-  async function snapshot() {
-    const {
-      packages,
-      registry,
-      controllers,
-      packageToolIds,
-      packageGrants,
-      knowledgeToolIds,
-      knowledgeGrants,
-    } = await selectedRuntime();
-    const conversation = project.conversations.find((c) => c.id === project.selectedId);
-    const state = live.get(project.selectedId);
-    const controller = conversation ? controllers.get(conversation.workbenchId) : undefined;
-    const original = controller ? await controller.snapshot() : unavailable;
-    const operator = {
-      ...original,
-      grants: [
-        ...original.grants,
-        ...[...knowledgeToolIds].map((toolName) => ({
-          toolName,
-          allowed: conversation
-            ? (knowledgeGrants[conversation.workbenchId]?.includes(toolName) ?? false)
-            : false,
-        })),
-        ...[...packageToolIds].map((toolName) => ({
-          toolName,
-          allowed: conversation
-            ? (packageGrants[conversation.workbenchId]?.includes(toolName) ?? false)
-            : false,
-        })),
-      ],
-    };
-    const retained = conversation ? await evidenceFor(conversation.id) : undefined;
-    return DesktopSnapshotSchema.parse({
-      mediaPolicy: mediaPolicy.snapshot(),
-      toolLabels: [...packages.toolPresentation]
-        .filter(([, tool]) => tool.available)
-        .map(([toolName, tool]) => ({
-          toolName,
-          title: tool.name,
-          origin: tool.origin,
-        })),
-      workspace:
-        project.projects.find((p) => p.id === project.selectedProjectId)?.name ??
-        "Choose a project",
-      projects: await Promise.all(
-        project.projects.map(async ({ device: _device, inode: _inode, ...p }) => ({
-          ...p,
-          available: await verifyProjectDirectory(
-            { ...p, device: _device, inode: _inode },
-            root,
-          ).then(
-            () => true,
-            () => false,
-          ),
-        })),
-      ),
-      ...(project.selectedProjectId ? { selectedProjectId: project.selectedProjectId } : {}),
-      conversations: project.conversations,
-      workbenches: registry.workbenches,
-      views: registry.views,
-      selectedId: project.selectedId,
-      signals: state?.signals ?? [],
-      modes: [...(state?.session.modes ?? [])],
-      goal: {
-        supported: state ? !!state.session.goals : conversation?.provider === "codex",
-        ...(state?.goal !== undefined ? { snapshot: state.goal } : {}),
-        ...(state?.goalError ? { error: state.goalError } : {}),
-      },
-      delegation: {
-        supported: Boolean(state?.session.delegations && !state.delegationError),
-        children: [...(state?.delegations?.values() ?? [])],
-        ...(state?.delegationError ? { error: state.delegationError } : {}),
-      },
-      forking: { supported: Boolean(state?.session.forks) },
-      approvals: approvals.pending(project.selectedId).map((entry) => ({
-        ...entry,
-        presentation: options.approvalPresenter ? "external" : "desktop",
-      })),
-      activity: (retained?.activity() ?? []).map((result) => ({
-        toolName: retained?.toolFor(result.invocationId),
-        ...(result.outcome.status === "ok"
-          ? {
-              ...result,
-              outcome: {
-                status: "ok",
-                text: result.outcome.text,
-                value: result.outcome.value,
-              },
-            }
-          : result),
-      })),
-      pendingTools: retained?.pending() ?? [],
-      elicitations: conversation ? elicitation.pending(conversation.id) : [],
-      operator,
-      ...(state?.active ? { activeOperation: state.active } : {}),
-      archiveBlockedConversationIds: project.conversations
-        .filter((c) => archiveBlocked(c.id))
-        .map((c) => c.id),
-      controls: {
-        steer: Boolean(state?.session.steer),
-        interrupt: Boolean(state?.session.interrupt),
-        reviewerModes: state?.session.reviewerModes ?? ["human"],
-      },
-      plugins: registry.plugins.map((p) => ({
-        id: p.id,
-        status: "ready",
-        summary: "Registered at startup. Tool grants are separate.",
-      })),
-      notice,
-      activeContext: conversation ? viewContext.forConversation(conversation.id) : "",
-    });
-  }
+  const snapshot = createDesktopSnapshot({
+    runtime: selectedRuntime,
+    project: () => project,
+    live,
+    mediaPolicy,
+    evidenceFor,
+    approvals,
+    elicitation,
+    archiveBlocked,
+    verifyProject: async (binding) => {
+      await verifyProjectDirectory(binding, root);
+    },
+    notice: () => notice,
+    activeContext: (conversationId) => viewContext.forConversation(conversationId),
+    approvalPresentation: options.approvalPresenter ? "external" : "desktop",
+  });
 
   async function restore() {
     for (const conversation of project.conversations) {

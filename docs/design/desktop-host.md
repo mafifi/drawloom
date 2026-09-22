@@ -108,6 +108,11 @@ change, around and conversation-search operations. It depends on the durable
 history store and narrow callbacks for recovery, synchronization and cache
 instrumentation; it does not receive the lifecycle-proxied application object.
 
+`apps/desktop/host/desktop-snapshot.ts` owns snapshot projection and its
+unavailable operator fallback. It reads only snapshot-specific state through
+narrow callbacks; application lifecycle ownership remains in the composition
+root.
+
 Codex owns its native transcript and session. Drawloom stores a display record in
 `history.sqlite`, not a replacement transcript to replay into the model. The host
 stores normalised records and private import checkpoints atomically. Unknown
