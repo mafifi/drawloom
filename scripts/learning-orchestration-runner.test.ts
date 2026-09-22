@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { expect, test } from "vitest";
 
@@ -9,9 +10,16 @@ test("learning orchestration keeps real Temporal recovery in Node and runs sourc
   );
 });
 
-test("learning runner collects only the explicit source integration", () => {
-  expect(existsSync("vitest.learning.config.ts")).toBe(true);
-  expect(readFileSync("vitest.learning.config.ts", "utf8")).toContain(
-    'include: ["apps/desktop/tests/learning-journey-orchestration.integration.test.ts"]',
-  );
+test("learning runner is collected only by its dedicated Vitest configuration", () => {
+  const lane = "apps/desktop/tests/learning-journey-orchestration.integration.vitest.ts";
+  const list = (config: string) =>
+    execFileSync("pnpm", ["vitest", "list", "--config", config], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    });
+
+  expect(existsSync(lane)).toBe(true);
+  expect(lane).not.toMatch(/\.test\.(?:ts|js)$/);
+  expect(list("vitest.config.ts")).not.toContain(lane);
+  expect(list("vitest.learning.config.ts")).toContain(lane);
 });

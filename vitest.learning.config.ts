@@ -7,6 +7,6 @@ export default defineConfig({
     ...sourceConfig.test,
     // This lane needs Vite's source resolution without enrolling its slow
     // integration in the default test collection.
-    include: ["apps/desktop/tests/learning-journey-orchestration.integration.test.ts"],
+    include: ["apps/desktop/tests/learning-journey-orchestration.integration.vitest.ts"],
   },
 });
