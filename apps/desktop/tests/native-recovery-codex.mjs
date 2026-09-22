@@ -32,10 +32,18 @@ let state = (await readProviderState(root)) ?? {
   threadId: `thread-${randomUUID()}`,
   turnId: `turn-${randomUUID()}`,
   startCount: 0,
+  startAttemptCount: 0,
   mcpCallCount: 0,
 };
+state = {
+  ...state,
+  startAttemptCount: state.startAttemptCount ?? state.startCount ?? 0,
+  transportEpoch: (state.transportEpoch ?? 0) + 1,
+};
+await writeProviderState(root, state);
 let drawloom;
-let approvalId = 73001;
+const approvalId = 73_000 + state.transportEpoch;
+let outstandingApproval;
 let closing = false;
 
 function send(value) {
@@ -94,12 +102,14 @@ async function dispatch(admission) {
       availableDecisions: ["accept", "decline"],
     },
   });
+  outstandingApproval = { id: approvalId, epoch: state.transportEpoch };
   await writeReceipt(root, "approval-requested", {
     kind: "approval-requested",
     rpcId: approvalId,
     threadId: state.threadId,
     turnId: state.turnId,
     operationId: admission.operationId,
+    transportEpoch: state.transportEpoch,
   });
 }
 
@@ -115,6 +125,11 @@ async function request(message) {
   if (method === "model/list" || method === "collaborationMode/list")
     return send({ id, result: { data: [], nextCursor: null } });
   if (method === "thread/turns/list") return send({ id, result: { data: [], nextCursor: null } });
+  if (method === "thread/memoryMode/set") {
+    if (params.threadId !== state.threadId || params.mode !== "disabled")
+      return send({ id, error: { code: -32602, message: "Invalid params" } });
+    return send({ id, result: {} });
+  }
   if (method === "thread/start") {
     if (params.cwd !== project)
       return send({ id, error: { code: -32602, message: "Invalid params" } });
@@ -159,6 +174,8 @@ async function request(message) {
     });
   }
   if (method === "turn/start") {
+    state = { ...state, startAttemptCount: state.startAttemptCount + 1 };
+    await writeProviderState(root, state);
     if (params.threadId !== state.threadId || state.startCount)
       return send({ id, error: { code: -32602, message: "Invalid params" } });
     state = { ...state, startCount: 1 };
@@ -189,7 +206,13 @@ const lines = createInterface({ input: process.stdin });
 lines.on("line", (line) => {
   void (async () => {
     const message = JSON.parse(line);
-    if (message.id === approvalId && message.method === undefined) {
+    if (
+      message.method === undefined &&
+      outstandingApproval?.id === message.id &&
+      outstandingApproval.epoch === state.transportEpoch &&
+      ["accept", "decline"].includes(message.result?.decision)
+    ) {
+      outstandingApproval = undefined;
       await writeReceipt(root, "approval-decision", {
         kind: "approval-decision",
         rpcId: approvalId,

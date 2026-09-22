@@ -23,6 +23,7 @@ From the repository root, set the exact final app and create a disposable root:
 ```sh
 APP=/absolute/path/to/Drawloom.app
 FIXTURE_ROOT=$(mktemp -d /tmp/drawloom-native-recovery-XXXXXX)
+FIXTURE_ROOT=$(cd "$FIXTURE_ROOT" && pwd -P)
 node apps/desktop/tests/native-recovery-fixture.mjs serve \
   --root "$FIXTURE_ROOT" --app "$APP"
 ```
@@ -57,7 +58,9 @@ the process table before recording them; never select processes by name alone.
 ```sh
 node apps/desktop/tests/native-recovery-fixture.mjs record-launch \
   --root "$FIXTURE_ROOT" --case kill-shell \
-  --shell-pid SHELL_PID --host-pid HOST_PID
+  --shell-pid SHELL_PID --host-pid HOST_PID \
+  --shell-executable "$APP/Contents/MacOS/drawloom-desktop" \
+  --host-executable "$APP/Contents/Resources/host/host/node"
 ```
 
 Use `graceful`, `kill-shell`, or `kill-host` for the case being run.
@@ -96,20 +99,30 @@ and no approval decision.
 For `graceful`, quit through the app UI. For a forced case, terminate only the
 recorded shell PID or only the recorded host PID. Wait for the exact recorded
 process and its recorded children to exit. Do not use `pkill`, a name match, or
-a broad process group. The provider must produce its termination receipt:
+a broad process group. Verify the frozen exact PID set before asserting the
+termination state:
 
 ```sh
+node apps/desktop/tests/native-recovery-fixture.mjs verify-cleanup \
+  --root "$FIXTURE_ROOT" --timeout-ms 15000
 node apps/desktop/tests/native-recovery-fixture.mjs assert \
   --root "$FIXTURE_ROOT" --phase terminated
 ```
 
+The cleanup command always writes a receipt. It fails and lists only unresolved
+PIDs when any recorded shell, host, provider, or other captured descendant is
+still alive. Do not remove the fixture root after that failure.
+
 Relaunch the same executable with the same environment and root. Do not Send
 again. Confirm through the native UI that the original project, conversation,
 history, installation and grant remain, and that no guessed completed or failed
-tool result appears. Re-run the `pending` assertion; the provider counters must
-remain one. A killed host may invalidate the old native approval presentation,
-so verify its absence and stale-decision safety rather than claiming the old
-presentation remains actionable.
+tool result appears. Record and validate the new shell/host tree, then re-run the
+`pending` assertion; both successful turn count and total `turn/start` attempt
+count must remain one. A killed host may invalidate the old native approval
+presentation. The new provider transport rejects a delayed response for that
+old request; verify the presentation's absence in the UI rather than claiming
+its old ID remains actionable. After closing the reopened app, run
+`verify-cleanup` again for the new recorded tree.
 
 Stop the controller with Ctrl+C only after the app, host, provider, and MCP
 connections have closed. Remove the fixture root only after confirming every

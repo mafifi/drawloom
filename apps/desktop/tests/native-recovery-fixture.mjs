@@ -1,9 +1,19 @@
 import { randomUUID } from "node:crypto";
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
-import { chmod, mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  readFile,
+  realpath,
+  rename,
+  stat,
+  unlink,
+  writeFile,
+} from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
+import { promisify } from "node:util";
 import { createRecoveryMcpServer } from "./native-recovery-mcp.mjs";
 
 const rootPrefix = "drawloom-native-recovery-";
@@ -21,6 +31,7 @@ const receiptNames = new Set([
   "turn-start-replied",
 ]);
 const controlNames = new Set(["admission-release", "effect-release"]);
+const execFileAsync = promisify(execFile);
 
 export function validateRecoveryRoot(root) {
   const absolute = resolve(root);
@@ -51,15 +62,16 @@ export async function createRecoveryLayout(root) {
     "receipts",
   ])
     await mkdir(join(absolute, name), { recursive: true });
+  const canonical = await realpath(absolute);
   return {
-    root: absolute,
-    bin: join(absolute, "bin"),
-    controls: join(absolute, "controls"),
-    data: join(absolute, "data"),
-    package: join(absolute, "package"),
-    project: join(absolute, "project"),
-    providerState: join(absolute, "provider-state"),
-    receipts: join(absolute, "receipts"),
+    root: canonical,
+    bin: join(canonical, "bin"),
+    controls: join(canonical, "controls"),
+    data: join(canonical, "data"),
+    package: join(canonical, "package"),
+    project: join(canonical, "project"),
+    providerState: join(canonical, "provider-state"),
+    receipts: join(canonical, "receipts"),
   };
 }
 
@@ -166,10 +178,13 @@ export async function assertRecoveryReceipts(root, { phase }) {
   if (await readReceipt(root, "effect-finished")) throw Error("Effect was guessed terminal");
   if (await readReceipt(root, "approval-decision")) throw Error("Approval was already decided");
   const state = await readProviderState(root);
-  if (state?.startCount !== 1 || state?.mcpCallCount !== 1)
+  if (state?.startCount !== 1 || state?.startAttemptCount !== 1 || state?.mcpCallCount !== 1)
     throw Error("Expected exactly one turn and one MCP dispatch");
-  if (phase === "terminated" && !(await readReceipt(root, "termination")))
-    throw Error("Missing termination receipt");
+  if (phase === "terminated") {
+    if (!(await readReceipt(root, "termination"))) throw Error("Missing termination receipt");
+    if ((await readReceipt(root, "cleanup"))?.success !== true)
+      throw Error("Successful exact-PID cleanup receipt is required");
+  }
   return {
     threadId: admitted.threadId,
     turnId: admitted.turnId,
@@ -194,6 +209,101 @@ export async function discoverOperationId(root, conversationId) {
   } finally {
     database.close();
   }
+}
+
+async function processRows() {
+  const { stdout } = await execFileAsync("/bin/ps", ["-axo", "pid=,ppid="]);
+  return stdout
+    .trim()
+    .split("\n")
+    .map((line) => line.trim().split(/\s+/).map(Number))
+    .filter(([pid, ppid]) => Number.isSafeInteger(pid) && Number.isSafeInteger(ppid))
+    .map(([pid, ppid]) => ({ pid, ppid }));
+}
+
+async function processIdentity(pid) {
+  const { stdout } = await execFileAsync("/bin/ps", [
+    "-p",
+    String(pid),
+    "-o",
+    "ppid=",
+    "-o",
+    "comm=",
+  ]);
+  const match = /^\s*(\d+)\s+(.+?)\s*$/.exec(stdout);
+  if (!match) throw Error(`Recorded process ${pid} is unavailable`);
+  return { pid, ppid: Number(match[1]), executable: await realpath(match[2]) };
+}
+
+function descendants(rootPid, rows) {
+  const found = [];
+  const parents = [rootPid];
+  while (parents.length) {
+    const parent = parents.shift();
+    for (const row of rows) {
+      if (row.ppid !== parent || found.some((entry) => entry.pid === row.pid)) continue;
+      found.push(row);
+      parents.push(row.pid);
+    }
+  }
+  return found;
+}
+
+export async function recordNativeLaunch(root, input) {
+  const shell = await processIdentity(input.shellPid);
+  const host = await processIdentity(input.hostPid);
+  if (host.ppid !== shell.pid)
+    throw Error("Bundled host is not a direct child of the native shell");
+  if (shell.executable !== (await realpath(input.shellExecutable)))
+    throw Error("Native shell executable identity does not match");
+  if (host.executable !== (await realpath(input.hostExecutable)))
+    throw Error("Bundled host executable identity does not match");
+  const children = descendants(shell.pid, await processRows());
+  if (!children.some((entry) => entry.pid === host.pid))
+    throw Error("Bundled host is not in the native shell process tree");
+  const receipt = {
+    kind: "launch",
+    fixtureCase: input.fixtureCase,
+    shellPid: shell.pid,
+    hostPid: host.pid,
+    descendants: children.map(({ pid, ppid }) => ({ pid, ppid })),
+  };
+  await writeReceipt(root, "launch", receipt);
+  return receipt;
+}
+
+function alive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error.code === "ESRCH") return false;
+    throw error;
+  }
+}
+
+export async function verifyNativeCleanup(root, { timeoutMs = 15_000 } = {}) {
+  const launch = await readReceipt(root, "launch");
+  if (!launch) throw Error("Launch receipt is required before cleanup verification");
+  const pids = [
+    ...new Set([launch.shellPid, launch.hostPid, ...launch.descendants.map((entry) => entry.pid)]),
+  ];
+  const deadline = Date.now() + timeoutMs;
+  let unresolved;
+  do {
+    unresolved = pids.filter(alive);
+    if (!unresolved.length) break;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  } while (Date.now() < deadline);
+  const receipt = {
+    kind: "cleanup",
+    success: unresolved.length === 0,
+    unresolvedPids: unresolved,
+  };
+  await writeReceipt(root, "cleanup", receipt);
+  if (!receipt.success)
+    throw Error(`Native fixture cleanup has ${unresolved.length} unresolved PIDs`);
+  return receipt;
 }
 
 function option(arguments_, name, required = true) {
@@ -458,19 +568,28 @@ async function cli(arguments_) {
     const shellPid = Number(option(arguments_, "shell-pid"));
     const hostPid = Number(option(arguments_, "host-pid"));
     const fixtureCase = option(arguments_, "case");
+    const shellExecutable = option(arguments_, "shell-executable");
+    const hostExecutable = option(arguments_, "host-executable");
     if (![shellPid, hostPid].every((pid) => Number.isSafeInteger(pid) && pid > 1))
       throw Error("Launch PIDs must be exact positive integers");
     if (!new Set(["graceful", "kill-shell", "kill-host"]).has(fixtureCase))
       throw Error("Invalid native recovery case");
-    process.kill(shellPid, 0);
-    process.kill(hostPid, 0);
-    await writeReceipt(root, "launch", {
-      kind: "launch",
+    await recordNativeLaunch(root, {
       fixtureCase,
       shellPid,
       hostPid,
+      shellExecutable,
+      hostExecutable,
     });
     process.stdout.write(JSON.stringify({ status: "launch-recorded", fixtureCase }) + "\n");
+    return;
+  }
+  if (command === "verify-cleanup") {
+    const timeoutMs = Number(option(arguments_, "timeout-ms", false) ?? 15_000);
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 0 || timeoutMs > 60_000)
+      throw Error("Cleanup timeout must be an integer from 0 to 60000");
+    await verifyNativeCleanup(root, { timeoutMs });
+    process.stdout.write(JSON.stringify({ status: "cleanup-verified" }) + "\n");
     return;
   }
   if (command === "assert") {
@@ -480,7 +599,7 @@ async function cli(arguments_) {
     process.stdout.write(JSON.stringify({ status: `${phase}-asserted`, ...identity }) + "\n");
     return;
   }
-  throw Error("Use serve, release-admission, record-launch, or assert");
+  throw Error("Use serve, release-admission, record-launch, verify-cleanup, or assert");
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname)) {
