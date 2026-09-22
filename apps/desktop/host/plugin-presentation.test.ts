@@ -1,8 +1,8 @@
 import { expect, test } from "vitest";
 import { mkdtemp, mkdir, writeFile, symlink, rm, open } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute, join, relative, sep } from "node:path";
-import { readPluginIcon, packagePresentation } from "./plugin-presentation.js";
+import { join } from "node:path";
+import { containsPluginPath, readPluginIcon, packagePresentation } from "./plugin-presentation.js";
 import type { FileOpen } from "./plugin-presentation.js";
 import { pathContainmentConformance } from "@drawloom/host/conformance";
 import { spawnSync } from "node:child_process";
@@ -106,13 +106,9 @@ test("host loads bounded package icons and rejects escapes, active content and n
   }
 });
 
-test("the module's private containment copy means the same as the shared rule", () => {
-  // This module keeps its own copy because it must have zero relative imports:
-  // the FIFO test above loads it in a bare Node child. Conformance is what stops
-  // that copy drifting, so the copy is restated here and pinned.
-  const containsPath = (parent: string, child: string) => {
-    const delta = relative(parent, child);
-    return delta === "" || (!isAbsolute(delta) && delta !== ".." && !delta.startsWith(".." + sep));
-  };
-  expect(() => pathContainmentConformance(containsPath)).not.toThrow();
+test("the plugin icon production containment rule conforms to the shared semantics", () => {
+  // This import is the rule used by readPluginIcon itself. In particular, the
+  // conformance cases reject the old broad `startsWith('..')` rule because it
+  // wrongly excludes legitimate `..draft` names.
+  expect(() => pathContainmentConformance(containsPluginPath)).not.toThrow();
 });

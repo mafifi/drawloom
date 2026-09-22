@@ -17,7 +17,7 @@ import { open, realpath, lstat } from "node:fs/promises";
  * providers: `plugin-presentation.test.ts` runs `pathContainmentConformance`
  * against this function, so a divergence fails a test rather than going unseen.
  */
-function containsPath(parent: string, child: string): boolean {
+export function containsPluginPath(parent: string, child: string): boolean {
   const delta = relative(parent, child);
   return delta === "" || (!isAbsolute(delta) && delta !== ".." && !delta.startsWith(".." + sep));
 }
@@ -46,7 +46,7 @@ export async function readPluginIcon(
     const target = await realpath(unresolved);
     // Containment, plus this caller's own rule: an icon is a file inside the
     // root, never the root itself.
-    if (target === base || !containsPath(base, target)) return;
+    if (target === base || !containsPluginPath(base, target)) return;
     const mime = {
       ".svg": "image/svg+xml",
       ".png": "image/png",
@@ -66,7 +66,7 @@ export async function readPluginIcon(
       const verified = await realpath(target);
       // Re-checked after opening, against the same rule as above: the file may
       // have been replaced between the first check and the open.
-      if (verified === base || !containsPath(base, verified)) return;
+      if (verified === base || !containsPluginPath(base, verified)) return;
       const pathInfo = await lstat(verified),
         currentRoot = await lstat(await realpath(root));
       if (
