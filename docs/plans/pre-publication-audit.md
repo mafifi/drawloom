@@ -4,8 +4,8 @@ Audited at `4afd8fb`. Tracked through `48eceb3` and `16ad5e0`.
 
 Findings keep their original text. Each carries a status line naming the commit
 that closed it, or what remains. **Six of the original nine are closed, two are
-partly closed, and one is mostly closed. Later F9 remains open; F10 is closed
-for its rendered-test gap but retains the explicitly deferred View narrowing.**
+partly closed, and one is mostly closed. Later F9 remains open; F10's
+rendered-test and concrete ViewModel prop gaps are closed.**
 
 Verified by running the checks, not by reading the claims. At each closeout the
 commit, statuses and artifacts were checked in the committed tree rather than
@@ -175,7 +175,7 @@ signing are not continuous. That makes the gap honest; it does not close it.
 an ad-hoc signing identity, which is enough to catch a broken closure, a missing
 notice or a stale runtime without holding release credentials in CI.
 
-### F10 — The view layer has no rendered tests (Medium, partly closed)
+### F10 — The view layer has no rendered tests (Medium, closed)
 
 `check:ui-policy` passed on 892 files while `PluginViewFrame.svelte` and
 `CodexModelSelector.svelte` each did their own `fetch` and schema parsing. The
@@ -214,10 +214,11 @@ cleanup, and asserts exact session close, no late navigation or interaction,
 and restoration of the pre-settlement message-listener count. A separate
 rendered test rejects an older model response after a conversation switch. This
 closes the stated DOM-lifecycle gap; it is not a claim that every View state is
-rendered or that the separately deferred View narrowing below is complete.
+rendered or that every projected presentation field is minimal.
 
-**Closed: five of the seven views, the error/loading duplication, and the
-form coercion.** `ElicitationForm.svelte`, `DiscoveryInventory.svelte`,
+**Historical intermediate close: five of the seven views, the error/loading
+duplication, and the form coercion.** `ElicitationForm.svelte`,
+`DiscoveryInventory.svelte`,
 `GoalControls.svelte`, `PrimaryView.svelte`, and `Sidebar.svelte` now take a
 projected `{ presentation, actions }`, each with its own
 `*.ts` module (`elicitation-form.ts`, `discovery-inventory.ts`,
@@ -245,33 +246,40 @@ inconsistent loading markups (`Conversation.svelte`'s two, `GoalControls.svelte`
 `Conversation.svelte` already used for its own loading states, again with no
 new primitive.
 
-**Still open: `Composer.svelte` and `Conversation.svelte`.** Both still take
-the concrete `DesktopViewModel`, and so do `ComposerResources.svelte` and
-`DiscoveryPicker.svelte`, which `Composer.svelte` renders directly with
-`{vm}`. This was a deliberate stop, not an oversight. `Conversation.svelte`
-alone reads or writes on the order of sixty distinct `vm` members —
+**Historical stop before `1def4f7`: `Composer.svelte` and
+`Conversation.svelte`.** Both still took the concrete `DesktopViewModel`, as
+did `ComposerResources.svelte` and `DiscoveryPicker.svelte`, which
+`Composer.svelte` rendered directly with `{vm}`. This was a deliberate stop,
+not an oversight. `Conversation.svelte`
+alone read or wrote on the order of sixty distinct `vm` members —
 attachments, mentions, delegation, tool activity, goal state, elicitations,
-scroll bookkeeping, and more — and `Composer.svelte` adds the picker,
+scroll bookkeeping, and more — and `Composer.svelte` added the picker,
 attachment upload, and model/reviewer selection on top. Narrowing them
-properly means designing a presentation/actions surface for each, deciding
+properly meant designing a presentation/actions surface for each, deciding
 where the nested pieces for `ComposerResources`/`DiscoveryPicker`/
 `ElicitationForm`/`GoalControls` get built (probably `+page.svelte`, by the
 same pattern used for `PrimaryView`'s `DiscoveryInventory` slice), and
 re-threading every call site without a rendered test to catch a mistake.
 That is a change of a different order than the other five, on the two
-components every conversation actually runs through, and it deserves its own
+components every conversation actually runs through, and it deserved its own
 pass rather than being folded into this one. `ElicitationForm.svelte` and
 `GoalControls.svelte` were narrowed anyway, ahead of `Conversation.svelte`
-itself: their call sites in `Conversation.svelte` now build
+itself: their call sites in `Conversation.svelte` then built
 `elicitationFormPresentation(vm, …)`/`goalControlsPresentation(vm)` inline,
-since `Conversation.svelte` still has `vm` to build them from.
+since `Conversation.svelte` still had `vm` to build them from.
 
-None of this was a correctness risk before, and closing five of the seven
+None of this was a correctness risk at that stop, and closing five of the seven
 views, the whole error-paragraph split, and the form coercion did not change
 behavior anywhere — `pnpm run test`, `pnpm run desktop:check`, and
-`pnpm --filter ./apps/desktop run build` all still pass. The remaining two
-views are the kind of change that should follow a release rather than
-precede one.
+`pnpm --filter ./apps/desktop run build` all still passed.
+
+**Current narrowing status: closed at `1def4f7`.** `Conversation.svelte` now
+takes `ConversationPresentation`/`ConversationActions`, and `Composer.svelte`
+takes `ComposerPresentation`/`ComposerActions`. `ComposerResources.svelte` and
+`DiscoveryPicker.svelte` receive their own projected presentation/action props;
+the route composition builds those projections from `DesktopViewModel`. This
+records the implemented ownership boundary without claiming that every field is
+the smallest possible projection or that unrelated architecture work is closed.
 
 ### F11 — `test:ui` has been broken since the migration (High, closed)
 

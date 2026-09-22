@@ -4,7 +4,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
-import { createOwnedChildProcesses, fetchWithDeadline } from "./verify-macos-app-process.mjs";
+import {
+  createOwnedChildProcesses,
+  fetchJsonWithDeadline,
+  fetchWithDeadline,
+} from "./verify-macos-app-process.mjs";
 
 const readiness = (out: string) => {
   const line = out.split("\n").find((value) => value.trim().startsWith("{"));
@@ -112,4 +116,23 @@ test("verifier requests have a bounded deadline", async () => {
   await expect(fetchWithDeadline("http://127.0.0.1:1", {}, 25, pendingFetch)).rejects.toThrow(
     /timed out|aborted/i,
   );
+});
+
+test("a partial JSON body times out and its owned host is reaped before state deletion", async () => {
+  const result = await runFailure(
+    "import {createServer} from 'node:http'; console.log('booted'); const server=createServer((_request,response)=>{response.writeHead(200,{'content-type':'application/json'}); response.write('{')}); server.listen(0,'127.0.0.1',()=>console.log(JSON.stringify({url:`http://127.0.0.1:${server.address().port}`})))",
+    async (ready) => {
+      await fetchJsonWithDeadline(ready.url, {}, 100);
+    },
+    { waitForBoot: true },
+  );
+  expect(result.failure).toMatchObject({
+    message: expect.stringMatching(/timed out|abort/i),
+  });
+  expect(result.elapsedMs).toBeLessThan(5_000);
+  expect(result.child.signalCode).toBe("SIGKILL");
+  expect(result.child.stdout.destroyed).toBe(true);
+  expect(result.child.stderr.destroyed).toBe(true);
+  expect(result.events).toEqual(["exit", "reaped", "removed"]);
+  expect(existsSync(result.directory)).toBe(false);
 });

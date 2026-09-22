@@ -31,7 +31,11 @@ import { join, resolve } from "node:path";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { once } from "node:events";
-import { createOwnedChildProcesses, fetchWithDeadline } from "./verify-macos-app-process.mjs";
+import {
+  createOwnedChildProcesses,
+  fetchJsonWithDeadline,
+  fetchWithDeadline,
+} from "./verify-macos-app-process.mjs";
 // The single authority for what runtime ships; importing it keeps this check
 // from becoming a second declaration that can agree with nothing.
 import { KnownNodeRuntime } from "../apps/desktop/host/node-runtime.ts";
@@ -539,7 +543,7 @@ const lifecycle = async () => {
     const call = async (path, body) => {
       // Non-GET requests must carry a matching Origin and a JSON content type;
       // the host refuses anything else as an invalid command channel.
-      const response = await fetchWithDeadline(`${origin}${path}`, {
+      const { response, value } = await fetchJsonWithDeadline(`${origin}${path}`, {
         method: body === undefined ? "GET" : "POST",
         headers: {
           cookie,
@@ -547,7 +551,7 @@ const lifecycle = async () => {
         },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
-      return { status: response.status, value: await response.json().catch(() => undefined) };
+      return { status: response.status, value };
     };
     return { call };
   };

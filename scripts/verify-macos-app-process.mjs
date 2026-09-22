@@ -108,12 +108,7 @@ export const createOwnedChildProcesses = ({ stopTimeoutMs = 5_000 } = {}) => {
   return { track, waitForReadiness, stop, reap };
 };
 
-export const fetchWithDeadline = async (
-  input,
-  init = {},
-  timeoutMs = 10_000,
-  fetcher = globalThis.fetch,
-) => {
+const fetchAndConsumeWithDeadline = async (input, init, timeoutMs, fetcher, consume) => {
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(new Error(`request timed out after ${timeoutMs}ms`)),
@@ -123,8 +118,27 @@ export const fetchWithDeadline = async (
     ? AbortSignal.any([init.signal, controller.signal])
     : controller.signal;
   try {
-    return await fetcher(input, { ...init, signal });
+    const response = await fetcher(input, { ...init, signal });
+    return await consume(response);
   } finally {
     clearTimeout(timer);
   }
 };
+
+export const fetchWithDeadline = (
+  input,
+  init = {},
+  timeoutMs = 10_000,
+  fetcher = globalThis.fetch,
+) => fetchAndConsumeWithDeadline(input, init, timeoutMs, fetcher, (response) => response);
+
+export const fetchJsonWithDeadline = (
+  input,
+  init = {},
+  timeoutMs = 10_000,
+  fetcher = globalThis.fetch,
+) =>
+  fetchAndConsumeWithDeadline(input, init, timeoutMs, fetcher, async (response) => ({
+    response,
+    value: await response.json(),
+  }));
