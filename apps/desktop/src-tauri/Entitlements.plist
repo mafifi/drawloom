@@ -2,30 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <!-- Derived from Node's tools/osx-entitlements.plist for the pinned runtime,
-       then reduced to what the shipped application demonstrably requires.
+  <!-- The UI shell requires NO entitlements, and is signed with this empty set.
 
-       Node upstream grants five entitlements. Each of the other four was tested
-       against the real bundle, signing every Mach-O payload it ships (the
-       Keychain addon, sqlite-vec's dylib and Temporal's core-bridge) and
-       exercising V8 startup, a Keychain round trip, a sqlite-vec extension load
-       and a core-bridge load:
+       It is Rust and does not compile code at runtime. Its WKWebView executes
+       JavaScript in Apple's separate WebContent process, which carries its own
+       entitlements from the system: the embedding application does not need
+       `allow-jit` on its behalf.
 
-         allow-unsigned-executable-memory  NOT required
-         disable-library-validation        NOT required once the shipped native
-                                           code is signed with this identity;
-                                           keeping it off preserves the
-                                           protection ADR 0026 assumes
-         allow-dyld-environment-variables  NOT required
-         get-task-allow                    a debug entitlement permitting any
-                                           process to attach a debugger;
-                                           notarization rejects it
+       The host is different and is signed separately with
+       `host-entitlements.plist`, because the Node runtime it executes does JIT
+       in-process. Keeping the two apart means an exception granted for the
+       runtime is not silently extended to the process that owns the window and
+       the native browser.
 
-       Only JIT remains. `scripts/sign-macos-app.sh` performs the signing this
-       depends on: native payloads first, then the bundle. -->
-
-  <!-- V8 compiles JavaScript at runtime. -->
-  <key>com.apple.security.cs.allow-jit</key>
-  <true/>
+       `tauri.conf.json` names this file, so the build-time signature and the
+       release signature agree. -->
 </dict>
 </plist>

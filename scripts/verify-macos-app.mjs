@@ -121,17 +121,35 @@ check("signature is valid and hardened", () => {
   return "valid, hardened";
 });
 
-check("entitlements are the reviewed minimum", () => {
-  const raw = spawnSync("codesign", ["-d", "--entitlements", "-", "--xml", app], {
-    encoding: "utf8",
-  }).stdout;
-  const keys = [...raw.matchAll(/<key>([^<]+)<\/key>/g)].map((m) => m[1]).sort();
+check("entitlements are the reviewed minimum, and scoped to the host", () => {
+  // Two questions, not one. The old check asked only whether the SET was
+  // minimal, which a bundle passes while granting that exception to every
+  // executable in it. The shell owns the window and the native browser; a JIT
+  // exception the Node runtime needs must not reach it.
+  const entitlementsOf = (path) => {
+    const shown = spawnSync("codesign", ["-d", "--entitlements", "-", "--xml", path], {
+      encoding: "utf8",
+    });
+    return `${shown.stdout ?? ""}`;
+  };
+
+  const host = entitlementsOf(join(resources, "host/host/node"));
+  must(host.includes("com.apple.security.cs.allow-jit"), "the host runtime is missing allow-jit");
+  for (const rejected of [
+    "allow-unsigned-executable-memory",
+    "disable-library-validation",
+    "allow-dyld-environment-variables",
+    "get-task-allow",
+  ])
+    must(!host.includes(rejected), `the host carries ${rejected}`);
+
+  const shell = entitlementsOf(join(app, "Contents/MacOS/drawloom-desktop"));
   must(
-    keys.length === 1 && keys[0] === "com.apple.security.cs.allow-jit",
-    `expected only allow-jit, found: ${keys.join(", ") || "none"}`,
+    !shell.includes("com.apple.security.cs.allow-jit"),
+    "the UI shell carries allow-jit; only the host runtime needs it",
   );
-  must(!/get-task-allow/.test(raw), "get-task-allow must never ship");
-  return "allow-jit only";
+  must(!shell.includes("get-task-allow"), "the UI shell carries get-task-allow");
+  return "host: allow-jit only; shell: none";
 });
 
 check("native modules load under the hardened runtime", () => {
@@ -160,6 +178,26 @@ check("native modules load under the hardened runtime", () => {
   return "keychain, sqlite-vec, core-bridge";
 });
 
+/**
+ * Under `DRAWLOOM_MANAGED=1` the host's first stdout line is a readiness record
+ * carrying the URL AND the installation directory it selected, so the shell does
+ * not choose a second one. Parse it rather than pattern-matching a URL out of
+ * it: a greedy `\\S+` match swallows the rest of the JSON and produces a
+ * polluted token, which the host rejects with 401.
+ */
+const readiness = (out) => {
+  const line = out.split("\n").find((value) => value.trim().startsWith("{"));
+  if (!line) return undefined;
+  try {
+    const value = JSON.parse(line);
+    return typeof value?.url === "string" && typeof value?.dataDirectory === "string"
+      ? value
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 await new Promise((done) => {
   const data = mkdtempSync(join(tmpdir(), "drawloom-acceptance-"));
   const child = spawn(join(resources, "host/host/node"), [join(resources, "host/host/main.mjs")], {
@@ -187,9 +225,14 @@ await new Promise((done) => {
     finish(false, "did not start within 60s");
   }, 60_000);
   child.stdout.on("data", async () => {
-    if (!/bootstrap\?token=/.test(out)) return;
+    const ready = readiness(out);
+    if (!ready) return;
     clearTimeout(timer);
-    const bootstrap = out.match(/http:\/\/\S+bootstrap\S+/)[0];
+    // The readiness contract itself: the directory must be the one this run was
+    // given, not one the reader re-derived.
+    if (ready.dataDirectory !== data)
+      return finish(false, `readiness reported ${ready.dataDirectory}, expected ${data}`);
+    const bootstrap = ready.url;
     const port = new URL(bootstrap).port;
     const boot = await fetch(bootstrap, { redirect: "manual" });
     const cookie = (boot.headers.getSetCookie() ?? [])[0]?.split(";")[0];
@@ -246,10 +289,10 @@ const lifecycle = async () => {
     const ready = new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(Error(`did not start within 60s: ${out}`)), 60_000);
       child.stdout.on("data", () => {
-        const match = out.match(/http:\/\/\S+bootstrap\S+/);
-        if (!match) return;
+        const ready = readiness(out);
+        if (!ready) return;
         clearTimeout(timer);
-        resolve(match[0]);
+        resolve(ready.url);
       });
     });
     return { child, ready, output: () => out };
