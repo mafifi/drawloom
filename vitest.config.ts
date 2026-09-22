@@ -35,12 +35,18 @@ export default defineConfig({
       "**/build/**",
       "**/.svelte-kit/**",
       "spikes/**",
-      // Local, untracked snapshot archives from earlier sessions. They contain
-      // copies of real test files that no longer compile against current
-      // sources. `.dependency-cruiser.mjs` already excludes this path; the test
-      // runner must too, or a developer with these on disk fails the gate for
+      // Tool-local dot-directories, none of which is tracked: `.superpowers`
+      // holds snapshot archives from earlier sessions, and `.claude/worktrees`
+      // holds live agent worktrees — full copies of the repository being edited
+      // while the sweep runs. Both put hundreds of stale or in-flight test
+      // copies on disk, and running them makes the gate report failures for
       // work that is not in the repository.
-      "**/.superpowers/**",
+      //
+      // Excluded as a CLASS rather than by name, because the last one was fixed
+      // by name and the next one appeared anyway. No tracked test file lives in
+      // a dot-directory; `scripts/node-test-lanes.mjs` already skips them all
+      // for the same reason.
+      "**/.*/**",
       // deployed installations contain a copy of the sources they were built from
       "**/.deploy/**",
       "**/*.test.mjs",
