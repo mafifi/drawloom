@@ -1206,6 +1206,1014 @@ export async function createDesktopApplication(
       : assemblyLifetime.signal,
     remainingMs: operation?.remainingMs ?? (() => Number.MAX_SAFE_INTEGER),
   });
+  async function installedPackages() {
+    const { packages } = await selectedRuntime();
+    return Promise.all(
+      installations.list().map(async ({ configuration: _configuration, ...installation }) => {
+        const current = packages.statuses.find((s) => s.id === installation.id);
+        let availableServers = installation.servers.map((name) => ({
+          name,
+          transport: "unknown",
+        }));
+        try {
+          availableServers = (await installations.inspect(installation.root)).servers.map(
+            (server) => ({
+              name: server.name,
+              transport: server.config.type,
+            }),
+          );
+        } catch {
+          /* Retain selected identities and existing readiness errors if metadata is inaccessible. */
+        }
+        return {
+          ...installation,
+          pendingRestart: installations.pendingRestart(installation.id),
+          status: current?.status ?? "not-active",
+          availableServers,
+          diagnostics: current?.codes ?? [],
+          connections: (current?.servers ?? []).map((s) => ({
+            ...s,
+            transport: packages.transportFor(installation.id, s.name) ?? "unknown",
+          })),
+        };
+      }),
+    );
+  }
+
+  async function discover(
+    conversationId: string,
+    refresh = false,
+    cursor?: string,
+  ): Promise<DesktopCatalogue> {
+    const { packages, registry, packageToolIds, knowledgeToolIds, mcpApps } =
+      await runtimeForConversation(conversationId);
+    const conversation = project.conversations.find((c) => c.id === conversationId);
+    if (!conversation) throw Error("Conversation unavailable");
+    const workbench = registry.workbenches.find((w) => w.id === conversation.workbenchId)!;
+    const entries: DesktopCatalogue["entries"] = registry.plugins.map((p) => ({
+      id: `drawloom:plugin:${p.id}`,
+      origin: "drawloom",
+      kind: "plugin",
+      name: p.id,
+      ...(packages.pluginPresentation.get(p.id)
+        ? { presentation: packages.pluginPresentation.get(p.id) }
+        : {}),
+      description: `Version ${p.version}. Registered at startup; permissions remain separate.`,
+      scope: "startup",
+      availability: "available",
+      selectable: false,
+      revision: localRevision,
+    }));
+    for (const contribution of registry.contributions) {
+      if (contribution.kind !== "skill" && contribution.kind !== "tool") continue;
+      const presentation = packages.toolPresentation.get(contribution.contributionId);
+      entries.push({
+        id: contribution.id,
+        origin: presentation?.origin ?? "drawloom",
+        kind: contribution.kind,
+        name: presentation?.name ?? contribution.title,
+        description: presentation?.description ?? contribution.description,
+        scope:
+          contribution.kind === "skill" && workbench.skills.includes(contribution.contributionId)
+            ? "required"
+            : "startup",
+        availability:
+          contribution.kind === "tool" &&
+          !workbench.tools.includes(contribution.contributionId) &&
+          !packageToolIds.has(contribution.contributionId) &&
+          !knowledgeToolIds.has(contribution.contributionId)
+            ? "unavailable"
+            : "available",
+        selectable: contribution.kind === "skill",
+        ownerId: `drawloom:plugin:${contribution.pluginId}`,
+        revision: localRevision,
+      });
+    }
+    for (const [alias, tool] of packages.toolPresentation) {
+      if (tool.available) continue;
+      entries.push({
+        id: `package-tool:${alias}`,
+        origin: tool.origin,
+        ownerId: tool.ownerId,
+        kind: "tool",
+        name: tool.name,
+        description: tool.description,
+        scope: tool.appOnly ? "app-only" : "unsupported",
+        availability: tool.appOnly ? "available" : "unavailable",
+        selectable: false,
+        revision: localRevision,
+      });
+    }
+    for (const view of registry.views.filter((v) => v.workbenchId === workbench.id)) {
+      for (const tool of mcpApps.get(view.id)?.tools ?? []) {
+        const visibility = tool._meta?.ui;
+        const modelOnly =
+          typeof visibility === "object" &&
+          visibility &&
+          "visibility" in visibility &&
+          Array.isArray(visibility.visibility) &&
+          !visibility.visibility.includes("app");
+        entries.push({
+          id: `app:${view.id}:tool:${tool.name}`,
+          origin: `app:${view.id}`,
+          kind: "tool",
+          name: tool.title ?? tool.name,
+          description: tool.description ?? "",
+          scope: modelOnly ? "model-only" : "app-only",
+          availability: modelOnly ? "unavailable" : "available",
+          selectable: false,
+          ownerId: `drawloom:plugin:${view.pluginId}`,
+          revision: localRevision,
+        });
+      }
+    }
+    let categories: DesktopCatalogue["categories"] = [];
+    let nextCursor: string | undefined;
+    if (conversation.provider === "codex") {
+      try {
+        let connection = discoveryConnections.get(conversationId);
+        if (!connection) {
+          connection = createDiscoveryCache(() => connect(conversationId));
+          discoveryConnections.set(conversationId, connection);
+        }
+        const read = connection.read(refresh, live.get(conversationId));
+        if (read.status === "error") throw Error("Native discovery unavailable");
+        const session = live.get(conversationId)?.session ?? read.value?.session;
+        if (!session)
+          categories = (["skill", "tool", "app"] as const).map((kind) => ({
+            kind,
+            status: "loading",
+            message: "Connecting to Codex. Registered contributions are ready.",
+          }));
+        else {
+          const result = await session.discovery?.list({
+            refresh,
+            wait: false,
+            ...(cursor ? { cursor } : {}),
+          });
+          if (result?.status === "ok") {
+            entries.push(
+              ...result.value.entries.map((e) => ({
+                ...e,
+                revision: result.value.revision,
+              })),
+            );
+            categories = result.value.categories;
+            nextCursor = result.value.nextCursor;
+          } else
+            categories = [
+              {
+                kind: "skill",
+                status: result ? "error" : "unsupported",
+                message: result
+                  ? "Native discovery changed during loading. Refresh to try again; registered contributions remain visible."
+                  : "Native discovery is unavailable. Registered contributions remain visible.",
+              },
+            ];
+        }
+      } catch {
+        categories = (["skill", "tool", "app", "resource"] as const).map((kind) => ({
+          kind,
+          status: "error" as const,
+          message:
+            "Codex discovery is unavailable. Registered contributions remain visible; refresh to retry.",
+        }));
+      }
+    }
+    const packageResources = await packages.discoverResources(refresh, false);
+    entries.push(...packageResources.entries);
+    categories.push(...packageResources.categories);
+    return DesktopCatalogueSchema.parse({
+      entries,
+      categories,
+      ...(nextCursor ? { nextCursor } : {}),
+      experimentalPluginDiscovery: options.experimentalPluginDiscovery ?? true,
+    });
+  }
+
+  async function snapshot() {
+    const {
+      packages,
+      registry,
+      controllers,
+      packageToolIds,
+      packageGrants,
+      knowledgeToolIds,
+      knowledgeGrants,
+    } = await selectedRuntime();
+    const conversation = project.conversations.find((c) => c.id === project.selectedId);
+    const state = live.get(project.selectedId);
+    const controller = conversation ? controllers.get(conversation.workbenchId) : undefined;
+    const original = controller ? await controller.snapshot() : unavailable;
+    const operator = {
+      ...original,
+      grants: [
+        ...original.grants,
+        ...[...knowledgeToolIds].map((toolName) => ({
+          toolName,
+          allowed: conversation
+            ? (knowledgeGrants[conversation.workbenchId]?.includes(toolName) ?? false)
+            : false,
+        })),
+        ...[...packageToolIds].map((toolName) => ({
+          toolName,
+          allowed: conversation
+            ? (packageGrants[conversation.workbenchId]?.includes(toolName) ?? false)
+            : false,
+        })),
+      ],
+    };
+    const retained = conversation ? await evidenceFor(conversation.id) : undefined;
+    return DesktopSnapshotSchema.parse({
+      mediaPolicy: mediaPolicy.snapshot(),
+      toolLabels: [...packages.toolPresentation]
+        .filter(([, tool]) => tool.available)
+        .map(([toolName, tool]) => ({
+          toolName,
+          title: tool.name,
+          origin: tool.origin,
+        })),
+      workspace:
+        project.projects.find((p) => p.id === project.selectedProjectId)?.name ??
+        "Choose a project",
+      projects: await Promise.all(
+        project.projects.map(async ({ device: _device, inode: _inode, ...p }) => ({
+          ...p,
+          available: await verifyProjectDirectory(
+            { ...p, device: _device, inode: _inode },
+            root,
+          ).then(
+            () => true,
+            () => false,
+          ),
+        })),
+      ),
+      ...(project.selectedProjectId ? { selectedProjectId: project.selectedProjectId } : {}),
+      conversations: project.conversations,
+      workbenches: registry.workbenches,
+      views: registry.views,
+      selectedId: project.selectedId,
+      signals: state?.signals ?? [],
+      modes: [...(state?.session.modes ?? [])],
+      goal: {
+        supported: state ? !!state.session.goals : conversation?.provider === "codex",
+        ...(state?.goal !== undefined ? { snapshot: state.goal } : {}),
+        ...(state?.goalError ? { error: state.goalError } : {}),
+      },
+      delegation: {
+        supported: Boolean(state?.session.delegations && !state.delegationError),
+        children: [...(state?.delegations?.values() ?? [])],
+        ...(state?.delegationError ? { error: state.delegationError } : {}),
+      },
+      forking: { supported: Boolean(state?.session.forks) },
+      approvals: approvals.pending(project.selectedId).map((entry) => ({
+        ...entry,
+        presentation: options.approvalPresenter ? "external" : "desktop",
+      })),
+      activity: (retained?.activity() ?? []).map((result) => ({
+        toolName: retained?.toolFor(result.invocationId),
+        ...(result.outcome.status === "ok"
+          ? {
+              ...result,
+              outcome: {
+                status: "ok",
+                text: result.outcome.text,
+                value: result.outcome.value,
+              },
+            }
+          : result),
+      })),
+      pendingTools: retained?.pending() ?? [],
+      elicitations: conversation ? elicitation.pending(conversation.id) : [],
+      operator,
+      ...(state?.active ? { activeOperation: state.active } : {}),
+      archiveBlockedConversationIds: project.conversations
+        .filter((c) => archiveBlocked(c.id))
+        .map((c) => c.id),
+      controls: {
+        steer: Boolean(state?.session.steer),
+        interrupt: Boolean(state?.session.interrupt),
+        reviewerModes: state?.session.reviewerModes ?? ["human"],
+      },
+      plugins: registry.plugins.map((p) => ({
+        id: p.id,
+        status: "ready",
+        summary: "Registered at startup. Tool grants are separate.",
+      })),
+      notice,
+      activeContext: conversation ? viewContext.forConversation(conversation.id) : "",
+    });
+  }
+
+  async function restore() {
+    for (const conversation of project.conversations) {
+      const pending = await store.get(`knowledge-pending-outcomes:${conversation.id}`);
+      if (!Array.isArray(pending) || !pending.length) continue;
+      try {
+        const capture = await outcomeCaptureFor(conversation.id);
+        await capture.recover();
+        knowledge.reportObservationRecovery(conversation.id);
+      } catch {
+        knowledge.reportObservationFailure(conversation.id);
+      }
+    }
+    const workflowReadiness = await orchestration.restore();
+    if (workflowReadiness?.message) notice = workflowReadiness.message;
+    await knowledgeService.capabilities.curation?.setAutomatic(
+      !!(await learningPermission.lease("automaticCuration")),
+    );
+    void nightloom?.initialize().catch(() => undefined);
+    nightloom?.startScheduling();
+    void lifecycle.run(() => knowledge.pollSource()).catch(() => undefined);
+    const c = project.conversations.find((c) => c.id === project.selectedId);
+    if (c?.provider === "codex" && c.projectId) {
+      void lifecycle
+        .run(async () => {
+          try {
+            await connect(c.id);
+          } catch {
+            notice =
+              "Codex unavailable. Check installation and sign-in, then restart the host. Synthetic mode is a separate choice.";
+            await writer(c.id).unavailable();
+          }
+        })
+        .catch(() => {});
+    }
+  }
+
+  async function command(raw: unknown) {
+    let implementsProposalId: string | undefined;
+    const command = await (async () => {
+      const requested = DesktopCommandSchema.parse(raw);
+      if (requested.kind !== "implement_plan") return requested;
+      const state = await connect(requested.conversationId);
+      if (!state.session.modes?.includes("default"))
+        throw Error("Native default mode unavailable.");
+      const goal = state.session.goals
+        ? await state.session.goals.read()
+        : { status: "ok" as const, value: null };
+      if (goal.status !== "ok") throw Error(goal.failure.message);
+      assertPlanningIdle(state.active, goal.value);
+      const text = await reservePlanImplementation(
+        history,
+        requested.conversationId,
+        requested.proposalId,
+      );
+      implementsProposalId = requested.proposalId;
+      const conversation = project.conversations.find((c) => c.id === requested.conversationId)!;
+      conversation.mode = "default";
+      await persist();
+      return {
+        kind: "send" as const,
+        conversationId: requested.conversationId,
+        text: `Implement the following plan:\n\n${text}`,
+        attachmentKeys: [],
+        contextArtifactIds: [],
+        conversationContextIds: [],
+        selections: [],
+        resourceSelections: [],
+        delegationReferences: [],
+      };
+    })();
+    if (command.kind === "add_project") {
+      const binding = await bindProjectDirectory(command.directory, root);
+      const existing = project.projects.find(
+        (p) =>
+          p.directory === binding.directory &&
+          p.device === binding.device &&
+          p.inode === binding.inode,
+      );
+      const selected = existing ?? {
+        ...binding,
+        id: crypto.randomUUID(),
+        name: command.name ?? basename(binding.directory),
+      };
+      if (!existing) project.projects.push(selected);
+      project.selectedProjectId = selected.id;
+      project.selectedId = project.conversations.find((c) => c.projectId === selected.id)?.id ?? "";
+      viewContext.clear();
+      viewMount = undefined;
+      await persist();
+    } else if (command.kind === "rename_project") {
+      const existing = project.projects.find((p) => p.id === command.projectId);
+      if (!existing) throw Error("Project unavailable");
+      existing.name = command.name;
+      await persist();
+    } else if (command.kind === "select_project") {
+      if (!project.projects.some((p) => p.id === command.projectId))
+        throw Error("Project unavailable");
+      project.selectedProjectId = command.projectId;
+      project.selectedId =
+        project.conversations.find((c) => c.projectId === command.projectId)?.id ?? "";
+      viewContext.clear();
+      viewMount = undefined;
+      await persist();
+      await restore();
+    } else if (command.kind === "assign_project") {
+      const conversation = project.conversations.find((c) => c.id === command.conversationId);
+      const binding = project.projects.find((p) => p.id === command.projectId);
+      if (!conversation || conversation.projectId || !binding)
+        throw Error("Only an unassigned conversation can be assigned");
+      await verifyProjectDirectory(binding, root);
+      // Assignment does not manufacture native continuity. The adapter checks
+      // saved native cwd before any resume and confirms cwd on opening.
+      const previous = {
+        selectedId: project.selectedId,
+        selectedProjectId: project.selectedProjectId,
+        metadataRevision: project.metadataRevision,
+      };
+      conversation.projectId = binding.id;
+      project.metadataRevision++;
+      try {
+        if (conversation.provider === "codex") await connect(conversation.id);
+      } catch (error) {
+        delete conversation.projectId;
+        project.metadataRevision = previous.metadataRevision;
+        throw error;
+      }
+      project.selectedId = conversation.id;
+      project.selectedProjectId = binding.id;
+      viewContext.clear();
+      viewMount = undefined;
+      try {
+        await persist();
+      } catch (error) {
+        delete conversation.projectId;
+        project.selectedId = previous.selectedId;
+        project.metadataRevision = previous.metadataRevision;
+        if (previous.selectedProjectId === undefined) delete project.selectedProjectId;
+        else project.selectedProjectId = previous.selectedProjectId;
+        throw error;
+      }
+    } else if (command.kind === "create_conversation") {
+      const binding = project.projects.find((p) => p.id === project.selectedProjectId);
+      if (!binding) throw Error("Choose a project directory before starting a conversation");
+      await verifyProjectDirectory(binding, root);
+      const { registry } = await runtimeFor(binding);
+      if (!registry.workbenches.some((w) => w.id === command.workbenchId))
+        throw Error("Workbench unavailable");
+      const id = crypto.randomUUID(),
+        previousSelectedId = project.selectedId;
+      project.conversations.push({
+        id,
+        title: "New conversation",
+        workbenchId: command.workbenchId,
+        projectId: binding.id,
+        provider: command.provider,
+        reviewer: "human",
+        archived: false,
+      });
+      project.metadataRevision++;
+      project.selectedId = id;
+      viewContext.clear();
+      viewMount = undefined;
+      try {
+        await persist();
+      } catch (error) {
+        project.conversations = project.conversations.filter((c) => c.id !== id);
+        project.selectedId = previousSelectedId;
+        project.metadataRevision--;
+        throw error;
+      }
+      if (command.provider === "codex") await restore();
+    } else if (command.kind === "inspect_delegation" || command.kind === "interrupt_delegation") {
+      const state = await connect(command.conversationId);
+      const capability = state.session.delegations;
+      if (!capability) throw Error("Native delegation is unavailable.");
+      const result =
+        command.kind === "inspect_delegation"
+          ? await capability.read(command.childId)
+          : await capability.interrupt(command.child);
+      if (result.status !== "ok") throw Error(result.failure.message);
+    } else if (command.kind === "fork_conversation") {
+      const result = await conversationForks.create(command.conversationId, command.requestId);
+      if (result.state !== "created")
+        throw Error(
+          "Fork outcome is uncertain. The recovery receipt is retained; no second fork will be submitted.",
+        );
+      const fork = project.conversations.find((entry) => entry.id === result.sessionId)!;
+      project.selectedId = fork.id;
+      project.selectedProjectId = fork.projectId;
+      viewContext.clear();
+      viewMount = undefined;
+      await persist();
+      await restore();
+    } else if (command.kind === "select_conversation") {
+      if (!project.conversations.some((c) => c.id === command.conversationId))
+        throw Error("Conversation unavailable");
+      project.selectedId = command.conversationId;
+      const selected = project.conversations.find((c) => c.id === command.conversationId)!;
+      if (selected.projectId) project.selectedProjectId = selected.projectId;
+      else delete project.selectedProjectId;
+      viewContext.clear();
+      viewMount = undefined;
+      await persist();
+      await restore();
+    } else if (command.kind === "set_model") {
+      const conversation = project.conversations.find((c) => c.id === command.conversationId);
+      if (!conversation || conversation.provider !== "codex" || archiveBlocked(conversation.id))
+        throw Error("Model selection unavailable");
+      if (command.selection && !permitsModel(await desktopModels(), command.selection))
+        throw Error("Selected model unavailable");
+      if (archiveBlocked(conversation.id)) throw Error("Model selection unavailable");
+      const previous = conversation.modelSelection;
+      if (command.selection) conversation.modelSelection = command.selection;
+      else delete conversation.modelSelection;
+      try {
+        await persist();
+      } catch (error) {
+        if (previous) conversation.modelSelection = previous;
+        else delete conversation.modelSelection;
+        throw error;
+      }
+    } else if (command.kind === "rename_conversation") {
+      const conversation = project.conversations.find((c) => c.id === command.conversationId);
+      if (!conversation) throw Error("Conversation unavailable");
+      const previous = {
+        title: conversation.title,
+        manualTitle: conversation.manualTitle,
+        metadataRevision: project.metadataRevision,
+      };
+      conversation.title = command.title;
+      conversation.manualTitle = command.title;
+      project.metadataRevision++;
+      try {
+        await persist();
+      } catch (error) {
+        conversation.title = previous.title;
+        project.metadataRevision = previous.metadataRevision;
+        if (previous.manualTitle === undefined) delete conversation.manualTitle;
+        else conversation.manualTitle = previous.manualTitle;
+        throw error;
+      }
+    } else if (command.kind === "set_conversation_pinned") {
+      const conversation = project.conversations.find((c) => c.id === command.conversationId);
+      if (!conversation) throw Error("Conversation unavailable");
+      const previous = {
+        pinned: conversation.pinned,
+        metadataRevision: project.metadataRevision,
+      };
+      conversation.pinned = command.pinned;
+      project.metadataRevision++;
+      try {
+        await persist();
+      } catch (error) {
+        conversation.pinned = previous.pinned;
+        project.metadataRevision = previous.metadataRevision;
+        throw error;
+      }
+    } else if (command.kind === "archive_conversation") {
+      const conversation = project.conversations.find((c) => c.id === command.conversationId);
+      if (!conversation) throw Error("Conversation unavailable");
+      if (archiveBlocked(conversation.id))
+        throw Error("Conversation cannot be archived while work or approval is active");
+      const previous = {
+        archived: conversation.archived,
+        selectedId: project.selectedId,
+        metadataRevision: project.metadataRevision,
+      };
+      conversation.archived = true;
+      project.metadataRevision++;
+      if (project.selectedId === conversation.id)
+        project.selectedId =
+          project.conversations.find((c) => !c.archived && c.projectId === conversation.projectId)
+            ?.id ?? "";
+      try {
+        await persist();
+      } catch (error) {
+        conversation.archived = previous.archived;
+        project.selectedId = previous.selectedId;
+        project.metadataRevision = previous.metadataRevision;
+        throw error;
+      }
+    } else if (command.kind === "restore_conversation") {
+      const conversation = project.conversations.find((c) => c.id === command.conversationId);
+      if (!conversation) throw Error("Conversation unavailable");
+      const previous = {
+        archived: conversation.archived,
+        metadataRevision: project.metadataRevision,
+      };
+      conversation.archived = false;
+      project.metadataRevision++;
+      try {
+        await persist();
+      } catch (error) {
+        conversation.archived = previous.archived;
+        project.metadataRevision = previous.metadataRevision;
+        throw error;
+      }
+    } else if (command.kind === "elicitation") {
+      elicitation.resolve(command.conversationId, command.requestId, command.result);
+    } else if (command.kind === "operator") {
+      if (
+        command.conversationId !== project.selectedId ||
+        project.conversations.find((c) => c.id === command.conversationId)?.workbenchId !==
+          command.workbenchId
+      )
+        throw Error("Conversation unavailable");
+      await requireProject(project.selectedId);
+      const runtime = await selectedRuntime();
+      const { controllers, packageToolIds, packageGrants, knowledgeToolIds, knowledgeGrants } =
+        runtime;
+      if (
+        command.command.kind === "set_tool_grant" &&
+        knowledgeToolIds.has(command.command.toolName)
+      ) {
+        knowledge.invalidatePreparation();
+        if (!controllers.has(command.workbenchId)) throw Error("Workbench unavailable");
+        const selected = new Set(knowledgeGrants[command.workbenchId] ?? []);
+        if (command.command.allowed) selected.add(command.command.toolName);
+        else selected.delete(command.command.toolName);
+        const next = {
+          ...knowledgeGrants,
+          [command.workbenchId]: [...selected],
+        };
+        await runtime.store.set("knowledge-tool-grants", next);
+        Object.assign(knowledgeGrants, next);
+        await refreshGrants(command.workbenchId, runtime);
+        return snapshot();
+      }
+      if (
+        command.command.kind === "set_tool_grant" &&
+        packageToolIds.has(command.command.toolName)
+      ) {
+        if (!controllers.has(command.workbenchId)) throw Error("Workbench unavailable");
+        const selected = new Set(packageGrants[command.workbenchId] ?? []);
+        if (command.command.allowed) selected.add(command.command.toolName);
+        else selected.delete(command.command.toolName);
+        const next = {
+          ...packageGrants,
+          [command.workbenchId]: [...selected],
+        };
+        await runtime.store.set("package-grants", next);
+        Object.assign(packageGrants, next);
+        await refreshGrants(command.workbenchId, runtime);
+        return snapshot();
+      }
+      const controller = controllers.get(command.workbenchId);
+      if (!controller) throw Error("Controller unavailable");
+      const result = OperatorResultSchema.parse(await controller.dispatch(command.command));
+      if (result.status === "rejected") throw Error(result.message);
+      await refreshGrants(command.workbenchId, runtime);
+    } else {
+      // Existing-operation controls must remain usable if a drive vanishes.
+      // They never open a new session; new work still verifies the directory.
+      const existingControl =
+        command.kind === "stop" ||
+        command.kind === "approval" ||
+        command.kind === "approval_surface" ||
+        command.kind === "input";
+      const state = existingControl
+        ? live.get(command.conversationId)
+        : await connect(command.conversationId);
+      if (!state) throw Error("No active session for this conversation");
+      const conversation = project.conversations.find((c) => c.id === command.conversationId)!;
+      const runtime = await runtimeForConversation(conversation.id);
+      const { registry } = runtime;
+      if (command.kind === "goal") {
+        if (command.command.action === "create" || command.command.action === "resume")
+          assertGoalActivation(conversation);
+        try {
+          state.goal = await controlGoal(state.session.goals, command.command);
+          delete state.goalError;
+        } catch (error) {
+          if (state.session.goals) {
+            const current = await state.session.goals.read();
+            if (current.status === "ok") {
+              state.goal = current.value;
+              delete state.goalError;
+            } else {
+              delete state.goal;
+              state.goalError = current.failure.message;
+            }
+          }
+          throw error;
+        }
+      } else if (command.kind === "set_mode") {
+        if (state.active) throw Error("Wait for outstanding work to settle before changing mode.");
+        if (!state.session.modes?.includes(command.mode)) throw Error("Native mode unavailable.");
+        if (command.mode === "plan") {
+          const goal = state.session.goals
+            ? await state.session.goals.read()
+            : { status: "ok" as const, value: null };
+          if (goal.status !== "ok") throw Error(goal.failure.message);
+          state.goal = goal.value;
+          assertPlanningIdle(state.active, goal.value);
+        }
+        const previous = conversation.mode;
+        conversation.mode = command.mode;
+        try {
+          await persist();
+        } catch (error) {
+          if (previous === undefined) delete conversation.mode;
+          else conversation.mode = previous;
+          throw error;
+        }
+      } else if (command.kind === "set_reviewer") {
+        if (state.active) throw Error("Review mode can change only while idle");
+        if (!state.session.reviewerModes.includes(command.reviewer))
+          throw Error("This provider does not support the selected review mode");
+        const previous = conversation.reviewer;
+        conversation.reviewer = command.reviewer;
+        try {
+          await persist();
+        } catch (error) {
+          conversation.reviewer = previous;
+          throw error;
+        }
+      } else if (command.kind === "stop") {
+        if (!state.active || !state.session.interrupt)
+          throw Error("This provider does not support interruption");
+        const result = await state.session.interrupt(state.active);
+        if (result.status !== "ok") throw Error(result.failure.message);
+      } else if (command.kind === "approval") {
+        const result = await approvals.choose(
+          command.conversationId,
+          command.resolution.approvalId,
+          command.resolution.optionId,
+          command.presentationId,
+        );
+        if (result.status !== "ok") throw Error(result.failure.message);
+      } else if (command.kind === "approval_surface") {
+        if (command.action === "dismiss")
+          approvals.dismiss(command.conversationId, command.approvalId, command.presentationId);
+        else if (command.action === "reopen")
+          approvals.represent(command.conversationId, command.approvalId, command.presentationId);
+        else {
+          const result = await approvals.stop(
+            command.conversationId,
+            command.approvalId,
+            command.presentationId,
+          );
+          if (result.status !== "ok") throw Error(result.failure.message);
+        }
+      } else if (command.kind === "input") {
+        const result = await state.session.respondToInput(command.resolution);
+        if (result.status !== "ok") throw Error(result.failure.message);
+      } else {
+        if (
+          (conversation.mode === "plan" || conversation.defaultModeRequired) &&
+          !state.session.modes?.includes("default")
+        )
+          throw Error(
+            "Native planning state cannot be reconciled. Refresh the provider before submitting.",
+          );
+        let op = state.active ?? crypto.randomUUID();
+        let preparationTarget = state.active;
+        const operator = await refreshGrants(conversation.workbenchId, runtime);
+        const catalogue = command.selections.length ? await discover(conversation.id) : undefined;
+        const material = await resolveTurnMaterial({
+          command,
+          conversation,
+          project,
+          registry,
+          operator,
+          history,
+          assets,
+          viewContext,
+          catalogue,
+        });
+        const {
+          selected,
+          selectedInstructions,
+          attachments,
+          context,
+          selectedResources,
+          imageAttachments,
+        } = material;
+        const input = {
+          operationId: op,
+          originalDisplayText: command.text,
+          delegationReferences: command.delegationReferences,
+          displayId: crypto.randomUUID(),
+          referenceSignal: knowledge.referenceSignal,
+          reviewer: conversation.reviewer,
+          ...(state.session.modes?.length
+            ? { mode: conversation.mode ?? ("default" as const) }
+            : {}),
+          ...(!state.active && conversation.modelSelection
+            ? { modelSelection: conversation.modelSelection }
+            : {}),
+          text:
+            [
+              command.text,
+              ...context.map((t) => "\nSelected document (reference material):\n" + t),
+            ].join("\n") + viewContext.forConversation(conversation.id),
+          ...(imageAttachments.length ? { attachments: imageAttachments } : {}),
+          ...(selectedInstructions.length
+            ? { additionalContext: { text: selectedInstructions.join("\n") } }
+            : {}),
+          selections: selected
+            .filter((e) => e.origin !== "drawloom")
+            .map((e) => ({ id: e.id, revision: e.revision })),
+        };
+        const preparationEpoch = knowledge.preparationEpoch;
+        if (input.text.length + selectedInstructions.join("\n").length + 512 > 200_000)
+          throw Error("Selected context is too large");
+        const preparationAllowed = () =>
+          live.get(conversation.id) === state &&
+          ![...pendingKnowledgeRevocations.values()].some(
+            (intent) =>
+              intent.conversationId === conversation.id &&
+              intent.workbenchId === conversation.workbenchId,
+          ) &&
+          Boolean(
+            runtime.grants.get(conversation.workbenchId)?.has("knowledge.search") &&
+              runtime.grants.get(conversation.workbenchId)?.has("knowledge.evidence"),
+          );
+        const refreshCompletedTarget = () => {
+          if (!preparationTarget || state.active === preparationTarget) return false;
+          if (state.active) throw Error("Conversation execution changed during preparation");
+          preparationTarget = undefined;
+          op = crypto.randomUUID();
+          input.operationId = op;
+          if (conversation.modelSelection)
+            Object.assign(input, {
+              modelSelection: conversation.modelSelection,
+            });
+          return true;
+        };
+        let prepared: Awaited<ReturnType<typeof knowledge.prepare>>;
+        let assembled: Awaited<ReturnType<typeof contextAssembly.turn>>;
+        for (;;) {
+          prepared = await material.prepareKnowledge(knowledge, op, input.text, preparationAllowed);
+          // No wire submission has occurred. A completed steering target needs
+          // a fresh operation and freshly scoped preparation, never a retry of
+          // the already completed identity.
+          if (refreshCompletedTarget()) continue;
+          assembled = await material.assemble(contextAssembly, prepared);
+          // Assembly is replaceable asynchronous work too. Its references must
+          // be prepared again if the steering operation finished while it waited.
+          if (!refreshCompletedTarget()) break;
+        }
+        input.text = assembled.text;
+        if (assembled.additionalContext)
+          Object.assign(input, {
+            additionalContext: assembled.additionalContext,
+          });
+        else delete input.additionalContext;
+        if (
+          input.text.length +
+            (input.additionalContext?.text.length ?? 0) +
+            (prepared.references?.text.length ?? 0) >
+          200_000
+        )
+          throw Error("Selected context is too large");
+        const preparedInput = () =>
+          preparationEpoch === knowledge.preparationEpoch &&
+          (!prepared.references || preparationAllowed())
+            ? {
+                ...input,
+                preparation: prepared.summary,
+                ...(prepared.references ? { references: prepared.references } : {}),
+              }
+            : {
+                ...input,
+                preparation: { kind: "cancelled" as const, references: [] },
+              };
+        lifecycle.assertRunning();
+        if (implementsProposalId && state.active)
+          throw Error(
+            "Outstanding work changed during preparation. Inspect the conversation; no retry occurred.",
+          );
+        if (input.mode && input.mode !== (conversation.mode ?? "default"))
+          throw Error("Mode changed during preparation. Submit again using the current mode.");
+        const starting = !state.active;
+        const submitted = {
+          displayId: input.displayId,
+          ...(input.mode ? { mode: input.mode } : {}),
+          ...(implementsProposalId ? { implementsProposalId } : {}),
+          text: command.text,
+          assets: attachments,
+          selections: selected.map((e) => ({
+            id: e.id,
+            title: e.name,
+            source: e.origin,
+          })),
+          resources: selectedResources,
+        };
+        if (conversation.provider === "codex") {
+          const pending = submissions.get(op) ?? [];
+          pending.push(submitted);
+          submissions.set(op, pending);
+        }
+        // Command serialization does not drain the asynchronous signal/history
+        // pump. Lock the chosen reviewer before execute can accept this turn.
+        if (starting) {
+          if (input.mode === "plan") {
+            const goal = state.session.goals
+              ? await state.session.goals.read()
+              : { status: "ok" as const, value: null };
+            if (goal.status !== "ok") throw Error(goal.failure.message);
+            assertPlanningIdle(state.active, goal.value);
+            conversation.defaultModeRequired = true;
+            await persist();
+          }
+          state.active = op;
+          operationTelemetry.begin(op);
+        }
+        let accepted = false;
+        try {
+          const result = starting
+            ? await operationTelemetry.run(op, () =>
+                observed("agent.submit", { "drawloom.operation.id": op }, async () => {
+                  const result = await state.session.execute(preparedInput());
+                  if (result.status !== "ok") observeOutcome("error");
+                  return result;
+                }),
+              )
+            : await (state.session.steer?.(preparedInput()) ??
+                Promise.reject(Error("Steering unavailable")));
+          if (result.status !== "ok") throw Error(result.failure.message);
+          accepted = true;
+          if (starting && input.mode) {
+            conversation.lastSubmittedMode = input.mode;
+            if (input.mode === "default") conversation.defaultModeRequired = false;
+            await persist();
+          }
+          if (conversation.provider === "synthetic")
+            await writer(conversation.id).write({
+              id: crypto.randomUUID(),
+              role: "user",
+              origin: { kind: "user" },
+              text: command.text,
+              assets: attachments,
+              operationId: op,
+              state: "complete",
+              preparation: preparedInput().preparation,
+              selections: selected.map((e) => ({
+                id: e.id,
+                title: e.name,
+                source: e.origin,
+              })),
+              resources: selectedResources,
+            });
+        } catch (error) {
+          // A persistence failure after acceptance cannot undo native execution.
+          // Keep its ownership and pending echo until the signal pump settles it.
+          if (accepted) throw error;
+          const pending = submissions.get(op);
+          if (pending)
+            submissions.set(
+              op,
+              pending.filter((s) => s !== submitted),
+            );
+          if (starting && state.active === op) delete state.active;
+          if (starting) operationTelemetry.end(op, "unknown");
+          throw error;
+        }
+        if (
+          !conversation.manualTitle &&
+          (conversation.title === "New conversation" ||
+            conversation.title === "A clearer introduction")
+        ) {
+          const previousTitle = conversation.title,
+            previousRevision = project.metadataRevision;
+          const title = command.text.replace(/\s+/g, " ").trim();
+          conversation.title =
+            title.length > 64 ? title.slice(0, 61).replace(/\s+\S*$/, "") + "…" : title;
+          project.metadataRevision++;
+          try {
+            await persist();
+          } catch (error) {
+            conversation.title = previousTitle;
+            project.metadataRevision = previousRevision;
+            throw error;
+          }
+        }
+        if (conversation.provider === "synthetic")
+          await syntheticInvoke.get(conversation.id)?.(op, command.text);
+      }
+    }
+    return snapshot();
+  }
+
+  async function importAssetStream(
+    chunks: AsyncIterable<Uint8Array>,
+    mediaType: string,
+    name: string,
+    conversationId: string,
+    signal?: AbortSignal,
+  ) {
+    await requireProject(conversationId);
+    const { text, controllers } = await runtimeForConversation(conversationId);
+    const workbenchId = project.conversations.find((c) => c.id === conversationId)?.workbenchId;
+    if (!workbenchId) throw Error("Conversation unavailable");
+    if (!browserImportTypes.has(mediaType)) throw Error("Unsupported or oversized file");
+    const asset = await assets.putStream(chunks, mediaType, {
+      ...(signal ? { signal } : {}),
+    });
+    if (!project.assets.some((a) => a.key === asset.key)) project.assets.push(asset);
+    await persist();
+    if (workbenchId === "text") await text.addAsset(asset, name);
+    else if (workbenchId)
+      await controllers.get(workbenchId)?.observeArtifact?.({
+        operationId: `import-${crypto.randomUUID()}`,
+        asset,
+      });
+    return asset;
+  }
+
   const application = {
     settingsPages: pluginSettings.list,
     settingsOpen: pluginSettings.open,
@@ -1309,39 +2317,7 @@ export async function createDesktopApplication(
       };
     },
     packageStatuses: async () => (await selectedRuntime()).packages.statuses,
-    async installedPackages() {
-      const { packages } = await selectedRuntime();
-      return Promise.all(
-        installations.list().map(async ({ configuration: _configuration, ...installation }) => {
-          const current = packages.statuses.find((s) => s.id === installation.id);
-          let availableServers = installation.servers.map((name) => ({
-            name,
-            transport: "unknown",
-          }));
-          try {
-            availableServers = (await installations.inspect(installation.root)).servers.map(
-              (server) => ({
-                name: server.name,
-                transport: server.config.type,
-              }),
-            );
-          } catch {
-            /* Retain selected identities and existing readiness errors if metadata is inaccessible. */
-          }
-          return {
-            ...installation,
-            pendingRestart: installations.pendingRestart(installation.id),
-            status: current?.status ?? "not-active",
-            availableServers,
-            diagnostics: current?.codes ?? [],
-            connections: (current?.servers ?? []).map((s) => ({
-              ...s,
-              transport: packages.transportFor(installation.id, s.name) ?? "unknown",
-            })),
-          };
-        }),
-      );
-    },
+    installedPackages,
     async packageAction(raw: unknown) {
       const action = PackageActionSchema.parse(raw);
       if (action.action === "inspect") {
@@ -1374,158 +2350,9 @@ export async function createDesktopApplication(
         );
         await pluginSettings.invalidate(action.id);
       }
-      return this.installedPackages();
+      return installedPackages();
     },
-    async discover(
-      conversationId: string,
-      refresh = false,
-      cursor?: string,
-    ): Promise<DesktopCatalogue> {
-      const { packages, registry, packageToolIds, knowledgeToolIds, mcpApps } =
-        await runtimeForConversation(conversationId);
-      const conversation = project.conversations.find((c) => c.id === conversationId);
-      if (!conversation) throw Error("Conversation unavailable");
-      const workbench = registry.workbenches.find((w) => w.id === conversation.workbenchId)!;
-      const entries: DesktopCatalogue["entries"] = registry.plugins.map((p) => ({
-        id: `drawloom:plugin:${p.id}`,
-        origin: "drawloom",
-        kind: "plugin",
-        name: p.id,
-        ...(packages.pluginPresentation.get(p.id)
-          ? { presentation: packages.pluginPresentation.get(p.id) }
-          : {}),
-        description: `Version ${p.version}. Registered at startup; permissions remain separate.`,
-        scope: "startup",
-        availability: "available",
-        selectable: false,
-        revision: localRevision,
-      }));
-      for (const contribution of registry.contributions) {
-        if (contribution.kind !== "skill" && contribution.kind !== "tool") continue;
-        const presentation = packages.toolPresentation.get(contribution.contributionId);
-        entries.push({
-          id: contribution.id,
-          origin: presentation?.origin ?? "drawloom",
-          kind: contribution.kind,
-          name: presentation?.name ?? contribution.title,
-          description: presentation?.description ?? contribution.description,
-          scope:
-            contribution.kind === "skill" && workbench.skills.includes(contribution.contributionId)
-              ? "required"
-              : "startup",
-          availability:
-            contribution.kind === "tool" &&
-            !workbench.tools.includes(contribution.contributionId) &&
-            !packageToolIds.has(contribution.contributionId) &&
-            !knowledgeToolIds.has(contribution.contributionId)
-              ? "unavailable"
-              : "available",
-          selectable: contribution.kind === "skill",
-          ownerId: `drawloom:plugin:${contribution.pluginId}`,
-          revision: localRevision,
-        });
-      }
-      for (const [alias, tool] of packages.toolPresentation) {
-        if (tool.available) continue;
-        entries.push({
-          id: `package-tool:${alias}`,
-          origin: tool.origin,
-          ownerId: tool.ownerId,
-          kind: "tool",
-          name: tool.name,
-          description: tool.description,
-          scope: tool.appOnly ? "app-only" : "unsupported",
-          availability: tool.appOnly ? "available" : "unavailable",
-          selectable: false,
-          revision: localRevision,
-        });
-      }
-      for (const view of registry.views.filter((v) => v.workbenchId === workbench.id)) {
-        for (const tool of mcpApps.get(view.id)?.tools ?? []) {
-          const visibility = tool._meta?.ui;
-          const modelOnly =
-            typeof visibility === "object" &&
-            visibility &&
-            "visibility" in visibility &&
-            Array.isArray(visibility.visibility) &&
-            !visibility.visibility.includes("app");
-          entries.push({
-            id: `app:${view.id}:tool:${tool.name}`,
-            origin: `app:${view.id}`,
-            kind: "tool",
-            name: tool.title ?? tool.name,
-            description: tool.description ?? "",
-            scope: modelOnly ? "model-only" : "app-only",
-            availability: modelOnly ? "unavailable" : "available",
-            selectable: false,
-            ownerId: `drawloom:plugin:${view.pluginId}`,
-            revision: localRevision,
-          });
-        }
-      }
-      let categories: DesktopCatalogue["categories"] = [];
-      let nextCursor: string | undefined;
-      if (conversation.provider === "codex") {
-        try {
-          let connection = discoveryConnections.get(conversationId);
-          if (!connection) {
-            connection = createDiscoveryCache(() => connect(conversationId));
-            discoveryConnections.set(conversationId, connection);
-          }
-          const read = connection.read(refresh, live.get(conversationId));
-          if (read.status === "error") throw Error("Native discovery unavailable");
-          const session = live.get(conversationId)?.session ?? read.value?.session;
-          if (!session)
-            categories = (["skill", "tool", "app"] as const).map((kind) => ({
-              kind,
-              status: "loading",
-              message: "Connecting to Codex. Registered contributions are ready.",
-            }));
-          else {
-            const result = await session.discovery?.list({
-              refresh,
-              wait: false,
-              ...(cursor ? { cursor } : {}),
-            });
-            if (result?.status === "ok") {
-              entries.push(
-                ...result.value.entries.map((e) => ({
-                  ...e,
-                  revision: result.value.revision,
-                })),
-              );
-              categories = result.value.categories;
-              nextCursor = result.value.nextCursor;
-            } else
-              categories = [
-                {
-                  kind: "skill",
-                  status: result ? "error" : "unsupported",
-                  message: result
-                    ? "Native discovery changed during loading. Refresh to try again; registered contributions remain visible."
-                    : "Native discovery is unavailable. Registered contributions remain visible.",
-                },
-              ];
-          }
-        } catch {
-          categories = (["skill", "tool", "app", "resource"] as const).map((kind) => ({
-            kind,
-            status: "error" as const,
-            message:
-              "Codex discovery is unavailable. Registered contributions remain visible; refresh to retry.",
-          }));
-        }
-      }
-      const packageResources = await packages.discoverResources(refresh, false);
-      entries.push(...packageResources.entries);
-      categories.push(...packageResources.categories);
-      return DesktopCatalogueSchema.parse({
-        entries,
-        categories,
-        ...(nextCursor ? { nextCursor } : {}),
-        experimentalPluginDiscovery: options.experimentalPluginDiscovery ?? true,
-      });
-    },
+    discover,
     async authenticateIntegration(
       conversationId: string,
       selection: { id: string; revision: string },
@@ -1552,7 +2379,7 @@ export async function createDesktopApplication(
       const cached = await history.get(conversationId, id);
       observeCache(Boolean(cached));
       if (cached) return cached;
-      const catalogue = await this.discover(conversationId);
+      const catalogue = await discover(conversationId);
       const entry = catalogue.entries.find(
         (e) =>
           e.id === selection.id &&
@@ -1927,7 +2754,7 @@ export async function createDesktopApplication(
       try {
         const state = await connect(target.conversationId);
         if (state.active) return { isError: true };
-        await this.command({
+        await command({
           kind: "send",
           conversationId: target.conversationId,
           text,
@@ -1939,809 +2766,9 @@ export async function createDesktopApplication(
         return { isError: true };
       }
     },
-    async snapshot() {
-      const {
-        packages,
-        registry,
-        controllers,
-        packageToolIds,
-        packageGrants,
-        knowledgeToolIds,
-        knowledgeGrants,
-      } = await selectedRuntime();
-      const conversation = project.conversations.find((c) => c.id === project.selectedId);
-      const state = live.get(project.selectedId);
-      const controller = conversation ? controllers.get(conversation.workbenchId) : undefined;
-      const original = controller ? await controller.snapshot() : unavailable;
-      const operator = {
-        ...original,
-        grants: [
-          ...original.grants,
-          ...[...knowledgeToolIds].map((toolName) => ({
-            toolName,
-            allowed: conversation
-              ? (knowledgeGrants[conversation.workbenchId]?.includes(toolName) ?? false)
-              : false,
-          })),
-          ...[...packageToolIds].map((toolName) => ({
-            toolName,
-            allowed: conversation
-              ? (packageGrants[conversation.workbenchId]?.includes(toolName) ?? false)
-              : false,
-          })),
-        ],
-      };
-      const retained = conversation ? await evidenceFor(conversation.id) : undefined;
-      return DesktopSnapshotSchema.parse({
-        mediaPolicy: mediaPolicy.snapshot(),
-        toolLabels: [...packages.toolPresentation]
-          .filter(([, tool]) => tool.available)
-          .map(([toolName, tool]) => ({
-            toolName,
-            title: tool.name,
-            origin: tool.origin,
-          })),
-        workspace:
-          project.projects.find((p) => p.id === project.selectedProjectId)?.name ??
-          "Choose a project",
-        projects: await Promise.all(
-          project.projects.map(async ({ device: _device, inode: _inode, ...p }) => ({
-            ...p,
-            available: await verifyProjectDirectory(
-              { ...p, device: _device, inode: _inode },
-              root,
-            ).then(
-              () => true,
-              () => false,
-            ),
-          })),
-        ),
-        ...(project.selectedProjectId ? { selectedProjectId: project.selectedProjectId } : {}),
-        conversations: project.conversations,
-        workbenches: registry.workbenches,
-        views: registry.views,
-        selectedId: project.selectedId,
-        signals: state?.signals ?? [],
-        modes: [...(state?.session.modes ?? [])],
-        goal: {
-          supported: state ? !!state.session.goals : conversation?.provider === "codex",
-          ...(state?.goal !== undefined ? { snapshot: state.goal } : {}),
-          ...(state?.goalError ? { error: state.goalError } : {}),
-        },
-        delegation: {
-          supported: Boolean(state?.session.delegations && !state.delegationError),
-          children: [...(state?.delegations?.values() ?? [])],
-          ...(state?.delegationError ? { error: state.delegationError } : {}),
-        },
-        forking: { supported: Boolean(state?.session.forks) },
-        approvals: approvals.pending(project.selectedId).map((entry) => ({
-          ...entry,
-          presentation: options.approvalPresenter ? "external" : "desktop",
-        })),
-        activity: (retained?.activity() ?? []).map((result) => ({
-          toolName: retained?.toolFor(result.invocationId),
-          ...(result.outcome.status === "ok"
-            ? {
-                ...result,
-                outcome: {
-                  status: "ok",
-                  text: result.outcome.text,
-                  value: result.outcome.value,
-                },
-              }
-            : result),
-        })),
-        pendingTools: retained?.pending() ?? [],
-        elicitations: conversation ? elicitation.pending(conversation.id) : [],
-        operator,
-        ...(state?.active ? { activeOperation: state.active } : {}),
-        archiveBlockedConversationIds: project.conversations
-          .filter((c) => archiveBlocked(c.id))
-          .map((c) => c.id),
-        controls: {
-          steer: Boolean(state?.session.steer),
-          interrupt: Boolean(state?.session.interrupt),
-          reviewerModes: state?.session.reviewerModes ?? ["human"],
-        },
-        plugins: registry.plugins.map((p) => ({
-          id: p.id,
-          status: "ready",
-          summary: "Registered at startup. Tool grants are separate.",
-        })),
-        notice,
-        activeContext: conversation ? viewContext.forConversation(conversation.id) : "",
-      });
-    },
-    async restore() {
-      for (const conversation of project.conversations) {
-        const pending = await store.get(`knowledge-pending-outcomes:${conversation.id}`);
-        if (!Array.isArray(pending) || !pending.length) continue;
-        try {
-          const capture = await outcomeCaptureFor(conversation.id);
-          await capture.recover();
-          knowledge.reportObservationRecovery(conversation.id);
-        } catch {
-          knowledge.reportObservationFailure(conversation.id);
-        }
-      }
-      const workflowReadiness = await orchestration.restore();
-      if (workflowReadiness?.message) notice = workflowReadiness.message;
-      await knowledgeService.capabilities.curation?.setAutomatic(
-        !!(await learningPermission.lease("automaticCuration")),
-      );
-      void nightloom?.initialize().catch(() => undefined);
-      nightloom?.startScheduling();
-      void lifecycle.run(() => knowledge.pollSource()).catch(() => undefined);
-      const c = project.conversations.find((c) => c.id === project.selectedId);
-      if (c?.provider === "codex" && c.projectId) {
-        void lifecycle
-          .run(async () => {
-            try {
-              await connect(c.id);
-            } catch {
-              notice =
-                "Codex unavailable. Check installation and sign-in, then restart the host. Synthetic mode is a separate choice.";
-              await writer(c.id).unavailable();
-            }
-          })
-          .catch(() => {});
-      }
-    },
-    async command(raw: unknown) {
-      let implementsProposalId: string | undefined;
-      const command = await (async () => {
-        const requested = DesktopCommandSchema.parse(raw);
-        if (requested.kind !== "implement_plan") return requested;
-        const state = await connect(requested.conversationId);
-        if (!state.session.modes?.includes("default"))
-          throw Error("Native default mode unavailable.");
-        const goal = state.session.goals
-          ? await state.session.goals.read()
-          : { status: "ok" as const, value: null };
-        if (goal.status !== "ok") throw Error(goal.failure.message);
-        assertPlanningIdle(state.active, goal.value);
-        const text = await reservePlanImplementation(
-          history,
-          requested.conversationId,
-          requested.proposalId,
-        );
-        implementsProposalId = requested.proposalId;
-        const conversation = project.conversations.find((c) => c.id === requested.conversationId)!;
-        conversation.mode = "default";
-        await persist();
-        return {
-          kind: "send" as const,
-          conversationId: requested.conversationId,
-          text: `Implement the following plan:\n\n${text}`,
-          attachmentKeys: [],
-          contextArtifactIds: [],
-          conversationContextIds: [],
-          selections: [],
-          resourceSelections: [],
-          delegationReferences: [],
-        };
-      })();
-      if (command.kind === "add_project") {
-        const binding = await bindProjectDirectory(command.directory, root);
-        const existing = project.projects.find(
-          (p) =>
-            p.directory === binding.directory &&
-            p.device === binding.device &&
-            p.inode === binding.inode,
-        );
-        const selected = existing ?? {
-          ...binding,
-          id: crypto.randomUUID(),
-          name: command.name ?? basename(binding.directory),
-        };
-        if (!existing) project.projects.push(selected);
-        project.selectedProjectId = selected.id;
-        project.selectedId =
-          project.conversations.find((c) => c.projectId === selected.id)?.id ?? "";
-        viewContext.clear();
-        viewMount = undefined;
-        await persist();
-      } else if (command.kind === "rename_project") {
-        const existing = project.projects.find((p) => p.id === command.projectId);
-        if (!existing) throw Error("Project unavailable");
-        existing.name = command.name;
-        await persist();
-      } else if (command.kind === "select_project") {
-        if (!project.projects.some((p) => p.id === command.projectId))
-          throw Error("Project unavailable");
-        project.selectedProjectId = command.projectId;
-        project.selectedId =
-          project.conversations.find((c) => c.projectId === command.projectId)?.id ?? "";
-        viewContext.clear();
-        viewMount = undefined;
-        await persist();
-        await this.restore();
-      } else if (command.kind === "assign_project") {
-        const conversation = project.conversations.find((c) => c.id === command.conversationId);
-        const binding = project.projects.find((p) => p.id === command.projectId);
-        if (!conversation || conversation.projectId || !binding)
-          throw Error("Only an unassigned conversation can be assigned");
-        await verifyProjectDirectory(binding, root);
-        // Assignment does not manufacture native continuity. The adapter checks
-        // saved native cwd before any resume and confirms cwd on opening.
-        const previous = {
-          selectedId: project.selectedId,
-          selectedProjectId: project.selectedProjectId,
-          metadataRevision: project.metadataRevision,
-        };
-        conversation.projectId = binding.id;
-        project.metadataRevision++;
-        try {
-          if (conversation.provider === "codex") await connect(conversation.id);
-        } catch (error) {
-          delete conversation.projectId;
-          project.metadataRevision = previous.metadataRevision;
-          throw error;
-        }
-        project.selectedId = conversation.id;
-        project.selectedProjectId = binding.id;
-        viewContext.clear();
-        viewMount = undefined;
-        try {
-          await persist();
-        } catch (error) {
-          delete conversation.projectId;
-          project.selectedId = previous.selectedId;
-          project.metadataRevision = previous.metadataRevision;
-          if (previous.selectedProjectId === undefined) delete project.selectedProjectId;
-          else project.selectedProjectId = previous.selectedProjectId;
-          throw error;
-        }
-      } else if (command.kind === "create_conversation") {
-        const binding = project.projects.find((p) => p.id === project.selectedProjectId);
-        if (!binding) throw Error("Choose a project directory before starting a conversation");
-        await verifyProjectDirectory(binding, root);
-        const { registry } = await runtimeFor(binding);
-        if (!registry.workbenches.some((w) => w.id === command.workbenchId))
-          throw Error("Workbench unavailable");
-        const id = crypto.randomUUID(),
-          previousSelectedId = project.selectedId;
-        project.conversations.push({
-          id,
-          title: "New conversation",
-          workbenchId: command.workbenchId,
-          projectId: binding.id,
-          provider: command.provider,
-          reviewer: "human",
-          archived: false,
-        });
-        project.metadataRevision++;
-        project.selectedId = id;
-        viewContext.clear();
-        viewMount = undefined;
-        try {
-          await persist();
-        } catch (error) {
-          project.conversations = project.conversations.filter((c) => c.id !== id);
-          project.selectedId = previousSelectedId;
-          project.metadataRevision--;
-          throw error;
-        }
-        if (command.provider === "codex") await this.restore();
-      } else if (command.kind === "inspect_delegation" || command.kind === "interrupt_delegation") {
-        const state = await connect(command.conversationId);
-        const capability = state.session.delegations;
-        if (!capability) throw Error("Native delegation is unavailable.");
-        const result =
-          command.kind === "inspect_delegation"
-            ? await capability.read(command.childId)
-            : await capability.interrupt(command.child);
-        if (result.status !== "ok") throw Error(result.failure.message);
-      } else if (command.kind === "fork_conversation") {
-        const result = await conversationForks.create(command.conversationId, command.requestId);
-        if (result.state !== "created")
-          throw Error(
-            "Fork outcome is uncertain. The recovery receipt is retained; no second fork will be submitted.",
-          );
-        const fork = project.conversations.find((entry) => entry.id === result.sessionId)!;
-        project.selectedId = fork.id;
-        project.selectedProjectId = fork.projectId;
-        viewContext.clear();
-        viewMount = undefined;
-        await persist();
-        await this.restore();
-      } else if (command.kind === "select_conversation") {
-        if (!project.conversations.some((c) => c.id === command.conversationId))
-          throw Error("Conversation unavailable");
-        project.selectedId = command.conversationId;
-        const selected = project.conversations.find((c) => c.id === command.conversationId)!;
-        if (selected.projectId) project.selectedProjectId = selected.projectId;
-        else delete project.selectedProjectId;
-        viewContext.clear();
-        viewMount = undefined;
-        await persist();
-        await this.restore();
-      } else if (command.kind === "set_model") {
-        const conversation = project.conversations.find((c) => c.id === command.conversationId);
-        if (!conversation || conversation.provider !== "codex" || archiveBlocked(conversation.id))
-          throw Error("Model selection unavailable");
-        if (command.selection && !permitsModel(await desktopModels(), command.selection))
-          throw Error("Selected model unavailable");
-        if (archiveBlocked(conversation.id)) throw Error("Model selection unavailable");
-        const previous = conversation.modelSelection;
-        if (command.selection) conversation.modelSelection = command.selection;
-        else delete conversation.modelSelection;
-        try {
-          await persist();
-        } catch (error) {
-          if (previous) conversation.modelSelection = previous;
-          else delete conversation.modelSelection;
-          throw error;
-        }
-      } else if (command.kind === "rename_conversation") {
-        const conversation = project.conversations.find((c) => c.id === command.conversationId);
-        if (!conversation) throw Error("Conversation unavailable");
-        const previous = {
-          title: conversation.title,
-          manualTitle: conversation.manualTitle,
-          metadataRevision: project.metadataRevision,
-        };
-        conversation.title = command.title;
-        conversation.manualTitle = command.title;
-        project.metadataRevision++;
-        try {
-          await persist();
-        } catch (error) {
-          conversation.title = previous.title;
-          project.metadataRevision = previous.metadataRevision;
-          if (previous.manualTitle === undefined) delete conversation.manualTitle;
-          else conversation.manualTitle = previous.manualTitle;
-          throw error;
-        }
-      } else if (command.kind === "set_conversation_pinned") {
-        const conversation = project.conversations.find((c) => c.id === command.conversationId);
-        if (!conversation) throw Error("Conversation unavailable");
-        const previous = {
-          pinned: conversation.pinned,
-          metadataRevision: project.metadataRevision,
-        };
-        conversation.pinned = command.pinned;
-        project.metadataRevision++;
-        try {
-          await persist();
-        } catch (error) {
-          conversation.pinned = previous.pinned;
-          project.metadataRevision = previous.metadataRevision;
-          throw error;
-        }
-      } else if (command.kind === "archive_conversation") {
-        const conversation = project.conversations.find((c) => c.id === command.conversationId);
-        if (!conversation) throw Error("Conversation unavailable");
-        if (archiveBlocked(conversation.id))
-          throw Error("Conversation cannot be archived while work or approval is active");
-        const previous = {
-          archived: conversation.archived,
-          selectedId: project.selectedId,
-          metadataRevision: project.metadataRevision,
-        };
-        conversation.archived = true;
-        project.metadataRevision++;
-        if (project.selectedId === conversation.id)
-          project.selectedId =
-            project.conversations.find((c) => !c.archived && c.projectId === conversation.projectId)
-              ?.id ?? "";
-        try {
-          await persist();
-        } catch (error) {
-          conversation.archived = previous.archived;
-          project.selectedId = previous.selectedId;
-          project.metadataRevision = previous.metadataRevision;
-          throw error;
-        }
-      } else if (command.kind === "restore_conversation") {
-        const conversation = project.conversations.find((c) => c.id === command.conversationId);
-        if (!conversation) throw Error("Conversation unavailable");
-        const previous = {
-          archived: conversation.archived,
-          metadataRevision: project.metadataRevision,
-        };
-        conversation.archived = false;
-        project.metadataRevision++;
-        try {
-          await persist();
-        } catch (error) {
-          conversation.archived = previous.archived;
-          project.metadataRevision = previous.metadataRevision;
-          throw error;
-        }
-      } else if (command.kind === "elicitation") {
-        elicitation.resolve(command.conversationId, command.requestId, command.result);
-      } else if (command.kind === "operator") {
-        if (
-          command.conversationId !== project.selectedId ||
-          project.conversations.find((c) => c.id === command.conversationId)?.workbenchId !==
-            command.workbenchId
-        )
-          throw Error("Conversation unavailable");
-        await requireProject(project.selectedId);
-        const runtime = await selectedRuntime();
-        const { controllers, packageToolIds, packageGrants, knowledgeToolIds, knowledgeGrants } =
-          runtime;
-        if (
-          command.command.kind === "set_tool_grant" &&
-          knowledgeToolIds.has(command.command.toolName)
-        ) {
-          knowledge.invalidatePreparation();
-          if (!controllers.has(command.workbenchId)) throw Error("Workbench unavailable");
-          const selected = new Set(knowledgeGrants[command.workbenchId] ?? []);
-          if (command.command.allowed) selected.add(command.command.toolName);
-          else selected.delete(command.command.toolName);
-          const next = {
-            ...knowledgeGrants,
-            [command.workbenchId]: [...selected],
-          };
-          await runtime.store.set("knowledge-tool-grants", next);
-          Object.assign(knowledgeGrants, next);
-          await refreshGrants(command.workbenchId, runtime);
-          return this.snapshot();
-        }
-        if (
-          command.command.kind === "set_tool_grant" &&
-          packageToolIds.has(command.command.toolName)
-        ) {
-          if (!controllers.has(command.workbenchId)) throw Error("Workbench unavailable");
-          const selected = new Set(packageGrants[command.workbenchId] ?? []);
-          if (command.command.allowed) selected.add(command.command.toolName);
-          else selected.delete(command.command.toolName);
-          const next = {
-            ...packageGrants,
-            [command.workbenchId]: [...selected],
-          };
-          await runtime.store.set("package-grants", next);
-          Object.assign(packageGrants, next);
-          await refreshGrants(command.workbenchId, runtime);
-          return this.snapshot();
-        }
-        const controller = controllers.get(command.workbenchId);
-        if (!controller) throw Error("Controller unavailable");
-        const result = OperatorResultSchema.parse(await controller.dispatch(command.command));
-        if (result.status === "rejected") throw Error(result.message);
-        await refreshGrants(command.workbenchId, runtime);
-      } else {
-        // Existing-operation controls must remain usable if a drive vanishes.
-        // They never open a new session; new work still verifies the directory.
-        const existingControl =
-          command.kind === "stop" ||
-          command.kind === "approval" ||
-          command.kind === "approval_surface" ||
-          command.kind === "input";
-        const state = existingControl
-          ? live.get(command.conversationId)
-          : await connect(command.conversationId);
-        if (!state) throw Error("No active session for this conversation");
-        const conversation = project.conversations.find((c) => c.id === command.conversationId)!;
-        const runtime = await runtimeForConversation(conversation.id);
-        const { registry } = runtime;
-        if (command.kind === "goal") {
-          if (command.command.action === "create" || command.command.action === "resume")
-            assertGoalActivation(conversation);
-          try {
-            state.goal = await controlGoal(state.session.goals, command.command);
-            delete state.goalError;
-          } catch (error) {
-            if (state.session.goals) {
-              const current = await state.session.goals.read();
-              if (current.status === "ok") {
-                state.goal = current.value;
-                delete state.goalError;
-              } else {
-                delete state.goal;
-                state.goalError = current.failure.message;
-              }
-            }
-            throw error;
-          }
-        } else if (command.kind === "set_mode") {
-          if (state.active)
-            throw Error("Wait for outstanding work to settle before changing mode.");
-          if (!state.session.modes?.includes(command.mode)) throw Error("Native mode unavailable.");
-          if (command.mode === "plan") {
-            const goal = state.session.goals
-              ? await state.session.goals.read()
-              : { status: "ok" as const, value: null };
-            if (goal.status !== "ok") throw Error(goal.failure.message);
-            state.goal = goal.value;
-            assertPlanningIdle(state.active, goal.value);
-          }
-          const previous = conversation.mode;
-          conversation.mode = command.mode;
-          try {
-            await persist();
-          } catch (error) {
-            if (previous === undefined) delete conversation.mode;
-            else conversation.mode = previous;
-            throw error;
-          }
-        } else if (command.kind === "set_reviewer") {
-          if (state.active) throw Error("Review mode can change only while idle");
-          if (!state.session.reviewerModes.includes(command.reviewer))
-            throw Error("This provider does not support the selected review mode");
-          const previous = conversation.reviewer;
-          conversation.reviewer = command.reviewer;
-          try {
-            await persist();
-          } catch (error) {
-            conversation.reviewer = previous;
-            throw error;
-          }
-        } else if (command.kind === "stop") {
-          if (!state.active || !state.session.interrupt)
-            throw Error("This provider does not support interruption");
-          const result = await state.session.interrupt(state.active);
-          if (result.status !== "ok") throw Error(result.failure.message);
-        } else if (command.kind === "approval") {
-          const result = await approvals.choose(
-            command.conversationId,
-            command.resolution.approvalId,
-            command.resolution.optionId,
-            command.presentationId,
-          );
-          if (result.status !== "ok") throw Error(result.failure.message);
-        } else if (command.kind === "approval_surface") {
-          if (command.action === "dismiss")
-            approvals.dismiss(command.conversationId, command.approvalId, command.presentationId);
-          else if (command.action === "reopen")
-            approvals.represent(command.conversationId, command.approvalId, command.presentationId);
-          else {
-            const result = await approvals.stop(
-              command.conversationId,
-              command.approvalId,
-              command.presentationId,
-            );
-            if (result.status !== "ok") throw Error(result.failure.message);
-          }
-        } else if (command.kind === "input") {
-          const result = await state.session.respondToInput(command.resolution);
-          if (result.status !== "ok") throw Error(result.failure.message);
-        } else {
-          if (
-            (conversation.mode === "plan" || conversation.defaultModeRequired) &&
-            !state.session.modes?.includes("default")
-          )
-            throw Error(
-              "Native planning state cannot be reconciled. Refresh the provider before submitting.",
-            );
-          let op = state.active ?? crypto.randomUUID();
-          let preparationTarget = state.active;
-          const operator = await refreshGrants(conversation.workbenchId, runtime);
-          const catalogue = command.selections.length
-            ? await this.discover(conversation.id)
-            : undefined;
-          const material = await resolveTurnMaterial({
-            command,
-            conversation,
-            project,
-            registry,
-            operator,
-            history,
-            assets,
-            viewContext,
-            catalogue,
-          });
-          const {
-            selected,
-            selectedInstructions,
-            attachments,
-            context,
-            selectedResources,
-            imageAttachments,
-          } = material;
-          const input = {
-            operationId: op,
-            originalDisplayText: command.text,
-            delegationReferences: command.delegationReferences,
-            displayId: crypto.randomUUID(),
-            referenceSignal: knowledge.referenceSignal,
-            reviewer: conversation.reviewer,
-            ...(state.session.modes?.length
-              ? { mode: conversation.mode ?? ("default" as const) }
-              : {}),
-            ...(!state.active && conversation.modelSelection
-              ? { modelSelection: conversation.modelSelection }
-              : {}),
-            text:
-              [
-                command.text,
-                ...context.map((t) => "\nSelected document (reference material):\n" + t),
-              ].join("\n") + viewContext.forConversation(conversation.id),
-            ...(imageAttachments.length ? { attachments: imageAttachments } : {}),
-            ...(selectedInstructions.length
-              ? { additionalContext: { text: selectedInstructions.join("\n") } }
-              : {}),
-            selections: selected
-              .filter((e) => e.origin !== "drawloom")
-              .map((e) => ({ id: e.id, revision: e.revision })),
-          };
-          const preparationEpoch = knowledge.preparationEpoch;
-          if (input.text.length + selectedInstructions.join("\n").length + 512 > 200_000)
-            throw Error("Selected context is too large");
-          const preparationAllowed = () =>
-            live.get(conversation.id) === state &&
-            ![...pendingKnowledgeRevocations.values()].some(
-              (intent) =>
-                intent.conversationId === conversation.id &&
-                intent.workbenchId === conversation.workbenchId,
-            ) &&
-            Boolean(
-              runtime.grants.get(conversation.workbenchId)?.has("knowledge.search") &&
-                runtime.grants.get(conversation.workbenchId)?.has("knowledge.evidence"),
-            );
-          const refreshCompletedTarget = () => {
-            if (!preparationTarget || state.active === preparationTarget) return false;
-            if (state.active) throw Error("Conversation execution changed during preparation");
-            preparationTarget = undefined;
-            op = crypto.randomUUID();
-            input.operationId = op;
-            if (conversation.modelSelection)
-              Object.assign(input, {
-                modelSelection: conversation.modelSelection,
-              });
-            return true;
-          };
-          let prepared: Awaited<ReturnType<typeof knowledge.prepare>>;
-          let assembled: Awaited<ReturnType<typeof contextAssembly.turn>>;
-          for (;;) {
-            prepared = await material.prepareKnowledge(
-              knowledge,
-              op,
-              input.text,
-              preparationAllowed,
-            );
-            // No wire submission has occurred. A completed steering target needs
-            // a fresh operation and freshly scoped preparation, never a retry of
-            // the already completed identity.
-            if (refreshCompletedTarget()) continue;
-            assembled = await material.assemble(contextAssembly, prepared);
-            // Assembly is replaceable asynchronous work too. Its references must
-            // be prepared again if the steering operation finished while it waited.
-            if (!refreshCompletedTarget()) break;
-          }
-          input.text = assembled.text;
-          if (assembled.additionalContext)
-            Object.assign(input, {
-              additionalContext: assembled.additionalContext,
-            });
-          else delete input.additionalContext;
-          if (
-            input.text.length +
-              (input.additionalContext?.text.length ?? 0) +
-              (prepared.references?.text.length ?? 0) >
-            200_000
-          )
-            throw Error("Selected context is too large");
-          const preparedInput = () =>
-            preparationEpoch === knowledge.preparationEpoch &&
-            (!prepared.references || preparationAllowed())
-              ? {
-                  ...input,
-                  preparation: prepared.summary,
-                  ...(prepared.references ? { references: prepared.references } : {}),
-                }
-              : {
-                  ...input,
-                  preparation: { kind: "cancelled" as const, references: [] },
-                };
-          lifecycle.assertRunning();
-          if (implementsProposalId && state.active)
-            throw Error(
-              "Outstanding work changed during preparation. Inspect the conversation; no retry occurred.",
-            );
-          if (input.mode && input.mode !== (conversation.mode ?? "default"))
-            throw Error("Mode changed during preparation. Submit again using the current mode.");
-          const starting = !state.active;
-          const submitted = {
-            displayId: input.displayId,
-            ...(input.mode ? { mode: input.mode } : {}),
-            ...(implementsProposalId ? { implementsProposalId } : {}),
-            text: command.text,
-            assets: attachments,
-            selections: selected.map((e) => ({
-              id: e.id,
-              title: e.name,
-              source: e.origin,
-            })),
-            resources: selectedResources,
-          };
-          if (conversation.provider === "codex") {
-            const pending = submissions.get(op) ?? [];
-            pending.push(submitted);
-            submissions.set(op, pending);
-          }
-          // Command serialization does not drain the asynchronous signal/history
-          // pump. Lock the chosen reviewer before execute can accept this turn.
-          if (starting) {
-            if (input.mode === "plan") {
-              const goal = state.session.goals
-                ? await state.session.goals.read()
-                : { status: "ok" as const, value: null };
-              if (goal.status !== "ok") throw Error(goal.failure.message);
-              assertPlanningIdle(state.active, goal.value);
-              conversation.defaultModeRequired = true;
-              await persist();
-            }
-            state.active = op;
-            operationTelemetry.begin(op);
-          }
-          let accepted = false;
-          try {
-            const result = starting
-              ? await operationTelemetry.run(op, () =>
-                  observed("agent.submit", { "drawloom.operation.id": op }, async () => {
-                    const result = await state.session.execute(preparedInput());
-                    if (result.status !== "ok") observeOutcome("error");
-                    return result;
-                  }),
-                )
-              : await (state.session.steer?.(preparedInput()) ??
-                  Promise.reject(Error("Steering unavailable")));
-            if (result.status !== "ok") throw Error(result.failure.message);
-            accepted = true;
-            if (starting && input.mode) {
-              conversation.lastSubmittedMode = input.mode;
-              if (input.mode === "default") conversation.defaultModeRequired = false;
-              await persist();
-            }
-            if (conversation.provider === "synthetic")
-              await writer(conversation.id).write({
-                id: crypto.randomUUID(),
-                role: "user",
-                origin: { kind: "user" },
-                text: command.text,
-                assets: attachments,
-                operationId: op,
-                state: "complete",
-                preparation: preparedInput().preparation,
-                selections: selected.map((e) => ({
-                  id: e.id,
-                  title: e.name,
-                  source: e.origin,
-                })),
-                resources: selectedResources,
-              });
-          } catch (error) {
-            // A persistence failure after acceptance cannot undo native execution.
-            // Keep its ownership and pending echo until the signal pump settles it.
-            if (accepted) throw error;
-            const pending = submissions.get(op);
-            if (pending)
-              submissions.set(
-                op,
-                pending.filter((s) => s !== submitted),
-              );
-            if (starting && state.active === op) delete state.active;
-            if (starting) operationTelemetry.end(op, "unknown");
-            throw error;
-          }
-          if (
-            !conversation.manualTitle &&
-            (conversation.title === "New conversation" ||
-              conversation.title === "A clearer introduction")
-          ) {
-            const previousTitle = conversation.title,
-              previousRevision = project.metadataRevision;
-            const title = command.text.replace(/\s+/g, " ").trim();
-            conversation.title =
-              title.length > 64 ? title.slice(0, 61).replace(/\s+\S*$/, "") + "…" : title;
-            project.metadataRevision++;
-            try {
-              await persist();
-            } catch (error) {
-              conversation.title = previousTitle;
-              project.metadataRevision = previousRevision;
-              throw error;
-            }
-          }
-          if (conversation.provider === "synthetic")
-            await syntheticInvoke.get(conversation.id)?.(op, command.text);
-        }
-      }
-      return this.snapshot();
-    },
+    snapshot,
+    restore,
+    command,
     async importAsset(
       bytes: Uint8Array,
       mediaType: string,
@@ -2751,33 +2778,9 @@ export async function createDesktopApplication(
       async function* chunks() {
         yield bytes;
       }
-      return this.importAssetStream(chunks(), mediaType, name, conversationId);
+      return importAssetStream(chunks(), mediaType, name, conversationId);
     },
-    async importAssetStream(
-      chunks: AsyncIterable<Uint8Array>,
-      mediaType: string,
-      name: string,
-      conversationId: string,
-      signal?: AbortSignal,
-    ) {
-      await requireProject(conversationId);
-      const { text, controllers } = await runtimeForConversation(conversationId);
-      const workbenchId = project.conversations.find((c) => c.id === conversationId)?.workbenchId;
-      if (!workbenchId) throw Error("Conversation unavailable");
-      if (!browserImportTypes.has(mediaType)) throw Error("Unsupported or oversized file");
-      const asset = await assets.putStream(chunks, mediaType, {
-        ...(signal ? { signal } : {}),
-      });
-      if (!project.assets.some((a) => a.key === asset.key)) project.assets.push(asset);
-      await persist();
-      if (workbenchId === "text") await text.addAsset(asset, name);
-      else if (workbenchId)
-        await controllers.get(workbenchId)?.observeArtifact?.({
-          operationId: `import-${crypto.randomUUID()}`,
-          asset,
-        });
-      return asset;
-    },
+    importAssetStream,
     async authorizedAsset(key: string): Promise<Asset> {
       const asset = project.assets.find((a) => a.key === key);
       if (!asset) throw Error("Asset unavailable");
