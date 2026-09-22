@@ -126,6 +126,13 @@ shipped artifact. The gate is `release:bundle`, `release:sign` and
 audit finding F2 — a safeguard proved only by checks CI never ran — and is
 recorded as an open finding rather than left to read as automated.
 
+The acceptance run for a given build is recorded in
+[knowledge/evidence/adr-0034-release-acceptance.md](../../knowledge/evidence/adr-0034-release-acceptance.md),
+which ties one revision and one artifact to its toolchain, its checksums and
+its result. The upstream and signed digests of the Node runtime are recorded
+separately, because signing rewrites the Mach-O and the two are different
+numbers for the same file.
+
 **The signature described above is no longer valid**: a later documentation
 pass edited README files inside the bundle, and anything written into a `.app`
 after signing invalidates it. The cause was a process error, not a defect in
