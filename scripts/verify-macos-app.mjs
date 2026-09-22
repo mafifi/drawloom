@@ -31,6 +31,7 @@ import { join, resolve } from "node:path";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { once } from "node:events";
+import { createOwnedChildProcesses, fetchWithDeadline } from "./verify-macos-app-process.mjs";
 // The single authority for what runtime ships; importing it keeps this check
 // from becoming a second declaration that can agree with nothing.
 import { KnownNodeRuntime } from "../apps/desktop/host/node-runtime.ts";
@@ -409,55 +410,77 @@ const readiness = (out) => {
   }
 };
 
-await new Promise((done) => {
+{
   const data = mkdtempSync(join(tmpdir(), "drawloom-acceptance-"));
-  const child = spawn(join(resources, "host/host/node"), [join(resources, "host/host/main.mjs")], {
-    cwd: "/",
-    env: {
-      PATH: process.env.PATH,
-      HOME: process.env.HOME,
-      DRAWLOOM_DATA_DIR: data,
-      DRAWLOOM_WEB_ROOT: join(resources, "web"),
-      DRAWLOOM_KNOWLEDGE_RUNTIME: join(resources, "knowledge"),
-      DRAWLOOM_NIGHTLOOM_RUNTIME: join(resources, "host/node_modules/@drawloom/nightloom"),
-      DRAWLOOM_ORCHESTRATION_RUNTIME: join(resources, "orchestration"),
-      DRAWLOOM_MANAGED: "1",
-    },
-  });
+  const children = createOwnedChildProcesses();
+  const child = children.track(
+    spawn(join(resources, "host/host/node"), [join(resources, "host/host/main.mjs")], {
+      cwd: "/",
+      env: {
+        PATH: process.env.PATH,
+        HOME: process.env.HOME,
+        DRAWLOOM_DATA_DIR: data,
+        DRAWLOOM_WEB_ROOT: join(resources, "web"),
+        DRAWLOOM_KNOWLEDGE_RUNTIME: join(resources, "knowledge"),
+        DRAWLOOM_NIGHTLOOM_RUNTIME: join(resources, "host/node_modules/@drawloom/nightloom"),
+        DRAWLOOM_ORCHESTRATION_RUNTIME: join(resources, "orchestration"),
+        DRAWLOOM_MANAGED: "1",
+      },
+    }),
+  );
   let out = "";
   child.stdout.on("data", (d) => (out += d));
   child.stderr.on("data", (d) => (out += d));
-  const finish = (ok, detail) => {
-    results.push({ name: "host serves and shuts down cleanly", ok, detail });
-    rmSync(data, { recursive: true, force: true });
-    done();
-  };
-  const timer = setTimeout(() => {
-    child.kill("SIGKILL");
-    finish(false, "did not start within 60s");
-  }, 60_000);
-  child.stdout.on("data", async () => {
-    const ready = readiness(out);
-    if (!ready) return;
-    clearTimeout(timer);
+  let result;
+  try {
+    const ready = await children.waitForReadiness(child, () => readiness(out), {
+      timeoutMs: 60_000,
+      output: () => out,
+    });
     // The readiness contract itself: the directory must be the one this run was
     // given, not one the reader re-derived.
-    if (ready.dataDirectory !== data)
-      return finish(false, `readiness reported ${ready.dataDirectory}, expected ${data}`);
+    must(
+      ready.dataDirectory === data,
+      `readiness reported ${ready.dataDirectory}, expected ${data}`,
+    );
     const bootstrap = ready.url;
     const port = new URL(bootstrap).port;
-    const boot = await fetch(bootstrap, { redirect: "manual" });
+    const boot = await fetchWithDeadline(bootstrap, { redirect: "manual" });
     const cookie = (boot.headers.getSetCookie() ?? [])[0]?.split(";")[0];
-    const index = await fetch(`http://127.0.0.1:${port}/`, { headers: cookie ? { cookie } : {} });
+    const index = await fetchWithDeadline(`http://127.0.0.1:${port}/`, {
+      headers: cookie ? { cookie } : {},
+    });
     const served =
       index.status === 200 && /text\/html/.test(index.headers.get("content-type") ?? "");
     const nonce = /nonce-/.test(index.headers.get("content-security-policy") ?? "");
-    child.kill("SIGINT");
-    child.once("exit", (code) =>
-      finish(served && nonce && code === 0, `index ${index.status}, nonce ${nonce}, exit ${code}`),
-    );
-  });
-});
+    const stopped = await children.stop(child, "SIGINT");
+    result = {
+      name: "host serves and shuts down cleanly",
+      ok: served && nonce && stopped.code === 0,
+      detail: `index ${index.status}, nonce ${nonce}, exit ${stopped.code}`,
+    };
+  } catch (error) {
+    result = {
+      name: "host serves and shuts down cleanly",
+      ok: false,
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  } finally {
+    try {
+      await children.reap();
+    } catch (error) {
+      result = {
+        name: "host serves and shuts down cleanly",
+        ok: false,
+        detail: `${result?.detail ? `${result.detail}; ` : ""}${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+    // Do not remove state while a verifier-owned child may still be using it.
+    if (child.exitCode !== null || child.signalCode !== null)
+      rmSync(data, { recursive: true, force: true });
+  }
+  results.push(result);
+}
 
 /**
  * Lifecycle, against the SIGNED bundle and a disposable data directory.
@@ -478,11 +501,10 @@ const lifecycle = async () => {
   // A project directory may not sit inside the installation data directory,
   // and the host refuses either containing the other. Disposable, and named.
   const working = mkdtempSync(join(tmpdir(), "drawloom-lifecycle-project-"));
+  const children = createOwnedChildProcesses();
   const start = () => {
-    const child = spawn(
-      join(resources, "host/host/node"),
-      [join(resources, "host/host/main.mjs")],
-      {
+    const child = children.track(
+      spawn(join(resources, "host/host/node"), [join(resources, "host/host/main.mjs")], {
         cwd: "/",
         env: {
           PATH: process.env.PATH,
@@ -494,33 +516,30 @@ const lifecycle = async () => {
           DRAWLOOM_ORCHESTRATION_RUNTIME: join(resources, "orchestration"),
           DRAWLOOM_MANAGED: "1",
         },
-      },
+      }),
     );
     let out = "";
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (out += d));
-    const ready = new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(Error(`did not start within 60s: ${out}`)), 60_000);
-      child.stdout.on("data", () => {
-        const ready = readiness(out);
-        if (!ready) return;
-        clearTimeout(timer);
-        resolve(ready.url);
-      });
-    });
+    const ready = children
+      .waitForReadiness(child, () => readiness(out), {
+        timeoutMs: 60_000,
+        output: () => out,
+      })
+      .then((value) => value.url);
     return { child, ready, output: () => out };
   };
 
   /** One authenticated session against a running host. */
   const session = async (bootstrap) => {
     const port = new URL(bootstrap).port;
-    const boot = await fetch(bootstrap, { redirect: "manual" });
+    const boot = await fetchWithDeadline(bootstrap, { redirect: "manual" });
     const cookie = (boot.headers.getSetCookie() ?? [])[0]?.split(";")[0] ?? "";
     const origin = `http://127.0.0.1:${port}`;
     const call = async (path, body) => {
       // Non-GET requests must carry a matching Origin and a JSON content type;
       // the host refuses anything else as an invalid command channel.
-      const response = await fetch(`${origin}${path}`, {
+      const response = await fetchWithDeadline(`${origin}${path}`, {
         method: body === undefined ? "GET" : "POST",
         headers: {
           cookie,
@@ -532,12 +551,6 @@ const lifecycle = async () => {
     };
     return { call };
   };
-
-  const stop = (child, signal) =>
-    new Promise((resolve) => {
-      child.once("exit", (code, received) => resolve({ code, received }));
-      child.kill(signal);
-    });
 
   try {
     // 1. Establish state a restart must preserve.
@@ -555,7 +568,7 @@ const lifecycle = async () => {
     must(Boolean(conversationId), "no conversation was selected");
 
     // 2. Graceful quit, then relaunch: the work must still be there.
-    const quit = await stop(first.child, "SIGINT");
+    const quit = await children.stop(first.child, "SIGINT");
     must(quit.code === 0, `graceful quit exited ${quit.code}`);
     const second = start();
     const two = await session(await second.ready);
@@ -591,7 +604,7 @@ const lifecycle = async () => {
       conversationId,
       text: "a turn committed before the kill",
     });
-    const killed = await stop(second.child, "SIGKILL");
+    const killed = await children.stop(second.child, "SIGKILL");
     must(killed.received === "SIGKILL", `expected SIGKILL, saw ${killed.received}`);
 
     // 4. Recover. The bar is that it starts, keeps what it had, and does not
@@ -613,10 +626,11 @@ const lifecycle = async () => {
       !/"status":"(?:running|active|streaming)"/.test(recovered),
       "an operation killed mid-flight is reported as still running after recovery",
     );
-    const settled = await stop(third.child, "SIGINT");
+    const settled = await children.stop(third.child, "SIGINT");
     must(settled.code === 0, `post-recovery quit exited ${settled.code}`);
     return "state survives a graceful restart and a SIGKILL; recovery reports nothing as running";
   } finally {
+    await children.reap();
     rmSync(data, { recursive: true, force: true });
     rmSync(working, { recursive: true, force: true });
   }
