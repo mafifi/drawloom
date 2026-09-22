@@ -92,7 +92,7 @@ and requires exactly one handler with the same ID/version for each task.
 Missing, extra or duplicate handlers reject activation.
 
 Use `defineWorkflowModule` or `parseWorkflowModule` to validate definitions.
-Workflow code can import portable schemas and definitions, not Temporal, Bun,
+Workflow code can import portable schemas and definitions, not Temporal,
 Node.js, Cloudflare or Tauri APIs, or backend task handlers.
 See [plugin packaging](../reference/plugin-packages.md) for the full manifest and
 trust checks.

@@ -178,6 +178,10 @@ export function createLocalTemporalManager(options: LocalTemporalOptions) {
       const version = await command(cli, ["--version"], 5000);
       if (!version.includes("temporal version 1.3.0 (Server 1.27.1,"))
         throw new Error("Local orchestration requires Temporal CLI 1.3.0 / server 1.27.1");
+      // `node` is resolved from PATH unless a path was supplied, so this asserts
+      // what actually answers: the exact pinned version, and that it is a real
+      // Node rather than another runtime's `node` shim. Temporal's native
+      // core-bridge is built against that exact version.
       const nodeVersion = await command(
         node,
         ["-p", "process.versions.node + ':' + Boolean(process.versions.bun)"],

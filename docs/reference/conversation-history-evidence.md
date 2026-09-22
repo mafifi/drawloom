@@ -4,6 +4,12 @@ Recorded 9 September 2026 for [ADR 0014](../adr/0014-persistent-paginated-conver
 Implementation acceptance and independent boundary reviews passed.
 This record does not claim live-provider performance or model-token savings.
 
+> This record predates the move to Node
+> ([ADR 0034](../adr/0034-node-toolchain.md)). Its measurements, environment and
+> commands are preserved as recorded. Statements about the runtime — including
+> that the SQLite provider is Bun-only — describe the toolchain at the time, not
+> the current one; the provider now uses `node:sqlite`.
+
 ## Environment and boundaries
 
 Public synthetic data only, on macOS 26.6.2 arm64, Bun 1.2.23 and Node 24.20.0.

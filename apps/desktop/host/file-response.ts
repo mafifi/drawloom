@@ -78,9 +78,10 @@ export async function fileResponse(
   const iterator = reader.stream({ start, endExclusive, signal })[Symbol.asyncIterator]();
   let controller: ReadableStreamDefaultController<Uint8Array>;
   const abort = () => {
-    // The HTTP peer has already disconnected. Erroring its abandoned stream
-    // produces an unhandled rejection in Bun 1.2.23. Close it and stop reads;
-    // the peer's cancelled request is still a failed/truncated HTTP transfer.
+    // The HTTP peer has already disconnected. Close the abandoned stream and
+    // stop reads rather than erroring it: nothing is left to observe the
+    // rejection, so erroring only risks an unhandled one. The peer's
+    // cancelled request is still a failed/truncated HTTP transfer.
     span.setAttribute("drawloom.outcome", "cancelled");
     controller.close();
     void close().catch(() => {});

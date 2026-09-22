@@ -225,16 +225,18 @@ or generation permission. See
 
 ## Local consumption
 
-Run `pnpm run build:packages` from the root, then `bun pm pack` inside each needed
-package. Install the tarballs into your consumer from a local directory outside
+Run `pnpm run build:packages` from the root, then `pnpm pack --out <archive>` inside each
+needed package. Install the tarballs into your consumer from a local directory outside
 this source checkout. Keep machine-specific paths and tarballs out of commits;
 a gitignored directory with relative `file:` references is suitable.
 
 Packed manifests resolve catalog/workspace versions. Install the matching set
 together and test outside this checkout: successful workspace imports do not prove
 the archive contains its dependencies. Packages provide ESM/declarations from
-`dist/` and an optional Bun source condition. Portable contract tests run on Bun
-and Node 22+; that does not establish every package's Cloudflare/Tauri compatibility.
+`dist/` and an optional `drawloom-source` condition that resolves to TypeScript
+source inside this repository. Portable contract tests run on the pinned Node
+(see `engines.node`); that does not establish every package's Cloudflare/Tauri
+compatibility.
 
 ## Provider conformance fixtures
 
@@ -248,8 +250,8 @@ Omitting an optional scenario is not evidence it works. `AgentConformanceFixture
 defines the exact fixture shape.
 
 Synthetic tests exercise core text/context behaviour without a model. Codex tests
-use recorded protocol responses with the real gateway/bridge. Both run under Bun
-and Node; these are not live-provider checks. Tool tests additionally cover invalid
+use recorded protocol responses with the real gateway/bridge. Both run under the pinned
+Node; these are not live-provider checks. Tool tests additionally cover invalid
 output, rendering failures, cancellation after dispatch and no automatic retries.
 Follow [CONTRIBUTING.md](../../CONTRIBUTING.md#test-the-behaviour-not-just-the-code)
 for integration, failure and platform testing.

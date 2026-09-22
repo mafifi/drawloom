@@ -1,6 +1,6 @@
 # `@drawloom/sqlite-evaluation`
 
-A Bun-hosted local provider for `@drawloom/evaluation`. Read this before
+A Node-hosted local provider for `@drawloom/evaluation`. Read this before
 choosing a store for a local desktop composition, or before relying on it for
 anything beyond durable evidence.
 

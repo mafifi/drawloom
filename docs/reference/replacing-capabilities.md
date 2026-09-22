@@ -242,6 +242,6 @@ contract check, not a live model or rendered UI test.
 The application check separately builds a desktop artifact against those installed
 public exports. It runs default/inbox approval conformance through synthetic native
 requests and default local learning conformance through an installed Node worker.
-The desktop artifact runs under Bun; portable consumers run under Node. Neither
-requires a live model or a model download.
+The desktop artifact and portable consumers run under the same pinned Node.
+Neither requires a live model or a model download.
 Use [CONTRIBUTING.md](../../CONTRIBUTING.md) for the repository's remaining checks.

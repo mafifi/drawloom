@@ -17,8 +17,8 @@ and `shutdown`, and instruments through upstream OpenTelemetry APIs.
 Libraries instrument against those APIs but never initialize this SDK
 themselves — that keeps a single place responsible for what gets exported
 and where. Do not combine this owner with another SDK owner in the same
-process. Bun and Node verification run in isolated processes, since the
-SDK is process-global state.
+process. Verification runs in isolated processes, since the SDK is
+process-global state.
 
 ## Modes
 
@@ -74,6 +74,6 @@ the installed globals.
 
 ## Testing
 
-Run `bun test packages/observability/otel-host/otel.test.ts` for isolated
-Bun and Node checks covering concurrent context/log correlation, filtering,
+Run `pnpm vitest run packages/observability/otel-host/otel.test.ts` for
+isolated checks covering concurrent context/log correlation, filtering,
 metric aggregation, outage deadlines and real loopback OTLP HTTP export.

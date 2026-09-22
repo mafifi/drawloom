@@ -29,7 +29,7 @@ Build and run the focused verification from the repository root:
 
 ```sh
 pnpm --filter ./packages/examples/knowledge-evaluation run build
-bun test packages/examples/knowledge-evaluation/knowledge.test.ts \
+pnpm vitest run packages/examples/knowledge-evaluation/knowledge.test.ts \
   packages/examples/knowledge-evaluation/backend.test.ts \
   packages/examples/knowledge-evaluation/client.test.ts \
   packages/examples/knowledge-evaluation/build.test.ts \
@@ -45,7 +45,7 @@ Playwright-compatible Chromium (or set `DRAWLOOM_CHROMIUM_EXECUTABLE` to
 one). The test never downloads a browser:
 
 ```sh
-DRAWLOOM_BROWSER_TEST=1 bun test \
+DRAWLOOM_BROWSER_TEST=1 pnpm vitest run \
   packages/examples/knowledge-evaluation/app.browser.test.ts
 ```
 
@@ -53,7 +53,7 @@ Run the installed real-Temporal restart and reconciliation proof only when
 the repository's pinned Temporal and Node runtimes are available:
 
 ```sh
-DRAWLOOM_TEMPORAL_TEST=1 bun test \
+DRAWLOOM_TEMPORAL_TEST=1 pnpm vitest run \
   packages/examples/knowledge-evaluation/real-temporal.integration.test.ts
 ```
 

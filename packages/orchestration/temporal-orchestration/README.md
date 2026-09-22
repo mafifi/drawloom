@@ -3,8 +3,8 @@
 Node provider for the portable `@drawloom/orchestration` contract, backed
 by a local Temporal development server. Read this if you are wiring up a
 composition root that runs workflows, or working on the provider itself.
-The desktop client also runs in Bun; only the configured Node sidecar
-loads the worker SDK. This implements the accepted local-v1 decision in
+The desktop host and this provider share one Node runtime; only the
+configured sidecar loads the worker SDK. This implements the accepted local-v1 decision in
 [ADR 0021](../../../docs/adr/0021-local-temporal-orchestration.md).
 Temporal's development server is not a production service.
 
@@ -76,11 +76,12 @@ database reset, remote endpoint or automatic plugin trust is provided.
 
 Compiled desktop hosts supply `runtimeDirectory`, pointing at the staged
 `orchestration` resource directory. `bundle:host` builds public packages
-and copies the frozen installed Node dependency tree, including native
-worker modules, beside the compiled Bun host. The Tauri shell passes its
-resource location explicitly; Node never tries to load worker files from
-Bun's embedded filesystem. Staging uses the current hoisted dependency
-layout and host platform/architecture; it does not bundle Node or
+and uses `pnpm deploy --node-linker=hoisted` to place the frozen
+dependency tree, including native worker modules, beside the bundled host.
+The hoisted linker is required because Tauri's resource copy does not
+preserve symlinks. The Tauri shell passes its resource location
+explicitly. Staging uses that hoisted layout and the host
+platform/architecture; it does not bundle Node or
 Temporal, install dependencies, or establish cross-platform support.
 
 ## Workflow packaging and recovery
@@ -151,20 +152,20 @@ Build public packages before the opt-in real service suite:
 ```sh
 pnpm run build:packages
 pnpm run test:temporal
-pnpm run test:temporal:compiled
+pnpm run test:temporal:bundled
 ```
 
-The compiled check stages the frozen runtime, then starts a compiled Bun
-manager outside the checkout and completes a packaged workflow through
-the Node worker. `DRAWLOOM_ORCHESTRATION_RUNTIME` can select the resources
+The bundled check deploys the frozen runtime, then starts an esbuild-bundled
+manager outside the checkout — the shape the desktop ships — and completes a
+packaged workflow through the Node worker. `DRAWLOOM_ORCHESTRATION_RUNTIME` can select the resources
 in a built `.app` for the same check. The native shell allows a bounded
 fifteen-second host drain before its forced-stop fallback; quitting
 remains distinct from workflow cancellation.
 
 The test suite starts disposable local services, exercises unchanged
 public conformance and installed-style bundles, and closes its processes.
-Ordinary Bun tests cover receipts, owner locks and containment, and
-scripted agent authority, without starting Temporal. Test and source type
+The ordinary Vitest suite covers receipts, owner locks and containment,
+and scripted agent authority, without starting Temporal. Test and source type
 checking is strict; only this provider's external declaration checks use
 `skipLibCheck`, for the pinned SDK's incompatible optional `Schedule` type
 declarations. Public exports contain no SDK types.

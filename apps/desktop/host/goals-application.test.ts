@@ -100,8 +100,8 @@ test("desktop native continuation has a fresh operation and retains its plan and
       },
     },
   });
-  /** Drain queued asynchronous work. Node and Bun schedule differently, so a
-   * fixed tick count is not a reliable barrier. Callers that depend on a
+  /** Drain queued asynchronous work. A fixed tick count is not a reliable
+   * barrier, because scheduling depends on what the work itself awaits. Callers that depend on a
    * specific outcome pass a predicate and this waits for it. */
   const settle = async (until?: () => unknown) => {
     const deadline = Date.now() + 10_000;

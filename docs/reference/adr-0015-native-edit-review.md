@@ -1,5 +1,10 @@
 # ADR 0015 implementation evidence
 
+> This record predates the move to Node
+> ([ADR 0034](../adr/0034-node-toolchain.md)). It is preserved as recorded;
+> the reproduction command below names the toolchain of the time. The
+> equivalent today is `pnpm vitest run`.
+
 Verified 2026-09-09 against installed Codex **0.153.4**, Bun **1.2.23**, and the
 existing public desktop plus private video plugin. No separate application,
 reviewer or MCP Apps extension was introduced. See

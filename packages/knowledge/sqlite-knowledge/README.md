@@ -3,7 +3,8 @@
 Node.js 24 SQLite provider for the portable `@drawloom/knowledge`
 contracts. Read this if you are running the local knowledge store, or
 working on the provider itself. It uses `node:sqlite` and the pinned
-`sqlite-vec` extension, so it is not a Bun host implementation.
+`sqlite-vec` extension, so it requires the pinned Node runtime rather than
+any portable host.
 
 The provider requires a trusted `resolveResource` function and a contract
 authorizer. Resource attributes are resolved from stored record

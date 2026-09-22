@@ -20,7 +20,9 @@ export async function readPluginIcon(
   try {
     const base = await realpath(root);
     const unresolved = resolve(base, path);
-    // Bun's realpath can itself block on a FIFO; reject special files and links first.
+    // Refuse anything that is not a regular file before resolving it. `lstat`
+    // does not follow the final link, so a FIFO, device or symlink is rejected
+    // here rather than opened or resolved through.
     if (!(await lstat(unresolved)).isFile()) return;
     const target = await realpath(unresolved);
     const delta = relative(base, target);

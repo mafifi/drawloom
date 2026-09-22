@@ -1,4 +1,4 @@
-/** Node-only entrypoint. Never imported by the Bun desktop process. */
+/** Sidecar entrypoint. Launched as its own process, never imported by the host. */
 import { spawn } from "node:child_process";
 import { readFile, writeFile, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, relative, join } from "node:path";
@@ -130,7 +130,7 @@ if (configuration.mode === "service") {
                   const generated = path === entry || path.startsWith(`${entry}-`);
                   // Only the package, provider runtime, Temporal runtime and portable public dependencies.
                   const dependency =
-                    /[/\\]node_modules[/\\](?:\.bun[/\\][^/\\]+[/\\]node_modules[/\\])?(?:@temporalio[/\\]|@drawloom[/\\](?:authorization|orchestration|evaluation|agent|tools|context|host|knowledge)[/\\]|@modelcontextprotocol[/\\]sdk[/\\]|zod[/\\]|long[/\\]|ms[/\\]|protobufjs[/\\]|@protobufjs[/\\]|uuid[/\\]|abort-controller[/\\]|event-target-shim[/\\]|nexus-rpc[/\\])/.test(
+                    /[/\\]node_modules[/\\](?:@temporalio[/\\]|@drawloom[/\\](?:authorization|orchestration|evaluation|agent|tools|context|host|knowledge)[/\\]|@modelcontextprotocol[/\\]sdk[/\\]|zod[/\\]|long[/\\]|ms[/\\]|protobufjs[/\\]|@protobufjs[/\\]|uuid[/\\]|abort-controller[/\\]|event-target-shim[/\\]|nexus-rpc[/\\])/.test(
                       path,
                     );
                   const publicContract =
@@ -140,17 +140,12 @@ if (configuration.mode === "service") {
                   const hostKnowledgeContract =
                     configuration.hostCapability === true &&
                     (/[/\\]packages[/\\]knowledge[/\\]knowledge[/\\]dist[/\\]/.test(path) ||
-                      /[/\\]node_modules[/\\](?:\.bun[/\\][^/\\]+[/\\]node_modules[/\\])?@drawloom[/\\]knowledge[/\\]/.test(
-                        path,
-                      ));
+                      /[/\\]node_modules[/\\]@drawloom[/\\]knowledge[/\\]/.test(path));
                   // Agent plan snapshots reuse the portable history contract.
                   const historyContract =
                     /[/\\]packages[/\\]observability[/\\]conversation-history[/\\]dist[/\\]/.test(
                       path,
-                    ) ||
-                    /[/\\]node_modules[/\\](?:\.bun[/\\][^/\\]+[/\\]node_modules[/\\])?@drawloom[/\\]conversation-history[/\\]/.test(
-                      path,
-                    );
+                    ) || /[/\\]node_modules[/\\]@drawloom[/\\]conversation-history[/\\]/.test(path);
                   if (
                     !generated &&
                     !inside(packageRoot, path) &&

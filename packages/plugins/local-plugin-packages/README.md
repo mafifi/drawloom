@@ -1,6 +1,6 @@
 # Local plugin packages
 
-Bun implementation of the package inspection contract exported by
+Node implementation of the package inspection contract exported by
 `@drawloom/plugins`. Read this if you are inspecting or activating a local
 Agent Plugins 1.0.0 package. This is a bounded subsystem: it does not
 install packages, compose a workbench, grant tools, load executable
@@ -73,7 +73,7 @@ root.
 
 The provider runs the portable `packageInspectionConformance` suite,
 exported by `@drawloom/plugins`, plus local stdio/loopback HTTP tests.
-Those bounded results do not claim full standards conformance, non-Bun
-portability, or full application integration. See
+Those bounded results do not claim full standards conformance, portability
+beyond this Node provider, or full application integration. See
 [packages/README.md](../../README.md) for how a contract package like
 `@drawloom/plugins` relates to an implementation like this one.

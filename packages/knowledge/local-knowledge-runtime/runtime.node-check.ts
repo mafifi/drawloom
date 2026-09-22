@@ -477,7 +477,7 @@ test("the Node runtime owns one global lexical store and reports missing model p
   }
 });
 
-test("the managed RPC process keeps SQLite and trusted identity outside the Bun host", async () => {
+test("the managed RPC process keeps SQLite and trusted identity outside the desktop host", async () => {
   const root = await mkdtemp(join(tmpdir(), "drawloom-knowledge-sidecar-"));
   const client = createManagedLocalKnowledgeClient({
     root,

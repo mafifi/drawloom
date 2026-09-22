@@ -7,7 +7,7 @@ This guide applies under `spikes/`.
 - Keep each spike tied to explicit ADR questions and link its authoritative
   result under `knowledge/evidence/`.
 - Do not import spike modules from `apps/`, `packages/`, `scripts/`, or any
-  future production surface. `bun run check:architecture` enforces this for
+  future production surface. `pnpm run check:architecture` enforces this for
   TypeScript imports, including type-only imports.
 - Spikes may reuse other spikes when the dependency is explicit and documented.
 - Keep authenticated, provider-dependent, or model-dependent runs out of

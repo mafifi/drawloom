@@ -1,5 +1,4 @@
 # Workspace layout and dependency catalogs.
-# Catalog syntax is unchanged from the previous Bun catalog.
 
 packages:
   - "apps/*"
@@ -53,7 +52,6 @@ catalog:
   "@opentelemetry/exporter-trace-otlp-http": "0.222.0"
   "@opentelemetry/exporter-logs-otlp-http": "0.222.0"
   "@opentelemetry/exporter-metrics-otlp-http": "0.222.0"
-  "@types/bun": "1.2.23"
   "astro": "7.3.1"
   "@astrojs/check": "0.9.10"
   "@astrojs/svelte": "9.0.1"

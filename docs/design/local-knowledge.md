@@ -161,12 +161,19 @@ alone are not enough to combine them.
 Records live in `knowledge/knowledge.sqlite` beneath the selected Drawloom data
 directory. History and assets keep their own storage locations.
 
-A separate Node process owns the knowledge database because this implementation
-needs sqlite-vec, which the installed Bun SQLite cannot load. The desktop stages
-its Node worker dependencies using `scripts/stage-knowledge-runtime.ts`; source
-launches need the normal package build first. The host and worker exchange
-size-limited messages over standard input and output, not a new network or
-plugin-browser API.
+A separate Node process owns the knowledge database because that process also
+supervises the local embedding runtime: a native llama.cpp child that holds the
+model in Metal memory for the life of the worker. Keeping the vector store beside
+the process that writes into it avoids moving embeddings across a boundary on
+every query, and keeps indexing work and the two native surfaces — the sqlite-vec
+extension and the embedding binary — out of the desktop host's event loop and
+address space. `node:sqlite` itself loads sqlite-vec without difficulty, so the
+extension is no longer the reason for the split.
+
+The desktop stages the worker's dependencies with `pnpm deploy`, invoked from the
+desktop's `bundle:host` script; source launches need the normal package build
+first. The host and worker exchange size-limited messages over standard input and
+output, not a new network or plugin-browser API.
 
 ### Optional local similarity search
 

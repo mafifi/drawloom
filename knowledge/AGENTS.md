@@ -28,5 +28,6 @@ updated: YYYY-MM-DD
 - Do not store secrets, personal data, raw private conversations, or unredacted
   execution traces here.
 
-Repository automation will validate metadata, links, and index coverage once
-the initial toolchain is selected.
+`pnpm run check:docs` validates record structure and that every link
+resolves. Index coverage is not enforced automatically: adding a record here
+without listing it in `index.md` will not fail a gate.

@@ -161,10 +161,13 @@ area you change.
   with the [Svelte presentation MVVM skill](.agents/skills/svelte-presentation-mvvm/SKILL.md)
   when a Svelte View or its state ownership changes.
 
+- `apps/AGENTS.md`: application composition roles, declared runtime and UI framework.
 - `packages/AGENTS.md`: package roles and dependency constraints.
+- `packages/ui/ui/AGENTS.md`: the shared Svelte control boundary and its provenance rules.
 - `docs/AGENTS.md`: ADR, plan, and reference-document conventions.
 - `knowledge/AGENTS.md`: OKF profile and provenance requirements.
 - `spikes/AGENTS.md`: retained non-production experiment and evidence rules.
+- `publishing/AGENTS.md`: public-facing editorial and publishing sources.
 
 ## Verification
 

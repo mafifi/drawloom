@@ -92,8 +92,8 @@ test("native images retain exact operation correlation and precede terminal comp
     method: "turn/completed",
     params: { threadId: "private-thread", turn: { id: "private-turn", status: "completed" } },
   });
-  // Wait for the artifact to be observed rather than guessing a delay: Node and
-  // Bun schedule the capture differently, and a fixed sleep raced the event.
+  // Wait for the artifact to be observed rather than guessing a delay: a fixed
+  // sleep raced the event.
   const deadline = Date.now() + 5_000;
   while (
     !events.some((event) => (event as { kind?: string }).kind === "artifact.available") &&

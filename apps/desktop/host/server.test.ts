@@ -63,7 +63,7 @@ import { createInstallationStore } from "./plugin-installations.js";
 import { text as readText } from "node:stream/consumers";
 import { once } from "node:events";
 import { spawn, type ChildProcess } from "node:child_process";
-/** Bun exposed `child.exited`; Node signals completion with an "exit" event. */
+/** Node signals child completion with an "exit" event; there is no awaitable `exited`. */
 const exitCodeOf = async (child: ChildProcess): Promise<number> =>
   (await once(child, "exit"))[0] as number;
 test("cold native discovery may exceed the HTTP idle default without blocking state reads", async () => {

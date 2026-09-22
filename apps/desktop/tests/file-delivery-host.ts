@@ -17,7 +17,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { serve } from "@hono/node-server";
 import type { AddressInfo } from "node:net";
 import { build as esbuild } from "esbuild";
-/** Bun exposed `child.exited`; Node signals completion with an "exit" event. */
+/** Node signals child completion with an "exit" event; there is no awaitable `exited`. */
 const exitCodeOf = async (child: ChildProcess): Promise<number> =>
   (await once(child, "exit"))[0] as number;
 const root = await realpath(await mkdtemp(join(tmpdir(), "drawloom-file-browser-")));
@@ -234,7 +234,7 @@ await writeFile(
       p95Milliseconds: sorted[28],
       baselineRss,
       peakRss,
-      scope: "Bun host and HTTP measurement client in the same process; RSS sampled every 5 ms",
+      scope: "Node host and HTTP measurement client in the same process; RSS sampled every 5 ms",
       deliverySpans: deliveries,
     },
     null,

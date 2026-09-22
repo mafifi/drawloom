@@ -35,7 +35,7 @@ regardless of how the records are stored.
 
 ### Read a local page
 
-This complete Bun example creates a temporary database, saves a synthetic message
+This complete example creates a temporary database, saves a synthetic message
 and reads it back. It does not connect to Codex or touch existing history:
 
 ```ts
@@ -106,14 +106,18 @@ provider methods and invalid provider cursors.
 
 ## Local provider and data selection
 
-`createSqliteConversationHistory(databasePath)` uses Bun's SQLite API.
-The interface is portable, but this implementation is not supported under Node.
+`createSqliteConversationHistory(databasePath)` uses Node's built-in
+`node:sqlite`. The interface is portable; this implementation requires the
+pinned Node runtime, which supplies `DatabaseSync` and loads the SQLite
+extensions the store depends on.
 
-The current database is schema version 5. Earlier stores require an explicit,
-backed-up conversion; normal startup rejects them rather than guessing origin.
-Unknown or damaged schemas are rejected, not replaced.
+The current database is schema version 5. Earlier stores are rejected at
+startup rather than opened or guessed at, and **there is no conversion path**:
+the provenance converter was deleted in the move to Node
+([ADR 0034](../adr/0034-node-toolchain.md)) because Drawloom has no installed
+base to migrate. Unknown or damaged schemas are rejected, not replaced.
 
-### Captured meaning and one-time conversion
+### Captured meaning
 
 `origin` distinguishes user text, assistant prose, delivered media, inspected
 references and tool results. A tool origin includes its source, stable call ID,
@@ -122,29 +126,14 @@ capture share the same parser. JSON-looking assistant prose remains prose;
 turn completion does not imply tool success. The desktop projects adjacent
 process records without moving the answers between them.
 
-Stop the owning desktop before conversion. Resolve every existing entry against
-retained native item identities or execution receipts, and create a JSON array
-of `{conversationId, id, origin}` records. Do not classify by wording, JSON shape
-or filenames. Then run:
+Origin is resolved from retained native item identities or execution receipts —
+never inferred from wording, JSON shape or filenames. A record whose origin
+cannot be established from retained evidence is reported rather than guessed at.
 
-```sh
-bun scripts/convert-history.ts /path/history.sqlite /path/history-before-v5.sqlite /path/verified-provenance.json
-```
-
-The converter validates complete, unique coverage and speaker consistency before
-writing an exclusive new backup. It converts schema and origins atomically;
-repeating it against v5 is a no-op. Missing provenance fails without resetting
-anything. The backup is a standalone SQLite snapshot, including committed WAL
-content. Keep it until the converted installation has been reviewed. A rollback
-requires stopping the desktop and restoring both the previous software and its
-matching backup—not opening a v5 store with an old reader.
-
-If retained evidence cannot establish an origin, report the affected conversation
-and request a targeted reset before deleting anything. Project bindings and
-working files, including scripts and recordings, are outside this conversion.
-Full synchronous commits and SQLite's write-ahead log protect writes.
-Revision checks prevent one writer from silently overwriting another's update.
-Private checkpoints track import progress.
+Project bindings and working files, including scripts and recordings, are held
+outside this store. Full synchronous commits and SQLite's write-ahead log
+protect writes. Revision checks prevent one writer from silently overwriting
+another's update. Private checkpoints track import progress.
 
 Version 3 adds FTS5 text search, updated in the same transaction as messages.
 Existing cached text is indexed locally without rereading the provider.
@@ -219,11 +208,11 @@ authentication, ordered commands, approval and MCP Apps unchanged.
 Run the deterministic history tests without connecting an account:
 
 ```sh
-bun test packages/observability/sqlite-conversation-history
-bun test apps/desktop/host/history-performance.test.ts
+pnpm vitest run packages/observability/sqlite-conversation-history
+pnpm vitest run apps/desktop/host/history-performance.test.ts
 ```
 
-The optional `pnpm run scripts/verify-codex-history-protocol.ts` checks an
+The optional `node scripts/verify-codex-history-protocol.ts` checks an
 installed Codex separately. Run the repository's `pnpm run check:ci` before
 integration.
 

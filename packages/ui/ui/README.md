@@ -14,7 +14,7 @@ Raw palette, typography and dimensions belong in primitives, semantic roles map
 their purpose, and Tailwind aliases consume those roles. Standard numeric spacing
 utilities share the primitive spacing unit. Do not add arbitrary View utilities
 or reproduce these rules in application CSS. Consumer CI can run the same public
-policy CLI against its own root: `bun scripts/check-ui-policy.ts /path/to/consumer`.
+policy CLI against its own root: `node scripts/check-ui-policy.ts /path/to/consumer`.
 The private artifact-preparation lane builds that CLI without copying its rules.
 
 The shared Svelte control boundary for Drawloom applications. Read this
