@@ -72,13 +72,10 @@ fn application_context() -> tauri::Context<tauri::Wry> {
 
 fn setup_application(app: &mut tauri::App) -> StartupResult<()> {
     let resources = app.path().resource_dir()?;
-    let binary = std::env::var_os("DRAWLOOM_HOST_BIN")
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| resources.join("host/drawloom-host"));
     let web = std::env::var_os("DRAWLOOM_WEB_ROOT")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| resources.join("web"));
-    let mut child = Command::new(binary)
+    let mut child = host_command(&resources, std::env::var_os("DRAWLOOM_HOST_BIN"))
         .env("DRAWLOOM_WEB_ROOT", web)
         .env(
             "DRAWLOOM_ORCHESTRATION_RUNTIME",
@@ -112,6 +109,21 @@ fn setup_application(app: &mut tauri::App) -> StartupResult<()> {
     })?;
     app.manage(Host(Mutex::new(child)));
     Ok(())
+}
+
+fn host_command(resources: &std::path::Path, host_override: Option<std::ffi::OsString>) -> Command {
+    let bundled = host_override.is_none();
+    let runtime = host_override
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| resources.join("host/host/node"));
+    let worker_runtime =
+        std::env::var_os("DRAWLOOM_NODE_PATH").unwrap_or_else(|| runtime.clone().into_os_string());
+    let mut command = Command::new(runtime);
+    if bundled {
+        command.arg(resources.join("host/host/main.mjs"));
+    }
+    command.env("DRAWLOOM_NODE_PATH", worker_runtime);
+    command
 }
 
 fn browser_capability(origin: &str) -> String {
@@ -211,6 +223,48 @@ fn valid_startup_url(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn production_host_command_executes_bundled_node_entrypoint() {
+        let root = std::env::temp_dir().join(format!(
+            "drawloom-native-launch-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let host = root.join("host/host");
+        std::fs::create_dir_all(&host).unwrap();
+        let node = host.join("node");
+        let actual_node = std::env::var_os("DRAWLOOM_TEST_NODE")
+            .map(std::path::PathBuf::from)
+            .or_else(|| {
+                std::env::var_os("PATH")?
+                    .to_str()?
+                    .split(':')
+                    .map(std::path::PathBuf::from)
+                    .map(|dir| dir.join("node"))
+                    .find(|path| path.is_file())
+            })
+            .expect("node must be available for the native launch fixture");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(actual_node, &node).unwrap();
+        std::fs::write(
+            host.join("main.mjs"),
+            "process.stdout.write(`native-launch-ok:${process.argv[1]}:${process.env.DRAWLOOM_NODE_PATH}\\n`);",
+        )
+        .unwrap();
+
+        let output = host_command(&root, None).output().unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(output.status.success());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.starts_with("native-launch-ok:"));
+        assert!(stdout.contains("/host/host/main.mjs:"));
+        assert!(stdout.ends_with("/host/host/node\n"));
+    }
+
     #[test]
     fn readiness_uses_host_directory_and_rejects_missing_or_relative_directory() {
         let url = format!("http://127.0.0.1:4488/bootstrap?token={}", "a".repeat(64));
