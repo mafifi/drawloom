@@ -124,7 +124,25 @@ async function request(message) {
   if (method === "initialize") return send({ id, result: { userAgent: "codex/0.153.4" } });
   if (method === "model/list" || method === "collaborationMode/list")
     return send({ id, result: { data: [], nextCursor: null } });
-  if (method === "thread/turns/list") return send({ id, result: { data: [], nextCursor: null } });
+  if (method === "thread/turns/list")
+    return send({
+      id,
+      result: {
+        data: state.startCount ? [{ id: state.turnId, status: "inProgress" }] : [],
+        nextCursor: null,
+      },
+    });
+  if (method === "thread/items/list")
+    return send({
+      id,
+      result: {
+        data:
+          state.userMessage && params.threadId === state.threadId && params.turnId === state.turnId
+            ? [{ turnId: state.turnId, item: state.userMessage }]
+            : [],
+        nextCursor: null,
+      },
+    });
   if (method === "thread/memoryMode/set") {
     if (params.threadId !== state.threadId || params.mode !== "disabled")
       return send({ id, error: { code: -32602, message: "Invalid params" } });
@@ -155,7 +173,15 @@ async function request(message) {
           id: state.threadId,
           cwd: project,
           ...(params.includeTurns && state.startCount
-            ? { turns: [{ id: state.turnId, status: "inProgress", items: [] }] }
+            ? {
+                turns: [
+                  {
+                    id: state.turnId,
+                    status: "inProgress",
+                    items: state.userMessage ? [state.userMessage] : [],
+                  },
+                ],
+              }
             : {}),
         },
       },
@@ -178,9 +204,24 @@ async function request(message) {
     await writeProviderState(root, state);
     if (params.threadId !== state.threadId || state.startCount)
       return send({ id, error: { code: -32602, message: "Invalid params" } });
-    state = { ...state, startCount: 1 };
+    const userMessage = {
+      id: `user-${state.turnId}`,
+      type: "userMessage",
+      content: params.input,
+    };
+    state = { ...state, startCount: 1, userMessage };
     await writeProviderState(root, state);
     send({ id, result: { turn: { id: state.turnId } } });
+    setImmediate(() =>
+      send({
+        method: "item/completed",
+        params: {
+          threadId: state.threadId,
+          turnId: state.turnId,
+          item: userMessage,
+        },
+      }),
+    );
     await writeReceipt(root, "turn-start-replied", {
       kind: "turn-start-replied",
       threadId: state.threadId,

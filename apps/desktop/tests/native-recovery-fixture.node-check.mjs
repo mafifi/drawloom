@@ -7,6 +7,8 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
+import { createCodexDriver } from "@drawloom/codex-agent";
+import { createNodeJsonStore, createStdioTransport } from "@drawloom/node-host";
 import { createRecoveryMcpServer } from "./native-recovery-mcp.mjs";
 import {
   assertRecoveryReceipts,
@@ -22,6 +24,124 @@ import {
 } from "./native-recovery-fixture.mjs";
 
 const codex = new URL("./native-recovery-codex.mjs", import.meta.url);
+
+test("real Codex driver publishes the submitted user message on the accepted operation", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-native-recovery-test-"));
+  const project = join(root, "project");
+  const message = "native recovery fixture message";
+  let session;
+  const requests = [];
+  const previousRoot = process.env.DRAWLOOM_NATIVE_RECOVERY_ROOT;
+  const previousProject = process.env.DRAWLOOM_NATIVE_RECOVERY_PROJECT;
+  try {
+    await createRecoveryLayout(root);
+    process.env.DRAWLOOM_NATIVE_RECOVERY_ROOT = root;
+    process.env.DRAWLOOM_NATIVE_RECOVERY_PROJECT = project;
+    const driver = createCodexDriver({
+      store: createNodeJsonStore(join(root, "driver-state")),
+      workingDirectory: project,
+      projection: () => ({
+        drawloom: {
+          url: "http://127.0.0.1:1",
+          http_headers: { Authorization: "Bearer fixture" },
+        },
+      }),
+      connect: async () => {
+        const transport = createStdioTransport({
+          command: process.execPath,
+          args: [
+            codex.pathname,
+            "app-server",
+            "--stdio",
+            "-c",
+            "mcp_servers={}",
+            "-c",
+            "plugins={}",
+            "-c",
+            "apps={}",
+            "--disable",
+            "memories",
+          ],
+        });
+        return {
+          ...transport,
+          async request(method, params) {
+            try {
+              const result = await transport.request(method, params);
+              requests.push({ method, result });
+              return result;
+            } catch (error) {
+              requests.push({ method, error: String(error) });
+              throw error;
+            }
+          },
+        };
+      },
+    });
+    const opened = await driver.openSession({
+      sessionId: "fixture-session",
+      context: { text: "" },
+      tools: { id: "none", tools: [] },
+    });
+    assert.equal(opened.status, "ok", JSON.stringify({ opened, requests }));
+    session = opened.value;
+    const userMessage = new Promise((resolve) => {
+      void (async () => {
+        for await (const event of session.signals()) {
+          if (event.kind === "message.completed" && event.role === "user") {
+            resolve(event);
+            return;
+          }
+        }
+      })();
+    });
+    const submitted = session.execute({ operationId: "operation-real-driver", text: message });
+    assert.equal((await submitted).status, "ok");
+    const published = await Promise.race([
+      userMessage,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(Error("Real driver did not publish the submitted user message")),
+          500,
+        ),
+      ),
+    ]);
+    assert.deepEqual(published, {
+      kind: "message.completed",
+      operationId: "operation-real-driver",
+      messageId: published.messageId,
+      role: "user",
+      text: message,
+    });
+    const history = await session.history.read(
+      { get: async () => undefined, checkpoint: async () => undefined },
+      { direction: "latest", limit: 10 },
+    );
+    assert.deepEqual(
+      history.entries.map(({ role, text, operationId, state }) => ({
+        role,
+        text,
+        operationId,
+        state,
+      })),
+      [
+        {
+          role: "user",
+          text: message,
+          operationId: "operation-real-driver",
+          state: "partial",
+        },
+      ],
+    );
+  } finally {
+    await session?.close();
+    if (previousRoot === undefined) delete process.env.DRAWLOOM_NATIVE_RECOVERY_ROOT;
+    else process.env.DRAWLOOM_NATIVE_RECOVERY_ROOT = previousRoot;
+    if (previousProject === undefined) delete process.env.DRAWLOOM_NATIVE_RECOVERY_PROJECT;
+    else process.env.DRAWLOOM_NATIVE_RECOVERY_PROJECT = previousProject;
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 async function waitFor(predicate, message) {
   for (let attempt = 0; attempt < 200; attempt++) {
@@ -116,6 +236,7 @@ test("synthetic provider resumes one in-progress turn without redispatch", async
     );
     const started = await first.request("turn/start", {
       threadId: opened.result.thread.id,
+      input: [{ type: "text", text: "retained fixture message", text_elements: [] }],
     });
     assert.ok(started.result.turn.id);
     first.child.stdin.end();
@@ -127,6 +248,22 @@ test("synthetic provider resumes one in-progress turn without redispatch", async
       includeTurns: true,
     });
     assert.equal(read.result.thread.turns[0].status, "inProgress");
+    assert.deepEqual(read.result.thread.turns[0].items, [
+      {
+        id: `user-${started.result.turn.id}`,
+        type: "userMessage",
+        content: [{ type: "text", text: "retained fixture message", text_elements: [] }],
+      },
+    ]);
+    assert.deepEqual(
+      (
+        await second.request("thread/items/list", {
+          threadId: opened.result.thread.id,
+          turnId: started.result.turn.id,
+        })
+      ).result.data,
+      [{ turnId: started.result.turn.id, item: read.result.thread.turns[0].items[0] }],
+    );
     const resumed = await second.request("thread/resume", {
       threadId: opened.result.thread.id,
     });
