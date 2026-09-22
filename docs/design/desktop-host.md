@@ -118,6 +118,12 @@ native integration authentication and source-bound discovered-resource reads.
 Its native discovery cache is scoped by conversation; the composition root
 supplies runtime, project, connection and capture operations.
 
+`apps/desktop/host/package-administration.ts` owns installed-package status,
+configuration and HTTP OAuth actions, including disconnecting package sessions
+across project runtimes. Installation, settings, orchestration and live-session
+dependencies are supplied by the composition root; the OAuth redirect remains
+composition-owned.
+
 Codex owns its native transcript and session. Drawloom stores a display record in
 `history.sqlite`, not a replacement transcript to replay into the model. The host
 stores normalised records and private import checkpoints atomically. Unknown
