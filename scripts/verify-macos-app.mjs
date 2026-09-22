@@ -30,6 +30,7 @@ import { writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { once } from "node:events";
 // The single authority for what runtime ships; importing it keeps this check
 // from becoming a second declaration that can agree with nothing.
 import { KnownNodeRuntime } from "../apps/desktop/host/node-runtime.ts";
@@ -63,6 +64,7 @@ check("resources present", () => {
     "host/host/main.mjs",
     "web/index.html",
     "knowledge/dist/sidecar.js",
+    "host/node_modules/@drawloom/nightloom/dist/workflows.js",
     "orchestration/dist/sidecar.js",
   ])
     must(existsSync(join(resources, asset)), `missing ${asset}`);
@@ -192,11 +194,28 @@ const sidecarProtocols = async () => {
       });
       const answered = await take((frame) => frame.id === 1, "status response");
       must(
-        "result" in answered,
+        typeof answered.id === "number" &&
+          answered.result?.configuration?.embeddingModel === "qwen3-embedding-0.6b-gguf" &&
+          typeof answered.result?.maintenance?.pendingUpdates === "number",
         `packaged knowledge worker did not answer: ${JSON.stringify(answered).slice(0, 200)}`,
       );
     } finally {
-      worker.kill("SIGTERM");
+      if (worker.exitCode === null && worker.signalCode === null) {
+        const exited = once(worker, "exit");
+        worker.kill("SIGTERM");
+        let timer;
+        const settled = await Promise.race([
+          exited.then(() => true),
+          new Promise((resolve) => {
+            timer = setTimeout(() => resolve(false), 10_000);
+          }),
+        ]);
+        clearTimeout(timer);
+        if (!settled) {
+          worker.kill("SIGKILL");
+          await exited;
+        }
+      }
     }
 
     // --- orchestration: a real workflow bundle, its only substantive mode ---
@@ -233,10 +252,55 @@ const sidecarProtocols = async () => {
       `packaged orchestration worker could not bundle: ${String(bundled.stderr).slice(0, 400)}`,
     );
     must(
-      /"fingerprint"/.test(String(bundled.stdout)),
-      "orchestration bundling reported no fingerprint",
+      existsSync(destination) && readFileSync(destination).length > 0,
+      "orchestration bundling wrote no executable output",
     );
-    return "knowledge answered a framed request; orchestration bundled a workflow";
+    const report = JSON.parse(String(bundled.stdout).trim());
+    must(
+      /^[a-f0-9]{64}$/.test(report.fingerprint),
+      "orchestration bundling reported no valid fingerprint",
+    );
+    must(
+      Array.isArray(report.dependencies) && report.dependencies.length > 0,
+      "orchestration bundling reported no dependency closure",
+    );
+    const nightloom = join(resources, "host/node_modules/@drawloom/nightloom");
+    const nightloomDestination = join(away, "nightloom-bundle.js");
+    const nightloomConfig = join(away, "nightloom-bundle.json");
+    writeFileSync(
+      nightloomConfig,
+      JSON.stringify({
+        mode: "bundle",
+        parent: process.pid,
+        entry: join(nightloom, "dist/workflows.js"),
+        packageDirectory: nightloom,
+        destination: nightloomDestination,
+        bundleContext: join(resources, "host"),
+        hostCapability: true,
+      }),
+    );
+    const prepared = spawnSync(
+      node,
+      [join(resources, "orchestration/dist/sidecar.js"), nightloomConfig],
+      {
+        cwd: "/",
+        encoding: "utf8",
+        timeout: 120_000,
+      },
+    );
+    must(
+      prepared.status === 0,
+      `packaged Nightloom workflow could not bundle: ${String(prepared.stderr).slice(0, 400)}`,
+    );
+    must(
+      existsSync(nightloomDestination) && readFileSync(nightloomDestination).length > 0,
+      "Nightloom bundling wrote no workflow",
+    );
+    must(
+      /^[a-f0-9]{64}$/.test(JSON.parse(String(prepared.stdout).trim()).fingerprint),
+      "Nightloom bundling reported no valid fingerprint",
+    );
+    return "knowledge answered a substantive frame; orchestration and Nightloom bundled workflows";
   } finally {
     rmSync(away, { recursive: true, force: true });
   }
@@ -355,6 +419,7 @@ await new Promise((done) => {
       DRAWLOOM_DATA_DIR: data,
       DRAWLOOM_WEB_ROOT: join(resources, "web"),
       DRAWLOOM_KNOWLEDGE_RUNTIME: join(resources, "knowledge"),
+      DRAWLOOM_NIGHTLOOM_RUNTIME: join(resources, "host/node_modules/@drawloom/nightloom"),
       DRAWLOOM_ORCHESTRATION_RUNTIME: join(resources, "orchestration"),
       DRAWLOOM_MANAGED: "1",
     },
@@ -425,6 +490,7 @@ const lifecycle = async () => {
           DRAWLOOM_DATA_DIR: data,
           DRAWLOOM_WEB_ROOT: join(resources, "web"),
           DRAWLOOM_KNOWLEDGE_RUNTIME: join(resources, "knowledge"),
+          DRAWLOOM_NIGHTLOOM_RUNTIME: join(resources, "host/node_modules/@drawloom/nightloom"),
           DRAWLOOM_ORCHESTRATION_RUNTIME: join(resources, "orchestration"),
           DRAWLOOM_MANAGED: "1",
         },
