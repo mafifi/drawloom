@@ -43,17 +43,11 @@ import { createPluginCredentialStore } from "./plugin-credentials.js";
 import { createPluginOAuthManager } from "./plugin-oauth.js";
 import { readClientRegistration } from "./plugin-registration.js";
 import { createDiscoveryCache } from "./discovery-cache.js";
+import { createHistoryApplication } from "./history-application.js";
 import { PackageOAuthActionSchema } from "../src/lib/package-protocol.js";
 import { createSqliteConversationHistory } from "@drawloom/sqlite-conversation-history";
 import {
-  HistoryPageOptionsSchema,
-  HistoryChangeOptionsSchema,
-  HistoryAroundOptionsSchema,
-  HistoryStoreError,
   type HistoryEntry,
-  type HistoryPageOptions,
-  type HistoryChangeOptions,
-  type HistoryAroundOptions,
 } from "@drawloom/conversation-history";
 import { bindProjectDirectory, verifyProjectDirectory } from "./projects.js";
 import {
@@ -278,13 +272,6 @@ export async function createDesktopApplication(
     }[]
   >();
   const localRevision = crypto.randomUUID();
-  const conversationSearchSchema = z.strictObject({
-    query: z.string().trim().min(1).max(500),
-    projectId: z.string().min(1).max(256).optional(),
-    archived: z.enum(["active", "archived", "all"]).default("active"),
-    cursor: z.string().min(1).optional(),
-    limit: z.number().int().min(1).max(100).default(50),
-  });
   const viewContext = createViewContext();
   let viewMount: { conversationId: string; viewId: string; mountId: string } | undefined;
   let notice =
@@ -2414,157 +2401,15 @@ export async function createDesktopApplication(
       // This is a read-only store operation; viewing never registers an asset.
       return createNodeAssetStore(binding.directory, binding).open(path);
     },
-    async historyPage(conversationId: string, raw: HistoryPageOptions = {}) {
-      if (!project.conversations.some((c) => c.id === conversationId))
-        throw Error("Conversation unavailable");
-      const options = HistoryPageOptionsSchema.parse(raw);
-      await recoverResources(conversationId);
-      let page = await history.page(conversationId, options);
-      let cacheHit = true;
-      if (options.before && page.entries.length < (options.limit ?? 50) && page.status.hasOlder) {
-        const session = live.get(conversationId)?.session;
-        if (session?.history) {
-          cacheHit = false;
-          await synchronizeHistory(conversationId, session.history, "older");
-          page = await history.page(conversationId, options);
-        }
-      }
-      observeCache(cacheHit, page.entries.length);
-      const error = writer(conversationId).error;
-      return error
-        ? {
-            ...page,
-            status: { ...page.status, sync: "error" as const, message: error },
-          }
-        : writer(conversationId).syncing
-          ? { ...page, status: { ...page.status, sync: "syncing" as const } }
-          : page;
-    },
-    async historyChanges(conversationId: string, raw: HistoryChangeOptions = {}) {
-      if (!project.conversations.some((c) => c.id === conversationId))
-        throw Error("Conversation unavailable");
-      const changes = await history.changes(conversationId, HistoryChangeOptionsSchema.parse(raw));
-      const error = writer(conversationId).error;
-      return error
-        ? {
-            ...changes,
-            status: {
-              ...changes.status,
-              sync: "error" as const,
-              message: error,
-            },
-          }
-        : writer(conversationId).syncing
-          ? {
-              ...changes,
-              status: { ...changes.status, sync: "syncing" as const },
-            }
-          : changes;
-    },
-    async historyAround(conversationId: string, raw: HistoryAroundOptions) {
-      if (!project.conversations.some((c) => c.id === conversationId))
-        throw Error("Conversation unavailable");
-      return history.around(conversationId, HistoryAroundOptionsSchema.parse(raw));
-    },
-    async searchConversations(raw: unknown) {
-      const input = conversationSearchSchema.parse(raw);
-      const scope = JSON.stringify([
-        project.metadataRevision,
-        input.query,
-        input.projectId ?? null,
-        input.archived,
-      ]);
-      let titleOffset = 0,
-        historyCursor: string | undefined;
-      if (input.cursor)
-        try {
-          const parsed = JSON.parse(Buffer.from(input.cursor, "base64url").toString("utf8")) as {
-            scope: string;
-            titleOffset: number;
-            historyCursor?: string;
-          };
-          if (
-            parsed.scope !== scope ||
-            !Number.isSafeInteger(parsed.titleOffset) ||
-            parsed.titleOffset < 0
-          )
-            throw Error();
-          titleOffset = parsed.titleOffset;
-          historyCursor = parsed.historyCursor;
-        } catch {
-          throw new HistoryStoreError(
-            "invalid_cursor",
-            "Conversation search cursor is invalid for this search",
-          );
-        }
-      const eligible = project.conversations.filter(
-        (c) =>
-          (!input.projectId || c.projectId === input.projectId) &&
-          (input.archived === "all" || (c.archived === true) === (input.archived === "archived")),
-      );
-      const titleMatches = eligible
-        .filter((c) => c.title.toLocaleLowerCase().includes(input.query.toLocaleLowerCase()))
-        .sort((a, b) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
-      const eligibleById = new Map(eligible.map((c) => [c.id, c]));
-      const metadata = (conversationId: string) => {
-        const c = eligibleById.get(conversationId)!;
-        return {
-          conversationId: c.id,
-          title: c.title,
-          projectId: c.projectId,
-          projectName: project.projects.find((p) => p.id === c.projectId)?.name,
-          workbenchId: c.workbenchId,
-          provider: c.provider,
-          archived: c.archived === true,
-        };
-      };
-      const items: Array<Record<string, unknown>> = titleMatches
-        .slice(titleOffset, titleOffset + input.limit)
-        .map((c) => ({ ...metadata(c.id), match: "title" }));
-      titleOffset += items.length;
-      let messageHasMore = false,
-        searchedMessages = false;
-      if (items.length < input.limit && titleOffset >= titleMatches.length) {
-        searchedMessages = true;
-        const message = await history.search({
-          query: input.query,
-          conversationIds: eligible.map((c) => c.id),
-          ...(historyCursor ? { cursor: historyCursor } : {}),
-          limit: input.limit - items.length,
-        });
-        items.push(
-          ...message.items.map((hit) => ({
-            ...metadata(hit.conversationId),
-            match: "message",
-            entryId: hit.entryId,
-            role: hit.role,
-            snippet: hit.snippet,
-            position: hit.position,
-          })),
-        );
-        historyCursor = message.cursor;
-        messageHasMore = message.hasMore;
-      }
-      const hasMore =
-        titleOffset < titleMatches.length ||
-        messageHasMore ||
-        (!searchedMessages && items.length === input.limit && titleOffset === titleMatches.length);
-      return {
-        items,
-        ...(hasMore
-          ? {
-              cursor: Buffer.from(
-                JSON.stringify({
-                  scope,
-                  titleOffset,
-                  ...(historyCursor ? { historyCursor } : {}),
-                }),
-              ).toString("base64url"),
-            }
-          : {}),
-        hasMore,
-      };
-    },
+    ...createHistoryApplication({
+      history,
+      project: () => project,
+      recoverResources,
+      synchronizeHistory,
+      live,
+      writer,
+      observeCache,
+    }),
     async viewSession(raw: unknown) {
       const input = DesktopViewSessionSchema.parse(raw);
       const target = {

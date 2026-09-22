@@ -103,6 +103,11 @@ accepted ADR 0018 installation path, permissions and authentication ownership.
 
 ## Keep history separate from agent execution
 
+`apps/desktop/host/history-application.ts` owns the desktop-facing history page,
+change, around and conversation-search operations. It depends on the durable
+history store and narrow callbacks for recovery, synchronization and cache
+instrumentation; it does not receive the lifecycle-proxied application object.
+
 Codex owns its native transcript and session. Drawloom stores a display record in
 `history.sqlite`, not a replacement transcript to replay into the model. The host
 stores normalised records and private import checkpoints atomically. Unknown
