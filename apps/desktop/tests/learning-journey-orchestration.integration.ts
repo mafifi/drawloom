@@ -98,7 +98,13 @@ async function connect(cwd: string): Promise<RpcTransport> {
   let receive: (message: RpcMessage) => void = () => {};
   return {
     async request(method, raw) {
-      const p = raw as { threadId?: string; turnId?: string; input?: unknown[]; cursor?: string };
+      const p = raw as {
+        threadId?: string;
+        turnId?: string;
+        input?: unknown[];
+        cursor?: string;
+        includeTurns?: boolean;
+      };
       if (method === "initialize") return { userAgent: "codex/0.153.4" };
       if (method === "thread/start" || method === "thread/resume") {
         openings.push(raw);
@@ -107,8 +113,19 @@ async function connect(cwd: string): Promise<RpcTransport> {
         native.get(threadId)!.receive = receive;
         return { thread: { id: threadId, cwd }, approvalsReviewer: "user" };
       }
-      const state = native.get(threadId)!;
-      if (method === "thread/read") return { thread: { id: threadId, cwd } };
+      const requestedThreadId = p.threadId ?? threadId;
+      const state = native.get(requestedThreadId);
+      if (!state) throw Error(`Unknown scripted native thread: ${requestedThreadId}`);
+      if (method === "thread/read")
+        return {
+          thread: {
+            id: requestedThreadId,
+            cwd,
+            ...(p.includeTurns
+              ? { turns: state.turns.map(({ id, status }) => ({ id, status })) }
+              : {}),
+          },
+        };
       if (method === "thread/turns/list")
         return {
           data: state.turns.map(({ id, status }) => ({ id, status })).reverse(),
@@ -620,6 +637,7 @@ try {
   const other = join(root, "other-project");
   await mkdir(other);
   await app!.command({ kind: "add_project", directory: other });
+  assert.equal((await app!.snapshot()).activeOperation, undefined);
   await send(sourceRecall, "earlier inspection counted");
   assert.equal(deliveries.at(-1)!.cwd, await realpath(repository));
   results.push(
