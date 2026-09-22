@@ -5,7 +5,8 @@ import { open, realpath, lstat } from "node:fs/promises";
  * the race the post-open inode comparison below exists to defeat. */
 export type FileOpen = { open: typeof open };
 import { constants } from "node:fs";
-import { resolve, relative, isAbsolute, extname, join } from "node:path";
+import { resolve, extname, join } from "node:path";
+import { containsPath } from "./path-containment.ts";
 import { homedir } from "node:os";
 import { DiscoveryPresentationSchema, type DiscoveryPresentation } from "@drawloom/agent";
 import type { DrawloomPackageExtension } from "@drawloom/plugins";
@@ -25,8 +26,9 @@ export async function readPluginIcon(
     // here rather than opened or resolved through.
     if (!(await lstat(unresolved)).isFile()) return;
     const target = await realpath(unresolved);
-    const delta = relative(base, target);
-    if (!delta || delta === ".." || delta.startsWith("../") || isAbsolute(delta)) return;
+    // Containment, plus this caller's own rule: an icon is a file inside the
+    // root, never the root itself.
+    if (target === base || !containsPath(base, target)) return;
     const mime = {
       ".svg": "image/svg+xml",
       ".png": "image/png",
@@ -43,15 +45,10 @@ export async function readPluginIcon(
     try {
       const info = await file.stat();
       if (!info.isFile() || info.size === 0 || info.size > maxIconBytes) return;
-      const verified = await realpath(target),
-        verifiedDelta = relative(base, verified);
-      if (
-        !verifiedDelta ||
-        verifiedDelta === ".." ||
-        verifiedDelta.startsWith("../") ||
-        isAbsolute(verifiedDelta)
-      )
-        return;
+      const verified = await realpath(target);
+      // Re-checked after opening, against the same rule as above: the file may
+      // have been replaced between the first check and the open.
+      if (verified === base || !containsPath(base, verified)) return;
       const pathInfo = await lstat(verified),
         currentRoot = await lstat(await realpath(root));
       if (

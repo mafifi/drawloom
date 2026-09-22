@@ -1,5 +1,6 @@
 import { realpath, stat } from "node:fs/promises";
-import { isAbsolute, parse, relative, sep } from "node:path";
+import { isAbsolute, parse } from "node:path";
+import { containsPath } from "./path-containment.ts";
 export interface DirectoryBinding {
   directory: string;
   device: string;
@@ -7,10 +8,6 @@ export interface DirectoryBinding {
 }
 /** Finite, content-free messages safe to show at the local UI boundary. */
 export class ProjectDirectoryError extends Error {}
-function contains(parent: string, child: string) {
-  const path = relative(parent, child);
-  return path === "" || (!isAbsolute(path) && path !== ".." && !path.startsWith(".." + sep));
-}
 export async function bindProjectDirectory(
   directory: string,
   internal: string,
@@ -27,8 +24,8 @@ export async function bindProjectDirectory(
   });
   if (
     canonical === parse(canonical).root ||
-    contains(canonical, protectedRoot) ||
-    contains(protectedRoot, canonical)
+    containsPath(canonical, protectedRoot) ||
+    containsPath(protectedRoot, canonical)
   )
     throw new ProjectDirectoryError("Choose a project directory outside Drawloom’s private data");
   const facts = await stat(canonical, { bigint: true });
