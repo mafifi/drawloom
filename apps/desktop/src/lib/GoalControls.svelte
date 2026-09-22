@@ -25,6 +25,7 @@
   });
   $effect(() => {
     goal.actions.sync(presentation.conversationId, presentation.snapshot, presentation.readiness);
+    if (!presentation.actionsAvailable) goal.actions.cancelEdit();
   });
   async function readGoal() {
     if (reading) return;
@@ -60,5 +61,5 @@
   </div>
 {/if}
 {#if goal.presentation && (goal.presentation.mode === 'goal' || goal.presentation.editing) && !presentation.error}
-    <GoalBar presentation={goal.presentation.mode === 'goal' && goal.presentation.clock ? {...goal.presentation, clock: {...goal.presentation.clock, running: goal.presentation.clock.running && visible && !presentation.appErrored}} : goal.presentation} actions={{...goal.actions, cancelEdit() { goal.actions.cancelEdit(); if (goal.presentation?.mode === 'create' && !goal.presentation.editing) { requested = false; onDismiss(); } }}} />
+    <GoalBar presentation={goal.presentation.mode === 'goal' ? {...goal.presentation, disabled: !presentation.actionsAvailable, ...(goal.presentation.clock ? {clock: {...goal.presentation.clock, running: goal.presentation.clock.running && visible && !presentation.appErrored && presentation.actionsAvailable}} : {})} : goal.presentation} actions={{...goal.actions, cancelEdit() { goal.actions.cancelEdit(); if (goal.presentation?.mode === 'create' && !goal.presentation.editing) { requested = false; onDismiss(); } }}} />
 {/if}

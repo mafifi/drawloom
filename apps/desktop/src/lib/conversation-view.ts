@@ -2,13 +2,14 @@ import type { DesktopSnapshot } from "./protocol.js";
 import type { DesktopViewModel } from "./view-model.svelte.js";
 import { conversationTurns } from "./conversation-scroll.js";
 import { projectConversation } from "./conversation-presentation.js";
-import { groupToolActivity } from "./tool-outcome.js";
+import { groupPendingToolActivity, groupToolActivity } from "./tool-outcome.js";
 import { elicitationFormActions, elicitationFormPresentation } from "./elicitation-form.js";
 import { goalControlsActions, goalControlsPresentation } from "./goal-controls.js";
 
 type State = Pick<
   DesktopSnapshot,
   | "activity"
+  | "pendingTools"
   | "toolLabels"
   | "views"
   | "projects"
@@ -41,6 +42,9 @@ export type ConversationPresentation = Readonly<
     turns: ReturnType<typeof conversationTurns>;
     nodes: ReturnType<typeof projectConversation>;
     activity: ReturnType<typeof groupToolActivity>;
+    pendingActivity: ReturnType<
+      typeof groupPendingToolActivity<DesktopSnapshot["pendingTools"][number]>
+    >;
     workbenchView: NonNullable<DesktopSnapshot["views"]>[number] | undefined;
     goal: ReturnType<typeof goalControlsPresentation>;
     elicitations: ReadonlyArray<{
@@ -99,6 +103,7 @@ export function conversationPresentation(vm: DesktopViewModel): ConversationPres
     state: state
       ? {
           activity: state.activity,
+          pendingTools: state.pendingTools,
           toolLabels: state.toolLabels,
           views: state.views,
           projects: state.projects,
@@ -113,6 +118,12 @@ export function conversationPresentation(vm: DesktopViewModel): ConversationPres
     turns: conversationTurns(vm.history.entries),
     nodes: projectConversation(vm.history.entries, vm.history.anchorId),
     activity: groupToolActivity(state?.activity ?? [], vm.history.entries),
+    pendingActivity: groupPendingToolActivity(
+      state?.pendingTools ?? [],
+      state?.activity ?? [],
+      vm.history.entries,
+      state?.activeOperation,
+    ),
     workbenchView: state?.views.find((view) => view.workbenchId === vm.conversation?.workbenchId),
     goal: goalControlsPresentation(vm),
     elicitations: (state?.elicitations ?? []).map((request) => ({

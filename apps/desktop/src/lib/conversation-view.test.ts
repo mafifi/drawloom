@@ -59,6 +59,7 @@ function fixture() {
     state: {
       selectedId: "conversation-a",
       activity: [],
+      pendingTools: [],
       toolLabels: [],
       projects: [],
       workbenches: [],
@@ -95,6 +96,57 @@ test("conversation projection preserves history anchor, workbench, activity and 
   expect(projected.activity.size).toBe(0);
   expect(projected.elicitations[0]?.request.requestId).toBe("request-one");
   expect(projected.conversationProject?.directory).toBe("/project");
+});
+
+test("reopened retained tool starts are projected beside their operation without inventing an outcome", () => {
+  const vm = fixture();
+  vm.history.entries[0] = { ...vm.history.entries[0]!, operationId: "operation" };
+  vm.state!.pendingTools = [
+    { kind: "started", invocationId: "invocation", operationId: "operation", tool: "effect" },
+  ];
+  const projected = conversationPresentation(vm);
+  expect(projected.pendingActivity.get("message")).toEqual([
+    { kind: "started", invocationId: "invocation", operationId: "operation", tool: "effect" },
+  ]);
+});
+
+test("a retained terminal result supersedes the same pending invocation exactly once", () => {
+  const vm = fixture();
+  vm.history.entries[0] = { ...vm.history.entries[0]!, operationId: "operation" };
+  vm.state!.pendingTools = [
+    { kind: "started", invocationId: "invocation", operationId: "operation", tool: "effect" },
+  ];
+  vm.state!.activity = [
+    {
+      invocationId: "invocation",
+      operationId: "operation",
+      evidence: "recorded",
+      outcome: { status: "ok", value: null, text: "done" },
+    },
+  ];
+  const projected = conversationPresentation(vm);
+  expect(projected.pendingActivity.get("message")).toBeUndefined();
+  expect(projected.activity.get("message")).toHaveLength(1);
+});
+
+test("disconnected goal disclosure retains its objective and accounting while actions are unavailable", () => {
+  const vm = fixture();
+  vm.state!.goal = {
+    supported: false,
+    snapshot: {
+      revision: "goal:1",
+      objective: "Preserve the objective",
+      status: "active",
+      timeUsedSeconds: 42,
+      tokensUsed: 100,
+    },
+  };
+  const projected = conversationPresentation(vm);
+  expect(projected.goal).toMatchObject({
+    actionsAvailable: false,
+    readiness: "ready",
+    snapshot: { objective: "Preserve the objective", timeUsedSeconds: 42, tokensUsed: 100 },
+  });
 });
 
 test("action projections resolve the live conversation at call time after a switch", async () => {

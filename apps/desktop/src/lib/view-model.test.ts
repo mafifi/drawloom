@@ -360,6 +360,123 @@ test("Stop reaches the host while an approval response is still pending", async 
   release();
   await Promise.all([approval, stopping]);
 });
+
+test("host state loss retires stale approval and active-work controls before any command can dispatch", async () => {
+  const initial = snapshot();
+  initial.activeOperation = "operation";
+  initial.controls = { steer: true, interrupt: true, reviewerModes: ["human"] };
+  initial.modes = ["default", "plan"];
+  initial.goal = { supported: true, snapshot: null };
+  initial.delegation = { supported: true, children: [] };
+  initial.forking = { supported: true };
+  initial.approvals = [
+    {
+      conversationId: "conversation-a",
+      presentationId: "presentation",
+      request: {
+        approvalId: "approval",
+        operationId: "operation",
+        summary: "Choose",
+        options: [{ optionId: "allow", label: "Allow" }],
+      },
+      surface: "pending",
+      submitting: false,
+      presentation: "desktop",
+    },
+  ];
+  const h = await harness(initial);
+  h.vm.draft = "Preserve this draft";
+  h.setHistory([
+    {
+      id: "saved",
+      position: [1, 0],
+      role: "user",
+      origin: { kind: "user" },
+      text: "Saved history",
+      assets: [],
+      state: "complete",
+    },
+  ]);
+  await h.vm.loadLatest();
+  const base = globalThis.fetch;
+  globalThis.fetch = (async (url, init) =>
+    String(url).startsWith("/api/state")
+      ? Promise.reject(new TypeError("fetch failed"))
+      : base(url, init)) as typeof fetch;
+  await h.vm.start();
+  h.vm.stopPolling();
+  expect(h.vm.state?.activeOperation).toBeUndefined();
+  expect(h.vm.state?.controls).toMatchObject({ steer: false, interrupt: false });
+  expect(h.vm.state?.modes).toEqual([]);
+  expect(h.vm.state?.goal).toEqual({ supported: false, snapshot: null });
+  expect(h.vm.state?.delegation?.supported).toBe(false);
+  expect(h.vm.state?.forking?.supported).toBe(false);
+  expect(h.vm.approvals).toEqual([]);
+  expect(h.vm.draft).toBe("Preserve this draft");
+  expect(h.vm.history.entries[0]?.text).toBe("Saved history");
+  expect(await h.vm.command({ kind: "stop", conversationId: "conversation-a" })).toBe(false);
+  expect(h.commands).toEqual([]);
+});
+
+test("fresh authoritative state restores commands after disconnect without retrying a mutation", async () => {
+  const h = await harness();
+  const base = globalThis.fetch;
+  let unavailable = true;
+  globalThis.fetch = (async (url, init) =>
+    String(url).startsWith("/api/state") && unavailable
+      ? Promise.reject(new TypeError("fetch failed"))
+      : base(url, init)) as typeof fetch;
+  await h.vm.start();
+  h.vm.stopPolling();
+  expect(await h.vm.command({ kind: "select_project", projectId: "project-a" })).toBe(false);
+  unavailable = false;
+  await h.vm.start();
+  h.vm.stopPolling();
+  expect(await h.vm.command({ kind: "select_project", projectId: "project-a" })).toBe(true);
+  expect(h.commands).toEqual([{ kind: "select_project", projectId: "project-a" }]);
+});
+
+test("a malformed authoritative state response revokes stale actions without claiming host death", async () => {
+  const h = await harness();
+  const base = globalThis.fetch;
+  globalThis.fetch = (async (url, init) =>
+    String(url).startsWith("/api/state")
+      ? Response.json({ kind: "snapshot", token: "host:bad", sections: {}, removed: [] })
+      : base(url, init)) as typeof fetch;
+  await h.vm.start();
+  h.vm.stopPolling();
+  expect(h.vm.error).not.toBe("");
+  expect(h.vm.error).not.toContain("Local host unavailable");
+  expect(await h.vm.command({ kind: "select_project", projectId: "project-a" })).toBe(false);
+  expect(h.commands).toEqual([]);
+});
+
+test("a command transport loss invalidates live state and never retries the mutation", async () => {
+  const initial = snapshot();
+  initial.activeOperation = "operation";
+  const h = await harness(initial);
+  const base = globalThis.fetch;
+  globalThis.fetch = (async (url, init) =>
+    url === "/api/command"
+      ? Promise.reject(new TypeError("fetch failed"))
+      : base(url, init)) as typeof fetch;
+  expect(await h.vm.command({ kind: "stop", conversationId: "conversation-a" })).toBe(false);
+  expect(h.vm.state?.activeOperation).toBeUndefined();
+  expect(h.commands).toEqual([]);
+  expect(await h.vm.command({ kind: "stop", conversationId: "conversation-a" })).toBe(false);
+});
+
+test("a history-only read failure preserves live command authority", async () => {
+  const h = await harness();
+  const base = globalThis.fetch;
+  globalThis.fetch = (async (url, init) =>
+    String(url).startsWith("/api/history")
+      ? Response.json({ error: "history unavailable" }, { status: 503 })
+      : base(url, init)) as typeof fetch;
+  await h.vm.loadLatest();
+  expect(await h.vm.command({ kind: "select_project", projectId: "project-a" })).toBe(true);
+  expect(h.commands).toEqual([{ kind: "select_project", projectId: "project-a" }]);
+});
 test("sharing a conversation selects context without navigation or execution", async () => {
   const initial = snapshot();
   initial.conversations.push({

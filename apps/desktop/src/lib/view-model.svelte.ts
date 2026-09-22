@@ -99,6 +99,8 @@ const DraftReferencesSchema = z.strictObject({
 });
 export function createDesktopViewModel() {
   let state = $state<DesktopSnapshot>();
+  let hostAvailable = false;
+  let hostAvailabilityError = false;
   let history = $state<HistoryPresentation>({
     entries: [],
     loading: false,
@@ -373,14 +375,57 @@ export function createDesktopViewModel() {
       : [],
   );
   async function response(res: Response) {
-    const data: unknown = await res.json();
-    if (!res.ok)
-      throw Error(
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch (cause) {
+      if (!res.ok && res.status >= 500) {
+        const failure = Error("Local host unavailable", { cause });
+        failure.name = "HostAvailabilityError";
+        throw failure;
+      }
+      throw cause;
+    }
+    if (!res.ok) {
+      const failure = Error(
         typeof data === "object" && data && "error" in data
           ? String(data.error)
           : "Local host unavailable",
       );
+      if (res.status >= 500) failure.name = "HostAvailabilityError";
+      throw failure;
+    }
     return data;
+  }
+  function hostAvailabilityFailure(cause: unknown) {
+    return (
+      cause instanceof TypeError ||
+      (cause instanceof Error && cause.name === "HostAvailabilityError")
+    );
+  }
+  function invalidateHostState() {
+    hostAvailable = false;
+    hostAvailabilityError = true;
+    stateToken = undefined;
+    busy = false;
+    pendingCommand = undefined;
+    stoppingApproval = undefined;
+    stoppingApprovalOwner = undefined;
+    if (!state) return;
+    const { activeOperation: _activeOperation, ...settled } = state;
+    state = {
+      ...settled,
+      approvals: [],
+      elicitations: [],
+      signals: [],
+      modes: [],
+      goal: state.goal ? { ...state.goal, supported: false } : undefined,
+      delegation: state.delegation
+        ? { supported: false, children: state.delegation.children }
+        : undefined,
+      forking: state.forking ? { supported: false } : undefined,
+      controls: { steer: false, interrupt: false, reviewerModes: ["human"] },
+    };
   }
   function cancelEdit() {
     editing = false;
@@ -612,6 +657,7 @@ export function createDesktopViewModel() {
       saveDraft(previousId);
     }
     state = next;
+    hostAvailable = true;
     if (navigation) {
       forkRequested = false;
       const saved = drafts.get(next.selectedId) ?? restoreDraft(next.selectedId);
@@ -684,17 +730,25 @@ export function createDesktopViewModel() {
         project(merged);
         stateToken = update.token;
       }
+      hostAvailable = true;
+      if (captured === requestEpoch && hostAvailabilityError) {
+        error = "";
+        hostAvailabilityError = false;
+      }
       if (captured === requestEpoch) await pager.poll();
     } catch (e) {
       if (captured === requestEpoch) {
         error = e instanceof Error ? e.message : "Local host unavailable";
-        stateToken = undefined;
+        // Any unreadable authoritative state revokes live actions. This does not
+        // label validation as host death; command 4xx and history reads are separate.
+        invalidateHostState();
       }
     } finally {
       if (refreshingEpoch === captured) refreshingEpoch = undefined;
     }
   }
   async function command(value: DesktopCommand) {
+    if (!hostAvailable) return false;
     // A native response may be awaiting the provider; Stop cannot queue behind it.
     if (
       busy &&
@@ -717,8 +771,10 @@ export function createDesktopViewModel() {
         if (epoch === requestEpoch) project(next);
         return true;
       } catch (cause) {
-        if (epoch === requestEpoch)
+        if (epoch === requestEpoch) {
           error = cause instanceof Error ? cause.message : "Could not stop the operation";
+          if (hostAvailabilityFailure(cause)) invalidateHostState();
+        }
         return false;
       } finally {
         if (stoppingApproval === value) {
@@ -753,7 +809,10 @@ export function createDesktopViewModel() {
       if (epoch === requestEpoch) project(next);
       return true;
     } catch (e) {
-      if (pendingCommand === value) error = e instanceof Error ? e.message : "Operation failed";
+      if (pendingCommand === value) {
+        error = e instanceof Error ? e.message : "Operation failed";
+        if (hostAvailabilityFailure(e)) invalidateHostState();
+      }
       return false;
     } finally {
       if (pendingCommand === value) {

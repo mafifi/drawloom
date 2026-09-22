@@ -5,6 +5,7 @@ import type { DesktopViewModel } from "./view-model.svelte.js";
 export type GoalControlsPresentation = Readonly<{
   conversationId: string;
   supported: boolean;
+  actionsAvailable: boolean;
   error?: string;
   snapshot: AgentGoalSnapshot | null | undefined;
   readiness: GoalReadiness;
@@ -27,14 +28,15 @@ export function goalControlsPresentation(vm: DesktopViewModel): GoalControlsPres
   const readiness: GoalReadiness =
     !vm.state || (goal?.supported && goal.snapshot === undefined)
       ? "loading"
-      : !goal?.supported
+      : !goal?.supported && goal?.snapshot === undefined
         ? "unavailable"
         : "ready";
   return {
     conversationId: vm.conversation?.id ?? "",
     supported: goal?.supported ?? false,
-    error: goal?.supported ? goal.error : undefined,
-    snapshot: goal?.supported ? (goal.snapshot ?? null) : undefined,
+    actionsAvailable: goal?.supported ?? false,
+    error: goal?.error,
+    snapshot: goal?.snapshot,
     readiness,
     appErrored: Boolean(vm.error),
   };

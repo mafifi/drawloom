@@ -133,4 +133,29 @@ describe("goal presentation boundary", () => {
     expect(html).not.toContain(">Edit goal<");
     expect(html).toContain("Clear goal");
   });
+
+  test("a disconnected goal stays readable while every mutation is disabled", () => {
+    const html = render(GoalBar, {
+      props: {
+        presentation: {
+          mode: "goal",
+          objective: "Retain this objective",
+          status: "active",
+          statusLabel: "Active",
+          timeUsedLabel: "42s used",
+          editing: false,
+          draft: "Retain this objective",
+          canPause: false,
+          canResume: false,
+          disabled: true,
+          labels,
+        },
+        actions,
+      },
+    }).body;
+    expect(html).toContain("Retain this objective");
+    expect(html).toContain("42s used");
+    expect(html).toMatch(/<button[^>]*disabled[^>]*aria-label="Edit goal"/);
+    expect(html).toMatch(/<button[^>]*disabled[^>]*aria-label="Clear goal"/);
+  });
 });

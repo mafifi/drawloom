@@ -1,5 +1,10 @@
 import { expect, test } from "vitest";
-import { presentToolOutcome, groupToolActivity, toolActivityTitle } from "./tool-outcome.js";
+import {
+  presentToolOutcome,
+  groupPendingToolActivity,
+  groupToolActivity,
+  toolActivityTitle,
+} from "./tool-outcome.js";
 
 test("tool activity uses admitted display titles and keeps opaque unknown aliases out of headings", () => {
   expect(
@@ -26,6 +31,33 @@ test("activity groups attach to their own operation without inventing old turn a
   expect(groups.get("last")?.map((r) => r.invocationId)).toEqual(["one"]);
   expect(groups.get("first")).toBeUndefined();
   expect(groups.get("")?.map((r) => r.invocationId)).toEqual(["two"]);
+});
+
+test("pending tool activity follows the last same-operation conversation anchor", () => {
+  const pending = [
+    { kind: "started" as const, invocationId: "call", operationId: "operation", tool: "effect" },
+  ];
+  const grouped = groupPendingToolActivity(
+    pending,
+    [],
+    [
+      { id: "first", operationId: "operation", origin: { kind: "user" } },
+      { id: "later", operationId: "operation", origin: { kind: "assistant" } },
+    ],
+    undefined,
+  );
+  expect(grouped.get("later")).toEqual(pending);
+  expect(grouped.get("")).toBeUndefined();
+});
+
+test("a start owned by the authoritative active operation is not called uncertain", () => {
+  const grouped = groupPendingToolActivity(
+    [{ kind: "started" as const, invocationId: "call", operationId: "active", tool: "effect" }],
+    [],
+    [{ id: "message", operationId: "active", origin: { kind: "user" } }],
+    "active",
+  );
+  expect(grouped.size).toBe(0);
 });
 
 test("retained correlated tools own their outcome instead of duplicating live activity", () => {

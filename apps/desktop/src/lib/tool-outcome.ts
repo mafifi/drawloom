@@ -39,6 +39,29 @@ export function groupToolActivity<T extends ToolResult>(
   return groups;
 }
 
+export function groupPendingToolActivity<T extends { invocationId: string; operationId?: string }>(
+  starts: readonly T[],
+  results: readonly Pick<ToolResult, "invocationId">[],
+  entries: readonly { id: string; operationId?: string; origin?: { kind: string } }[],
+  activeOperation?: string,
+) {
+  const finished = new Set(results.map((result) => result.invocationId));
+  const anchors = new Map(
+    entries
+      .filter((entry) => entry.operationId && entry.origin?.kind !== "tool")
+      .map((entry) => [entry.operationId!, entry.id]),
+  );
+  const groups = new Map<string, T[]>();
+  for (const start of starts) {
+    if (finished.has(start.invocationId) || start.operationId === activeOperation) continue;
+    const anchor = start.operationId ? (anchors.get(start.operationId) ?? "") : "";
+    const group = groups.get(anchor) ?? [];
+    group.push(start);
+    groups.set(anchor, group);
+  }
+  return groups;
+}
+
 export type ToolOutcomePresentation = Readonly<{
   label: string;
   state: "completed" | "denied" | "cancelled" | "failed" | "uncertain";

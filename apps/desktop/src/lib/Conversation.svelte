@@ -53,6 +53,7 @@
   const turns = $derived(p.turns);
   const nodes = $derived(p.nodes);
   const activity = $derived(p.activity);
+  const pendingActivity = $derived(p.pendingActivity);
   const workbenchView = $derived(p.workbenchView);
   function syncScroll() {
     reading.scrolled(scroll.scrollTop, scroll.clientHeight, scroll.scrollHeight);
@@ -255,10 +256,10 @@
             />
           {/each}
       </ChatMessage.Root>
-      <ToolActivity results={activity.get(message.id) ?? []} toolLabels={p.state?.toolLabels ?? []} />
+      <ToolActivity results={activity.get(message.id) ?? []} starts={pendingActivity.get(message.id) ?? []} toolLabels={p.state?.toolLabels ?? []} />
       {/if}
     {/each}
-    <ToolActivity results={activity.get('') ?? []} toolLabels={p.state?.toolLabels ?? []} historical />
+    <ToolActivity results={activity.get('') ?? []} starts={pendingActivity.get('') ?? []} toolLabels={p.state?.toolLabels ?? []} historical />
     {#if workbenchView}<Button variant="outline" class="artifact-row mx-auto justify-between" onclick={() => { actions.openWorkbench(); }}><DocumentIcon aria-hidden="true" /><span>Open workbench</span></Button>
     {:else if p.artifact}<Button
         variant="outline"
