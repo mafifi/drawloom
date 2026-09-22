@@ -91,6 +91,25 @@ async function attach(manager, provider, receipts, assessment) {
   return registration;
 }
 
+test("real manager prepares Nightloom's prebuilt dependency manifest over 64 KiB", {
+  timeout: 60_000,
+}, async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-nightloom-manifest-"));
+  const manager = createLocalTemporalManager({ dataDirectory: join(root, "temporal") });
+  try {
+    const registration = await manager.prepareHost({
+      capabilityId: "knowledge-maintenance",
+      packageDirectory: resolve("packages/knowledge/nightloom"),
+      entrypoint: "dist/workflows.js",
+    });
+    assert.ok(registration.registry.tasks.length > 0);
+    await registration.close();
+  } finally {
+    await manager.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 async function start(registration, identity) {
   let lastError;
   for (let attempt = 0; attempt < 8; attempt++) {

@@ -1,9 +1,12 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { createServer } from "node:net";
 import { open, mkdir, readFile, unlink } from "node:fs/promises";
 import { join } from "node:path";
+import { promisify } from "node:util";
 import { z } from "zod";
 import { isMissing } from "./storage.js";
+
+const COMMAND_OUTPUT_LIMIT_BYTES = 1024 * 1024;
 export function isAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
@@ -86,31 +89,37 @@ export async function command(
   args: string[],
   timeoutMs = 30000,
 ): Promise<string> {
-  const child = spawn(executable, args, { stdio: ["ignore", "pipe", "pipe"] });
-  let output = "";
-  let errorOutput = "";
-  child.stdout.on("data", (data: Buffer) => {
-    if (output.length < 65536) output += data.toString();
-  });
-  child.stderr.on("data", (data: Buffer) => {
-    if (errorOutput.length < 65536) errorOutput += data.toString();
-  });
-  return new Promise<string>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      child.kill("SIGKILL");
-      reject(new Error("Local orchestration command timed out"));
-    }, timeoutMs);
-    child.once("error", (error) => {
-      clearTimeout(timer);
-      reject(error);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const { stdout } = await promisify(execFile)(executable, args, {
+      encoding: "buffer",
+      maxBuffer: COMMAND_OUTPUT_LIMIT_BYTES,
+      signal: controller.signal,
+      killSignal: "SIGKILL",
     });
-    child.once("exit", (code) => {
-      clearTimeout(timer);
-      code === 0
-        ? resolve(output)
-        : reject(
-            new Error(`Local orchestration command failed (${code}): ${errorOutput.slice(-2000)}`),
-          );
-    });
-  });
+    return stdout.toString("utf8");
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error("Local orchestration command timed out");
+    if (!(error instanceof Error)) throw error;
+    const result = error as Error & {
+      code?: number | string;
+      stderr?: Buffer | string;
+    };
+    if (result.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER")
+      throw new Error(
+        `Local orchestration command output exceeded ${COMMAND_OUTPUT_LIMIT_BYTES} bytes`,
+      );
+    if (typeof result.code === "number") {
+      const errorOutput = Buffer.isBuffer(result.stderr)
+        ? result.stderr.toString("utf8")
+        : (result.stderr ?? "");
+      throw new Error(
+        `Local orchestration command failed (${result.code}): ${errorOutput.slice(-2000)}`,
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
