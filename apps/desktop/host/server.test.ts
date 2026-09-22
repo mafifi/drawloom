@@ -51,6 +51,71 @@ test("managed JSON is authenticated, byte exact and always offered as a download
     await server.close();
   }
 });
+test("HTTP error families return their intended client status and body", async () => {
+  const root = await mkdtemp(join(tmpdir(), "drawloom-http-errors-test-"));
+  const app = await createDesktopApplication(root);
+  const server = await serveDesktop(app, resolve("apps/desktop/build"));
+  try {
+    const boot = await fetch(server.url, { redirect: "manual" });
+    const cookie = boot.headers.get("set-cookie")!.split(";")[0]!;
+    const headers = { cookie, "Content-Type": "application/json", origin: server.origin };
+    const conversationId = (await app.snapshot()).selectedId;
+    const request = async (path: string, body: unknown) => {
+      const response = await fetch(server.origin + path, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
+      return { status: response.status, body: await response.json() };
+    };
+
+    const missing = await fetch(server.origin + "/api/discovery?conversationId=missing", {
+      headers: { cookie },
+    });
+    expect(missing.status).toBe(400);
+    expect(await missing.json()).toEqual({ error: "Conversation unavailable" });
+
+    expect(
+      await request("/api/discovery/resource/read", {
+        conversationId,
+        id: "missing-resource",
+        revision: "missing-revision",
+      }),
+    ).toEqual({ status: 400, body: { error: "Resource unavailable" } });
+
+    expect(await request("/api/command", { kind: "add_project", directory: "relative" })).toEqual({
+      status: 400,
+      body: { error: "Choose an absolute project directory" },
+    });
+
+    const cursor = await fetch(
+      server.origin +
+        `/api/history?conversationId=${encodeURIComponent(conversationId)}&before=invalid`,
+      { headers: { cookie } },
+    );
+    expect(cursor.status).toBe(409);
+    expect(await cursor.json()).toEqual({
+      error: "Cursor is invalid for this conversation or store",
+      code: "invalid_cursor",
+    });
+
+    expect(
+      await request("/api/packages/oauth", {
+        action: "status",
+        id: "missing-installation",
+        server: "missing-server",
+      }),
+    ).toEqual({
+      status: 400,
+      body: {
+        error:
+          "The local operation failed. Check configuration or restart the host; no automatic retry occurred.",
+      },
+    });
+  } finally {
+    await server.close();
+  }
+});
 import { mkdtemp, readFile, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
