@@ -14,6 +14,7 @@ export const nodeCheckLanes = Object.freeze({
   ci: Object.freeze([
     "scripts/node-test-lanes.test.mjs",
     "scripts/packaged-sidecars.test.mjs",
+    "apps/desktop/tests/native-recovery-fixture.node-check.mjs",
     "packages/evaluation/braintrust-assessment/offline.test.mjs",
     "packages/knowledge/sqlite-knowledge/sqlite-knowledge.node-check.ts",
     "packages/knowledge/local-embeddings/llama-worker.node-check.mjs",
