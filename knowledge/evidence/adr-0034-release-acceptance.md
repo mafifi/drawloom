@@ -77,5 +77,14 @@ wrote inside the `.app` and broke its own signature.
   bundle, so state and recovery are covered and the GUI is not.
 - **`test:ui` does not run at all** — broken since the migration, audit finding
   F11. The browser acceptance matrix is exercised nowhere.
+- **The credential check proves the binding, not the absence of a fallback.**
+  The keychain probe round-trips through `@napi-rs/keyring` directly, which has
+  no fallback, so a rejected binding fails loudly. It does NOT go through
+  `createPluginCredentialStore`, which CAN fall back to session storage — the
+  failure mode recorded in `native-browser-permission-readiness.md`, where a
+  Team ID mismatch was rejected by library validation and credentials silently
+  degraded. A pre-migration test asserted `store.mode === "os"` for exactly
+  this; it depended on the deleted Bun builder and was not ported. Worth adding
+  when the Developer ID signing run happens, since that changes the signing team.
 - Notarisation, and installation on a clean machine.
 - Any CI equivalent of this gate (F9).
