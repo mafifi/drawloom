@@ -49,6 +49,16 @@ it is not a DMG or a notarised release.
 | Generated Assets.car | `c57f00fd2e2b23edd9b2844cf0f24bb55f5019e39b6725c6eee1e49e12306f19` |
 | Drawloom-c1491d5-signed.zip | `2a9633fd53069e88ef41a433bfecaea2474997cb6a9ac5451e3812a57dfb6077` |
 
+A subsequent **pre-notarisation** `Drawloom-0.0.0-preview-arm64.dmg` was built
+from the same sealed app with an Applications shortcut and signed with the same
+Developer ID. Its SHA-256 is
+`ba473ff79da5d9f19202e0e95ffb773e29390320884bd048a76333a8f3eaf45e`.
+Image checksum and signature verification passed. After mounting read-only,
+the packaged app's executable hashes matched the table and `release:verify`
+passed **9/9 from the mounted image**. The image was then unmounted. This proves
+the DMG assembly on the build host, not notarisation, Gatekeeper acceptance on a
+clean machine or the eventual stapled image's checksum.
+
 Upstream and signed Node hashes intentionally differ. Packaging checked the
 upstream bytes and licence notice before signing; the signed hashes identify
 the executed artifact. The host has only `allow-jit`; the Rust UI shell has no
@@ -134,7 +144,7 @@ verification, not editorial or clinical acceptance.
 ## Explicit remaining limits
 
 - Apple notarisation credentials were not configured at this checkpoint.
-  Notarisation, stapling, DMG acceptance and Mac-mini clean-machine installation
+  Notarisation, stapling, final DMG acceptance and Mac-mini clean-machine installation
   remain subsequent gates. A Developer ID signature alone does not complete them.
 - Native Codex live-review/model lanes were not run. Default OS credential and
   evaluation skips are not silently counted as passes; the distinct executed
