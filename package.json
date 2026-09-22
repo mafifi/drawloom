@@ -59,7 +59,10 @@
     "test:watch": "vitest",
     "desktop:bundle-host": "esbuild apps/desktop/host/main.ts --bundle --platform=node --format=esm --external:@napi-rs/keyring --banner:js='import { createRequire as __drawloomRequire } from \"node:module\"; const require = __drawloomRequire(import.meta.url);' --outfile=apps/desktop/.dev/host/main.mjs",
     "test:temporal:bundled": "pnpm run build:packages && pnpm --filter @drawloom/temporal-orchestration deploy --prod .deploy/temporal && DRAWLOOM_TEMPORAL_BUNDLED=1 DRAWLOOM_ORCHESTRATION_RUNTIME=.deploy/temporal node --test packages/orchestration/temporal-orchestration/bundled-runtime.test.mjs",
-    "check:bundled-licenses": "node scripts/check-bundled-licenses.ts"
+    "check:bundled-licenses": "node scripts/check-bundled-licenses.ts",
+    "release:bundle": "pnpm run build:packages && pnpm --filter @drawloom/desktop run bundle:host && pnpm --filter @drawloom/desktop exec tauri build",
+    "release:sign": "scripts/sign-macos-app.sh",
+    "release:verify": "node scripts/verify-macos-app.mjs"
   },
   "devDependencies": {
     "@astrojs/check": "catalog:",

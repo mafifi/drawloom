@@ -111,11 +111,27 @@ automatic content typing when `Bun.file` is replaced by a stream.
 Proof is not delivery, and this record was accepted only once delivery was
 verified. The full suite passes on Vitest with a separate real-Node lane; the
 repository gates pass; `pnpm deploy` assembles the sidecars and a signed
-`Drawloom.app` runs under the hardened runtime, serving the application and
+`Drawloom.app` ran under the hardened runtime, serving the application and
 shutting down cleanly; the Keychain addon, sqlite-vec's SQLite extension and
 Temporal's native core-bridge all load inside that bundle; and real local
 Temporal recovery passes, including whole-host process loss and dead-ownership
 reclaim.
+
+**Packaging and signing are a manual pre-release gate, not a continuous one.**
+There is no macOS runner in `.github/workflows/`, so no CI job builds a `.app`,
+signs it, or runs its acceptance checks; a green CI run says nothing about the
+shipped artifact. The gate is `release:bundle`, `release:sign` and
+`release:verify`, written down in
+[the desktop guide](../../apps/desktop/README.md). This is the same shape as
+audit finding F2 — a safeguard proved only by checks CI never ran — and is
+recorded as an open finding rather than left to read as automated.
+
+**The signature described above is no longer valid**: a later documentation
+pass edited README files inside the bundle, and anything written into a `.app`
+after signing invalidates it. The cause was a process error, not a defect in
+signing; the artifact awaits a rebuild and re-verification, and signing is now
+recorded as the last mutation of the bundle. Notarisation and clean-machine
+installation remain outstanding.
 
 Two findings changed the shipped result. Tauri's resource copy does not preserve
 symlinks, so sidecars deployed with pnpm's default linker arrived in the bundle

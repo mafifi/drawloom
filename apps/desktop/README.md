@@ -120,8 +120,15 @@ dependencies. The supported desktop and its local embedding runtime require
 macOS 14 or later. With the build tools installed and Cargo on your PATH, run:
 
 ```sh
+pnpm run build:packages
+pnpm --filter @drawloom/desktop run bundle:host
 pnpm --filter ./apps/desktop run tauri build --bundles app
 ```
+
+`bundle:host` is not optional: it builds the host bundle, stages the pinned
+Node runtime with its licence notice, and deploys the sidecar runtimes that
+Tauri then copies. Running `tauri build` alone packages whatever those
+directories happened to contain.
 
 The output is
 `apps/desktop/src-tauri/target/release/bundle/macos/Drawloom.app`.
@@ -139,3 +146,30 @@ macOS setup.
 Optional knowledge setup and its current runtime-download limitations are
 documented in the [knowledge guide](../../docs/design/local-knowledge.md).
 Starting the desktop does not consent to a model download.
+
+## Release gate (manual)
+
+Packaging, signing and verification are a **manual pre-release gate**. There is
+no macOS runner in `.github/workflows/`, so nothing in CI builds a `.app`,
+signs it, or runs the acceptance checks below. Treat a green CI run as saying
+nothing about the shipped artifact.
+
+```sh
+pnpm run release:bundle                       # build:packages, bundle:host, tauri build
+pnpm run release:sign <app> <signing identity>
+pnpm run release:verify <app>
+```
+
+Order matters, and **signing is the last mutation of the bundle**. Anything
+written into the `.app` afterwards invalidates the signature — including a
+documentation pass that edits READMEs inside it, which is exactly how the
+previous signature was lost.
+
+`release:sign` signs every Mach-O payload before the bundle itself, so the
+outer signature never seals unsigned nested code, and leaves library validation
+enabled. `release:verify` checks the shipped Node runtime and its notice, both
+sidecar closures, the signature and hardened runtime, the entitlement set, and
+that native modules load under it.
+
+Still outside this gate, and not yet done: notarisation, and installation on a
+clean machine.

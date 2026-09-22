@@ -151,6 +151,29 @@ bookkeeping:
    licence of every package actually staged, and runs as the last step of
    `bundle:host`. This is what exposed the corrected `sharp` finding below.
 
+### F9 — No macOS runner, so nothing in CI sees the shipped artifact (Medium, open)
+
+Every job in `.github/workflows/` is `ubuntu-latest`. No CI job builds a `.app`,
+stages the Node runtime, signs a bundle, or runs
+`scripts/verify-macos-app.mjs`. The packaging evidence ADR 0034 relies on —
+sidecar closures surviving Tauri's resource copy, the reduced entitlement set,
+native modules loading under the hardened runtime, the shipped Node runtime and
+its notice — is produced by hand on one machine and by nothing else.
+
+This is F2's shape after F2 was closed: the safeguards are real and the checks
+exist, but the thing that would catch a regression does not run. The specific
+regression this invites is the one that already happened once — a bundle
+mutated after signing, with nothing to notice.
+
+**Partly mitigated, not closed.** The gate is now named and discoverable
+(`release:bundle`, `release:sign`, `release:verify`), documented as a manual
+step in `apps/desktop/README.md`, and ADR 0034 says plainly that packaging and
+signing are not continuous. That makes the gap honest; it does not close it.
+
+**Repair.** A `macos-14` job that runs `release:bundle` and `release:verify` on
+an ad-hoc signing identity, which is enough to catch a broken closure, a missing
+notice or a stale runtime without holding release credentials in CI.
+
 ### F4 — The composition root resisted decomposition (Medium, open)
 
 `createDesktopApplication` in `apps/desktop/host/application.ts` was a single
