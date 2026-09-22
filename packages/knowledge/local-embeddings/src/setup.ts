@@ -14,7 +14,8 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
+import { isSubpath } from "./containment.js";
 import { promisify } from "node:util";
 import { LocalEmbeddingsError } from "./errors.js";
 import {
@@ -82,23 +83,6 @@ const runtimeReadyFile = ".drawloom-runtime-ready.json";
 const runtimeArchivePath = "llama.cpp-darwin-arm64.tar.gz";
 const runtimeArchiveRoot = "drawloom-llama-runtime";
 const execFileAsync = promisify(execFile);
-
-/**
- * Is `candidate` inside `root`? Pinned by `pathContainmentConformance` from
- * `@drawloom/host/conformance`; see `containment.test.ts`.
- *
- * This previously used `startsWith("..")` and `includes("../")`, which rejected
- * legitimate paths: a directory named `..draft` fails the first, and one named
- * `b..` fails the second. Both are separator-unaware string tests standing in
- * for a path comparison. The failure mode was refusing real paths, not
- * admitting escapes.
- */
-function isSubpath(root: string, candidate: string): boolean {
-  const between = relative(resolve(root), resolve(candidate));
-  return (
-    between === "" || (!isAbsolute(between) && between !== ".." && !between.startsWith(".." + sep))
-  );
-}
 
 function artifactFile(root: string, path: string): string {
   const file = resolve(root, path);

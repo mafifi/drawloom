@@ -1,5 +1,6 @@
 import { readFile, realpath, stat, readdir, lstat } from "node:fs/promises";
-import { resolve, relative, isAbsolute, join, dirname } from "node:path";
+import { resolve, join, dirname } from "node:path";
+import { insidePath } from "./containment.js";
 import { parse as parseYaml } from "yaml";
 import {
   PackageManifestSchema,
@@ -15,13 +16,9 @@ import {
 export async function containedPath(root: string, path: string): Promise<string> {
   const base = await realpath(root),
     target = await realpath(resolve(base, path));
-  const delta = relative(base, target);
-  if (
-    delta === ".." ||
-    delta.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) ||
-    isAbsolute(delta)
-  )
-    throw Error("Path escapes package boundary");
+  // Symlinks are resolved above, deliberately: this caller inspects the
+  // physical location, not the requested one. The root itself is contained.
+  if (!insidePath(base, target)) throw Error("Path escapes package boundary");
   return target;
 }
 /** Executable extensions must be physical regular files beneath the physical namespace directory. */

@@ -16,7 +16,8 @@ import { mkdir, realpath, lstat, open, rename, unlink } from "node:fs/promises";
  * and on every platform, rather than relying on a Linux-only kernel behaviour. */
 export type PathResolution = { realpath: typeof realpath };
 import { constants } from "node:fs";
-import { resolve, join, dirname, relative, isAbsolute, sep } from "node:path";
+import { resolve, join, dirname, relative, isAbsolute } from "node:path";
+import { inside } from "./containment.js";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { z } from "zod";
@@ -56,11 +57,6 @@ function validateRange(
   )
     throw Error("Invalid asset range");
   return { start, endExclusive };
-}
-
-function inside(root: string, candidate: string): boolean {
-  const path = relative(root, candidate);
-  return path === "" || (!path.startsWith(".." + sep) && path !== ".." && !isAbsolute(path));
 }
 
 export function createNodeAssetStore(
