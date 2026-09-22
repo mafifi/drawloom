@@ -82,7 +82,7 @@ test("host loads bounded package icons and rejects escapes, active content and n
     await writeFile(join(root, "fake.png"), "secret text");
     await writeFile(join(root, "large.svg"), "x".repeat(262145));
     expect(
-      (await readPluginIcon(root, "./icon.svg")).startsWith("data:image/svg+xml;base64,"),
+      (await readPluginIcon(root, "./icon.svg"))?.startsWith("data:image/svg+xml;base64,"),
     ).toBe(true);
     for (const path of [
       "./escape.svg",

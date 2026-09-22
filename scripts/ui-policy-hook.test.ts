@@ -58,7 +58,7 @@ describe("advisory UI policy hook", () => {
       expect(context).toContain("StatefulButton");
       expect(context).toContain("pending");
       expect(context).toContain("31 issue");
-      expect(context).toContain("bun run check:ui-policy");
+      expect(context).toContain("pnpm run check:ui-policy");
       expect(context.length).toBeLessThanOrEqual(3000);
       expect(context).not.toContain(">Native</button>");
     } finally {
@@ -72,7 +72,7 @@ describe("advisory UI policy hook", () => {
       await writeFile(join(root, "apps"), "not a directory");
       const output = JSON.parse(await runUiPolicyHook(event, root));
       expect(output.hookSpecificOutput.additionalContext).toContain("could not scan");
-      expect(output.hookSpecificOutput.additionalContext).toContain("bun run check:ui-policy");
+      expect(output.hookSpecificOutput.additionalContext).toContain("pnpm run check:ui-policy");
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -91,7 +91,7 @@ describe("advisory UI policy hook", () => {
     const result = JSON.parse(stdout);
     expect(Object.keys(result)).toEqual(["hookSpecificOutput"]);
     expect(result.hookSpecificOutput.hookEventName).toBe("PostToolUse");
-    expect(result.hookSpecificOutput.additionalContext).toContain("bun run check:ui-policy");
+    expect(result.hookSpecificOutput.additionalContext).toContain("pnpm run check:ui-policy");
     expect(stdout).not.toContain("private-payload");
   });
 });

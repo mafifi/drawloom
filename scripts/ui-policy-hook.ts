@@ -3,7 +3,7 @@ import { scanUiPolicy } from "./ui-policy.ts";
 import { text as readStdin } from "node:stream/consumers";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
-const rerun = "Run bun run check:ui-policy from the repository root for the complete result.";
+const rerun = "Run pnpm run check:ui-policy from the repository root for the complete result.";
 
 function advice(context: string): string {
   return JSON.stringify({

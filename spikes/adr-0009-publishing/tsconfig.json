@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "types": ["bun", "node", "react", "react-dom"]
+    "types": ["node", "react", "react-dom"]
   },
-  "include": ["*.tsx", "*.mts", "../../publishing/**/*.tsx"]
+  "include": ["*.tsx", "*.mts", "*.d.ts", "../../publishing/**/*.tsx"]
 }

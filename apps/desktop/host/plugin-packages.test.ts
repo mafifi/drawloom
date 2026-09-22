@@ -65,8 +65,8 @@ test("installed package branding reaches discovery without replacing plugin iden
     const entry = catalogue.entries.find(
       (e) => e.presentation?.displayName === "Public Test Plugin",
     );
-    expect((entry?.presentation?.icon?.light).startsWith("data:image/svg+xml;base64,")).toBe(true);
-    expect((entry?.name).startsWith("package:")).toBe(true);
+    expect(entry?.presentation?.icon?.light?.startsWith("data:image/svg+xml;base64,")).toBe(true);
+    expect(entry?.name?.startsWith("package:")).toBe(true);
     expect(entry?.selectable).toBe(false);
   } finally {
     await app.close();

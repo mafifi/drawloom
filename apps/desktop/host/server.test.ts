@@ -278,7 +278,7 @@ test("authenticated UI channel, durable revisions and no duplicate transcript", 
       "example.txt",
     );
     const file = await fetch(server.origin + "/api/assets/" + asset.key, { headers: { cookie } });
-    expect(file.headers.get("content-security-policy").startsWith("sandbox;")).toBe(true);
+    expect(file.headers.get("content-security-policy")?.startsWith("sandbox;")).toBe(true);
     expect(
       (await fetch(server.origin + "/api/assets/..%2Foutside", { headers: { cookie } })).status,
     ).toBe(400);

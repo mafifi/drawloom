@@ -1,6 +1,8 @@
 # ADR 0003: Adopt TypeScript, Bun, and portable packages
 
-- **Status:** Accepted
+- **Status:** Accepted; toolchain and `bun` runtime class superseded by
+  [ADR 0034](0034-node-toolchain.md). Its TypeScript, ESM, portability,
+  dependency-catalog and lockstep-release decisions stand.
 - **Date:** 2026-09-02
 - **Decision owners:** Drawloom maintainers
 

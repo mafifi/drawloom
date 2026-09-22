@@ -342,7 +342,7 @@ test("opaque MCP frame receives a project-only media URL revoked on navigation",
     const html = await response.text();
     const base = /<base href="([^"]+)"/.exec(html)?.[1];
     expect(base).toBeDefined();
-    expect(base.startsWith(host.origin + "/api/view-files/")).toBe(true);
+    expect(base?.startsWith(host.origin + "/api/view-files/")).toBe(true);
     const file = await fetch(base + "sample.txt", {
       headers: { origin: "null", range: "bytes=0-5" },
     });

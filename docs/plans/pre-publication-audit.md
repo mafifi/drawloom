@@ -18,9 +18,9 @@ boundary rules.
 
 | ID | Finding | Severity | Status |
 | --- | --- | --- | --- |
-| F7 | LGPL components in the distributed host runtime | High | **Open — decision required** |
-| F8 | Licence inventory cannot see compiled-in runtimes | Medium | **Open** |
-| F4 | Composition root resisted decomposition | Medium | Open |
+| F7 | LGPL components in the distributed host runtime | High | Closed at `6f76337` — migrated to Node ([ADR 0034](../adr/0034-node-toolchain.md)) |
+| F8 | Licence inventory cannot see compiled-in runtimes | Medium | **Open — now shipping a Node runtime, so this is live** |
+| F4 | Composition root resisted decomposition | Medium | **Open — worse: 2,481 → 2,818 lines** |
 | F1b | Domain vocabulary is not in the code | Medium | Partly closed |
 | F6 | Loose ends from the documentation rewrite | Low | Mostly closed — two items |
 | F1 | Half the memory-to-context chain was missing | High | Closed at `48eceb3` |

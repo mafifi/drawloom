@@ -45,10 +45,7 @@ test("search waits 200ms, defaults to active conversations across projects, and 
 
 test("late search responses cannot replace a newer query and changing filters restarts the page", async () => {
   const releases: Array<(value: Response) => void> = [];
-  globalThis.fetch = Object.assign(
-    async () => new Promise<Response>((resolve) => releases.push(resolve)),
-    { preconnect: original.preconnect },
-  );
+  globalThis.fetch = async () => new Promise<Response>((resolve) => releases.push(resolve));
   const vm = createConversationNavigationViewModel();
   vm.openSearch();
   vm.query = "old";

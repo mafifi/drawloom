@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun \"$(git rev-parse --show-toplevel)/scripts/ui-policy-hook.ts\"",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/ui-policy-hook.ts\"",
             "timeout": 10,
             "additionalContextLimit": 1000
           }

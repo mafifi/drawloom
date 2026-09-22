@@ -73,13 +73,10 @@ for (const first of ["knowledge", "plugin"])
 
 test("project navigation and close discard unfinished Activity discovery", async () => {
   const replies: Array<(response: Response) => void> = [];
-  globalThis.fetch = Object.assign(
-    async () =>
-      new Promise<Response>((resolve) => {
-        replies.push(resolve);
-      }),
-    { preconnect: original.preconnect },
-  );
+  globalThis.fetch = async () =>
+    new Promise<Response>((resolve) => {
+      replies.push(resolve);
+    });
   const vm = createOrchestrationViewModel(),
     opening = vm.openActivity("old-project");
   vm.close();
@@ -97,13 +94,10 @@ test("project navigation and close discard unfinished Activity discovery", async
 });
 test("late owner discovery cannot replace a newer project owner set", async () => {
   const replies: Array<(response: Response) => void> = [];
-  globalThis.fetch = Object.assign(
-    async () =>
-      new Promise<Response>((resolve) => {
-        replies.push(resolve);
-      }),
-    { preconnect: original.preconnect },
-  );
+  globalThis.fetch = async () =>
+    new Promise<Response>((resolve) => {
+      replies.push(resolve);
+    });
   const vm = createOrchestrationViewModel(),
     old = vm.openActivity("old-project"),
     current = vm.openActivity("new-project");
@@ -206,9 +200,7 @@ test("lists by explicit project and retains failed-read feedback", async () => {
   await vm.open("project-a");
   expect(vm.owners).toEqual([owner]);
   expect(urls[0]).toContain("projectId=project-a");
-  globalThis.fetch = Object.assign(async () => new Response(null, { status: 503 }), {
-    preconnect: original.preconnect,
-  });
+  globalThis.fetch = Object.assign(async () => new Response(null, { status: 503 }), {});
   await vm.selectOwner(owner.installationId);
   expect(vm.error).toContain("unavailable");
   expect(vm.owners).toEqual([owner]);

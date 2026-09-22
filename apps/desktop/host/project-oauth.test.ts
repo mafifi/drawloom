@@ -7,6 +7,7 @@ import { addTestProject, createTestDesktopApplication } from "./test-project.fix
 import { retireCreatedRuntimes } from "./project-plugin-runtimes.js";
 import { serve } from "@hono/node-server";
 import { once } from "node:events";
+import type { AddressInfo } from "node:net";
 
 async function packageServer() {
   const server = serve({
