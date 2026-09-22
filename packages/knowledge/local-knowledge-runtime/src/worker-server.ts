@@ -134,7 +134,10 @@ export async function serveLocalKnowledgeWorker(launch: {
   });
   const Response = z.strictObject({ id: z.string(), result: z.unknown() });
   for await (const line of lines) {
-    if (Buffer.byteLength(line, "utf8") > 1024 * 1024) break;
+    if (Buffer.byteLength(line, "utf8") > 1024 * 1024) {
+      stop();
+      break;
+    }
     try {
       const value: unknown = JSON.parse(line);
       const response = Response.safeParse(value);
