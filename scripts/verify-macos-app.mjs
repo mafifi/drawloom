@@ -355,14 +355,29 @@ const lifecycle = async () => {
     );
     must(restoredState.includes(working), "a project did not survive a graceful restart");
 
-    // 3. FORCED termination with work outstanding. SIGKILL cannot be trapped,
-    //    so nothing gets to tidy up on the way out.
-    void two.call("/api/command", {
+    // 3. FORCED termination. SIGKILL cannot be trapped, so nothing tidies up.
+    //
+    //    WHAT THIS DOES NOT PROVE. An earlier version sent a turn, slept 750ms
+    //    and killed the host, claiming to have interrupted active work. It had
+    //    not: the synthetic provider completes a turn in well under that, and
+    //    polling `/api/state` shows `status: ready` throughout, so there is no
+    //    in-flight window to catch through the public surface. Forcing one
+    //    needs a pending approval, which requires an injected driver rather
+    //    than an HTTP command.
+    //
+    //    So this asserts what it can see: committed state survives a kill, and
+    //    recovery does not resurrect a liveness it cannot have. The semantics
+    //    Codex asked for -- no duplicate execution, and an undeterminable
+    //    outcome reported as unknown rather than guessed -- are proved against
+    //    a real Temporal server by `test:temporal`, in "killed effect writer
+    //    leaves durable intent: absent recovery is unknown and receipt-only
+    //    recovery never resubmits". That is the right home for them; this is a
+    //    packaging check. Audit finding F12 records the remaining gap.
+    await two.call("/api/command", {
       kind: "send",
       conversationId,
-      text: "work outstanding at the moment of the kill",
+      text: "a turn committed before the kill",
     });
-    await new Promise((resolve) => setTimeout(resolve, 750));
     const killed = await stop(second.child, "SIGKILL");
     must(killed.received === "SIGKILL", `expected SIGKILL, saw ${killed.received}`);
 
@@ -387,7 +402,7 @@ const lifecycle = async () => {
     );
     const settled = await stop(third.child, "SIGINT");
     must(settled.code === 0, `post-recovery quit exited ${settled.code}`);
-    return "restart preserves state; a killed operation recovers without claiming completion";
+    return "state survives a graceful restart and a SIGKILL; recovery reports nothing as running";
   } finally {
     rmSync(data, { recursive: true, force: true });
     rmSync(working, { recursive: true, force: true });

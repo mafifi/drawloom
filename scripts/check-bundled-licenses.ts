@@ -146,8 +146,11 @@ const describe = (finding: Finding) =>
   `  ${finding.package}@${finding.version} — ${finding.license}\n    ${finding.reason}\n    ${finding.at}`;
 
 if (review.length) {
-  console.error(`Staged packages needing licence review (${review.length}):`);
+  console.error(`Staged packages with unresolved licence evidence (${review.length}):`);
   for (const finding of review) console.error(describe(finding));
+  console.error(
+    "\nUnresolved is not waived. `check-license-policy.ts` blocks a runtime candidate whose\nassessment is not `allowed`, and these files are not candidates -- they are shipping.\nRecord a determination against the retained text, or remove the package.",
+  );
 }
 if (blocked.length) {
   console.error(`\nExcluded licences present in the staged bundle (${blocked.length}):`);
@@ -160,4 +163,6 @@ if (blocked.length) {
 console.log(
   `Staged bundle licence gate: inspected ${inspected} packages across ${present.length} tree(s); ${blocked.length} excluded, ${review.length} needing review.`,
 );
-process.exitCode = blocked.length ? 1 : 0;
+// Both fail. An excluded licence is a policy breach; unresolved evidence is a
+// question nobody answered, and shipping either is the same mistake.
+process.exitCode = blocked.length || review.length ? 1 : 0;

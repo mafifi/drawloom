@@ -249,6 +249,34 @@ uniform; the third is the most honest about why the others need help.
 
 Until it is fixed, the browser acceptance matrix is not running anywhere.
 
+### F12 — A4 is not established: nothing interrupts real work (Medium, open)
+
+The release check kills the host and confirms state survives. It does not
+interrupt anything, and an earlier version of it claimed otherwise.
+
+That version sent a turn, slept 750ms and killed the host, reporting that a
+killed operation "recovers without claiming completion". It had not been
+interrupted: the synthetic provider finishes a turn well inside that window,
+and polling `/api/state` shows `status: ready` throughout. Adding a barrier
+that waits for the host to report an active operation made the check FAIL,
+which is how the vacuity was confirmed rather than argued.
+
+Forcing genuine in-flight work needs a pending approval, and an approval
+requires an injected driver rather than an HTTP command — so it is not
+reachable from a packaging script through the public surface.
+
+**What is covered, and where.** The semantics themselves — no duplicate
+execution, and an outcome that cannot be determined reported as unknown rather
+than guessed — are proved against a real Temporal server by `test:temporal`:
+"killed effect writer leaves durable intent: absent recovery is unknown and
+receipt-only recovery never resubmits". That is the correct home for them.
+
+**What remains missing.** A pending approval outstanding at the moment of the
+kill; a duplicate-effect counter; an explicit uncertain-outcome assertion at the
+application level; and launching the Tauri shell, which the check still never
+does. Until those exist, A4 is partially met and the acceptance record should
+not be read as establishing it.
+
 ### F4 — The composition root resisted decomposition (Medium, open)
 
 `createDesktopApplication` in `apps/desktop/host/application.ts` was a single

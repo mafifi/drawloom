@@ -238,8 +238,9 @@ test("the packaged knowledge sidecar answers its real protocol and fails as spec
     createInterface({ input: worker.stdout }).on("line", (line) => {
       try {
         frames.push(JSON.parse(line));
-      } catch (error) {
-        raw.push("PARSE-FAILED: " + String(error).slice(0, 120));
+      } catch {
+        // A non-JSON line is not a frame. The timeout below reports what did
+        // arrive, so swallowing it here loses nothing.
         // A non-JSON line is not a frame; keep it in `raw` for diagnostics
         // rather than throwing inside the listener and losing the reader.
       }
