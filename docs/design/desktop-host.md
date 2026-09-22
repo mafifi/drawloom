@@ -113,6 +113,11 @@ unavailable operator fallback. It reads only snapshot-specific state through
 narrow callbacks; application lifecycle ownership remains in the composition
 root.
 
+`apps/desktop/host/discovery-application.ts` owns desktop catalogue discovery,
+native integration authentication and source-bound discovered-resource reads.
+Its native discovery cache is scoped by conversation; the composition root
+supplies runtime, project, connection and capture operations.
+
 Codex owns its native transcript and session. Drawloom stores a display record in
 `history.sqlite`, not a replacement transcript to replay into the model. The host
 stores normalised records and private import checkpoints atomically. Unknown
