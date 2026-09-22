@@ -20,7 +20,10 @@ const conversationSearchSchema = z.strictObject({
   limit: z.number().int().min(1).max(100).default(50),
 });
 
-type Project = z.infer<typeof ProjectSchema>;
+type Project = Pick<
+  z.infer<typeof ProjectSchema>,
+  "metadataRevision" | "conversations" | "projects"
+>;
 
 export function createHistoryApplication(options: {
   history: ConversationHistoryStore;
