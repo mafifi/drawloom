@@ -161,13 +161,38 @@ test.skipIf(process.env.DRAWLOOM_BROWSER_TEST !== "1")(
       expect(await page.getByText("No saved runs are available.").count()).toBe(1);
       await savedCheck.click();
       expect(await page.getByRole("button", { name: "Start check" }).isEnabled()).toBe(true);
-      expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(
-        "rgb(255, 255, 255)",
-      );
+      const lightBackground = await page.evaluate(() => {
+        const body = getComputedStyle(document.body);
+        const semanticProbe = document.createElement("span");
+        semanticProbe.style.backgroundColor = "var(--background)";
+        document.body.append(semanticProbe);
+        const semantic = getComputedStyle(semanticProbe).backgroundColor;
+        semanticProbe.remove();
+        return {
+          rendered: body.backgroundColor,
+          semantic,
+        };
+      });
+      expect(lightBackground.rendered).toBe(lightBackground.semantic);
       await page.emulateMedia({ colorScheme: "dark" });
-      expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe(
-        "rgb(24, 24, 24)",
-      );
+      try {
+        const darkBackground = await page.evaluate(() => {
+          const body = getComputedStyle(document.body);
+          const semanticProbe = document.createElement("span");
+          semanticProbe.style.backgroundColor = "var(--background)";
+          document.body.append(semanticProbe);
+          const semantic = getComputedStyle(semanticProbe).backgroundColor;
+          semanticProbe.remove();
+          return {
+            rendered: body.backgroundColor,
+            semantic,
+          };
+        });
+        expect(darkBackground.rendered).toBe(darkBackground.semantic);
+        expect(darkBackground.rendered).not.toBe(lightBackground.rendered);
+      } finally {
+        await page.emulateMedia({ colorScheme: "light" });
+      }
     } finally {
       await browser.close();
     }
