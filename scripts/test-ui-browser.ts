@@ -608,7 +608,7 @@ test("installed plugin view mounts, loads once, and closes its exact mount on co
         const body = request.postDataJSON() as { conversationId?: string };
         bridgeRequests.push({
           path: new URL(request.url()).pathname,
-          conversationId: body.conversationId,
+          ...(body.conversationId ? { conversationId: body.conversationId } : {}),
         });
       }
     });

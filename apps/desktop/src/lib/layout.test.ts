@@ -68,6 +68,8 @@ test("projects use shared sidebar controls and a compact main-view directory for
   const primary = await source("./PrimaryView.svelte");
   const projects = await source("./Projects.svelte").catch(() => "");
   const conversation = await source("./Conversation.svelte");
+  const conversationProjection = await source("./conversation-view.ts");
+  const route = await source("../routes/+page.svelte");
   expect(sidebar).toContain("<Sidebar.GroupLabel>Projects</Sidebar.GroupLabel>");
   expect(sidebar).toContain("actions.selectProject(");
   expect(primary).toContain(
@@ -77,7 +79,10 @@ test("projects use shared sidebar controls and a compact main-view directory for
   expect(projects).toContain("a.add(directory, name)");
   expect(projects).toContain("<Input");
   expect(projects).not.toContain("Sheet.Root");
-  expect(conversation).toContain("vm.assignProject(");
+  expect(conversation).toContain("actions.assignProject(assignmentProjectId)");
+  expect(conversationProjection).toContain("assignProject: vm.assignProject");
+  expect(route).toContain("const conversationViewActions = conversationActions(vm)");
+  expect(route).toContain("actions={conversationViewActions}");
   expect(conversation).toContain("Select a project");
 });
 
