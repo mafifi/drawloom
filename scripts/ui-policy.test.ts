@@ -504,6 +504,7 @@ describe("views do not own service access or validation", () => {
     for (const declaration of [
       "import type { DesktopViewModel } from './view-model.svelte.js'; let { vm }: { vm: DesktopViewModel } = $props();",
       "import type { DesktopViewModel as VM } from './view-model.svelte.js'; let { model }: { model: VM } = $props();",
+      "import type * as desktop from './view-model.svelte.js'; let { vm }: { vm: desktop.DesktopViewModel } = $props();",
     ]) expect(kinds(view(declaration))).toContain("view-responsibility");
     expect(kinds(view("const a = JSON.parse('{}'); const b = parseInt('1', 10);"))).not.toContain("view-responsibility");
   });

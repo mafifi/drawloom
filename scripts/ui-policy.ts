@@ -242,6 +242,7 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
    * is an imported schema or `zod` is imported at all.
    */
   const schemaNames = new Set<string>();
+  const desktopViewModelNamespaces = new Set<string>();
   let importsZod = false;
   visit(ast, (node) => {
     if (node.type !== "ImportDeclaration") return;
@@ -250,6 +251,9 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
     for (const specifier of Array.isArray(node.specifiers) ? node.specifiers : []) {
       const entry = record(specifier);
       const local = record(entry?.local)?.name;
+      if (entry?.type === "ImportNamespaceSpecifier" && typeof local === "string" &&
+          typeof source === "string" && /view-model\.svelte\.(?:js|ts)$/.test(source))
+        desktopViewModelNamespaces.add(local);
       if (record(entry?.imported)?.name === "DesktopViewModel" &&
           typeof source === "string" && /view-model\.svelte\.(?:js|ts)$/.test(source))
         report("view-responsibility", node.start,
@@ -289,6 +293,14 @@ export function checkUiSource(path: string, source: string): UiPolicyIssue[] {
           "A view must not validate a response. Move schema validation into a *-view-model.svelte.ts module.",
         );
     }
+  });
+  visit(ast, (node) => {
+    if (node.type !== "TSQualifiedName") return;
+    const left = record(node.left)?.name;
+    const right = record(node.right)?.name;
+    if (typeof left === "string" && desktopViewModelNamespaces.has(left) && right === "DesktopViewModel")
+      report("view-responsibility", node.start,
+        "A View must receive narrow presentation and actions props instead of DesktopViewModel.");
   });
 
   const sharedButtons = new Set<string>();
