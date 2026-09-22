@@ -13,7 +13,7 @@ test("learning orchestration keeps real Temporal recovery in Node and runs sourc
 test("learning runner is collected only by its dedicated Vitest configuration", () => {
   const lane = "apps/desktop/tests/learning-journey-orchestration.integration.vitest.ts";
   const list = (config: string) =>
-    execFileSync("pnpm", ["vitest", "list", "--config", config], {
+    execFileSync("pnpm", ["vitest", "list", lane, "--config", config], {
       cwd: process.cwd(),
       encoding: "utf8",
     });
