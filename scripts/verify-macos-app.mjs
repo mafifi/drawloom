@@ -24,7 +24,9 @@
  */
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { createInterface } from "node:readline";
+import { writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -103,7 +105,9 @@ check("shipped Node runtime matches its manifest and ships its notice", () => {
 
 check("sidecar closures survived the resource copy", () => {
   // The defect this file exists for: Tauri drops symlinks, so a sidecar's
-  // node_modules can arrive empty while the app still starts.
+  // node_modules can arrive empty while the app still starts. This is the
+  // cheap structural half; the protocol check below is the half that proves
+  // the workers actually run.
   for (const sidecar of ["knowledge", "orchestration"]) {
     const modules = join(resources, sidecar, "node_modules");
     must(existsSync(modules), `${sidecar} has no node_modules in the bundle`);
@@ -111,6 +115,149 @@ check("sidecar closures survived the resource copy", () => {
   }
   return "knowledge and orchestration closures intact";
 });
+
+/**
+ * Both packaged sidecars, over their real protocols, run by the SHIPPED node
+ * binary from inside the signed bundle.
+ *
+ * `scripts/packaged-sidecars.test.mjs` proves this against freshly STAGED
+ * trees, which is not the same artifact: these workers have been copied by
+ * Tauri and signed. A non-empty `node_modules` and a successful native import
+ * do not establish that either worker can answer a request.
+ *
+ * The two interfaces are unrelated, so the checks are too. Knowledge takes a
+ * JSON launch descriptor and speaks newline-delimited frames, and is
+ * BIDIRECTIONAL: it asks the host to authorize an operation and waits, so a
+ * test that only sends requests gets a bounded error for everything.
+ * Orchestration takes a JSON config file path and has no methods at all.
+ */
+const sidecarProtocols = async () => {
+  const node = join(resources, "host/host/node");
+  const away = mkdtempSync(join(tmpdir(), "drawloom-signed-sidecars-"));
+  try {
+    // --- knowledge: framed request/response with an authorization exchange ---
+    const root = join(away, "data");
+    const workingDirectory = join(away, "working");
+    mkdirSync(root, { recursive: true });
+    mkdirSync(workingDirectory, { recursive: true });
+    const worker = spawn(
+      node,
+      [join(resources, "knowledge/dist/sidecar.js"), JSON.stringify({ root, workingDirectory })],
+      { cwd: "/", stdio: ["pipe", "pipe", "pipe"] },
+    );
+    let workerErr = "";
+    worker.stderr.setEncoding("utf8");
+    worker.stderr.on("data", (chunk) => (workerErr += chunk));
+    const frames = [];
+    createInterface({ input: worker.stdout }).on("line", (line) => {
+      try {
+        frames.push(JSON.parse(line));
+      } catch {
+        /* not a frame */
+      }
+    });
+    const take = async (match, label) => {
+      for (let attempt = 0; attempt < 400; attempt++) {
+        const index = frames.findIndex(match);
+        if (index >= 0) return frames.splice(index, 1)[0];
+        if (worker.exitCode !== null)
+          throw new Error(`knowledge worker exited before ${label}: ${workerErr.slice(0, 300)}`);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      throw new Error(`knowledge worker timed out before ${label}: ${workerErr.slice(0, 300)}`);
+    };
+    const send = (value) => worker.stdin.write(`${JSON.stringify(value)}\n`);
+    try {
+      send({
+        id: 1,
+        method: "knowledge.status",
+        params: {
+          lifetime: randomUUID(),
+          operationId: randomUUID(),
+          remainingMs: 30_000,
+          params: {},
+        },
+      });
+      const ask = await take((frame) => frame.method === "knowledge.authorize", "authorization");
+      must(Boolean(ask.params?.request?.action?.name), "authorization request carries no action");
+      // The worker mints the identity it asserts; answer with ITS values.
+      send({
+        id: ask.id,
+        result: {
+          lifetime: ask.params.lifetime,
+          operationId: ask.params.operationId,
+          decisionId: ask.params.decisionId,
+          result: { decision: true },
+        },
+      });
+      const answered = await take((frame) => frame.id === 1, "status response");
+      must(
+        "result" in answered,
+        `packaged knowledge worker did not answer: ${JSON.stringify(answered).slice(0, 200)}`,
+      );
+    } finally {
+      worker.kill("SIGTERM");
+    }
+
+    // --- orchestration: a real workflow bundle, its only substantive mode ---
+    //
+    // NOTHING is written inside the .app. The bundler also emits an `entry.cjs`
+    // beside its destination, so pointing the destination into the bundle
+    // breaks the seal -- which is exactly how the previous signature was lost,
+    // and which this check reproduced on its first run. A verifier that mutates
+    // the artifact it verifies is worse than no verifier.
+    const pkg = join(away, "package");
+    mkdirSync(pkg, { recursive: true });
+    const entry = join(pkg, "workflows.cjs");
+    writeFileSync(entry, "exports.default = { workflows: [], tasks: [], revision: 'verify' };");
+    const destination = join(away, "bundle.js");
+    const config = join(away, "bundle.json");
+    writeFileSync(
+      config,
+      JSON.stringify({
+        mode: "bundle",
+        parent: process.pid,
+        entry,
+        packageDirectory: pkg,
+        destination,
+        bundleContext: pkg,
+      }),
+    );
+    const bundled = spawnSync(node, [join(resources, "orchestration/dist/sidecar.js"), config], {
+      cwd: "/",
+      encoding: "utf8",
+      timeout: 120_000,
+    });
+    must(
+      bundled.status === 0,
+      `packaged orchestration worker could not bundle: ${String(bundled.stderr).slice(0, 400)}`,
+    );
+    must(
+      /"fingerprint"/.test(String(bundled.stdout)),
+      "orchestration bundling reported no fingerprint",
+    );
+    return "knowledge answered a framed request; orchestration bundled a workflow";
+  } finally {
+    rmSync(away, { recursive: true, force: true });
+  }
+};
+results.push(
+  await (async () => {
+    try {
+      return {
+        name: "both packaged sidecars answer their protocols",
+        ok: true,
+        detail: await sidecarProtocols(),
+      };
+    } catch (error) {
+      return {
+        name: "both packaged sidecars answer their protocols",
+        ok: false,
+        detail: error instanceof Error ? error.message : String(error),
+      };
+    }
+  })(),
+);
 
 check("signature is valid and hardened", () => {
   execFileSync("codesign", ["--verify", "--deep", "--strict", app], { stdio: "pipe" });
