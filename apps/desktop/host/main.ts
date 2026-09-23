@@ -9,7 +9,10 @@ import { pickMacProjectDirectory } from "./folder-picker.js";
 import { createProcessShutdown } from "./process-shutdown.js";
 import { startupReadiness } from "./startup-readiness.js";
 import { describeShutdownFailures } from "./shutdown-report.js";
+import { userToolPath } from "./tool-path.js";
 async function main() {
+  // Before anything is spawned: every child, Codex included, inherits it.
+  process.env.PATH = userToolPath(process.env.PATH, homedir());
   const selectedMode = process.env.DRAWLOOM_TELEMETRY ?? "disabled";
   if (!["disabled", "recording", "export"].includes(selectedMode))
     throw Error("Invalid telemetry mode");

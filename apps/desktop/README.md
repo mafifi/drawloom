@@ -134,7 +134,11 @@ The output is
 `apps/desktop/src-tauri/target/release/bundle/macos/Drawloom.app`.
 It packages the built frontend, the host as an esbuild bundle executed by the
 pinned Node runtime, and the deployed sidecar runtimes.
-Codex remains a separate prerequisite. Optional workflows also require Node and
+Codex remains a separate prerequisite. An app opened from Finder or the Dock
+does not inherit your shell's `PATH`, so the host also searches `~/.local/bin`,
+`/opt/homebrew/bin` and `/usr/local/bin`, after the system directories. Codex
+installed anywhere else is found only when Drawloom is started from a shell
+whose `PATH` contains it. Optional workflows also require Node and
 Temporal as described in the
 [Temporal guide](../../packages/orchestration/temporal-orchestration/README.md).
 
