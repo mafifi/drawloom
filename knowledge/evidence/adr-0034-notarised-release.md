@@ -17,18 +17,18 @@ The DMG was assembled and notarised with the
 
 ## First notarisation attempt: rejected
 
-Apple's notary service rejected the first DMG (build `c1491d5`, status Invalid).
+Apple's notary service rejected the first DMG (build `4fae98f`, status Invalid).
 The only cause was three copies of esbuild's extensionless `bin/esbuild`, which
 had kept their upstream ad-hoc signature. The signer chose payloads by file
 extension. `codesign --verify --deep --strict` accepts ad-hoc nested code, so
-local verification had passed. Commit `3c6c646` selects payloads by Mach-O
+local verification had passed. Commit `d39c103` selects payloads by Mach-O
 content, checks every payload's team, hardened runtime and timestamp, and prunes
 esbuild, which never executes. The rejected image and its receipts are retained
 outside Git.
 
 ## Second artifact: accepted, then superseded
 
-Build `3c6c646`: submission `847a84bc-275f-4a25-8d79-4da9d95ea4b0`, Accepted,
+Build `d39c103`: submission `847a84bc-275f-4a25-8d79-4da9d95ea4b0`, Accepted,
 stapled SHA-256 `fbd361ba891c31bee9ca3d0ca23fb37d6290df50377897b96c8759daa6b0a96b`.
 It is **not the release**. When opened from Finder or the Dock, the app gets
 launchd's PATH (`/usr/bin:/bin:/usr/sbin:/sbin`). The host starts Codex by
@@ -37,14 +37,14 @@ Codex. Every earlier acceptance run launched the app from a shell, which hid the
 fault. It was reproduced by launching this notarised app from an empty
 environment: the host's PATH was launchd's default, and `codex` did not resolve.
 
-## Release candidate: build `9734bf5`
+## Release candidate: build `d3ef2de`
 
-`9734bf5` appends `~/.local/bin`, `/opt/homebrew/bin` and `/usr/local/bin`,
+`d3ef2de` appends `~/.local/bin`, `/opt/homebrew/bin` and `/usr/local/bin`,
 where they exist, to the host's PATH before it spawns anything.
 
 | Item | Value |
 | --- | --- |
-| Source revision | `9734bf5` on `main` |
+| Source revision | `d3ef2de` on `main` |
 | Canonical gate | `pnpm run check:ci` exit 0 at that revision |
 | Assembly acceptance | `release:dmg` 10/10 against the signed copy |
 | Pre-notarisation image SHA-256 | `17effdcbec0e4d74c3dd6e0e3aec17b357fa6f504e95e1f87814406b57ccfc01` |
@@ -58,14 +58,14 @@ the same launch had given them none.
 
 ### Clean test Mac (macOS 27.0, build 26A428, arm64)
 
-Earlier, build `3c6c646` was installed and exercised there over SSH. Assembled-app
+Earlier, build `d39c103` was installed and exercised there over SSH. Assembled-app
 acceptance passed 9/10 once it used the launcher's PATH. The remaining failure
 was the keychain probe: the module loaded, but writing an item failed with
 `User interaction is not allowed`, because the login keychain is locked in an
 SSH session. That is an environment limit, not a product defect. The probe must
 run from the logged-in desktop session.
 
-The stapled `9734bf5` image was copied with matching hash and mounted
+The stapled `d3ef2de` image was copied with matching hash and mounted
 read-only. The previous app was stopped gracefully and replaced. Results:
 
 - The installed app is byte-identical to the image, and deep strict signature
@@ -77,6 +77,21 @@ read-only. The previous app was stopped gracefully and replaced. Results:
   correctly omitted.
 - Existing installation state files were unchanged across the replacement.
   Only new SQLite journal files appeared.
+
+## Revision identifiers
+
+On 23 September 2026 `main` was rewritten to remove commit-message attribution
+trailers. Every commit from `28c0bf5` onward received a new hash. Their trees,
+and therefore the built code, are unchanged: each rewritten commit's tree was
+compared with its original's, and all 88 matched. This repository cites the
+new hashes. Artifacts and receipts outside Git keep the names they were created
+with:
+
+| Original | Rewritten | Used by |
+| --- | --- | --- |
+| `c1491d5` | `4fae98f` | rejected DMG `Drawloom-0.0.0-preview-arm64.dmg`, notary logs `*-c1491d5.*` |
+| `3c6c646` | `d39c103` | `Drawloom-3c6c646-preview-arm64.dmg`, submission `847a84bc…` |
+| `9734bf5` | `d3ef2de` | `Drawloom-9734bf5-preview-arm64.dmg`, submission `9ae9c7aa…` |
 
 ## Explicit remaining limits
 

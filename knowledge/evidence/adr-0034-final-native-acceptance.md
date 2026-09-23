@@ -16,7 +16,7 @@ not notarisation, clean-machine acceptance or a general claim of release readine
 
 ## One source revision and one signed artifact
 
-Application source: `c1491d5735bbda77fb29991d2b36fa445c5421a7`, on
+Application source: `4fae98fda3fb9719e75c81e25766378b6a40ed42`, on
 `feature/replaceable-capabilities`. The normal Icon Composer build regenerated
 `Assets.car`; its source was unchanged and its exact output digest is below.
 That generated output and this evidence are retained in a subsequent checkpoint
@@ -47,7 +47,7 @@ it is not a DMG or a notarised release.
 | Bundled host main.mjs | `df15f113cf869d407167101ed100702aecea6b6e62503823526b71a885155c94` |
 | LICENSE.node | `5888dbb9a1d2b18f2c3e6c5f6af1b39de658372b402a0577b002777f14c62ace` |
 | Generated Assets.car | `c57f00fd2e2b23edd9b2844cf0f24bb55f5019e39b6725c6eee1e49e12306f19` |
-| Drawloom-c1491d5-signed.zip | `2a9633fd53069e88ef41a433bfecaea2474997cb6a9ac5451e3812a57dfb6077` |
+| Drawloom-4fae98f-signed.zip | `2a9633fd53069e88ef41a433bfecaea2474997cb6a9ac5451e3812a57dfb6077` |
 
 A subsequent **pre-notarisation** `Drawloom-0.0.0-preview-arm64.dmg` was built
 from the same sealed app with an Applications shortcut and signed with the same
@@ -78,8 +78,8 @@ runtime exception. Library validation remains enabled.
   control failed before the restored test passed.
 - Separate enforced browser suite: **3/3**. Core real Temporal: **7/7**.
   Evaluation recovery: **1/1**. Learning: **8/8** real-Temporal tests and the
-  dedicated Vitest test covering all twelve journeys. These ran at `c3b5848`;
-  the only subsequent source change before `c1491d5` was the opt-in theme test.
+  dedicated Vitest test covering all twelve journeys. These ran at `7ce76d7`;
+  the only subsequent source change before `4fae98f` was the opt-in theme test.
 - Bundled Temporal client against the final app's orchestration resources:
   **1/1**. This tests the packaged runtime independently of the native UI.
 - Private consumer preparation, frozen install and canonical gate against the

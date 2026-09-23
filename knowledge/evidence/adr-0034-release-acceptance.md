@@ -25,7 +25,7 @@ clean-machine acceptance remain separate.
 
 | | |
 | --- | --- |
-| Revision | `20730884a9e91ac0740eefdb9022fd0bd61190e0` on `feature/replaceable-capabilities` |
+| Revision | `19b691929e4582dfbe1dcf6e3a04ffb8585553a2` on `feature/replaceable-capabilities` |
 | Working tree | clean at build time |
 | Node | v24.20.0 (pinned; `engines.node` asserted against the runtime manifest) |
 | pnpm | 12.5.1 |

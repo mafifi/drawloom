@@ -19,9 +19,9 @@ boundary rules.
 
 | ID | Finding | Severity | Status |
 | --- | --- | --- | --- |
-| F7 | LGPL components in the distributed host runtime | High | Closed at `6f76337` — migrated to Node ([ADR 0034](../adr/0034-node-toolchain.md)) |
-| F8 | Licence inventory cannot see compiled-in runtimes | Medium | Addressed at `fa2d157` — `KnownNodeRuntime`, the upstream runtime bytes and notice, and the staged bundle are verified during `bundle:host`; `check:licenses` remains dependency-graph-only |
-| F4 | Composition root resisted decomposition | Medium | Partly closed at `951f10c` — four owned application slices were extracted; the remaining root is still large |
+| F7 | LGPL components in the distributed host runtime | High | Closed at `28c0bf5` — migrated to Node ([ADR 0034](../adr/0034-node-toolchain.md)) |
+| F8 | Licence inventory cannot see compiled-in runtimes | Medium | Addressed at `08aee92` — `KnownNodeRuntime`, the upstream runtime bytes and notice, and the staged bundle are verified during `bundle:host`; `check:licenses` remains dependency-graph-only |
+| F4 | Composition root resisted decomposition | Medium | Partly closed at `b9b5d15` — four owned application slices were extracted; the remaining root is still large |
 | F1b | Domain vocabulary is not in the code | Medium | Partly closed |
 | F6 | Loose ends from the documentation rewrite | Low | Mostly closed — two items |
 | F1 | Half the memory-to-context chain was missing | High | Closed at `48eceb3` |
@@ -206,8 +206,8 @@ component-rendering stack was rejected immediately before release. The repair
 therefore had to reach the plugin frame from the existing Playwright acceptance
 with an installed public package and workbench view in the synthetic fixture.
 
-**Current status: the rendered-test gap is closed at `b9ae94d`, strengthened at
-`f7b675c`.** The enforced `test:ui` lane mounts the installed plugin view through
+**Current status: the rendered-test gap is closed at `57cb223`, strengthened at
+`0be5292`.** The enforced `test:ui` lane mounts the installed plugin view through
 the real host, verifies its first load and second-load disconnect, switches
 conversations with an open request held past actual iframe removal and outro
 cleanup, and asserts exact session close, no late navigation or interaction,
@@ -246,7 +246,7 @@ inconsistent loading markups (`Conversation.svelte`'s two, `GoalControls.svelte`
 `Conversation.svelte` already used for its own loading states, again with no
 new primitive.
 
-**Historical stop before `1def4f7`: `Composer.svelte` and
+**Historical stop before `fff5210`: `Composer.svelte` and
 `Conversation.svelte`.** Both still took the concrete `DesktopViewModel`, as
 did `ComposerResources.svelte` and `DiscoveryPicker.svelte`, which
 `Composer.svelte` rendered directly with `{vm}`. This was a deliberate stop,
@@ -273,7 +273,7 @@ views, the whole error-paragraph split, and the form coercion did not change
 behavior anywhere — `pnpm run test`, `pnpm run desktop:check`, and
 `pnpm --filter ./apps/desktop run build` all still passed.
 
-**Current narrowing status: closed at `1def4f7`.** `Conversation.svelte` now
+**Current narrowing status: closed at `fff5210`.** `Conversation.svelte` now
 takes `ConversationPresentation`/`ConversationActions`, and `Composer.svelte`
 takes `ComposerPresentation`/`ComposerActions`. `ComposerResources.svelte` and
 `DiscoveryPicker.svelte` receive their own projected presentation/action props;
@@ -388,7 +388,7 @@ expanding previously dense lines. The substantive position is unchanged:
 `createDesktopApplication` is still the only top-level function in the file.
 `21f43e2` did extract `evaluation-composition.ts`, so the direction is right.
 
-**Current status at `951f10c`: partly closed.** History, snapshot projection,
+**Current status at `b9b5d15`: partly closed.** History, snapshot projection,
 discovery, and package administration now live in their existing-owner modules,
 with their handlers spread back into the same top-level application interface.
 The extraction kept raw closure calls and lazy initialization intact and reduced
