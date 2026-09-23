@@ -36,7 +36,8 @@
  *    wrapper), `@img/sharp-*`, `sharp`, `svgo`, `csso`, `lightningcss`
  *    (+ its native binary), `postcss`, `clean-css`, `cssnano`,
  *    `html-minifier-terser`, `imagemin`, `@minify-html/node`,
- *    `@napi-rs/image`, `@swc/css`, `@swc/html`, `uglify-js` are optional
+ *    `@napi-rs/image`, `@swc/css`, `@swc/html`, `uglify-js`, `esbuild`
+ *    (+ its native binary) are optional
  *    peer dependencies of `minimizer-webpack-plugin`, which is webpack
  *    5.111's own default `optimization.minimizer`. `@temporalio/worker`'s
  *    workflow bundler (`@temporalio/worker/lib/workflow/bundler.js`) always
@@ -142,6 +143,14 @@ const DEAD_MINIFIER_PEER_LEAVES = [
   "@minify-html/node",
   "@napi-rs/image",
   "uglify-js",
+  // esbuild is one more optional minifier backend of the same plugin, and is
+  // never run for the same reason. It was missing from this list, which is how
+  // the orchestration sidecar shipped three copies of an extensionless
+  // `bin/esbuild` executable that the notary service rejected. Not shipping an
+  // executable that never runs beats signing it.
+  "esbuild",
+  "@esbuild/darwin-arm64",
+  "@esbuild/darwin-x64",
 ];
 
 function parseArgs(argv) {

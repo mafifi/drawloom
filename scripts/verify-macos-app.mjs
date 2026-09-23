@@ -39,6 +39,8 @@ import {
 // The single authority for what runtime ships; importing it keeps this check
 // from becoming a second declaration that can agree with nothing.
 import { KnownNodeRuntime } from "../apps/desktop/host/node-runtime.ts";
+// The same selector the signer uses: one answer to "what must be signed".
+import { machOPayloads } from "./mach-o-payloads.mjs";
 
 const app = resolve(process.argv[2] ?? "");
 if (!app || !existsSync(app)) {
@@ -335,6 +337,65 @@ check("signature is valid and hardened", () => {
     spawnSync("codesign", ["-dv", app], { encoding: "utf8" }).stderr;
   must(/flags=[^ ]*runtime/.test(described), "hardened runtime is not enabled");
   return "valid, hardened";
+});
+
+check("every Mach-O is signed like the bundle: same team, hardened, timestamped", () => {
+  // What Apple's notary service checks, checked locally first. The bundle-level
+  // `codesign --verify --deep --strict` above ACCEPTS ad-hoc nested code, and
+  // that is how a DMG passed 9/9 here and was then rejected: esbuild's
+  // extensionless `bin/esbuild` kept npm's `adhoc,linker-signed` signature,
+  // with no team, no hardened runtime and no secure timestamp.
+  //
+  // Payloads come from the same content-based selector the signer uses, over
+  // all of Contents rather than only the Resources the signer walks, so a
+  // payload the signer never reaches fails here instead of at Apple.
+  const describe = (path) => {
+    const shown = spawnSync("codesign", ["-dvv", path], { encoding: "utf8" });
+    const text = `${shown.stdout ?? ""}${shown.stderr ?? ""}`;
+    return {
+      authority: /^Authority=(.+)$/m.exec(text)?.[1],
+      team: /^TeamIdentifier=(.+)$/m.exec(text)?.[1],
+      hardened: /flags=0x[0-9a-f]+\([^)]*runtime[^)]*\)/.test(text),
+      adhoc: /^Signature=adhoc$/m.test(text),
+      timestamped: /^Timestamp=/m.test(text),
+    };
+  };
+  const bundle = describe(app);
+  must(Boolean(bundle.authority), "the bundle has no signing authority");
+  must(bundle.team && bundle.team !== "not set", "the bundle has no team identifier");
+
+  const payloads = machOPayloads(join(app, "Contents"));
+  must(payloads.length > 0, "no Mach-O payloads found; the selector is broken");
+  const problems = [];
+  for (const path of payloads) {
+    const relative = path.slice(app.length + 1);
+    const verified = spawnSync("codesign", ["--verify", "--strict", path], { encoding: "utf8" });
+    if (verified.status !== 0) {
+      problems.push(`${relative}: signature does not verify`);
+      continue;
+    }
+    const signed = describe(path);
+    if (signed.adhoc) problems.push(`${relative}: ad-hoc signature`);
+    if (signed.team !== bundle.team)
+      problems.push(`${relative}: team ${signed.team ?? "none"}, bundle is ${bundle.team}`);
+    if (signed.authority !== bundle.authority)
+      problems.push(`${relative}: signed by ${signed.authority ?? "nobody"}`);
+    if (!signed.hardened) problems.push(`${relative}: hardened runtime not enabled`);
+    if (!signed.timestamped) problems.push(`${relative}: no secure timestamp`);
+  }
+  must(
+    problems.length === 0,
+    `${problems.length} payload problems:\n    ${problems.join("\n    ")}`,
+  );
+
+  // Consistent is not the same as notarisable: say which this is, so a green
+  // run with a development certificate is not read as release-ready.
+  const notarisable = bundle.authority.startsWith("Developer ID Application:");
+  return `${payloads.length} Mach-O payloads, all ${bundle.team}, hardened, timestamped; ${
+    notarisable
+      ? "Developer ID — eligible for notarisation"
+      : `${bundle.authority} — NOT notarisable`
+  }`;
 });
 
 check("entitlements are the reviewed minimum, and scoped to the host", () => {
