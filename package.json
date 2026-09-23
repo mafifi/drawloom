@@ -62,7 +62,9 @@
     "check:bundled-licenses": "node scripts/check-bundled-licenses.ts",
     "release:bundle": "pnpm run build:packages && pnpm --filter @drawloom/desktop run bundle:host && pnpm --filter @drawloom/desktop exec tauri build",
     "release:sign": "scripts/sign-macos-app.sh",
-    "release:verify": "node scripts/verify-macos-app.mjs"
+    "release:verify": "node scripts/verify-macos-app.mjs",
+    "release:dmg": "node scripts/release-macos.mjs dmg",
+    "release:notarise": "node scripts/release-macos.mjs"
   },
   "devDependencies": {
     "@astrojs/check": "catalog:",

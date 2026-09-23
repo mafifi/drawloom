@@ -95,6 +95,9 @@ adding a workspace dependency.
 To run the application from source, follow the
 [desktop setup guide](apps/desktop/README.md).
 
+Maintainers distribute the macOS app through the
+[signed DMG and notarisation workflow](docs/reference/macos-release.md).
+
 ## Licence
 
 Drawloom is licensed under the [Apache License 2.0](LICENSE). Contributions are
