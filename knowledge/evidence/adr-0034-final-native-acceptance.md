@@ -143,7 +143,8 @@ verification, not editorial or clinical acceptance.
 
 ## Explicit remaining limits
 
-- Apple notarisation credentials were not configured at this checkpoint.
+- Superseded for notarisation by the [notarised release record](adr-0034-notarised-release.md).
+  Apple notarisation credentials were not configured at this checkpoint.
   Notarisation, stapling, final DMG acceptance and Mac-mini clean-machine installation
   remain subsequent gates. A Developer ID signature alone does not complete them.
 - Native Codex live-review/model lanes were not run. Default OS credential and

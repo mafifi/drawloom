@@ -179,3 +179,7 @@ identifies the later Developer ID-signed artifact, exact checksums, canonical an
 clean-clone gates, and native pending-work recovery results. It preserves the
 earlier artifact's history and distinguishes executed acceptance from the still
 outstanding notarisation and clean-machine installation gates.
+The [notarised release record](../../knowledge/evidence/adr-0034-notarised-release.md)
+closes notarisation: build `9734bf5` was accepted by Apple and installed on the
+clean test Mac. It also records the defects the earlier artifacts exposed, and
+the desktop-session checks still outstanding.
