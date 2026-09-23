@@ -450,7 +450,19 @@ check("native modules load under the hardened runtime", () => {
       encoding: "utf8",
       timeout: 60_000,
     });
-    must(run.status === 0, `${label} failed to load: ${String(run.stderr).split("\n")[0]}`);
+    // Report the error, not the first stderr line, which is only its location.
+    const lines = String(run.stderr)
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const reason = lines.find((line) => /^[A-Za-z]*Error\b/.test(line)) ?? lines[0];
+    // The keychain probe writes and reads a real item. Over SSH the login
+    // keychain is locked, so that fails although the module loaded: the check
+    // still fails, but says where it must be run instead.
+    const locked = /User interaction is not allowed/.test(String(run.stderr))
+      ? " (keychain locked in this session: run from the logged-in desktop session, not SSH)"
+      : "";
+    must(run.status === 0, `${label} failed: ${reason}${locked}`);
   }
   return "keychain, sqlite-vec, core-bridge";
 });
@@ -482,7 +494,9 @@ const readiness = (out) => {
     spawn(join(resources, "host/host/node"), [join(resources, "host/host/main.mjs")], {
       cwd: "/",
       env: {
-        PATH: process.env.PATH,
+        // Match the bundled launcher without borrowing a developer-installed Node.
+        PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
+        DRAWLOOM_NODE_PATH: join(resources, "host/host/node"),
         HOME: process.env.HOME,
         DRAWLOOM_DATA_DIR: data,
         DRAWLOOM_WEB_ROOT: join(resources, "web"),
@@ -572,7 +586,8 @@ const lifecycle = async () => {
       spawn(join(resources, "host/host/node"), [join(resources, "host/host/main.mjs")], {
         cwd: "/",
         env: {
-          PATH: process.env.PATH,
+          PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
+          DRAWLOOM_NODE_PATH: join(resources, "host/host/node"),
           HOME: process.env.HOME,
           DRAWLOOM_DATA_DIR: data,
           DRAWLOOM_WEB_ROOT: join(resources, "web"),
