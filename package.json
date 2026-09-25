@@ -50,7 +50,7 @@
     "check:types": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p evaluations/knowledge/tsconfig.json && tsc --noEmit -p packages/orchestration/temporal-orchestration/tsconfig.tests.json",
     "spike:adr-0025": "node spikes/adr-0025-evaluation/verify-local.mjs",
     "test:temporal": "DRAWLOOM_TEMPORAL_TEST=1 node --test --test-concurrency=1 packages/orchestration/temporal-orchestration/real.test.mjs packages/orchestration/temporal-orchestration/installed-host.test.mjs",
-    "test:orchestration:learning": "node --test --test-concurrency=1 apps/desktop/tests/nightloom-orchestration.integration.node-check.mjs && vitest run --config vitest.learning.config.ts",
+    "test:orchestration:learning": "pnpm --filter ./apps/desktop exec svelte-kit sync && node --test --test-concurrency=1 apps/desktop/tests/nightloom-orchestration.integration.node-check.mjs && vitest run --config vitest.learning.config.ts",
     "test": "vitest run",
     "spike:adr-0005": "bun run spikes/adr-0005-tool-exposure/run-live-spike.ts",
     "spike:adr-0007": "bun run spikes/adr-0007-codex-app-server/run-live.ts",

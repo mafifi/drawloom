@@ -232,7 +232,10 @@ async function processIdentity(pid) {
   ]);
   const match = /^\s*(\d+)\s+(.+?)\s*$/.exec(stdout);
   if (!match) throw Error(`Recorded process ${pid} is unavailable`);
-  return { pid, ppid: Number(match[1]), executable: await realpath(match[2]) };
+  // macOS ps reports the executable path as `comm`. Linux reports the thread
+  // name instead (Node's main thread is "MainThread"), so read /proc there.
+  const executable = process.platform === "linux" ? `/proc/${pid}/exe` : match[2];
+  return { pid, ppid: Number(match[1]), executable: await realpath(executable) };
 }
 
 function descendants(rootPid, rows) {
