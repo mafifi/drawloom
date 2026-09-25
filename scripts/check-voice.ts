@@ -1,6 +1,24 @@
-import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { scanVoice } from "./voice-policy.ts";
+import { scanText, scanVoice } from "./voice-policy.ts";
+
+// `check:voice <files>` checks just those files, as if published, and lists
+// every issue. Use it on a draft before anyone reviews it.
+const named = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
+if (named.length > 0) {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+  let count = 0;
+  for (const file of named) {
+    const path = relative(root, resolve(file));
+    for (const issue of scanText(path, readFileSync(resolve(file), "utf8"), { draft: false })) {
+      count += 1;
+      console.error(`${issue.path}:${issue.line}: "${issue.text}". ${issue.advice}`);
+    }
+  }
+  console.log(`Voice: ${count} issue(s) in ${named.length} file(s)`);
+  process.exit(count > 0 ? 1 : 0);
+}
 
 // Errors: the website and journal break the publishing voice in WRITING.md.
 // Warnings: developer documents. `--report` lists them, grouped by area.
