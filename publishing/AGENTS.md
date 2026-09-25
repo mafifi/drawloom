@@ -1,7 +1,8 @@
 # Publishing sources
 
-- Read [EDITORIAL.md](EDITORIAL.md) before authoring or revising public-facing
-  prose, scripts or captions. It owns the writing voice; `DESIGN.md` owns visuals.
+- Read [WRITING.md](../WRITING.md) before writing anything here. It owns the
+  voice. [EDITORIAL.md](EDITORIAL.md) adds rules for essays, and `DESIGN.md`
+  owns visuals.
 - Group article, script/transcript, visuals and presentation material by piece.
 - Editorial content is not an architectural decision. Link sources for factual
   claims and distinguish firsthand experience from illustrative scenarios.

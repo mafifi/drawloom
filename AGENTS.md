@@ -9,10 +9,14 @@ area you change.
 2. `ARCHITECTURE.md`
 3. The applicable ADRs in `docs/adr/`
 4. `DESIGN.md` when changing visual or user-interface design
-5. The nearest nested `AGENTS.md`
+5. `WRITING.md` before writing or revising any prose: docs, pages, commits or PRs
+6. The nearest nested `AGENTS.md`
 
 ## Non-negotiable rules
 
+- Write every document in the voice in `WRITING.md`: clear, simple and written
+  for a person. Website and marketing pages say what Drawloom is and why, with
+  no test results, limits or caveats. Run `pnpm run check:voice`.
 - Apply the permissive product-dependency principle in `ARCHITECTURE.md` and
   licensing requirements in `CONTRIBUTING.md`. Audit exact versions, transitive
   and bundled code, runtimes and weights separately. Downloads are not exemptions.

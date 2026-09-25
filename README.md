@@ -69,6 +69,7 @@ review.
 - [AGENTS.md](AGENTS.md): instructions for coding agents working in this repository.
 - [ARCHITECTURE.md](ARCHITECTURE.md): architectural intent, principles and key decisions.
 - [DESIGN.md](DESIGN.md): visual design system and brand voice in Google's design.md format.
+- [WRITING.md](WRITING.md): how we write, for every document and page.
 - [SECURITY.md](SECURITY.md): security policy and guidance for reporting vulnerabilities.
 - [docs/](docs/): architecture decision records (ADRs), plans, reference material and security design.
 - [knowledge/](knowledge/): research findings and test evidence, with records of their sources.
