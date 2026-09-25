@@ -21,6 +21,58 @@ with the [README](README.md) to understand Drawloom and
 The sections below explain how to keep components replaceable, protect users'
 work, test your changes and prepare a contribution.
 
+## Work from an outcome to main
+
+Use a GitHub issue to hold a substantial outcome that may need several changes.
+The [outcome template](.github/ISSUE_TEMPLATE/epic.md) asks what success means
+and which boundaries the work must preserve. Link relevant decisions and evidence
+there. Keep implementation choices and reviewable slices in the pull requests.
+Small corrections can be submitted as a focused pull request linked to the
+relevant outcome.
+
+Give each pull request one branch and one isolated worktree. Use a worktree
+managed by your development tool when it offers one. With Git directly, start
+the first branch from the current remote `main`:
+
+```sh
+git fetch origin main
+git worktree add -b feature/123-first-slice ../drawloom-123-first-slice origin/main
+```
+
+Use a new branch and worktree for a dependent review unit, starting at the
+lower branch's committed head:
+
+```sh
+git worktree add -b feature/123-next-slice ../drawloom-123-next-slice feature/123-first-slice
+```
+
+Keep the original checkout and other worktrees untouched. Check the exact branch
+and worktree before editing, committing or cleaning up. Commit with
+`git commit --signoff`, run the checks relevant to that layer, and open a pull
+request using the [review template](.github/pull_request_template.md). Do not
+push directly to `main`.
+
+### Stack only dependent pull requests
+
+For a stack, the bottom pull request targets `main`; each upper pull request
+targets the branch immediately below it. Each shows only its own change. Link
+the shared outcome from every layer and close its issue only when the final
+layer completes it. Independent changes use separate pull requests against
+`main`, even if they advance the same issue.
+
+GitHub can link such a chain as a [stacked pull request](https://docs.github.com/en/pull-requests/how-tos/create-pull-requests/creating-stacked-pull-requests).
+Use its **Create stack** action or the documented stack API after the branches
+and pull request bases are correct. The optional `gh stack` extension manages
+local branches too; do not assume its rebase or sync commands are safe across
+branches simultaneously checked out in separate worktrees. Verify the exact
+branch heads and review diff after any rebase, then update affected worktrees
+before more work. Keep the chain linear and let required checks and review pass
+before merging to `main`.
+
+After merge, confirm each worktree is clean and its branch is fully integrated.
+Remove only that exact worktree, then delete its merged local branch. Preserve
+dirty worktrees and uncertain remote state for inspection.
+
 ## Keep components replaceable
 
 An interface describes what a component accepts, what it returns and how it
