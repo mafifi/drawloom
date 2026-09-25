@@ -1,11 +1,13 @@
 ---
 import {getCollection} from 'astro:content';
 import Journal from '../../layouts/Journal.astro';
+import {exploreEntries} from '../../explore';
 const preview = process.env.JOURNAL_DRAFTS === '1';
 const articles = (await getCollection('articles', ({data}) => preview || !data.draft))
   .sort((a, b) => (b.data.published ?? '').localeCompare(a.data.published ?? '') || a.id.localeCompare(b.id));
 const [featured, ...remaining] = articles;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const steps = await exploreEntries();
 const notice = (id: string) => (id === 'workbench-example' ? 'Illustrative example · local preview, not a customer case study.' : 'Draft · local preview');
 ---
 <Journal title="Journal" description="Notes on making AI useful: what worked, what didn't, and why Drawloom exists." section="journal" draft={preview}>
@@ -25,4 +27,10 @@ const notice = (id: string) => (id === 'workbench-example' ? 'Illustrative examp
     <p>{entry.data.description}</p>
     {entry.data.draft && <p class="notice">{notice(entry.id)}</p>}
   </article>)}</section>}
+  {steps.length > 0 && <section aria-labelledby="how-we-decide" class="essay-list how-we-decide">
+    <p class="eyebrow">Behind the scenes</p>
+    <h2 id="how-we-decide">How we decide</h2>
+    <p>Six short pages on the thinking behind Drawloom, from the principles we started with to the working code.</p>
+    <ol>{steps.map((step) => <li><a href={`${base}/${step.id}/`}><span>{String(step.data.step).padStart(2, '0')}</span>{step.data.title}</a> <small>{step.data.question}</small></li>)}</ol>
+  </section>}
 </Journal>

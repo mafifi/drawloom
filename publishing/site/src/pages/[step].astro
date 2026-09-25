@@ -1,0 +1,41 @@
+---
+import {render} from 'astro:content';
+import type {CollectionEntry} from 'astro:content';
+import Journal from '../layouts/Journal.astro';
+import {exploreEntries} from '../explore';
+import {exploreSteps} from '../explore-metadata';
+
+export async function getStaticPaths() {
+  const entries = await exploreEntries();
+  return entries.map((entry) => ({params: {step: entry.id}, props: {entry, entries}}));
+}
+interface Props {entry: CollectionEntry<'explore'>; entries: CollectionEntry<'explore'>[]}
+const {entry, entries} = Astro.props;
+const {Content} = await render(entry);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const href = (id: string) => `${base}/${id}/`;
+const index = entries.findIndex(({id}) => id === entry.id);
+const previous = entries[index - 1];
+const next = entries[index + 1];
+const number = (step: number) => String(step).padStart(2, '0');
+---
+<Journal title={entry.data.title} description={entry.data.summary} section="explore" draft={entry.data.draft}>
+  <article class="essay explore">
+    <nav class="step-strip" aria-label="How we decide">
+      <ol>
+        {entries.map((step) => <li><a href={href(step.id)} aria-current={step.id === entry.id ? 'page' : undefined}><span>{number(step.data.step)}</span>{step.data.title}</a></li>)}
+      </ol>
+    </nav>
+    <header class="article-heading prose">
+      <p class="kicker">Step {entry.data.step} of {exploreSteps.length} · How we decide</p>
+      <h1>{entry.data.title}</h1>
+      <p class="deck">{entry.data.question}</p>
+      {entry.data.draft && <p class="metadata"><span class="notice">Draft · local preview</span></p>}
+    </header>
+    <div class="prose article-body explore-body"><Content /></div>
+    <nav class="step-pager" aria-label="Continue">
+      {previous ? <a class="step-card" href={href(previous.id)}><span>Previous · {number(previous.data.step)}</span>{previous.data.title}</a> : <a class="step-card" href={`${base}/#decision-map`}><span>Back to</span>The map</a>}
+      {next ? <a class="step-card step-next" href={href(next.id)}><span>Next · {number(next.data.step)}</span>{next.data.title}</a> : <a class="step-card step-next" href={`${base}/journal/`}><span>Keep reading</span>The journal</a>}
+    </nav>
+  </article>
+</Journal>

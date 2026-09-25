@@ -224,6 +224,34 @@ test("production excludes draft routes and media; explicit preview renders acces
         readFileSync(join(output, "schemas/1.0.0/plugin-extension.schema.json"), "utf8"),
       );
       expect(schema).toEqual(DrawloomPackageExtensionJsonSchema);
+      // "How we decide": each map step opens its page once published. Drafts
+      // render only in preview; until then the map falls back to GitHub.
+      const exploreSteps = [
+        "principles",
+        "questions",
+        "research",
+        "decisions",
+        "evidence",
+        "get-started",
+      ];
+      const shown = exploreSteps.filter(
+        (step) =>
+          preview ||
+          !/^draft: true$/m.test(readFileSync(`publishing/explore/${step}/page.md`, "utf8")),
+      );
+      for (const step of exploreSteps) {
+        expect(files.includes(`${step}/index.html`), step).toBe(shown.includes(step));
+        expect(home.includes(`href="/${step}/"`), step).toBe(shown.includes(step));
+      }
+      for (const step of shown) {
+        const page = readFileSync(join(output, `${step}/index.html`), "utf8");
+        const strip = page.match(/<nav class="step-strip"[\s\S]*?<\/nav>/)?.[0] ?? "";
+        expect(strip.match(/href="/g), step).toHaveLength(shown.length);
+        expect(strip).toContain(`href="/${step}/" aria-current="page"`);
+        expect(page).toContain("of 6 · How we decide");
+        expect(page).toContain('class="step-pager"');
+      }
+      expect(files.some((file) => file.endsWith("sources.md"))).toBe(false);
       if (!preview) {
         expect(home).toContain('href="https://drawloom.org/"');
         // Svelte marks {#each} blocks with comments; compare the text itself.

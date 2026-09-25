@@ -1,6 +1,6 @@
 ---
 import '../styles/journal.css';
-interface Props {title: string; description: string; section: 'journal' | 'article'; draft?: boolean}
+interface Props {title: string; description: string; section: 'journal' | 'article' | 'explore'; draft?: boolean}
 const {title, description, section, draft = false} = Astro.props;
 const article = section === 'article';
 const home = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/`;
@@ -23,7 +23,11 @@ const journal = `${home}journal/`;
     <a class="skip" href="#main">Skip to content</a>
     <header class="masthead shell">
       <a class="wordmark" href={home}><img src={`${home}artwork/drawloom/mark.png`} width="36" height="36" alt="" />Drawloom</a>
-      <nav aria-label="Main"><a href={journal} aria-current={!article ? 'page' : undefined}>{article && <img class="arrow" src={`${home}icons/arrow-left.svg`} width="14" height="14" alt="" />}{article ? 'Back to journal' : 'Journal'}</a></nav>
+      <nav aria-label="Main">
+        {article
+          ? <a href={journal}><img class="arrow" src={`${home}icons/arrow-left.svg`} width="14" height="14" alt="" />Back to journal</a>
+          : <><a href={`${home}#decision-map`}>How we decide</a><a href={journal} aria-current={section === 'journal' ? 'page' : undefined}>Journal</a></>}
+      </nav>
     </header>
     <main id="main" class="shell"><slot /></main>
     <footer class="shell"><span>Drawloom journal</span><a href="https://github.com/mafifi/drawloom">GitHub</a></footer>

@@ -3,6 +3,8 @@ import {getCollection} from 'astro:content';
 import LandingPageView from '../components/LandingPageView.svelte';
 import type {LandingPageActions, LandingPagePresentation} from '../components/landing-page';
 import Landing from '../layouts/Landing.astro';
+import {exploreEntries} from '../explore';
+import type {ExploreStep} from '../explore-metadata';
 
 const preview = process.env.JOURNAL_DRAFTS === '1';
 const articles = (await getCollection('articles', ({data}) => preview || !data.draft))
@@ -14,6 +16,10 @@ const artwork = `${base}/artwork/synaptic-shuttle`;
 const repository = 'https://github.com/mafifi/drawloom';
 // The current Mac preview. Update this with each release.
 const release = `${repository}/releases/tag/v0.0.0-preview.1`;
+// Each map step opens its "How we decide" page once that page is published,
+// and the GitHub source until then, so the live site never links to a missing page.
+const published = new Set((await exploreEntries()).map(({id}) => id));
+const step = (id: ExploreStep, fallback: string) => (published.has(id) ? `${base}/${id}/` : fallback);
 const logo = {src: `${base}/artwork/drawloom/mark.png`, width: 48, height: 48, alt: ''};
 const arrowIcon = {src: `${base}/icons/arrow-right.svg`, width: 18, height: 18, alt: ''};
 
@@ -64,7 +70,7 @@ const presentation = {
     title: 'How Drawloom decisions are made',
     description: 'Six linked steps: principles, questions, investigations, decisions, evidence and the working code. Each label opens the matching public documents.',
     footerNote: 'Every step links to real documents',
-    footerActionLabel: 'Read the decisions',
+    footerActionLabel: 'Start with the principles',
     stages: [
       {id: 'principles', number: '01', name: 'Principles', ariaLabel: 'Principles: what we care about', summaryLines: ['What we care about'], x: 78, hitX: 58, hitWidth: 230, textAnchor: 'start'},
       {id: 'questions', number: '02', name: 'Questions', ariaLabel: 'Questions: what we still need to find out', summaryLines: ['What we still need', 'to find out'], x: 405, hitX: 385, hitWidth: 210, textAnchor: 'start'},
@@ -79,7 +85,7 @@ const presentation = {
     sectionLabel: 'For people who build',
     headingLines: ['Open by design.', 'Built for real work.'],
     paragraphs: [
-      'Drawloom is for businesses and for individuals. Use it on your own machine, at no cost.',
+      'Drawloom is for businesses and for individuals. It is free, and runs on your own machine with your own Codex account.',
       'Developers can replace any built-in part with their own. Every design decision is public, with the evidence behind it.',
     ],
     actionLabel: 'Explore the code on GitHub',
@@ -103,20 +109,20 @@ const actions = {
   navigation: {
     why: articleHref,
     process: '#decision-map',
-    decisions: `${repository}/tree/main/docs/adr`,
+    decisions: step('decisions', `${repository}/tree/main/docs/adr`),
     journal: `${base}/journal/`,
     github: repository,
   },
   hero: {primaryHref: release, secondaryHref: repository},
   decisionStages: {
-    principles: `${repository}/blob/main/ARCHITECTURE.md#decision-principles`,
-    questions: `${repository}/issues`,
-    investigations: `${repository}/tree/main/docs/reference`,
-    decisions: `${repository}/tree/main/docs/adr`,
-    evidence: `${repository}/tree/main/knowledge/evidence`,
-    implementation: repository,
+    principles: step('principles', `${repository}/blob/main/ARCHITECTURE.md#decision-principles`),
+    questions: step('questions', `${repository}/issues`),
+    investigations: step('research', `${repository}/tree/main/docs/reference`),
+    decisions: step('decisions', `${repository}/tree/main/docs/adr`),
+    evidence: step('evidence', `${repository}/tree/main/knowledge/evidence`),
+    implementation: step('get-started', repository),
   },
-  decisionsHref: `${repository}/tree/main/docs/adr`,
+  decisionsHref: step('principles', `${repository}/blob/main/ARCHITECTURE.md#decision-principles`),
   openRepositoryHref: repository,
   articleHref,
   footerRepositoryHref: repository,
