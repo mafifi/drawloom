@@ -4,7 +4,7 @@ id: adr-0034-notarised-release
 title: Node migration notarised release artifact
 status: active
 created: 2026-09-23
-updated: 2026-09-23
+updated: 2026-09-25
 ---
 
 # Node migration notarised release artifact
@@ -77,6 +77,14 @@ read-only. The previous app was stopped gracefully and replaced. Results:
   correctly omitted.
 - Existing installation state files were unchanged across the replacement.
   Only new SQLite journal files appeared.
+
+## Published release
+
+On 25 September 2026 this stapled image was published as the GitHub pre-release
+[`v0.0.0-preview.1`](https://github.com/mafifi/drawloom/releases/tag/v0.0.0-preview.1),
+with the asset `Drawloom-0.0.0-preview.1-arm64.dmg`. It is the same file,
+renamed. GitHub reports the asset's SHA-256 as `598b2ff2…784dc4`, identical to
+the stapled hash above. The tag points at `d3ef2de`.
 
 ## Revision identifiers
 

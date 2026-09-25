@@ -175,5 +175,9 @@ enabled. `release:verify` checks the shipped Node runtime and its notice, both
 sidecar closures, the signature and hardened runtime, the entitlement set, and
 that native modules load under it.
 
-Still outside this gate, and not yet done: notarisation, and installation on a
-clean machine.
+Assembling the disk image and notarising it are separate, deliberate steps:
+`release:dmg` and `release:notarise`, described in the
+[macOS release workflow](../../docs/reference/macos-release.md). The first
+notarised preview and its installation on a clean Mac are recorded in the
+[notarised release evidence](../../knowledge/evidence/adr-0034-notarised-release.md),
+including the checks still outstanding.

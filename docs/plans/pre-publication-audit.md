@@ -550,4 +550,4 @@ Carried here so a follow-up does not rediscover them as findings:
 - The 0.52 floor is a policy for the current Qwen3-Embedding-0.6B Q8_0 GGUF
   model, not a portable score contract. A replacement model requires independent
   calibration.
-- Release qualification is not finished. F9 remains open by the approved manual-gate choice; A4 is still partial, and Developer ID signing, notarisation and clean-machine installation remain outstanding. F8 is addressed by the artifact-specific `bundle:host` gate; `check:licenses` alone does not inventory bundled bytes.
+- Release qualification is not finished. F9 remains open by the approved manual-gate choice, and A4 is still partial. Developer ID signing and notarisation are done, and installation on the clean Mac is partly done; the [notarised release record](../../knowledge/evidence/adr-0034-notarised-release.md) lists what remains. F8 is addressed by the artifact-specific `bundle:host` gate; `check:licenses` alone does not inventory bundled bytes.
