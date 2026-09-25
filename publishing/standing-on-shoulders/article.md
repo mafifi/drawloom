@@ -1,7 +1,8 @@
 ---
 title: Standing on shoulders
 description: Learn from the best, then build to last.
-draft: true
+draft: false
+published: '2026-09-25'
 ---
 
 When I started Drawloom, I had a long list of hard problems. How should an agent

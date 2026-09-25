@@ -1,7 +1,8 @@
 ---
 title: Nothing new to learn
 description: Familiar screens that show only what helps.
-draft: true
+draft: false
+published: '2026-09-25'
 ---
 
 Most people who open Drawloom will already have used an AI assistant. Many
@@ -18,8 +19,6 @@ with the tools people already have and keep the controls they already trust.
 Every time a new tool surprises you, it takes a little of your attention. Spend
 enough of it and people stop using the tool. A familiar tool gets out of the
 way, so you can think about your work.
-
-<!-- ASK: Was there a moment with another tool that made this principle matter to you? -->
 
 ## The agent's own approval
 
@@ -51,8 +50,6 @@ should work wherever you are.
 That's hard to get right by hand. We'd adopted shared components, yet our
 screens kept drifting. The sidebar and the message box came out slightly
 different each time, and the same layout fixes kept coming back.
-
-<!-- ASK: Which drift annoyed you most before you fixed it? -->
 
 So every screen in Drawloom is now built from one shared set of parts. They
 come from shadcn-svelte, an open-source collection of components. Underneath,
@@ -123,8 +120,6 @@ they already understand is the one they'll actually use.
 For a developer building their own workbench, the same shared parts are there
 to build with. Your screens can feel familiar from the first day, without
 rebuilding menus, dialogs and conversation views yourself.
-
-<!-- ASK: How do you hope Souphi will feel the first time she opens a workbench built this way? -->
 
 Good design is mostly about what you leave out. Show what
 helps. Keep the rest close by, ready when someone asks.

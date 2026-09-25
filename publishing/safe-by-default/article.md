@@ -1,7 +1,8 @@
 ---
 title: Safe by default
 description: Nothing happens without your say.
-draft: true
+draft: false
+published: '2026-09-25'
 ---
 
 Souphi's clinic runs on sensitive information. Patient records. Invoices. Photos
@@ -15,8 +16,6 @@ I wanted Drawloom to be something I'd trust around her patients. So safety
 became the first of Drawloom's principles. Everything else comes after it.
 
 The idea is simple. Nothing happens without your say.
-
-<!-- ASK: Was there a moment when an agent did something you hadn't expected, and made safety feel urgent? -->
 
 ## Installing a plugin gives it nothing
 

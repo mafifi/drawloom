@@ -1,7 +1,8 @@
 ---
 title: Free to use and share
 description: Clean licences, all the way down.
-draft: true
+draft: false
+published: '2026-09-25'
 ---
 
 Drawloom is for people who want to build their own AI workbench. Some will be

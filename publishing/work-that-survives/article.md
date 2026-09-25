@@ -1,7 +1,8 @@
 ---
 title: Work that survives
 description: When the app dies mid-task, you decide what happens next.
-draft: true
+draft: false
+published: '2026-09-25'
 ---
 
 In [Why Drawloom?](/articles/a-place-to-do-the-work/) I asked a question I

@@ -1,7 +1,8 @@
 ---
 title: Plugins that travel
 description: Build it once, take it anywhere.
-draft: true
+draft: false
+published: '2026-09-25'
 ---
 
 A workbench is only as useful as what it can do. Drawloom gets most of that from
@@ -29,8 +30,6 @@ written for Drawloom and nothing else.
 
 That bothered me. A narration plugin is useful wherever you work with an agent.
 Why should it only work in one app?
-
-<!-- ASK: Was there a moment when this first design started to feel wrong? For example, wanting to use one of your plugins outside Drawloom. -->
 
 It also cut against something I care about. If you build a plugin for your own
 business, you should own it. It shouldn't be tied to whichever app you happened
@@ -139,8 +138,6 @@ your work goes with you.
 
 And adding a plugin never quietly gives it more power than you chose. You decide
 what it can do, one step at a time.
-
-<!-- ASK: Is there a plugin you'd love to see someone build for Drawloom, or one you already use in another AI tool? -->
 
 Drawloom is free and open source.
 [Try the preview for Mac](https://github.com/mafifi/drawloom/releases/tag/v0.0.0-preview.1),

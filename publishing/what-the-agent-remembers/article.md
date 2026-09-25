@@ -1,7 +1,8 @@
 ---
 title: What the agent remembers
 description: Remember carefully, know the source, bring only what helps.
-draft: true
+draft: false
+published: '2026-09-25'
 ---
 
 Every conversation with an AI agent starts from nothing. You explain the
@@ -11,8 +12,6 @@ it has no idea what you learned together yesterday.
 I want an assistant that gets better at helping Souphi over time. It should
 remember what worked for her audience, what failed and why. It should bring
 that up when it matters, without being asked.
-
-<!-- ASK: Was there a moment when repeating yourself to the agent made you want this? -->
 
 That sounds simple. It turns out to be three different jobs.
 
@@ -74,8 +73,6 @@ Later, a Saturday success arrived. A separate agent, doing Nightloom's job in
 that early experiment, revised the learning to cover both. The next agent
 described mixed results, cited both observations and advised checking current
 capacity.
-
-<!-- ASK: How did it feel to watch the agent decline to jump to a conclusion? -->
 
 That's the behaviour I want. An assistant that learns should also know how
 little it knows.
