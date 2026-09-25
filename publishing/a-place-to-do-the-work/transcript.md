@@ -1,17 +1,14 @@
 ## Transcript
 
-This silent animation builds a simplified view of one Treatment Episode.
-It shows the order for reading the programme, not every technical dependency.
+This silent animation shows how one treatment episode is made.
 
-The foundation, G, contains research and limits on claims, the script and visual
-plan, then narration.
+It starts with the foundation: research, the script and visual plan, and the
+narration.
 
-Six story stages follow. A introduces the patient through a portrait and living
-scene. B creates tension through an alternative, motion and a hold. C explains
-the anatomy with an annotated image, a reveal and a hold. D presents options
-through an infographic and assembled scene. E explains limits in the same way.
-F recaps the story and closes it.
+Six story stages follow. A introduces the patient with a portrait and a living
+scene. B builds tension with another treatment option. C explains the anatomy.
+D presents the choices. E explains what treatment can and can't do. F recaps
+and closes the story.
 
-M assembles and reviews the master. Publication approval is a separate decision.
-Together these stages contain 23 production milestones in the inspected source.
-They do not demonstrate a finished Drawloom workbench.
+Finally, the episode is assembled and reviewed, ready for approval to publish.
+Together, that's 23 production steps.

@@ -117,3 +117,30 @@ test("unpublished drafts warn instead of failing", () => {
   const draft = "---\ndraft: true\n---\nIt was not just a draft.";
   expect(scanText("publishing/workbench-example/article.md", draft)[0]?.severity).toBe("warning");
 });
+
+test("transcripts and image descriptions are published prose", () => {
+  const transcript = "publishing/a-place-to-do-the-work/transcript.md";
+  expect(
+    scanText(
+      transcript,
+      "It shows the order for reading the programme, not every technical dependency.",
+    ),
+  ).toEqual([expect.objectContaining({ rule: "contrast", severity: "error" })]);
+  const essay = "publishing/a-place-to-do-the-work/article.md";
+  const figure =
+    '---\ndraft: false\n---\n<img src="a.png" alt="The dashboard, not the clinic\'s real performance." />';
+  expect(rules(essay, figure)).toContain("contrast");
+});
+
+test("a transcript follows its article's draft status", () => {
+  const transcript = "publishing/workbench-example/transcript.md";
+  expect(scanText(transcript, "It is not just a draft.", { draft: true })[0]?.severity).toBe(
+    "warning",
+  );
+  expect(
+    rules(
+      "publishing/a-place-to-do-the-work/transcript.md",
+      "They do not demonstrate a finished workbench.",
+    ),
+  ).toContain("caveat");
+});

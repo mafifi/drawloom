@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -37,7 +37,7 @@ export const voiceRules: readonly VoiceRule[] = [
   {
     id: "caveat",
     pattern:
-      /\b((?:does|do)(?: not|n(?:'|’)t) prove|proves? neither|is not (?:proof|evidence)|not a claim that|tests read are not tests run)\b/i,
+      /\b((?:does|do)(?: not|n(?:'|’)t) (?:prove|demonstrate)|proves? neither|is not (?:proof|evidence)|not a claim that|tests read are not tests run)\b/i,
     advice: "Keep caveats for records whose job is limits.",
   },
   {
@@ -112,7 +112,11 @@ export function isMarketing(path: string) {
 
 /** Reader-facing but not marketing: the README and published essays. */
 export function isPublic(path: string) {
-  return isMarketing(path) || path === "README.md" || /^publishing\/[^/]+\/article\.md$/.test(path);
+  return (
+    isMarketing(path) ||
+    path === "README.md" ||
+    /^publishing\/[^/]+\/(article|transcript)\.md$/.test(path)
+  );
 }
 
 /** Reduce a line to the prose a reader sees. */
@@ -124,19 +128,31 @@ export function prose(line: string, path: string) {
       .filter((text) => /\s/.test(text) && !/[{}<>=]|\/\//.test(text))
       .join(" ");
   }
-  return line
-    .replace(/`[^`]*`/g, " ")
-    .replace(/\]\([^)]*\)/g, "]")
-    .replace(/https?:\/\/\S+/g, " ")
-    .replace(/<[^>]+>/g, " ");
+  // Image descriptions and labels are prose too, even inside tags.
+  const described = [...line.matchAll(/\b(?:alt|aria-label)="([^"]*)"/g)].map((match) => match[1]);
+  return [
+    line
+      .replace(/`[^`]*`/g, " ")
+      .replace(/\]\([^)]*\)/g, "]")
+      .replace(/https?:\/\/\S+/g, " ")
+      .replace(/<[^>]+>/g, " "),
+    ...described,
+  ].join(" ");
 }
 
-export function scanText(path: string, text: string): VoiceIssue[] {
+export function scanText(
+  path: string,
+  text: string,
+  options: { draft?: boolean } = {},
+): VoiceIssue[] {
   if (exempt.has(path)) return [];
   const marketing = isMarketing(path);
   const publishing = isPublic(path) && path !== "README.md";
   // Unpublished drafts warn until they are published.
-  const draft = path.endsWith(".md") && !/^draft: false$/m.test(text.split(/^---$/m)[1] ?? "");
+  // A file without front matter, such as a transcript, is published with its piece.
+  const metadata =
+    path.endsWith(".md") && text.startsWith("---") ? text.split(/^---$/m)[1] : undefined;
+  const draft = options.draft ?? (metadata !== undefined && !/^draft: false$/m.test(metadata));
   const severity: Severity =
     publishing && !(draft && path.startsWith("publishing/")) ? "error" : "warning";
   const issues: VoiceIssue[] = [];
@@ -248,6 +264,20 @@ export function trackedProse(root: string) {
 
 export function scanVoice(root: string) {
   const files = trackedProse(root);
-  const issues = files.flatMap((path) => scanText(path, readFileSync(join(root, path), "utf8")));
+  const issues = files.flatMap((path) => {
+    // A transcript is published or drafted with its article.
+    const article = path.replace(/transcript\.md$/, "article.md");
+    const draft =
+      article !== path && existsSync(join(root, article))
+        ? !/^draft: false$/m.test(
+            readFileSync(join(root, article), "utf8").split(/^---$/m)[1] ?? "",
+          )
+        : undefined;
+    return scanText(
+      path,
+      readFileSync(join(root, path), "utf8"),
+      draft === undefined ? {} : { draft },
+    );
+  });
   return { files: files.length, issues };
 }

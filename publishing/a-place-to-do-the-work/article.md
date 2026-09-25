@@ -29,7 +29,7 @@ My first attempt gave Souphi a working website and a simple system for patient
 records and invoicing. They were separate apps, but they did useful work.
 
 <figure>
-<a href="/media/a-place-to-do-the-work/09-legacy-public-reconstruction.png"><img src="/media/a-place-to-do-the-work/09-legacy-public-reconstruction.png" width="1892" height="680" loading="lazy" alt="The original homepage: Souphi's portrait behind a large headline, with separate routes to the clinic and academy." style="display:block;width:100%;height:auto" /></a>
+<a href="/media/a-place-to-do-the-work/09-legacy-public-reconstruction.png"><img src="/media/a-place-to-do-the-work/09-legacy-public-reconstruction.png" width="1892" height="680" loading="lazy" alt="Souphi's first homepage, with her portrait behind a large headline and links to the clinic and the academy." style="display:block;width:100%;height:auto" /></a>
 <figcaption>Souphi's first website, in 2024.</figcaption>
 </figure>
 
@@ -47,13 +47,13 @@ I left her with something good enough to use. It was a long way from what I'd
 imagined.
 
 <figure>
-<a href="/media/a-place-to-do-the-work/10-legacy-admin-reconstruction.png"><img src="/media/a-place-to-do-the-work/10-legacy-admin-reconstruction.png" width="1892" height="800" loading="lazy" alt="The original admin dashboard laid out appointments, inventory, patients, marketing and finances in six cards. All displayed names and figures are demonstration data." style="display:block;width:100%;height:auto" /></a>
+<a href="/media/a-place-to-do-the-work/10-legacy-admin-reconstruction.png"><img src="/media/a-place-to-do-the-work/10-legacy-admin-reconstruction.png" width="1892" height="800" loading="lazy" alt="The first admin dashboard, with cards for appointments, inventory, patients, marketing and finances." style="display:block;width:100%;height:auto" /></a>
 <figcaption>The dashboard I was aiming for. The figures are sample data.</figcaption>
 </figure>
 
 <figure class="architecture-figure" id="stack-2024">
 <p class="diagram-kicker">2024 · Two separate apps</p>
-<a href="/artwork/why-drawloom/stack-2024.svg" aria-label="Enlarge the 2024 architecture diagram"><img src="/artwork/why-drawloom/stack-2024.svg" width="1440" height="784" loading="lazy" alt="Public SvelteKit website deployed on Cloudflare Pages; a separate SvelteKit administration app uses Firebase." /></a>
+<a href="/artwork/why-drawloom/stack-2024.svg" aria-label="Enlarge the 2024 architecture diagram"><img src="/artwork/why-drawloom/stack-2024.svg" width="1440" height="784" loading="lazy" alt="A public website on Cloudflare Pages, and a separate admin app using Firebase." /></a>
 <figcaption>A public website, and a separate app for patient records and invoicing. <a href="/artwork/why-drawloom/stack-2024.svg">Enlarge diagram ↗</a></figcaption>
 </figure>
 
@@ -74,7 +74,7 @@ bigger ambitions and much faster progress.
 
 <figure class="architecture-figure" id="stack-2025">
 <p class="diagram-kicker">2025 · One shared database</p>
-<a href="/artwork/why-drawloom/stack-2025.svg" aria-label="Enlarge the 2025 architecture diagram"><img src="/artwork/why-drawloom/stack-2025.svg" width="1480" height="944" loading="lazy" alt="Separate public and souphi-admin applications on Cloudflare Pages both use Drizzle to access the same D1 database." /></a>
+<a href="/artwork/why-drawloom/stack-2025.svg" aria-label="Enlarge the 2025 architecture diagram"><img src="/artwork/why-drawloom/stack-2025.svg" width="1480" height="944" loading="lazy" alt="The public website and the souphi-admin app, both on Cloudflare Pages, sharing one database." /></a>
 <figcaption>Two apps working with the same data. <a href="/artwork/why-drawloom/stack-2025.svg">Enlarge diagram ↗</a></figcaption>
 </figure>
 
@@ -102,7 +102,7 @@ For the first time, the codebase felt under control.
 
 <figure class="architecture-figure" id="stack-2026">
 <p class="diagram-kicker">2026 · Shared code, enforced rules</p>
-<a href="/artwork/why-drawloom/stack-2026.svg" aria-label="Enlarge the 2026 architecture diagram"><img src="/artwork/why-drawloom/stack-2026.svg" width="1480" height="944" loading="lazy" alt="Public and administration applications on Cloudflare Workers use Convex for backend and data." /></a>
+<a href="/artwork/why-drawloom/stack-2026.svg" aria-label="Enlarge the 2026 architecture diagram"><img src="/artwork/why-drawloom/stack-2026.svg" width="1480" height="944" loading="lazy" alt="The public website and admin app on Cloudflare Workers, using Convex for data." /></a>
 <figcaption>One repository, with automated checks around the work. <a href="/artwork/why-drawloom/stack-2026.svg">Enlarge diagram ↗</a></figcaption>
 </figure>
 
@@ -140,7 +140,7 @@ recover when something failed. So I built agent roles, provider connections,
 retries and a map of the whole process.
 
 <figure>
-<a href="/media/a-place-to-do-the-work/03-programme-raw.png"><img src="/media/a-place-to-do-the-work/03-programme-raw.png" width="1892" height="800" loading="lazy" alt="The Treatment Episode production interface, showing eight stage groups and 23 accepted programme milestones." /></a>
+<a href="/media/a-place-to-do-the-work/03-programme-raw.png"><img src="/media/a-place-to-do-the-work/03-programme-raw.png" width="1892" height="800" loading="lazy" alt="The treatment episode production system, showing eight stages and 23 steps." /></a>
 <figcaption>The production system: eight stages and 23 steps.</figcaption>
 </figure>
 
@@ -196,7 +196,7 @@ shape and direct the next change. Behind it, a **harness** gives the agent the
 instructions, context, tools and controls it needs to help.
 
 <figure>
-<a href="/media/a-place-to-do-the-work/12-operator-annual-plan.jpg"><img src="/media/a-place-to-do-the-work/12-operator-annual-plan.jpg" width="1229" height="768" loading="lazy" alt="The Laifu and Nini Operator workbench shows an accepted annual plan, story cards with separate script, image and narration stages, and the Codex conversation below." /></a>
+<a href="/media/a-place-to-do-the-work/12-operator-annual-plan.jpg"><img src="/media/a-place-to-do-the-work/12-operator-annual-plan.jpg" width="1229" height="768" loading="lazy" alt="My story-production workbench, with the year's plan, story cards for script, images and narration, and the Codex conversation below." /></a>
 <figcaption>My story-production workbench: the plan, the stories and the conversation, side by side.</figcaption>
 </figure>
 
@@ -216,7 +216,7 @@ each episode and made the next one better for the audience.
 That's the workbench I wish I'd built.
 
 <figure>
-<a href="/media/a-place-to-do-the-work/13-operator-story-workspace.jpg"><img src="/media/a-place-to-do-the-work/13-operator-story-workspace.jpg" width="1229" height="768" loading="lazy" alt="The Coco Comes to Visit working draft in Operator: a three-part story arc, a storyboard with a separate cover and twelve pages, and the Codex conversation below." /></a>
+<a href="/media/a-place-to-do-the-work/13-operator-story-workspace.jpg"><img src="/media/a-place-to-do-the-work/13-operator-story-workspace.jpg" width="1229" height="768" loading="lazy" alt="A story in progress, with a three-part outline, a storyboard of a cover and twelve pages, and the Codex conversation below." /></a>
 <figcaption>Inside a story: the outline and storyboard sit alongside the conversation.</figcaption>
 </figure>
 
