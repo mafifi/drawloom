@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { scanText } from "./voice-policy.ts";
+import { isUserFacing, scanText } from "./voice-policy.ts";
 
 const rules = (path: string, text: string) => scanText(path, text).map(({ rule }) => rule);
 
@@ -33,11 +33,11 @@ test("reader-facing pages fail; everything else only warns", () => {
   const line = "Honestly, it's robust.";
   expect(scanText("README.md", line).every(({ severity }) => severity === "error")).toBe(true);
   expect(scanText("publishing/a-place-to-do-the-work/article.md", line)[0]?.severity).toBe("error");
-  expect(scanText("docs/adr/0023-example.md", line)[0]?.severity).toBe("warning");
+  expect(scanText("docs/reference/plugin-packages.md", line)[0]?.severity).toBe("warning");
 });
 
 test("record numbers are fine outside the website", () => {
-  expect(rules("docs/adr/0034-node-toolchain.md", "See ADR 0026.")).toEqual([]);
+  expect(rules("ARCHITECTURE.md", "See ADR 0026.")).toEqual([]);
   expect(rules("README.md", "See ADR 0026.")).toEqual([]);
 });
 
@@ -47,7 +47,32 @@ test("site source checks quoted copy, not code", () => {
   expect(rules(astro, "  const robust = parse(value);")).toEqual([]);
 });
 
-test("the guide and the writing skill may quote the habits", () => {
+test("the writing guide may quote the habits", () => {
   expect(rules("WRITING.md", "Honestly, delve into robust tapestry.")).toEqual([]);
-  expect(rules(".agents/skills/plain-writing/SKILL.md", "Honestly.")).toEqual([]);
+});
+
+test("only documents people read are checked", () => {
+  for (const path of [
+    "README.md",
+    "ARCHITECTURE.md",
+    "CONTRIBUTING.md",
+    "docs/reference/plugin-packages.md",
+    "apps/desktop/README.md",
+    "publishing/explore/decisions/page.md",
+    "publishing/a-place-to-do-the-work/article.md",
+  ])
+    expect(isUserFacing(path), path).toBe(true);
+  for (const path of [
+    "AGENTS.md",
+    "docs/plans/pre-publication-audit.md",
+    "docs/adr/0034-node-toolchain.md",
+    "knowledge/evidence/adr-0034-notarised-release.md",
+    "docs/reference/harness-workbench-survey/README.md",
+    "docs/reference/conversation-history-evidence.md",
+    "docs/design/desktop-host.md",
+    "spikes/AGENTS.md",
+    ".agents/skills/plain-writing/SKILL.md",
+    "DESIGN.md",
+  ])
+    expect(isUserFacing(path), path).toBe(false);
 });

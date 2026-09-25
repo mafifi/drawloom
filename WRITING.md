@@ -1,8 +1,12 @@
 # Writing guide
 
-This is how we write everything in Drawloom: the website, the README, guides,
-decision records, commit messages and pull requests. Write for a person, not for
-another agent.
+This is how we write everything people read about Drawloom: the website, the
+journal, the README and the guides for users and developers. Write for a person,
+not for another agent.
+
+Documents written for agents and for our own working process can keep the
+detail they need. That includes `AGENTS.md` files, plans, decision records,
+evidence, research notes, design notes and skills.
 
 ## The voice
 
@@ -45,11 +49,6 @@ check:voice` catches the most common ones.
 - **Journal essays.** The author's own voice and story, told simply. Keep
   firsthand accounts true. [publishing/EDITORIAL.md](publishing/EDITORIAL.md)
   covers essays in more detail.
-- **Decision and evidence records.** Recording what was tested, what wasn't and
-  what it cost is their job, so keep that detail. Write it in the same plain
-  voice.
-- **Commit messages and pull requests.** What changed and why, in a few plain
-  sentences.
 - **Words in the app.** Button labels, messages and screen text follow the
   voice and naming rules in [DESIGN.md](DESIGN.md#voice-and-naming).
 

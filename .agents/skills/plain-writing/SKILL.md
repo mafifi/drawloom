@@ -1,6 +1,6 @@
 ---
 name: plain-writing
-description: Use when writing or revising any prose in Drawloom, including Markdown docs, README and guides, website pages, journal essays, decision records, commit messages and pull requests, and when briefing another agent to write any of these.
+description: Use when writing or revising anything users read about Drawloom, such as website pages, journal essays, the README and user or developer guides, and when briefing another agent to write them. Not for agent-facing or internal documents like AGENTS.md, plans, decision records or evidence.
 ---
 
 # Plain writing
@@ -12,7 +12,7 @@ The voice, the habits to avoid and the rules for each kind of document live in
 
 1. Name the reader: a business leader, a developer, or both.
 2. Name the kind of document. It decides what belongs in it. A website page says
-   what Drawloom is and why. A decision record keeps its tests and limits.
+   what Drawloom is and why. A guide tells the reader what to do.
 3. Write one sentence saying what the reader should know or do afterwards.
 
 ## Write
@@ -24,8 +24,7 @@ The voice, the habits to avoid and the rules for each kind of document live in
 ## Check
 
 1. Read it aloud. Rewrite anything you wouldn't say to a person.
-2. Cut every sentence that talks about the writing, its honesty or its limits,
-   unless the document is a record whose job is limits.
+2. Cut every sentence that talks about the writing, its honesty or its limits.
 3. Run `pnpm run check:voice` and fix what it reports.
 
 ## Briefing another agent

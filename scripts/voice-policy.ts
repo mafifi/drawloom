@@ -63,7 +63,7 @@ export interface VoiceIssue {
 }
 
 /** Files that quote the habits on purpose. */
-const exempt = new Set(["WRITING.md", ".agents/skills/plain-writing/SKILL.md"]);
+const exempt = new Set(["WRITING.md"]);
 
 /** Website and marketing pages: every rule applies, and hits are errors. */
 export function isMarketing(path: string) {
@@ -129,6 +129,22 @@ export function scanText(path: string, text: string): VoiceIssue[] {
   return issues;
 }
 
+/**
+ * Documents people read: the website, journal, README and user and developer
+ * guides. Agent-facing and internal documents (AGENTS.md files, plans, decision
+ * records, evidence, research, design notes, skills) keep their detail and are
+ * not checked.
+ */
+export function isUserFacing(path: string) {
+  if (isPublic(path)) return true;
+  if (["CONTRIBUTING.md", "SECURITY.md", "ARCHITECTURE.md", "docs/README.md"].includes(path))
+    return true;
+  if (/^docs\/reference\/[^/]+\.md$/.test(path))
+    return !/evidence|readiness|^docs\/reference\/adr-/.test(path);
+  if (/^(apps|packages)\/.*README\.md$/.test(path)) return true;
+  return /^publishing\/(site\/README|[^/]+\/transcript)\.md$/.test(path);
+}
+
 export function trackedProse(root: string) {
   return execFileSync("git", ["ls-files", "-z", "--", "*.md", "publishing/site/src"], {
     cwd: root,
@@ -136,7 +152,7 @@ export function trackedProse(root: string) {
   })
     .split("\0")
     .filter((path) => path && (path.endsWith(".md") || /\.(astro|svelte|ts)$/.test(path)))
-    .filter((path) => !path.includes("node_modules/"));
+    .filter((path) => !path.includes("node_modules/") && isUserFacing(path));
 }
 
 export function scanVoice(root: string) {

@@ -101,6 +101,8 @@ for (const file of tracked) {
     const target = match[1];
     if (!target || EXTERNAL.test(target)) continue;
     if (target.startsWith("/")) {
+      // Website pages link to site routes; the site build test resolves those.
+      if (/^publishing\/(explore\/[^/]+\/page|[^/]+\/article)\.md$/.test(file)) continue;
       fail(file, `absolute link "${target}" — use a relative path`);
       continue;
     }
