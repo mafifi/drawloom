@@ -24,7 +24,7 @@ For the treatment episodes, I built my own machinery to keep 23 steps on track.
 It tracked which steps depended on which, kept every result and retried when
 something failed.
 
-<!-- ASK: Was there a moment when your own retry code let you down, or nearly paid for something twice? -->
+And yes, of course my retry code let me down.
 
 It was a lot of code to get right. Recovering from failure is one of the
 hardest parts of any system, and I was writing it alongside everything else.
@@ -108,7 +108,12 @@ unattended system pay for? Is it safe to try again?
 Drawloom's answer is simple. It never pays for the same action twice on its own.
 When it can't tell whether something finished, it tells you, and you decide.
 
-<!-- ASK: Is there a real moment since then, with an episode or a paid request, when this saved you money or worry? -->
+Has it saved me money? Yes and no. It has stopped the silly spending. But getting
+the retry policy right is still a real pain.
+
+Add reviewers to a chain of steps and a new question appears. When do you stop
+reviewing again and again? That gets harder when the model gives a different
+answer each time.
 
 I think that's what makes long-running AI work trustworthy. Everything fails
 sometimes. What matters is how the work recovers. It should keep what's done,

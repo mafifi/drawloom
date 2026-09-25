@@ -52,7 +52,11 @@ Then we looked at what it installed. Buried in its standard setup was a
 scientific package whose Mac version included compiler libraries under the GPL,
 with an exception.
 
-<!-- ASK: What went through your mind when the working option turned out to carry GPL code inside it? -->
+I know GPL is a sticking point for many businesses. It also cut against the
+whole point of Drawloom. I built it to work inside businesses, with interfaces
+they can use to build their own integrations. GPL could force them to release
+their own work on the same terms and give away any edge it gave them. A
+business-ready Drawloom built on GPL code just isn't credible.
 
 We dropped it. We moved local search to llama.cpp, with a model Qwen publishes
 under a permissive licence. It took more work, and it meant giving up something
@@ -70,8 +74,6 @@ worry about.
 Then, in a review before we published Drawloom, we looked at how the desktop
 app was built.
 
-<!-- ASK: How close to the first preview release was this, and how did it feel to find it then? -->
-
 Drawloom was built on Bun, a fast JavaScript runtime. A runtime is the engine
 that runs your code. We used Bun to build the app, and it placed its own engine
 inside the app we'd hand to people.
@@ -83,6 +85,9 @@ a small compiler called TinyCC.
 Our check had never seen them. It read the list of packages. The engine inside
 the app was never on that list. The check reported a clean result because it
 was looking in the wrong place.
+
+This one was heartbreaking. I love Bun. It's fast and elegant, and I use it in
+all my projects.
 
 ## Why we moved instead of making an exception
 
@@ -98,6 +103,10 @@ And it would have broken the rule we'd already kept at real cost. We'd given up
 a working search option to stay clean. Making an exception for the one part
 every user runs would have made that rule meaningless.
 
+Principles are there for a reason. I could have written down an exception and
+moved on. But it would have wiped out what Drawloom stands for. If I don't keep
+these commitments, what am I shipping?
+
 So we changed the whole toolchain. Drawloom now runs on Node.js, and pnpm
 manages its packages. We moved everything that depended on Bun, and we use
 standard tools for testing and packaging.
@@ -106,7 +115,12 @@ It was the right moment to do it. Drawloom had no users and nothing in
 production. There was nothing to migrate for anyone. The exception would have
 grown with every Bun update. The move would cost us once.
 
-<!-- ASK: Was there a moment you were tempted to take the exception and ship? -->
+It still set the release back a week. I had to replace all the tooling and
+learn pnpm, which wasn't easy. I had to spell out the dependencies of our
+dependencies and rebuild our package catalogue. I revisited a tonne of
+decisions, from how the Mac app is built to how we use SQLite.
+
+Bun is now part of Anthropic. I hope they sort it out.
 
 The move brought another benefit. Before, we developed on one runtime and would
 have shipped another. Now the tests run on the same engine we ship. There's

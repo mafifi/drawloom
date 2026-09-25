@@ -16,7 +16,10 @@ what to avoid.
 
 So before we build anything, we look at how others did it.
 
-<!-- ASK: Was there a moment you realised you were about to solve something another project had already solved? -->
+It happens all the time. Codex and Anthropic keep releasing platform features
+that are clearly heading in the same direction. What I haven't seen is a
+community project that brings it all together into one platform people can use.
+If something bigger comes along and replaces Drawloom, brilliant.
 
 ## Read the code, then try it small
 
@@ -63,7 +66,8 @@ evidence separate from the summaries built on it.
 None of those ideas came from me. They came from reading other people's work
 carefully.
 
-<!-- ASK: Which project's code surprised you most when you read it? -->
+DeepSeek Harness surprised me most. It keeps so much of the work inside itself,
+and I still don't fully understand why.
 
 ## Interfaces built to last
 
@@ -127,7 +131,10 @@ set, "it works with Drawloom" means the same thing for everyone.
 
 That's what lets you swap a part and trust the rest to carry on working.
 
-<!-- ASK: Has a shared test ever caught a difference between two implementations that you'd otherwise have missed? -->
+They catch differences all the time. AI is good at writing unit tests, which
+check one small piece at a time. Tests that check the pieces working together
+are still a hard problem. The best test of all is using Drawloom ourselves,
+every day, so it keeps proving itself.
 
 ## Thank you
 
@@ -151,7 +158,9 @@ did.
 Many more projects helped, and each one made Drawloom better. You'll find them
 all on our [Investigations page](/research/).
 
-<!-- ASK: Is there one project you'd like to thank personally, and why? -->
+If I had to single some out, it would be the security projects. Deciding who
+may see what is a fascinating problem, and I learned a huge amount from how
+others have tackled it.
 
 If you'd like to see where all this learning led,
 [try the preview for Mac](https://github.com/mafifi/drawloom/releases/tag/v0.0.0-preview.1).
