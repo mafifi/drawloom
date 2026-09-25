@@ -42,8 +42,8 @@ If you install Codex while Drawloom is open, quit Drawloom and open it again.
 - **Find past work.** Search, rename and archive your conversations.
 - **Add plugins.** Bring in new skills and tools.
 
-This is an early preview, so expect rough edges. If something goes wrong,
-please [let us know](https://github.com/mafifi/drawloom/issues).
+This is our first preview, and we'd love to hear what you think.
+[Share your feedback on GitHub](https://github.com/mafifi/drawloom/issues).
 
 ## Build with Drawloom
 

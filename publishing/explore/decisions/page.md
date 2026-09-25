@@ -45,14 +45,13 @@ Solo developers should get as much from Drawloom as large teams.
 
 ## Something you can build on
 
-Drawloom is actively developed, and we can't promise its interfaces will never
-change. But we designed them to last from the start.
+Drawloom is growing fast, and it was designed from day one as something you can
+build on.
 
 - **We studied first.** Before designing each interface, we studied how leading
   open-source projects solve the same problem, and published what we learned.
-- **We tested the alternatives.** We deliberately built extra implementations
-  on different technologies, such as two different policy engines, to prove each
-  interface isn't tied to one way of doing things.
+- **We built for more than one way.** We built each interface with different
+  technologies behind it, so it fits your choices, not just ours.
 - **Every implementation passes the same tests.** When you build your own, you
   test it against the same standard as ours.
 

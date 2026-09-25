@@ -20,8 +20,8 @@ we look at how others solved them.
 4. **Write down the decision.** We record what we chose and why, so anyone can
    check our reasoning. See [Decisions](/decisions/).
 
-We've published five studies so far: agent harnesses and workbenches, knowledge
-and memory, evaluation, access control, and a walk through Drawloom's own code.
+We've published our studies of agent harnesses and workbenches, knowledge and
+memory, evaluation and access control.
 
 ## Thank you
 
