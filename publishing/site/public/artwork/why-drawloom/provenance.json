@@ -1,7 +1,7 @@
 [
   {
     "name": "drawloom",
-    "specification": "c90727ff97e4f925d00c2eff6cbd8908e91fb46fc3d08ccb8133742ee807ed42",
+    "specification": "5892aea61f99e618305cc151e3abb18936c5bc050719674dba0935b9cee927e9",
     "theme": "13a5bd597921245cc4760ea1e5781af3e662089199698b88ad91369ee383962a",
     "palette": {
       "paper": "#f8f8f6",
@@ -10,8 +10,8 @@
       "muted": "#344155",
       "rule": "#d4d4d4"
     },
-    "deliveredHtml": "23002791737e2d5387a00fba9379fd5bc8a8f732aa93e059bc9137442e6f12b1",
-    "svg": "5901d7fe21ed71fcf5334de352696792d5f345f5bbfc88d88a73ab03e7e513df"
+    "deliveredHtml": "970de5b141a6cc2eb165161c1e958a86eb2f4e88152ffc1fcba1fcc6f2ffa9e1",
+    "svg": "3780ca69b2e799bd2d01bf5a796d4d44614b5fabd941df183d66651f6d91a276"
   },
   {
     "name": "stack-2024",
@@ -24,7 +24,7 @@
       "muted": "#344155",
       "rule": "#d4d4d4"
     },
-    "deliveredHtml": "b00ab2e485afead6b3bf6adcc65da148e0c4ea7af9d72fc86c262bbc8645a493",
+    "deliveredHtml": "e77965b028119b7584f723d8e2253bb78186287d5681b6834f677021320808df",
     "svg": "bea1efaf8e0d9bfba1c2476874ff0ce498eb98fd0e165d52aa6613354d72224a"
   },
   {
@@ -38,7 +38,7 @@
       "muted": "#344155",
       "rule": "#d4d4d4"
     },
-    "deliveredHtml": "146b62ff1d4caeb9048b9f99e441cde0eb1e224c6cba8d3a035d5d5a5a6b0a16",
+    "deliveredHtml": "8ec0f3f0173a0f8a3d070f0f48996c498b69c379b65fa2f0b48badc5d4dbd3c6",
     "svg": "f51fa682396bc3da2da8bb8c5aff0d6c64417ef69969b9e82af8f669d03822d3"
   },
   {
@@ -52,7 +52,7 @@
       "muted": "#344155",
       "rule": "#d4d4d4"
     },
-    "deliveredHtml": "6f2ea236d2679db5c8e42a8017b458587ba589f692b1f668695298c3a5276eb7",
+    "deliveredHtml": "aaef1bf694a76a383bbfb2907ec853329158fe995d0c0ec7a4992d653e19089f",
     "svg": "e67690305a1fedbca4d1fb2bd0dd0c83381dd6b3346a96d2a84114f31084f948"
   }
 ]

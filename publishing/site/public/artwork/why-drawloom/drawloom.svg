@@ -135,7 +135,7 @@ svg .s-external { color: var(--external-stroke); }
         <rect width="100%" height="100%" fill="url(#grid)" />
 
         <!-- Boundaries (behind everything) -->
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="DRAWLOOM · logical capabilities, not separate services" x="292" y="12" width="736" height="484" rx="12" class="c-region" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="DRAWLOOM · 10 capabilities, not 10 separate services" x="292" y="12" width="736" height="484" rx="12" class="c-region" stroke-width="1"/>
 
         <!-- Connection paths (before components for correct z-order) -->
         <path data-edge-from="product" data-edge-to="orchestration" data-edge-key="0" data-composition-points="230,198;320,198" d="M 230 198 L 320 198" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
@@ -150,8 +150,8 @@ svg .s-external { color: var(--external-stroke); }
         <path data-edge-from="observability" data-edge-to="evaluation" data-edge-key="9" data-composition-points="750,438;820,438" d="M 750 438 L 820 438" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
 
         <!-- Components -->
-        <g id="node-product" data-node-id="product" data-node-label="Your workbench" data-node-kind="frontend" data-node-sublabel="Interface and business rules" data-node-context="Architecture component">
-          <title>Your workbench · Interface and business rules · Architecture component</title>
+        <g id="node-product" data-node-id="product" data-node-label="Your workbench" data-node-kind="frontend" data-node-sublabel="Your app and its rules" data-node-context="Architecture component">
+          <title>Your workbench · Your app and its rules · Architecture component</title>
           <rect x="40" y="160" width="190" height="76" rx="6" class="c-mask"/>
           <rect x="40" y="160" width="190" height="76" rx="6" class="c-frontend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(46 166) scale(0.6875)">
@@ -161,11 +161,11 @@ svg .s-external { color: var(--external-stroke); }
             <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="135" y="196" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Your workbench</text>
-        <text data-detail="context" x="135" y="212" class="t-muted" font-size="9" text-anchor="middle">Interface and business rules</text>
+        <text data-detail="context" x="135" y="212" class="t-muted" font-size="9" text-anchor="middle">Your app and its rules</text>
         </g>
 
-        <g id="node-orchestration" data-node-id="orchestration" data-node-label="Orchestration" data-node-kind="backend" data-node-sublabel="Coordinate the work" data-node-context="DRAWLOOM · logical capabilities, not separate services">
-          <title>Orchestration · Coordinate the work · DRAWLOOM · logical capabilities, not separate services</title>
+        <g id="node-orchestration" data-node-id="orchestration" data-node-label="Orchestration" data-node-kind="backend" data-node-sublabel="Coordinate the work" data-node-context="DRAWLOOM · 10 capabilities, not 10 separate services">
+          <title>Orchestration · Coordinate the work · DRAWLOOM · 10 capabilities, not 10 separate services</title>
           <rect x="320" y="160" width="180" height="76" rx="6" class="c-mask"/>
           <rect x="320" y="160" width="180" height="76" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(326 166) scale(0.6875)">
@@ -175,8 +175,8 @@ svg .s-external { color: var(--external-stroke); }
         <text data-detail="context" x="410" y="212" class="t-muted" font-size="9" text-anchor="middle">Coordinate the work</text>
         </g>
 
-        <g id="node-memory" data-node-id="memory" data-node-label="Memory" data-node-kind="database" data-node-sublabel="Retained experience" data-node-context="DRAWLOOM · logical capabilities, not separate services">
-          <title>Memory · Retained experience · DRAWLOOM · logical capabilities, not separate services</title>
+        <g id="node-memory" data-node-id="memory" data-node-label="Memory" data-node-kind="database" data-node-sublabel="Remember past work" data-node-context="DRAWLOOM · 10 capabilities, not 10 separate services">
+          <title>Memory · Remember past work · DRAWLOOM · 10 capabilities, not 10 separate services</title>
           <rect x="320" y="40" width="180" height="76" rx="6" class="c-mask"/>
           <rect x="320" y="40" width="180" height="76" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(326 46) scale(0.6875)">
@@ -184,11 +184,11 @@ svg .s-external { color: var(--external-stroke); }
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="410" y="76" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Memory</text>
-        <text data-detail="context" x="410" y="92" class="t-muted" font-size="9" text-anchor="middle">Retained experience</text>
+        <text data-detail="context" x="410" y="92" class="t-muted" font-size="9" text-anchor="middle">Remember past work</text>
         </g>
 
-        <g id="node-knowledge" data-node-id="knowledge" data-node-label="Knowledge" data-node-kind="database" data-node-sublabel="Sources and claims" data-node-context="DRAWLOOM · logical capabilities, not separate services">
-          <title>Knowledge · Sources and claims · DRAWLOOM · logical capabilities, not separate services</title>
+        <g id="node-knowledge" data-node-id="knowledge" data-node-label="Knowledge" data-node-kind="database" data-node-sublabel="Sources and what they show" data-node-context="DRAWLOOM · 10 capabilities, not 10 separate services">
+          <title>Knowledge · Sources and what they show · DRAWLOOM · 10 capabilities, not 10 separate services</title>
           <rect x="570" y="40" width="180" height="76" rx="6" class="c-mask"/>
           <rect x="570" y="40" width="180" height="76" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(576 46) scale(0.6875)">
@@ -196,44 +196,33 @@ svg .s-external { color: var(--external-stroke); }
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="660" y="76" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Knowledge</text>
-        <text data-detail="context" x="660" y="92" class="t-muted" font-size="9" text-anchor="middle">Sources and claims</text>
+        <text data-detail="context" x="660" y="92" class="t-muted" font-size="9" text-anchor="middle">Sources and what they show</text>
         </g>
 
-        <g id="node-context" data-node-id="context" data-node-label="Context compilation" data-node-kind="backend" data-node-sublabel="Prepare bounded input" data-node-context="DRAWLOOM · logical capabilities, not separate services">
-          <title>Context compilation · Prepare bounded input · DRAWLOOM · logical capabilities, not separate services</title>
+        <g id="node-context" data-node-id="context" data-node-label="Context" data-node-kind="backend" data-node-sublabel="What the agent needs" data-node-context="DRAWLOOM · 10 capabilities, not 10 separate services">
+          <title>Context · What the agent needs · DRAWLOOM · 10 capabilities, not 10 separate services</title>
           <rect x="570" y="160" width="180" height="76" rx="6" class="c-mask"/>
           <rect x="570" y="160" width="180" height="76" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(576 166) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="660" y="196" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Context compilation</text>
-        <text data-detail="context" x="660" y="212" class="t-muted" font-size="9" text-anchor="middle">Prepare bounded input</text>
+          <text data-node-label="" data-detail-anchor="" x="660" y="196" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Context</text>
+        <text data-detail="context" x="660" y="212" class="t-muted" font-size="9" text-anchor="middle">What the agent needs</text>
         </g>
 
-        <g id="node-agent" data-node-id="agent" data-node-label="Agent execution" data-node-kind="backend" data-node-sublabel="Interactive agent sessions" data-node-context="DRAWLOOM · logical capabilities, not separate services">
-          <title>Agent execution · Interactive agent sessions · DRAWLOOM · logical capabilities, not separate services</title>
+        <g id="node-agent" data-node-id="agent" data-node-label="Agent integration" data-node-kind="backend" data-node-sublabel="Connect to your agent" data-node-context="DRAWLOOM · 10 capabilities, not 10 separate services">
+          <title>Agent integration · Connect to your agent · DRAWLOOM · 10 capabilities, not 10 separate services</title>
           <rect x="820" y="160" width="180" height="76" rx="6" class="c-mask"/>
           <rect x="820" y="160" width="180" height="76" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(826 166) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="910" y="196" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Agent execution</text>
-        <text data-detail="context" x="910" y="212" class="t-muted" font-size="9" text-anchor="middle">Interactive agent sessions</text>
+          <text data-node-label="" data-detail-anchor="" x="910" y="196" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Agent integration</text>
+        <text data-detail="context" x="910" y="212" class="t-muted" font-size="9" text-anchor="middle">Connect to your agent</text>
         </g>
 
-        <g id="node-inference" data-node-id="inference" data-node-label="Model inference" data-node-kind="cloud" data-node-sublabel="Bounded model requests" data-node-context="DRAWLOOM · logical capabilities, not separate services">
-          <title>Model inference · Bounded model requests · DRAWLOOM · logical capabilities, not separate services</title>
-          <rect x="820" y="40" width="180" height="76" rx="6" class="c-mask"/>
-          <rect x="820" y="40" width="180" height="76" rx="6" class="c-cloud" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(826 46) scale(0.6875)">
-            <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="910" y="76" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Model inference</text>
-        <text data-detail="context" x="910" y="92" class="t-muted" font-size="9" text-anchor="middle">Bounded model requests</text>
-        </g>
-
-        <g id="node-policy" data-node-id="policy" data-node-label="Policy and approval" data-node-kind="security" data-node-sublabel="Decide what is allowed" data-node-context="DRAWLOOM · logical capabilities, not separate services">
-          <title>Policy and approval · Decide what is allowed · DRAWLOOM · logical capabilities, not separate services</title>
+        <g id="node-policy" data-node-id="policy" data-node-label="Policy and approval" data-node-kind="security" data-node-sublabel="Decide what is allowed" data-node-context="DRAWLOOM · 10 capabilities, not 10 separate services">
+          <title>Policy and approval · Decide what is allowed · DRAWLOOM · 10 capabilities, not 10 separate services</title>
           <rect x="820" y="280" width="180" height="76" rx="6" class="c-mask"/>
           <rect x="820" y="280" width="180" height="76" rx="6" class="c-security" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(826 286) scale(0.6875)">
@@ -244,19 +233,19 @@ svg .s-external { color: var(--external-stroke); }
         <text data-detail="context" x="910" y="332" class="t-muted" font-size="9" text-anchor="middle">Decide what is allowed</text>
         </g>
 
-        <g id="node-tools" data-node-id="tools" data-node-label="Tools" data-node-kind="backend" data-node-sublabel="Validate and invoke" data-node-context="DRAWLOOM · logical capabilities, not separate services">
-          <title>Tools · Validate and invoke · DRAWLOOM · logical capabilities, not separate services</title>
+        <g id="node-tools" data-node-id="tools" data-node-label="Tools" data-node-kind="backend" data-node-sublabel="Run the requested tools" data-node-context="DRAWLOOM · 10 capabilities, not 10 separate services">
+          <title>Tools · Run the requested tools · DRAWLOOM · 10 capabilities, not 10 separate services</title>
           <rect x="570" y="280" width="180" height="76" rx="6" class="c-mask"/>
           <rect x="570" y="280" width="180" height="76" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(576 286) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="660" y="316" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Tools</text>
-        <text data-detail="context" x="660" y="332" class="t-muted" font-size="9" text-anchor="middle">Validate and invoke</text>
+        <text data-detail="context" x="660" y="332" class="t-muted" font-size="9" text-anchor="middle">Run the requested tools</text>
         </g>
 
-        <g id="node-sandbox" data-node-id="sandbox" data-node-label="Sandbox" data-node-kind="security" data-node-sublabel="Enforce execution limits" data-node-context="DRAWLOOM · logical capabilities, not separate services">
-          <title>Sandbox · Enforce execution limits · DRAWLOOM · logical capabilities, not separate services</title>
+        <g id="node-sandbox" data-node-id="sandbox" data-node-label="Sandbox" data-node-kind="security" data-node-sublabel="Limit where it can act" data-node-context="DRAWLOOM · 10 capabilities, not 10 separate services">
+          <title>Sandbox · Limit where it can act · DRAWLOOM · 10 capabilities, not 10 separate services</title>
           <rect x="320" y="280" width="180" height="76" rx="6" class="c-mask"/>
           <rect x="320" y="280" width="180" height="76" rx="6" class="c-security" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(326 286) scale(0.6875)">
@@ -264,11 +253,11 @@ svg .s-external { color: var(--external-stroke); }
             <path d="m5.8 8 1.5 1.5 3-3"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="410" y="316" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Sandbox</text>
-        <text data-detail="context" x="410" y="332" class="t-muted" font-size="9" text-anchor="middle">Enforce execution limits</text>
+        <text data-detail="context" x="410" y="332" class="t-muted" font-size="9" text-anchor="middle">Limit where it can act</text>
         </g>
 
-        <g id="node-observability" data-node-id="observability" data-node-label="Observability" data-node-kind="messagebus" data-node-sublabel="Record execution evidence" data-node-context="DRAWLOOM · logical capabilities, not separate services">
-          <title>Observability · Record execution evidence · DRAWLOOM · logical capabilities, not separate services</title>
+        <g id="node-observability" data-node-id="observability" data-node-label="Observability" data-node-kind="messagebus" data-node-sublabel="Record what happened" data-node-context="DRAWLOOM · 10 capabilities, not 10 separate services">
+          <title>Observability · Record what happened · DRAWLOOM · 10 capabilities, not 10 separate services</title>
           <rect x="570" y="400" width="180" height="76" rx="6" class="c-mask"/>
           <rect x="570" y="400" width="180" height="76" rx="6" class="c-messagebus" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(576 406) scale(0.6875)">
@@ -278,18 +267,18 @@ svg .s-external { color: var(--external-stroke); }
             <circle cx="7" cy="11.5" r="1" class="sigil-fill"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="660" y="436" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Observability</text>
-        <text data-detail="context" x="660" y="452" class="t-muted" font-size="9" text-anchor="middle">Record execution evidence</text>
+        <text data-detail="context" x="660" y="452" class="t-muted" font-size="9" text-anchor="middle">Record what happened</text>
         </g>
 
-        <g id="node-evaluation" data-node-id="evaluation" data-node-label="Evaluation" data-node-kind="backend" data-node-sublabel="Assess the results" data-node-context="DRAWLOOM · logical capabilities, not separate services">
-          <title>Evaluation · Assess the results · DRAWLOOM · logical capabilities, not separate services</title>
+        <g id="node-evaluation" data-node-id="evaluation" data-node-label="Evaluation" data-node-kind="backend" data-node-sublabel="Check the results" data-node-context="DRAWLOOM · 10 capabilities, not 10 separate services">
+          <title>Evaluation · Check the results · DRAWLOOM · 10 capabilities, not 10 separate services</title>
           <rect x="820" y="400" width="180" height="76" rx="6" class="c-mask"/>
           <rect x="820" y="400" width="180" height="76" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(826 406) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="910" y="436" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Evaluation</text>
-        <text data-detail="context" x="910" y="452" class="t-muted" font-size="9" text-anchor="middle">Assess the results</text>
+        <text data-detail="context" x="910" y="452" class="t-muted" font-size="9" text-anchor="middle">Check the results</text>
         </g>
 
         <!-- Connection labels -->
@@ -308,9 +297,9 @@ svg .s-external { color: var(--external-stroke); }
 
 
         <!-- Boundary labels (foreground masks keep routes out of titles) -->
-        <g data-graph-role="structural-frame-label" data-composition-frame-id="0" data-composition-frame-kind="region" data-composition-frame-label="DRAWLOOM · logical capabilities, not separate services">
-          <rect data-graph-role="structural-frame-label-mask" x="296" y="20" width="301.59999999999997" height="16" rx="3" class="c-mask"/>
-          <text data-boundary-label="" x="300" y="33" class="t-cloud" font-size="9" font-weight="600">DRAWLOOM · logical capabilities, not separate services</text>
+        <g data-graph-role="structural-frame-label" data-composition-frame-id="0" data-composition-frame-kind="region" data-composition-frame-label="DRAWLOOM · 10 capabilities, not 10 separate services">
+          <rect data-graph-role="structural-frame-label-mask" x="296" y="20" width="290.8" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="300" y="33" class="t-cloud" font-size="9" font-weight="600">DRAWLOOM · 10 capabilities, not 10 separate services</text>
         </g>
 
         <!-- Legend -->

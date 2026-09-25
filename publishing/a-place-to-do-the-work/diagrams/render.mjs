@@ -21,8 +21,12 @@ try {
   });
   const templatePath = join(toolCopy, 'assets/template.html');
   const template = readFileSync(templatePath, 'utf8');
-  if (!template.includes('</style>')) throw new Error('Archify template has no stylesheet');
-  writeFileSync(templatePath, template.replace('</style>', `${theme}\n</style>`));
+  // Inject into the main stylesheet. Newer Archify templates put a separate
+  // <style id="archify-fonts"> block first, so "the first </style>" is not it.
+  const main = template.indexOf('<style>');
+  const close = main < 0 ? -1 : template.indexOf('</style>', main);
+  if (close < 0) throw new Error('Archify template has no main stylesheet');
+  writeFileSync(templatePath, `${template.slice(0, close)}${theme}\n${template.slice(close)}`);
   const receipts = [];
   for (const name of ['drawloom', 'stack-2024', 'stack-2025', 'stack-2026']) {
     const source = join(here, `${name}.architecture.json`);

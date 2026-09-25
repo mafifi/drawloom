@@ -32,8 +32,9 @@ The visual system belongs in [DESIGN.md](DESIGN.md).
 - **Drawloom** provides reusable capabilities for building those systems.
   It is not synonymous with a particular workbench or model provider.
 - Keep provider conversation history distinct from Drawloom memory, and model
-  inference distinct from an interactive agent session. Use the exact capability
-  names from ADR 0005 in technical figures, with a short plain-language explanation.
+  inference distinct from an interactive agent session. Use the 10 capability
+  names from the README and ARCHITECTURE.md in technical figures, each with a
+  short plain-language explanation.
 
 ## Evidence and visuals
 

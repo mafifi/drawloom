@@ -204,9 +204,9 @@ the result. Codex and Claude Code had already taught me the value of that in
 development.
 
 Google's [The New SDLC With Vibe Coding](https://www.kaggle.com/whitepaper-the-new-SDLC-with-vibe-coding)
-puts a name to the surrounding machinery: the harness. It describes instructions,
-tools, execution environments, orchestration, guardrails and ways to observe
-the work. The model is only one part of the system.
+has a name for everything around the model: the harness. That means the
+agent's instructions, its tools, where it runs, how the work is coordinated,
+its safety limits and ways to watch what it does. The model is only one part.
 
 I was also exploring [Open Design](https://github.com/nexu-io/open-design)
 and [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
@@ -276,46 +276,45 @@ controls, give her time back?
 
 We do not need to build every part from scratch.
 
-[Codex App Server](https://developers.openai.com/codex/app-server) exposes Codex
-to product clients, including conversation history, approvals and live events.
-[Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview) provides
-the agent loop, tools and context management behind Claude Code as a programming
-library. These are distinct integration offerings, not interchangeable APIs.
+[Codex App Server](https://developers.openai.com/codex/app-server) lets other
+apps work with Codex: its conversations, approvals and live updates.
+[Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview) offers
+the engine behind Claude Code as a library that developers can build on. The
+two work differently, and one cannot simply replace the other.
 
-They give us something substantial to build on. They do not supply the business
-workbench, or decide how its knowledge, tools and controls should fit together.
+Both are a solid place to start. Neither provides the workbench itself, or
+decides how a business's knowledge, tools and controls should fit together.
 
-That is why I am building Drawloom: reusable infrastructure for those
-workbenches. Each product keeps its own interface, business rules and way of
-working. Drawloom provides shared capabilities for context, execution, tools
-and controls, so each product does not have to build them again.
+That is why I am building Drawloom: the shared parts every workbench needs,
+so each one does not have to build them again. Each workbench keeps its own
+screens, business rules and way of working.
 
-The boundaries matter. A provider can manage its agent's conversation without
-owning the business's memory. Asking for a tool is not permission to use it.
-Granting permission is not the same as enforcing limits on the machine where
-it runs. Drawloom keeps those responsibilities separate and replaceable.
+Some lines matter a great deal. The AI provider can keep its own record of the
+conversation, but the business's memory stays with the business. An agent
+asking to use a tool does not mean it may. And saying yes is still different
+from limiting what that tool can do on your computer. Drawloom keeps each of
+these jobs separate, so any one of them can be swapped out.
 
 <figure class="architecture-figure architecture-wide" id="drawloom-capabilities" aria-describedby="drawloom-map-caption">
-<p class="diagram-kicker">Drawloom · Shared foundations, distinct responsibilities</p>
-<a href="/artwork/why-drawloom/drawloom.svg" aria-label="Enlarge the Drawloom capability diagram"><img src="/artwork/why-drawloom/drawloom.svg" width="2136" height="1128" loading="lazy" alt="Your workbench sits outside Drawloom. Orchestration coordinates work; memory and knowledge inform compiled context for agent execution. A tool request passes through policy and approval, tools, and sandbox constraints. Observability informs evaluation. Model inference is a separate capability." /></a>
-<figcaption id="drawloom-map-caption">Eleven logical capabilities, not eleven services or a finished runtime. Arrows show selected relationships, not every call. <a href="/artwork/why-drawloom/drawloom.svg">Enlarge diagram ↗</a></figcaption>
+<p class="diagram-kicker">Drawloom · Ten shared capabilities</p>
+<a href="/artwork/why-drawloom/drawloom.svg" aria-label="Enlarge the Drawloom capability diagram"><img src="/artwork/why-drawloom/drawloom.svg" width="2136" height="1128" loading="lazy" alt="Your workbench sits outside Drawloom. Orchestration coordinates the work. Memory, knowledge and orchestration feed the context the agent needs, which goes to the agent integration. When the agent asks to use a tool, policy and approval decide, tools run it and the sandbox limits it. Observability records what happened, and evaluation checks the results." /></a>
+<figcaption id="drawloom-map-caption">Ten capabilities, not ten separate services. Arrows show the main relationships, not every connection. <a href="/artwork/why-drawloom/drawloom.svg">Enlarge diagram ↗</a></figcaption>
 <details class="diagram-description">
 <summary>Read the diagram</summary>
-<p>The workbench owns the interface and business rules. The application chooses independently replaceable implementations of Drawloom's capabilities.</p>
+<p>The workbench owns its screens and business rules. It chooses which implementation of each Drawloom capability to use, and can replace any of them.</p>
 <ul>
-<li data-capability="orchestration">Orchestration coordinates runs, steps and child work.</li>
-<li data-capability="memory">Memory retains experience for future retrieval.</li>
-<li data-capability="knowledge">Knowledge holds sources and claims with provenance.</li>
-<li data-capability="context-compilation">Context compilation prepares input from memory, knowledge, instructions, policy and the task.</li>
-<li data-capability="agent-execution">Agent execution provides interactive sessions; the provider keeps its inner agent loop and transcript, distinct from Drawloom memory.</li>
-<li data-capability="model-inference">Model inference handles bounded model requests. It does not represent an agent loop.</li>
+<li data-capability="orchestration">Orchestration organises the work into tasks and steps, and picks up again after an interruption.</li>
+<li data-capability="memory">Memory records past work so it can help with future work.</li>
+<li data-capability="knowledge">Knowledge keeps sources and what they show, with where each claim came from.</li>
+<li data-capability="context">Context gathers the instructions and information the agent needs for the task.</li>
+<li data-capability="agent-integration">Agent integration connects to your agent. The provider keeps its own conversation history, separate from Drawloom's memory.</li>
 <li data-capability="policy-and-approval">Policy and approval decide whether an action is allowed.</li>
-<li data-capability="tools">Tools validate and perform the allowed invocation.</li>
-<li data-capability="sandbox">Sandbox enforces filesystem, process, network and resource limits.</li>
-<li data-capability="observability">Observability records execution evidence from all capabilities, not only tools.</li>
-<li data-capability="evaluation">Evaluation assesses executions and artifacts against declared criteria.</li>
+<li data-capability="tools">Tools run the actions that have been allowed.</li>
+<li data-capability="sandbox">Sandbox limits where the agent can act and what it can reach.</li>
+<li data-capability="observability">Observability records what happened, across every capability.</li>
+<li data-capability="evaluation">Evaluation checks results against agreed criteria.</li>
 </ul>
-<p>Return paths and many cross-capability relationships are omitted. Sources: <a href="https://github.com/mafifi/drawloom/blob/main/docs/adr/0005-partition-agent-platform-capabilities.md">ADR 0005</a>, <a href="https://github.com/mafifi/drawloom/blob/main/docs/adr/0007-provider-neutral-agent-execution.md">ADR 0007</a> and <a href="https://github.com/mafifi/drawloom/blob/main/docs/adr/0008-tool-execution-and-exposure.md">ADR 0008</a>.</p>
+<p>Many connections are left out to keep the picture readable. The capabilities are described in <a href="https://github.com/mafifi/drawloom/blob/main/ARCHITECTURE.md#core-capabilities">ARCHITECTURE.md</a>. The original map in <a href="https://github.com/mafifi/drawloom/blob/main/docs/adr/0005-partition-agent-platform-capabilities.md">ADR 0005</a> listed eleven; calls to the model now belong to agent integration. See also <a href="https://github.com/mafifi/drawloom/blob/main/docs/adr/0007-provider-neutral-agent-execution.md">ADR 0007</a> and <a href="https://github.com/mafifi/drawloom/blob/main/docs/adr/0008-tool-execution-and-exposure.md">ADR 0008</a>.</p>
 </details>
 </figure>
 
