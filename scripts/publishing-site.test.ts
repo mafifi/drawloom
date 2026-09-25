@@ -159,13 +159,22 @@ test("the product landing page uses static Svelte composition and selected Synap
 
 test("production excludes draft routes and media; explicit preview renders accessible static articles", async () => {
   const temporary = mkdtempSync(join(tmpdir(), "drawloom-journal-test-"));
+  const draftPiece = join("publishing", "draft-fixture");
   try {
     const media = join(temporary, "rendered");
-    mkdirSync(join(media, "workbench-example"), { recursive: true });
+    // A temporary draft piece exercises the draft path: preview only, noindex,
+    // its media copied, its transcript shown. It is removed in finally.
+    mkdirSync(draftPiece, { recursive: true });
+    writeFileSync(
+      join(draftPiece, "article.md"),
+      "---\ntitle: Draft fixture\ndescription: A test draft.\nmedia:\n  video: clip.mp4\n  poster: clip.png\n---\n\nA draft paragraph.\n",
+    );
+    writeFileSync(join(draftPiece, "transcript.md"), "## Transcript\n\nA short transcript.\n");
+    mkdirSync(join(media, "draft-fixture"), { recursive: true });
     // These are copy-boundary fixtures. Actual playback is verified separately
-    // against journal:render output, without a Chromium render in every test run.
-    writeFileSync(join(media, "workbench-example/workbench.mp4"), "test-video");
-    writeFileSync(join(media, "workbench-example/workbench.png"), "test-poster");
+    // against journal:render:article output, without a Chromium render in every test run.
+    writeFileSync(join(media, "draft-fixture/clip.mp4"), "test-video");
+    writeFileSync(join(media, "draft-fixture/clip.png"), "test-poster");
     mkdirSync(join(media, "a-place-to-do-the-work"), { recursive: true });
     writeFileSync(join(media, "a-place-to-do-the-work/episode-steps.mp4"), "test-video");
     writeFileSync(join(media, "a-place-to-do-the-work/episode-steps.png"), "test-poster");
@@ -280,8 +289,8 @@ test("production excludes draft routes and media; explicit preview renders acces
         expect(home).toContain(">What we care about</text>");
         expect(home).toContain("/articles/a-place-to-do-the-work/");
         expect(home).not.toContain("<astro-island");
-        expect(home).not.toContain("workbench-example");
-        expect(files.some((file) => file.includes("workbench-example"))).toBe(false);
+        expect(home).not.toContain("draft-fixture");
+        expect(files.some((file) => file.includes("draft-fixture"))).toBe(false);
         expect(home).toContain("a-place-to-do-the-work");
         const published = readFileSync(
           join(output, "articles/a-place-to-do-the-work/index.html"),
@@ -295,7 +304,7 @@ test("production excludes draft routes and media; explicit preview renders acces
         expect(files).toContain("journal/index.html");
         const journal = readFileSync(join(output, "journal/index.html"), "utf8");
         expect(journal).toContain("/articles/a-place-to-do-the-work/");
-        expect(journal).not.toContain("workbench-example");
+        expect(journal).not.toContain("draft-fixture");
         expect(files).toContain("media/a-place-to-do-the-work/episode-steps.mp4");
         expect(files).toContain("media/a-place-to-do-the-work/03-programme-raw.png");
         expect(
@@ -303,12 +312,12 @@ test("production excludes draft routes and media; explicit preview renders acces
         ).toBe(false);
       } else {
         expect(home).toContain("noindex, nofollow");
-        const article = readFileSync(join(output, "articles/workbench-example/index.html"), "utf8");
+        const article = readFileSync(join(output, "articles/draft-fixture/index.html"), "utf8");
         expect(article).toContain("Read transcript");
         expect(article).toContain("noindex");
-        expect(article).toContain("/media/workbench-example/workbench.mp4");
+        expect(article).toContain("/media/draft-fixture/clip.mp4");
         expect(article).not.toMatch(/\bautoplay\b|<script[^>]+react/i);
-        expect(files).toContain("media/workbench-example/workbench.mp4");
+        expect(files).toContain("media/draft-fixture/clip.mp4");
         const draft = readFileSync(
           join(output, "articles/a-place-to-do-the-work/index.html"),
           "utf8",
@@ -345,5 +354,6 @@ test("production excludes draft routes and media; explicit preview renders acces
     }
   } finally {
     rmSync(temporary, { recursive: true, force: true });
+    rmSync(draftPiece, { recursive: true, force: true });
   }
 }, 120_000);

@@ -28,3 +28,6 @@ docs/reference/authorization-survey/*.html
 docs/reference/harness-workbench-survey/*.html
 docs/reference/knowledge-memory-survey/*.html
 .deploy/
+
+# Local preview configuration for the Claude desktop app.
+.claude/launch.json

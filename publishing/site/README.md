@@ -40,13 +40,12 @@ From the repository root:
 ```sh
 pnpm install --frozen-lockfile
 pnpm run journal:check
-pnpm run journal:render
+pnpm run journal:render:article
 pnpm run journal:preview
 ```
 
-The local preview includes drafts at `http://127.0.0.1:4321/`. Its example
-is synthetic, visibly labelled and marked `noindex`. Reading requires no client
-JavaScript. The current animation is silent; its visible transcript provides the
+The local preview includes drafts at `http://127.0.0.1:4321/`, labelled and
+marked `noindex`. Reading requires no client JavaScript. The current animation is silent; its visible transcript provides the
 complete explanation. Spoken material must add captions before publication.
 
 `pnpm run journal:build` produces production HTML in ignored `dist/`, excluding
@@ -54,9 +53,9 @@ draft pages and links even if `JOURNAL_DRAFTS` is inherited in the environment.
 `journal:preview` explicitly enables draft output. Both builds copy only media
 referenced by emitted HTML from ignored `publishing/.generated/media/<slug>/`.
 The MP4/poster pair in metadata uses filenames relative to that directory; a
-media-bearing piece must also have a transcript. The current `journal:render`
-command renders the existing Workbench composition; add an explicit composition
-and command when another piece needs a render.
+media-bearing piece must also have a transcript. `journal:render:article`
+renders the Why Drawloom? animation; add an explicit composition and command
+when another piece needs a render.
 
 Place a standalone `<!-- animation -->` between complete Markdown blocks to
 render the metadata's video at that point in the story. At most one marker is

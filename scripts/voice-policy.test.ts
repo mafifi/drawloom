@@ -115,7 +115,7 @@ test("long sentences fail on the website", () => {
 
 test("unpublished drafts warn instead of failing", () => {
   const draft = "---\ndraft: true\n---\nIt was not just a draft.";
-  expect(scanText("publishing/workbench-example/article.md", draft)[0]?.severity).toBe("warning");
+  expect(scanText("publishing/draft-fixture/article.md", draft)[0]?.severity).toBe("warning");
 });
 
 test("transcripts and image descriptions are published prose", () => {
@@ -133,7 +133,7 @@ test("transcripts and image descriptions are published prose", () => {
 });
 
 test("a transcript follows its article's draft status", () => {
-  const transcript = "publishing/workbench-example/transcript.md";
+  const transcript = "publishing/draft-fixture/transcript.md";
   expect(scanText(transcript, "It is not just a draft.", { draft: true })[0]?.severity).toBe(
     "warning",
   );

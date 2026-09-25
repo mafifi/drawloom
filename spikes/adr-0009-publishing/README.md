@@ -38,7 +38,9 @@ and the generated site in ignored `dist/`. No generated binary is committed.
 
 ## Boundaries and checks
 
-The spike imports article/animation sources from `publishing/workbench-example/`.
+The spike's illustrative article, transcript and animation live in `example/`.
+They moved here from `publishing/workbench-example/` when the journal stopped
+publishing the illustration.
 Nothing outside `spikes/` may import this code. Strict source checking and the
 scoped visual-design lint join `check:ci`; actual rendering/build-output checks
 run explicitly (and ran in the original proof deployment). Browser validation is separate

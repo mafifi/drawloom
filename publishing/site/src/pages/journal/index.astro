@@ -8,7 +8,7 @@ const articles = (await getCollection('articles', ({data}) => preview || !data.d
 const [featured, ...remaining] = articles;
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const steps = await exploreEntries();
-const notice = (id: string) => (id === 'workbench-example' ? 'Illustrative example · local preview' : 'Draft · local preview');
+const notice = (_id: string) => 'Draft · local preview';
 ---
 <Journal title="Journal" description="Notes on making AI useful: what worked, what didn't, and why Drawloom exists." section="journal" draft={preview}>
   <section class="home-intro">

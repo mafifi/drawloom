@@ -4,5 +4,5 @@
     "jsx": "react-jsx",
     "types": ["node", "react", "react-dom"]
   },
-  "include": ["*.tsx", "*.mts", "*.d.ts", "../../publishing/**/*.tsx"]
+  "include": ["*.tsx", "*.mts", "*.d.ts", "example/*.tsx", "../../publishing/**/*.tsx"]
 }
