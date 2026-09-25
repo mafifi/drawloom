@@ -27,7 +27,7 @@ if ((parts?.length ?? 0) > 2 || (inlineAnimation && !entry.data.media)) {
     <header class="article-heading prose">
       <h1>{entry.data.title}</h1>
       <p class="deck">{entry.data.description}</p>
-      <p class="metadata">Essay{entry.data.published && <> · <time datetime={entry.data.published}>{new Date(`${entry.data.published}T12:00:00Z`).toLocaleDateString('en-GB', {day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'})}</time></>}{entry.data.draft && <span class="notice"> · {entry.id === 'workbench-example' ? 'Illustrative example · local preview, not a customer case study.' : 'Draft · local preview'}</span>}</p>
+      <p class="metadata">Essay{entry.data.published && <> · <time datetime={entry.data.published}>{new Date(`${entry.data.published}T12:00:00Z`).toLocaleDateString('en-GB', {day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'})}</time></>}{entry.data.draft && <span class="notice"> · {entry.id === 'workbench-example' ? 'Illustrative example · local preview' : 'Draft · local preview'}</span>}</p>
     </header>
     <div class="prose article-body">
     {inlineAnimation ? <Fragment set:html={parts![0]} /> : <Content />}

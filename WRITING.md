@@ -60,14 +60,18 @@ the website and journal, and warns on developer documents.
   honest about its limits". Just say the thing.
 - **Commentary about the writing itself.** "This page marks where the edge is",
   "a guard in the other direction", "that is the point of this section".
-- **"Not X, but Y" by reflex.** "It is not a chat tool, but a workbench." Say
-  what it is: "It's a workbench."
+- **"Not X, but Y" by reflex.** "It is not a chat tool, but a workbench", "at
+  her best as a doctor, not a salesperson", "not just the stack". Say what it
+  is: "It's a workbench."
 - **Stacked caveats.** "It does not prove…", "this is not a claim that…", "tests
   read are not tests run".
+- **Hedges and test status.** "Deliberately", "genuinely", "my estimate, not a
+  measured comparison", "not yet tested". State an estimate once, simply.
 - **Inflated words.** Delve, leverage, seamless, robust, unlock, empower,
   cutting-edge, testament, tapestry, ever-evolving, crucially, furthermore.
-- **Internal labels on the website.** Record numbers, statuses and internal code
-  names.
+- **On the website: record talk, em dashes, semicolons and long sentences.**
+  No record numbers, code names, "claims" or "evidence records". Use full stops
+  and commas, and keep sentences under 30 words.
 - **Clever phrasing.** "Providers are allowed to differ honestly." If it needs a
   second read, rewrite it.
 
@@ -79,7 +83,7 @@ Words inside the app, such as button labels and messages, follow the rules in
 | Before | After |
 | --- | --- |
 | Every project has an edge where what we know runs out. This page marks where that edge is for Drawloom today. | Drawloom is just getting started. These are the questions shaping what comes next. |
-| Providers are allowed to differ honestly; Drawloom does not pretend they all behave the same. | Codex is the first agent Drawloom works with, not the only one it's built for. |
+| Providers are allowed to differ honestly; Drawloom does not pretend they all behave the same. | Codex is the first agent Drawloom works with. More can follow. |
 | Our release record is honest about its limits. Some steps have not yet been run there from a normal desktop session. | This is our first preview, and we'd love to hear what you think. |
 | A contract-first harness for controlled, portable and inspectable agent work. | A free, open-source toolkit for building AI workbenches: apps where you and an AI agent work on something together. |
 | That is my estimate, not a measured comparison with a finished alternative. | I think a workbench could have done the job in 10,000. |

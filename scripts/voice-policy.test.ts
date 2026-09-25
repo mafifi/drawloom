@@ -29,10 +29,13 @@ test("code, links and front matter are not prose", () => {
   expect(rules(page, "```\nhonestly robust\n```\nPlain words.")).toEqual([]);
 });
 
-test("reader-facing pages fail; everything else only warns", () => {
+test("the website and journal fail; developer documents warn", () => {
   const line = "Honestly, it's robust.";
-  expect(scanText("README.md", line).every(({ severity }) => severity === "error")).toBe(true);
-  expect(scanText("publishing/a-place-to-do-the-work/article.md", line)[0]?.severity).toBe("error");
+  const published = `---\ndraft: false\n---\n${line}`;
+  expect(scanText("publishing/a-place-to-do-the-work/article.md", published)[0]?.severity).toBe(
+    "error",
+  );
+  expect(scanText("README.md", line)[0]?.severity).toBe("warning");
   expect(scanText("apps/desktop/README.md", line)[0]?.severity).toBe("warning");
 });
 
@@ -77,4 +80,40 @@ test("publishing and developer documents are checked; agent documents are not", 
     "DESIGN.md",
   ])
     expect(isChecked(path), path).toBe(false);
+});
+
+// Real sentences from drafts we rewrote. If the check stops catching these, it
+// has gone blind again, however clean the site looks.
+test("catches the habits in drafts we actually rewrote", () => {
+  const essay = "publishing/a-place-to-do-the-work/article.md";
+  const published = (text: string) => `---\ndraft: false\n---\n${text}`;
+  for (const [sentence, rule] of [
+    [
+      "She is at her best as a medical professional, not a salesperson, clinic manager or financial controller.",
+      "contrast",
+    ],
+    ["That is my estimate, not a measured comparison with a finished alternative.", "untested"],
+    [
+      "The improvement was the stack and the harness around development—not the stack alone.",
+      "contrast",
+    ],
+    ["It was not just Souphi's software.", "contrast"],
+    ["It is not an alternative I have already tested.", "untested"],
+    ["Providers are allowed to differ honestly; Drawloom does not pretend otherwise.", "honesty"],
+    ["We deliberately built extra implementations to prove each interface.", "hedge"],
+    ["The decision record states the trade-off openly.", "record-talk"],
+  ] as const)
+    expect(rules(essay, published(sentence)), sentence).toContain(rule);
+});
+
+test("long sentences fail on the website", () => {
+  const page = "publishing/explore/research/page.md";
+  const long = `${Array.from({ length: 35 }, () => "word").join(" ")}.`;
+  expect(rules(page, `---\ndraft: false\n---\n${long}`)).toContain("long-sentence");
+  expect(rules(page, "---\ndraft: false\n---\nA short, clear sentence.")).toEqual([]);
+});
+
+test("unpublished drafts warn instead of failing", () => {
+  const draft = "---\ndraft: true\n---\nIt was not just a draft.";
+  expect(scanText("publishing/workbench-example/article.md", draft)[0]?.severity).toBe("warning");
 });

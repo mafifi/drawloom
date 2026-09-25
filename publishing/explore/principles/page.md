@@ -14,14 +14,14 @@ from which libraries we use to how the app asks for your approval.
 1. **Safety.** Drawloom is safe and secure by default. It protects your work,
    your data and your control over what the agent does.
 2. **Familiarity.** Drawloom should feel like the AI tools you already use. It
-   works with their existing permissions and review controls, not around them.
+   works with the permissions and review controls you already have.
 3. **Vendor agnostic.** You shouldn't be locked in to one AI provider. Codex is
    supported today, and Drawloom is designed to work with others.
 4. **Open standards.** We use established formats and protocols before inventing
    our own, such as MCP for tools and MCP Apps for plugin screens.
 5. **Freedom of distribution and use.** Everything Drawloom ships uses
    permissively licensed software, so you're free to use and share it. We check
-   every dependency, not just the ones we add directly.
+   every dependency, including the ones inside other dependencies.
 6. **Local first.** You can start on your own computer, without paying for
    hosted services. We tell you about costs and downloads before you commit.
 7. **Don't over-engineer.** Complexity costs time, money and ease of use. If we

@@ -13,8 +13,8 @@ we look at how others solved them.
 
 1. **Find the best examples.** We look for open-source projects that solve the
    same problem, ideally in different ways.
-2. **Read the code.** We study how they actually work, not just what their
-   documentation says.
+2. **Read the code.** We study how they actually work, down to the
+   code.
 3. **Run a small experiment.** We try the idea in a separate prototype, called a
    spike, before it goes anywhere near Drawloom.
 4. **Decide.** We choose what fits Drawloom best. See [Decisions](/decisions/).
@@ -56,7 +56,7 @@ Drawloom is built on work that other people chose to share. Thank you.
 - [LongMemEval](https://github.com/xiaowu0162/LongMemEval): testing long-term memory.
 - [Sleep-time Compute](https://github.com/letta-ai/sleep-time-compute): preparing context while the agent is idle.
 - [MINJA](https://github.com/dsh3n77/MINJA): how shared memory can be attacked.
-- [SEPIO](https://github.com/sepio-framework/sepio-linkml) and [W3C PROV-O](https://www.w3.org/TR/prov-o/): recording where a claim came from.
+- [SEPIO](https://github.com/sepio-framework/sepio-linkml) and [W3C PROV-O](https://www.w3.org/TR/prov-o/): recording where a fact came from.
 
 **Evaluation**
 

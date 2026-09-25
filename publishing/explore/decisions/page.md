@@ -11,8 +11,7 @@ Every decision in Drawloom comes back to a few goals.
 ## Built for real work
 
 AI is at its best when you work on something together. Drawloom is for building
-workbenches: places where you and an AI agent shape the result side by side,
-not just trade prompts and answers.
+workbenches: places where you and an AI agent shape the result side by side.
 
 ## You stay in control
 
@@ -35,8 +34,8 @@ We want businesses to adopt Drawloom with confidence, and to make it their own.
   or knowledge store.
 - **Your rules.** Drawloom enforces who can see what. Your organisation decides
   the rules.
-- **No lock-in.** Codex is the first agent Drawloom works with, not the only
-  one it's built for.
+- **No lock-in.** Codex is the first agent Drawloom works with. More can
+  follow.
 - **Your data stays yours.** Your knowledge and history live on your own
   computer. Monitoring never records your conversations.
 
@@ -66,7 +65,7 @@ Drawloom was designed from day one as a foundation for your own work.
 - **We studied first.** Before designing each interface, we studied how leading
   open-source projects solve the same problem.
 - **We built for more than one way.** Each interface works with different
-  technologies behind it, so it fits your choices, not just ours.
+  technologies behind it, so it fits the choices you've already made.
 - **The same standard for every part.** Every implementation, ours or yours,
   passes the same tests.
 - **Work that survives the unexpected.** Long-running work picks up where it

@@ -12,6 +12,8 @@ export interface VoiceRule {
   advice: string;
   /** Only applies to website and marketing pages. */
   marketingOnly?: boolean;
+  /** Only applies to the website and journal. */
+  publishingOnly?: boolean;
 }
 
 export const voiceRules: readonly VoiceRule[] = [
@@ -45,10 +47,45 @@ export const voiceRules: readonly VoiceRule[] = [
     advice: "Use an everyday word instead.",
   },
   {
+    id: "contrast",
+    pattern: /(?:[,;]\s+|—\s*)not\s+(?!(?:yet|only|least)\b)|\bnot (?:just|merely|simply)\b/i,
+    advice: 'Say what it is. A trailing ", not X" or "not just X" reads as machine-made.',
+  },
+  {
+    id: "hedge",
+    pattern:
+      /\b(genuinely|deliberately|candid(?:ly)?|arguably|essentially|fundamentally|a little terminology|in the same spirit)\b/i,
+    advice: "Cut the hedge and say it directly.",
+  },
+  {
+    id: "untested",
+    pattern:
+      /\b(untested|not yet (?:been )?(?:tested|run|checked|proven|measured|tried)|not (?:a )?(?:measured|tested) \w+|not\b[^.!?]{0,40}\b(?:tested|proven|measured)|my (?:rough )?estimate|the record (?:says|states|is)|stated limits)\b/i,
+    advice: "State an estimate once, simply. Leave test status to the records.",
+  },
+  {
+    id: "explicitly",
+    pattern: /\bexplicitly\b/i,
+    advice: "Cut the hedge and say it directly.",
+    publishingOnly: true,
+  },
+  {
     id: "internal-label",
     pattern: /\b(ADR[ -]?\d{4}|synaptic shuttle)\b/i,
     advice: "Record numbers and code names don't belong on the website.",
     marketingOnly: true,
+  },
+  {
+    id: "record-talk",
+    pattern: /\b(claims?|evidence records?|decision records?|conformance|verified|provenance)\b/i,
+    advice: "Say what it means for the reader, not how it was recorded or proven.",
+    publishingOnly: true,
+  },
+  {
+    id: "punctuation",
+    pattern: /—|;/,
+    advice: "Use a full stop or a comma. Em dashes and semicolons read as machine-made.",
+    publishingOnly: true,
   },
 ];
 
@@ -97,7 +134,11 @@ export function prose(line: string, path: string) {
 export function scanText(path: string, text: string): VoiceIssue[] {
   if (exempt.has(path)) return [];
   const marketing = isMarketing(path);
-  const severity: Severity = isPublic(path) ? "error" : "warning";
+  const publishing = isPublic(path) && path !== "README.md";
+  // Unpublished drafts warn until they are published.
+  const draft = path.endsWith(".md") && !/^draft: false$/m.test(text.split(/^---$/m)[1] ?? "");
+  const severity: Severity =
+    publishing && !(draft && path.startsWith("publishing/")) ? "error" : "warning";
   const issues: VoiceIssue[] = [];
   let fenced = false;
   let frontMatter = path.endsWith(".md") && text.startsWith("---");
@@ -114,6 +155,7 @@ export function scanText(path: string, text: string): VoiceIssue[] {
     const line = prose(raw, path);
     for (const rule of voiceRules) {
       if (rule.marketingOnly && !marketing) continue;
+      if (rule.publishingOnly && !publishing) continue;
       const match = line.match(rule.pattern);
       if (match)
         issues.push({
@@ -126,6 +168,52 @@ export function scanText(path: string, text: string): VoiceIssue[] {
         });
     }
   });
+  if (publishing && path.endsWith(".md")) issues.push(...longSentences(path, text, severity));
+  return issues;
+}
+
+/** Sentences over this many words are hard to read on the website. */
+export const longestSentence = 30;
+
+function longSentences(path: string, text: string, severity: Severity): VoiceIssue[] {
+  const issues: VoiceIssue[] = [];
+  let fenced = false;
+  let frontMatter = path.endsWith(".md") && text.startsWith("---");
+  let paragraph: { start: number; words: string[] } | undefined;
+  const flush = () => {
+    if (!paragraph) return;
+    for (const sentence of paragraph.words.join(" ").split(/(?<=[.!?])\s+/)) {
+      const count = sentence.split(/\s+/).filter((word) => /\w/.test(word)).length;
+      if (count > longestSentence)
+        issues.push({
+          path,
+          line: paragraph.start,
+          rule: "long-sentence",
+          severity,
+          text: `${sentence.split(/\s+/).slice(0, 8).join(" ")}… (${count} words)`,
+          advice: `Split sentences over ${longestSentence} words.`,
+        });
+    }
+    paragraph = undefined;
+  };
+  text.split("\n").forEach((raw, index) => {
+    if (frontMatter) {
+      if (index > 0 && raw.trim() === "---") frontMatter = false;
+      return;
+    }
+    if (/^\s*(```|~~~)/.test(raw)) {
+      fenced = !fenced;
+      flush();
+      return;
+    }
+    const line = fenced ? "" : prose(raw, path).trim();
+    const block = /^(#|>|\||<)/.test(raw.trim()) || /^([-*]|\d+\.)\s/.test(raw.trim());
+    if (!line || block) flush();
+    if (!line) return;
+    paragraph ??= { start: index + 1, words: [] };
+    paragraph.words.push(line.replace(/^([-*]|\d+\.)\s+/, ""));
+  });
+  flush();
   return issues;
 }
 
@@ -141,7 +229,10 @@ export function isChecked(path: string) {
   if (/^docs\/reference\/[^/]+\.md$/.test(path))
     return !/evidence|readiness|^docs\/reference\/adr-/.test(path);
   // READMEs, except in research, records and licence folders.
-  if (/(^|\/)README\.md$/.test(path)) return !/^(docs|knowledge|spikes|LICENSES)\//.test(path);
+  if (/(^|\/)README\.md$/.test(path))
+    return !/^(docs|knowledge|spikes|LICENSES|\.agents)\/|^publishing\/(site\/public|[^/]+\/assets)\//.test(
+      path,
+    );
   return /^publishing\/[^/]+\/transcript\.md$/.test(path);
 }
 
