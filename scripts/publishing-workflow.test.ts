@@ -42,6 +42,10 @@ test("publication is callable only after the same-commit CI dependency succeeds"
   expect(publishRuns).not.toContain("pnpm run check:ci");
   expect(publishRuns).toContain("pnpm run journal:render:article");
   expect(publishRuns).toContain("pnpm run journal:build");
+  expect(publishRuns.indexOf("pnpm run build:packages")).toBeGreaterThan(-1);
+  expect(publishRuns.indexOf("pnpm run build:packages")).toBeLessThan(
+    publishRuns.indexOf("pnpm run journal:build"),
+  );
   expect(publication.jobs.deploy.needs).toBe("build");
   expect(
     publication.jobs.build.steps.find((step: { uses?: string }) =>

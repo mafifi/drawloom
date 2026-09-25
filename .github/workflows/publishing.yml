@@ -27,6 +27,8 @@ jobs:
           node-version: '24.20.0'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The site publishes the plugin schema from the built plugins package.
+      - run: pnpm run build:packages
       - run: pnpm run journal:render:article
       - run: pnpm run journal:build
       - uses: actions/upload-pages-artifact@v3
