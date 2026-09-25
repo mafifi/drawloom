@@ -1,12 +1,11 @@
 # Writing guide
 
-This is how we write everything people read about Drawloom: the website, the
-journal, the README and the guides for users and developers. Write for a person,
-not for another agent.
+This is how we write everything users read: the website, the journal and every
+README. Write for a person, not for another agent.
 
-Documents written for agents and for our own working process can keep the
-detail they need. That includes `AGENTS.md` files, plans, decision records,
-evidence, research notes, design notes and skills.
+Developer and agent documents can keep the detail they need. That includes
+ARCHITECTURE.md, CONTRIBUTING.md, the developer reference guides, `AGENTS.md`
+files, plans, decision records, evidence, research notes and skills.
 
 ## The voice
 
@@ -44,8 +43,8 @@ check:voice` catches the most common ones.
 
 - **Website and marketing pages.** What Drawloom is, what it does for you and
   why it's built that way. No test results, limits, caveats or record numbers.
-- **README and guides.** Practical and short. Tell the reader what to do and
-  where to go next. The [README](README.md) is the model.
+- **READMEs.** Practical and short. Tell the reader what to do and where to go
+  next. The [README](README.md) is the model.
 - **Journal essays.** The author's own voice and story, told simply. Keep
   firsthand accounts true. [publishing/EDITORIAL.md](publishing/EDITORIAL.md)
   covers essays in more detail.

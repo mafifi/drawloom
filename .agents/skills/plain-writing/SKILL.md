@@ -1,6 +1,6 @@
 ---
 name: plain-writing
-description: Use when writing or revising anything users read about Drawloom, such as website pages, journal essays, the README and user or developer guides, and when briefing another agent to write them. Not for agent-facing or internal documents like AGENTS.md, plans, decision records or evidence.
+description: Use when writing or revising anything users read about Drawloom (website pages, journal essays and READMEs), and when briefing another agent to write them. Not for developer or agent documents such as ARCHITECTURE.md, CONTRIBUTING.md, reference guides, AGENTS.md, plans, decision records or evidence.
 ---
 
 # Plain writing

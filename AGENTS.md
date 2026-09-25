@@ -14,11 +14,12 @@ area you change.
 
 ## Non-negotiable rules
 
-- Write user-facing documents (the website, journal, README and user and
-  developer guides) in the voice in `WRITING.md`: clear, simple and written for
-  a person. Website pages say what Drawloom is and why, with no test results,
-  limits or caveats. Run `pnpm run check:voice`. Agent-facing and internal
-  documents, such as plans, decision records and evidence, keep their detail.
+- Write user-facing documents (the website, journal and every README) in the
+  voice in `WRITING.md`: clear, simple and written for a person. Website pages
+  say what Drawloom is and why, with no test results, limits or caveats. Run
+  `pnpm run check:voice`. Developer and agent documents, such as ARCHITECTURE.md,
+  CONTRIBUTING.md, reference guides, plans, decision records and evidence, keep
+  their detail.
 - Apply the permissive product-dependency principle in `ARCHITECTURE.md` and
   licensing requirements in `CONTRIBUTING.md`. Audit exact versions, transitive
   and bundled code, runtimes and weights separately. Downloads are not exemptions.

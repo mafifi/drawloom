@@ -130,19 +130,16 @@ export function scanText(path: string, text: string): VoiceIssue[] {
 }
 
 /**
- * Documents people read: the website, journal, README and user and developer
- * guides. Agent-facing and internal documents (AGENTS.md files, plans, decision
- * records, evidence, research, design notes, skills) keep their detail and are
+ * Documents users read: the website, the journal and every README. Developer and
+ * agent documents (ARCHITECTURE.md, CONTRIBUTING.md, reference guides, AGENTS.md
+ * files, plans, decision records, evidence, research) keep their detail and are
  * not checked.
  */
 export function isUserFacing(path: string) {
   if (isPublic(path)) return true;
-  if (["CONTRIBUTING.md", "SECURITY.md", "ARCHITECTURE.md", "docs/README.md"].includes(path))
-    return true;
-  if (/^docs\/reference\/[^/]+\.md$/.test(path))
-    return !/evidence|readiness|^docs\/reference\/adr-/.test(path);
-  if (/^(apps|packages)\/.*README\.md$/.test(path)) return true;
-  return /^publishing\/(site\/README|[^/]+\/transcript)\.md$/.test(path);
+  // READMEs, except in research, records and licence folders.
+  if (/(^|\/)README\.md$/.test(path)) return !/^(docs|knowledge|spikes|LICENSES)\//.test(path);
+  return /^publishing\/[^/]+\/transcript\.md$/.test(path);
 }
 
 export function trackedProse(root: string) {

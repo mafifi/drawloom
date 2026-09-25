@@ -33,11 +33,11 @@ test("reader-facing pages fail; everything else only warns", () => {
   const line = "Honestly, it's robust.";
   expect(scanText("README.md", line).every(({ severity }) => severity === "error")).toBe(true);
   expect(scanText("publishing/a-place-to-do-the-work/article.md", line)[0]?.severity).toBe("error");
-  expect(scanText("docs/reference/plugin-packages.md", line)[0]?.severity).toBe("warning");
+  expect(scanText("apps/desktop/README.md", line)[0]?.severity).toBe("warning");
 });
 
 test("record numbers are fine outside the website", () => {
-  expect(rules("ARCHITECTURE.md", "See ADR 0026.")).toEqual([]);
+  expect(rules("apps/desktop/README.md", "See ADR 0026.")).toEqual([]);
   expect(rules("README.md", "See ADR 0026.")).toEqual([]);
 });
 
@@ -54,9 +54,7 @@ test("the writing guide may quote the habits", () => {
 test("only documents people read are checked", () => {
   for (const path of [
     "README.md",
-    "ARCHITECTURE.md",
-    "CONTRIBUTING.md",
-    "docs/reference/plugin-packages.md",
+    "packages/ui/ui/README.md",
     "apps/desktop/README.md",
     "publishing/explore/decisions/page.md",
     "publishing/a-place-to-do-the-work/article.md",
@@ -64,10 +62,14 @@ test("only documents people read are checked", () => {
     expect(isUserFacing(path), path).toBe(true);
   for (const path of [
     "AGENTS.md",
+    "ARCHITECTURE.md",
+    "CONTRIBUTING.md",
+    "docs/reference/plugin-packages.md",
     "docs/plans/pre-publication-audit.md",
+    "docs/reference/harness-workbench-survey/README.md",
+    "spikes/adr-0022-memory/README.md",
     "docs/adr/0034-node-toolchain.md",
     "knowledge/evidence/adr-0034-notarised-release.md",
-    "docs/reference/harness-workbench-survey/README.md",
     "docs/reference/conversation-history-evidence.md",
     "docs/design/desktop-host.md",
     "spikes/AGENTS.md",
