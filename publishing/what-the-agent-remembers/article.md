@@ -13,6 +13,10 @@ I want an assistant that gets better at helping Souphi over time. It should
 remember what worked for her audience, what failed and why. It should bring
 that up when it matters, without being asked.
 
+Making marketing videos taught me this the hard way. I kept giving the agent the
+same feedback. I wasn't storing it properly or bringing it back, so I was just
+repeating myself.
+
 That sounds simple. It turns out to be three different jobs.
 
 We gave each job its own word in Drawloom.
@@ -73,6 +77,9 @@ Later, a Saturday success arrived. A separate agent, doing Nightloom's job in
 that early experiment, revised the learning to cover both. The next agent
 described mixed results, cited both observations and advised checking current
 capacity.
+
+Watching agents work can be frustrating. Mine often fail their safeguards the
+first time, and again the second. They don't learn. This one did the opposite.
 
 That's the behaviour I want. An assistant that learns should also know how
 little it knows.

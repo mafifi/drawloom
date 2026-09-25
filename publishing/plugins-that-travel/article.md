@@ -31,6 +31,10 @@ written for Drawloom and nothing else.
 That bothered me. A narration plugin is useful wherever you work with an agent.
 Why should it only work in one app?
 
+It worked the other way too. Codex has a rich plugin library, and I couldn't use
+any of it inside Drawloom. That was a huge miss. What's the point of working
+alongside someone's tools, then tying one hand behind their back?
+
 It also cut against something I care about. If you build a plugin for your own
 business, you should own it. It shouldn't be tied to whichever app you happened
 to build it for.
@@ -138,6 +142,11 @@ your work goes with you.
 
 And adding a plugin never quietly gives it more power than you chose. You decide
 what it can do, one step at a time.
+
+There's one more thing I'd love to see. I keep building plugins that should
+really come from the vendors. Why am I putting one together for Google's Veo
+video model? Google could publish an open plugin, with the connectors and skills
+built in. Open standards make that possible.
 
 Drawloom is free and open source.
 [Try the preview for Mac](https://github.com/mafifi/drawloom/releases/tag/v0.0.0-preview.1),

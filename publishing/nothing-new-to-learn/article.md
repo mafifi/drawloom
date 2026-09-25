@@ -51,6 +51,11 @@ That's hard to get right by hand. We'd adopted shared components, yet our
 screens kept drifting. The sidebar and the message box came out slightly
 different each time, and the same layout fixes kept coming back.
 
+The interface was my biggest hang-up. It's the main way you work with the whole
+thing. Every time the agent built something bespoke, I had to rewind and
+reinforce the rules in the harness. As AI tools have settled on common patterns,
+whole component libraries have grown up around them.
+
 So every screen in Drawloom is now built from one shared set of parts. They
 come from shadcn-svelte, an open-source collection of components. Underneath,
 Bits UI gives them the right behaviour for keyboards and screen readers. For
@@ -120,6 +125,10 @@ they already understand is the one they'll actually use.
 For a developer building their own workbench, the same shared parts are there
 to build with. Your screens can feel familiar from the first day, without
 rebuilding menus, dialogs and conversation views yourself.
+
+When Souphi opens a workbench built this way, I want her to feel at home, just
+as she does in Claude today. And finally, it can help her with anything to do
+with her business.
 
 Good design is mostly about what you leave out. Show what
 helps. Keep the rest close by, ready when someone asks.

@@ -17,6 +17,10 @@ became the first of Drawloom's principles. Everything else comes after it.
 
 The idea is simple. Nothing happens without your say.
 
+I learned why the hard way. I can't share the details, but an agent once
+connected to a live production system instead of the development one it was
+meant to use. It broke things.
+
 ## Installing a plugin gives it nothing
 
 Plugins are how a workbench grows. One might add a video editor. Another might
