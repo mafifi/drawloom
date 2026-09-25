@@ -10,6 +10,10 @@ It provides 10 core capabilities, implemented in Drawloom or delegated to
 permissively licensed open-source software. These come together in a desktop
 application that connects to your local AI agent—currently Codex.
 
+To try it, download the [Mac preview](https://github.com/mafifi/drawloom/releases/tag/v0.0.0-preview.1).
+It needs an Apple silicon Mac running macOS 14 or later, and
+[Codex](https://developers.openai.com/codex) installed and signed in.
+
 To learn more about Drawloom, read the [Drawloom journal](https://drawloom.org/),
 starting with [Why Drawloom?](https://drawloom.org/articles/a-place-to-do-the-work/).
 
