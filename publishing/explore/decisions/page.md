@@ -6,57 +6,73 @@ summary: What we set out to achieve with Drawloom, and why it's built the way it
 draft: false
 ---
 
-Every decision in Drawloom comes back to four goals.
+Every decision in Drawloom comes back to a few goals.
+
+## Built for real work
+
+AI is at its best when you work on something together. Drawloom is for building
+workbenches: places where you and an AI agent shape the result side by side,
+not just trade prompts and answers.
+
+## You stay in control
+
+Nothing happens without your say.
+
+- **You approve what matters.** The agent asks before it acts, using the
+  approval controls you already know.
+- **Installing isn't permission.** Adding a plugin doesn't let it do anything
+  until you decide what it can use.
 
 ## Ready for the enterprise
 
 We want businesses to adopt Drawloom with confidence, and to make it their own.
 
-- **Open licences.** Drawloom is free and open source under Apache 2.0. Everything
-  it ships has been checked against the same open licence policy, so there are
-  no surprises for your legal team.
+- **Open licences.** Drawloom is free and open source under Apache 2.0, and
+  everything it ships meets the same open licence policy. No surprises for your
+  legal team.
 - **Built to extend.** Drawloom is made of 10 capabilities, each with a clear
-  job. You can swap in your own implementations to fit your environment, such
-  as your own access rules or knowledge store.
+  job. Swap in your own to fit your environment, such as your own access rules
+  or knowledge store.
 - **Your rules.** Drawloom enforces who can see what. Your organisation decides
   the rules.
+- **No lock-in.** Codex is the first agent Drawloom works with, not the only
+  one it's built for.
+- **Your data stays yours.** Your knowledge and history live on your own
+  computer. Monitoring never records your conversations.
 
 ## Part of the ecosystem
 
-Drawloom should fit in with the tools you already use, not ask you to start
-again.
+Drawloom should fit in with the tools you already use.
 
 - **Open standards.** Drawloom uses MCP for tools, MCP Apps for plugin screens,
-  the Agent Plugins format for plugins and OpenTelemetry for monitoring, so it
-  fits alongside the tools built on them.
+  the Agent Plugins format for plugins and OpenTelemetry for monitoring.
 - **A familiar interface.** Drawloom looks and works like the AI tools you
-  already know. It uses your agent's own approval controls, so there's nothing
-  new to learn.
+  already know, so there's nothing new to learn.
 
 ## Open to everyone
 
 Solo developers should get as much from Drawloom as large teams.
 
 - **Every capability runs locally.** Some advanced features are best served by
-  cloud services, but every capability has a local version, so you can start
-  on your own computer with nothing else to set up.
+  cloud services, but every capability has a local version, so you can start on
+  your own computer.
 - **The lowest barrier to entry.** Install the app, sign in to Codex, and start
-  working. We tell you about any cost or download before you commit to it.
+  working.
 
 ## Something you can build on
 
-Drawloom is growing fast, and it was designed from day one as something you can
-build on.
+Drawloom was designed from day one as a foundation for your own work.
 
 - **We studied first.** Before designing each interface, we studied how leading
-  open-source projects solve the same problem, and published what we learned.
-- **We built for more than one way.** We built each interface with different
+  open-source projects solve the same problem.
+- **We built for more than one way.** Each interface works with different
   technologies behind it, so it fits your choices, not just ours.
-- **Every implementation passes the same tests.** When you build your own, you
-  test it against the same standard as ours.
+- **The same standard for every part.** Every implementation, ours or yours,
+  passes the same tests.
+- **Work that survives the unexpected.** Long-running work picks up where it
+  left off after a crash or restart.
 
 ## Learn more
 
 - [Our principles](/principles/)
 - [How we looked into it](/research/)
-- [Every decision, in detail](https://github.com/mafifi/drawloom/tree/main/docs/adr)

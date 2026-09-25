@@ -17,8 +17,7 @@ we look at how others solved them.
    documentation says.
 3. **Run a small experiment.** We try the idea in a separate prototype, called a
    spike, before it goes anywhere near Drawloom.
-4. **Write down the decision.** We record what we chose and why, so anyone can
-   check our reasoning. See [Decisions](/decisions/).
+4. **Decide.** We choose what fits Drawloom best. See [Decisions](/decisions/).
 
 We've published our studies of agent harnesses and workbenches, knowledge and
 memory, evaluation and access control.
