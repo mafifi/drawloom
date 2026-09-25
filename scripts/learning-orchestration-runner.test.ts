@@ -6,7 +6,8 @@ const manifest = JSON.parse(readFileSync("package.json", "utf8"));
 
 test("learning orchestration keeps real Temporal recovery in Node and runs source integration in Vitest", () => {
   expect(manifest.scripts["test:orchestration:learning"]).toBe(
-    "node --test --test-concurrency=1 apps/desktop/tests/nightloom-orchestration.integration.node-check.mjs && vitest run --config vitest.learning.config.ts",
+    // svelte-kit sync first: the desktop tsconfig extends a file it generates.
+    "pnpm --filter ./apps/desktop exec svelte-kit sync && node --test --test-concurrency=1 apps/desktop/tests/nightloom-orchestration.integration.node-check.mjs && vitest run --config vitest.learning.config.ts",
   );
 });
 
