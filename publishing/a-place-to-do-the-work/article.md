@@ -9,320 +9,248 @@ media:
 ---
 
 My spouse, [Dr Souphi](https://drsouphi.com), is a phenomenal doctor who has
-always wanted to run her own clinic. I think she would be the first to admit
-that she is at her best as a medical professional, not a salesperson, clinic
-manager or financial controller.
+always wanted to run her own clinic. She would be the first to say she's at her
+best looking after patients. Selling, running a clinic and keeping the books are
+another matter.
 
-But running your own business means doing all of those jobs. Too little of her
-time ends up being about what she does best: looking after patients and practising
-medicine.
+But running your own business means doing all of those jobs, and too little of
+her time goes on what she does best.
 
-As language models and coding assistants got smarter, I began to think I could
-help. For the first time, ideas I had carried around for years felt possible
-to build. I could create software to take on the administrative side of her
-business and let her focus on the patient and the medicine.
+As AI models and coding assistants got smarter, I began to think I could help.
+Ideas I'd carried around for years suddenly felt possible. I could build
+software to take on the running of the business, and give her more time for
+her patients.
 
-That was the plan. It has taken me three attempts to understand what it needed.
+That was the plan. It took me three attempts to work out what it really needed.
 
 ## Summer 2024: a working website, an unfinished idea
 
-My first attempt gave Souphi a functional website and a rudimentary system for
-patient management and invoicing. They were separate applications, but they
-did useful work.
+My first attempt gave Souphi a working website and a simple system for patient
+records and invoicing. They were separate apps, but they did useful work.
 
 <figure>
 <a href="/media/a-place-to-do-the-work/09-legacy-public-reconstruction.png"><img src="/media/a-place-to-do-the-work/09-legacy-public-reconstruction.png" width="1892" height="680" loading="lazy" alt="The original homepage: Souphi's portrait behind a large headline, with separate routes to the clinic and academy." style="display:block;width:100%;height:auto" /></a>
-<figcaption>The first website's header and hero, reconstructed from the original September 2024 components. Captured now, not an archived screenshot.</figcaption>
+<figcaption>Souphi's first website, in 2024.</figcaption>
 </figure>
 
 Marketing was the part I never cracked.
 
-We had photographs from patients who had consented to their use. How could I
-turn those into compelling before-and-after images for social media? How could
-the software help tell the story of her work?
+We had photos from patients who had agreed to share them. How could I turn those
+into before-and-after images for social media? How could the software help tell
+the story of her work?
 
-In 2024, that felt out of reach to me. Looking back at that code now, I can
-still see marketing features connected to placeholder services. I had outlined
-a solution without making the whole thing work.
+In 2024, that was out of my reach. Looking back at the code, I can see marketing
+features wired to placeholder services. I'd sketched a solution without making
+it work.
 
-I left her with something good enough to use. It was a long way from the
-business support I had imagined.
+I left her with something good enough to use. It was a long way from what I'd
+imagined.
 
 <figure>
 <a href="/media/a-place-to-do-the-work/10-legacy-admin-reconstruction.png"><img src="/media/a-place-to-do-the-work/10-legacy-admin-reconstruction.png" width="1892" height="800" loading="lazy" alt="The original admin dashboard laid out appointments, inventory, patients, marketing and finances in six cards. All displayed names and figures are demonstration data." style="display:block;width:100%;height:auto" /></a>
-<figcaption>The dashboard I aspired to, reconstructed from the original view. Its hardcoded sample figures show the ambition, not the clinic's performance.</figcaption>
+<figcaption>The dashboard I was aiming for. The figures are sample data.</figcaption>
 </figure>
 
 <figure class="architecture-figure" id="stack-2024">
-<p class="diagram-kicker">2024 · Separate foundations</p>
+<p class="diagram-kicker">2024 · Two separate apps</p>
 <a href="/artwork/why-drawloom/stack-2024.svg" aria-label="Enlarge the 2024 architecture diagram"><img src="/artwork/why-drawloom/stack-2024.svg" width="1440" height="784" loading="lazy" alt="Public SvelteKit website deployed on Cloudflare Pages; a separate SvelteKit administration app uses Firebase." /></a>
-<figcaption>A public presence, patient records and invoicing. Marketing remained unfinished. <a href="/artwork/why-drawloom/stack-2024.svg">Enlarge diagram ↗</a></figcaption>
+<figcaption>A public website, and a separate app for patient records and invoicing. <a href="/artwork/why-drawloom/stack-2024.svg">Enlarge diagram ↗</a></figcaption>
 </figure>
 
 ## Spring 2025: surely the stack was the problem
 
-The models had improved. This time, I was sure I could get it right.
+The models had improved, and this time I was sure I could get it right.
 
-I was half convinced that my first design was holding me back. I had one app
-for the public website and another for administration. I wanted to bring the
-journey together: from someone discovering Souphi on social media to becoming
-a paying patient.
+I suspected my first design was holding me back: one app for the website and
+another for admin. I wanted to join up the whole journey, from someone finding
+Souphi on social media to becoming a patient.
 
-I built a new admin application, `souphi-admin`. It and the public site
-remained separate applications.
-Sharing a D1 database meant they could work with the same data. That felt like
-a way to connect the journey without having to make everything one app.
+So I built a new admin app, `souphi-admin`. It shared a database with the
+public website, so both could work with the same data.
 
-I was no longer hand-crafting every piece of code with autocomplete helping
-along the way. I could describe what I wanted and have the model build whole
-components. I started again, with bigger ambitions and much faster progress.
+I was no longer writing every line with autocomplete helping. I could describe
+what I wanted and have the model build whole components. I started again, with
+bigger ambitions and much faster progress.
 
 <figure class="architecture-figure" id="stack-2025">
-<p class="diagram-kicker">2025 · A shared data layer</p>
+<p class="diagram-kicker">2025 · One shared database</p>
 <a href="/artwork/why-drawloom/stack-2025.svg" aria-label="Enlarge the 2025 architecture diagram"><img src="/artwork/why-drawloom/stack-2025.svg" width="1480" height="944" loading="lazy" alt="Separate public and souphi-admin applications on Cloudflare Pages both use Drizzle to access the same D1 database." /></a>
-<figcaption>Separate applications could work with the same data. My development process still needed to catch up. <a href="/artwork/why-drawloom/stack-2025.svg">Enlarge diagram ↗</a></figcaption>
+<figcaption>Two apps working with the same data. <a href="/artwork/why-drawloom/stack-2025.svg">Enlarge diagram ↗</a></figcaption>
 </figure>
 
 ## Early 2026: faster code was not enough
 
-By the start of 2026, I had to admit that I had failed again.
+By the start of 2026, I had to admit I'd failed again.
 
-The code had drifted. I was going round in circles, reimplementing features I
-thought I had already built. In my judgement, the codebase was no longer worth
-rescuing.
+The code had drifted. I was going round in circles, rebuilding features I
+thought I'd already built. The codebase was no longer worth rescuing.
 
-It was not just Souphi's software. I had more than a dozen repositories for
-various half-finished projects. GitHub's bots seemed to chase me daily about
-vulnerable packages and ageing dependencies.
+And it went beyond Souphi's software. I had more than a dozen repositories of
+half-finished projects, and GitHub's bots chased me daily about ageing and
+vulnerable packages.
 
-> I had become much faster at generating code. I had not yet found a reliable way to keep it coherent.
+> I'd become much faster at writing code. I hadn't found a way to keep it coherent.
 
-The third attempt started with a new monorepo: one home for my projects and
-their shared code. There was a new stack too, built around Cloudflare Workers
-and Convex.
+The third attempt started with one repository for all my projects and their
+shared code, and a new stack built on Cloudflare Workers and Convex.
 
-The more important change was how I worked. The coding agents had clear
-boundaries and instructions. Automated checks enforced the design principles.
-Tests and review were part of the work, not something I hoped to come back to.
+The bigger change was how I worked. The coding agents had clear boundaries and
+instructions. Automated checks enforced the design rules. Tests and reviews
+were part of every change.
 
-<aside class="callout" aria-label="What is a harness?">
-<p class="eyebrow">A little terminology</p>
-<p>A <em>harness</em> is the system around an agent: its instructions, tools, context and controls. It helps the agent do useful work and check the result.</p>
-</aside>
-
-For the first time, I felt I had the codebase under control. I would say I had
-finally got that part right.
+For the first time, the codebase felt under control.
 
 <figure class="architecture-figure" id="stack-2026">
 <p class="diagram-kicker">2026 · Shared code, enforced rules</p>
 <a href="/artwork/why-drawloom/stack-2026.svg" aria-label="Enlarge the 2026 architecture diagram"><img src="/artwork/why-drawloom/stack-2026.svg" width="1480" height="944" loading="lazy" alt="Public and administration applications on Cloudflare Workers use Convex for backend and data." /></a>
-<figcaption>One monorepo and automated checks supported the work. The improvement was the stack and the harness around development—not the stack alone. <a href="/artwork/why-drawloom/stack-2026.svg">Enlarge diagram ↗</a></figcaption>
+<figcaption>One repository, with automated checks around the work. <a href="/artwork/why-drawloom/stack-2026.svg">Enlarge diagram ↗</a></figcaption>
 </figure>
 
-The models now had APIs that made the marketing work feel achievable too.
-I could connect writing, images, narration and video generation to real
-software, rather than move everything between separate tools by hand.
+The models now had APIs that put the marketing work within reach. I could
+connect writing, images, narration and video to real software, instead of
+moving everything between tools by hand.
 
-By September 2026, I could claim partial success. The codebase was in better
-shape. But my approach to marketing had exposed a different problem.
+By September 2026, the codebase was in much better shape. But marketing had
+shown me a different problem.
 
 ## A month to automate what I could help create in two hours
 
-First, I co-created a treatment explainer episode with Codex. It took a couple
-of hours at most.
+First, I made a treatment explainer episode with Codex. It took a couple of
+hours.
 
-Then I spent a month building a system to automate the creation of twenty
-episodes.
+Then I spent a month building a system to make twenty more automatically.
 
 <figure>
 <a href="/media/a-place-to-do-the-work/02-public-episode-opening.png"><img src="/media/a-place-to-do-the-work/02-public-episode-opening.png" width="1892" height="800" loading="lazy" alt="The public opening of Treatment Episode 02, with an editorial introduction alongside a patient illustration." /></a>
-<figcaption>One of the treatment explainers on Souphi's journal. Behind this public presentation was a much larger production system.</figcaption>
+<figcaption>One of the treatment explainers on Souphi's journal.</figcaption>
 </figure>
 
-To make the series repeatable, I broke production into 23 steps.
+To make the series repeatable, I broke production into 23 steps: the research,
+the script and narration, each scene, and the finished video, ready for Souphi
+to approve.
 
-First came research: supporting articles, source quality and clear limits on
-what we could say. Then the script and narration, so we could hear the pacing.
-Then the scenes: introduce the patient and concern, show an unsuitable treatment,
-explain the anatomy, explore a more holistic approach and its limits, and recap.
-Finally, assemble the video for review. Publication still needed approval.
-
-Each scene had its own work. Create the image. Bring it to life. Hold it long
-enough to make sense. Move to the next scene. Fit it to the narration.
+Every scene had its own work. Create the image. Bring it to life. Fit it to the
+narration.
 
 <!-- animation -->
 
-Research and writing needed different tools from images, motion and speech.
-The system needed to track dependencies between steps, preserve results and
-recover from failures. I built different agent roles, provider connections,
-retry handling and a graph of the work.
+Research and writing needed different tools from images, motion and speech. The
+system had to track which steps depended on which, keep every result and
+recover when something failed. So I built agent roles, provider connections,
+retries and a map of the whole process.
 
 <figure>
 <a href="/media/a-place-to-do-the-work/03-programme-raw.png"><img src="/media/a-place-to-do-the-work/03-programme-raw.png" width="1892" height="800" loading="lazy" alt="The Treatment Episode production interface, showing eight stage groups and 23 accepted programme milestones." /></a>
-<figcaption>The production view: eight stage groups, 23 milestones, and decisions recorded along the way. This already had a user interface and review points; the problem was how much of the creative path I had fixed in advance.</figcaption>
+<figcaption>The production system: eight stages and 23 steps.</figcaption>
 </figure>
 
 <aside class="callout" aria-label="The cost of unattended work">
 <p class="eyebrow">Who decides when to spend again?</p>
-<p>If a paid video request times out, has it failed—or is the provider still making a video I will be charged for? Is it safe to try again?</p>
-<p>How many attempts should an unattended system buy before it stops? What happens if an earlier scene changes after I have paid for the later ones?</p>
+<p>If a paid video request times out, has it failed, or is the provider still making a video I'll be charged for? Is it safe to try again?</p>
+<p>How many attempts should an unattended system pay for before it stops? What happens if an earlier scene changes after I've paid for the later ones?</p>
 </aside>
 
-These were real engineering problems. The automated system needed answers
-before I could leave it running. In a workbench, I would still need safe handling
-of paid requests, but I could make more of the creative spending decisions myself.
+An unattended system needs answers to all of these before you can leave it
+running. In a workbench, I could make those spending decisions myself.
 
-My rough estimate is that the automated approach involved 50,000–100,000 lines
-of code. I believe a focused workbench could have needed 10,000 or fewer. That
-is my estimate, not a measured comparison with a finished alternative.
+The automated system ran to something like 50,000 to 100,000 lines of code. I
+think a workbench could have done the job in 10,000.
 
 The two hours went into making an episode. The month went into building a
-production system. I had made a format repeatable before knowing whether the
-audience would respond to it.
+factory. I'd made the format repeatable before knowing whether the audience
+liked it.
 
-Changing that format now meant changing the machinery behind it. The return
-I needed was a faster way to learn what worked
-for Souphi's audience. I had built a faster way to repeat my first answer.
+Changing the format now meant changing the machinery. I needed a faster way to
+learn what worked for Souphi's audience. I'd built a faster way to repeat my
+first answer.
 
 ## The light bulb moment
 
-Alongside that work, I had been using tools that showed me a different approach.
+Alongside that work, I'd been using tools that showed me another way.
 
-I used Claude Design to help me make much more compelling public websites.
-More recently, I turned to Codex Security as I became more concerned about
-what increasingly capable models meant for cybersecurity.
+I used [Claude Design](https://www.anthropic.com/news/claude-design-anthropic-labs)
+to make much better websites through conversation, comments and direct edits.
+More recently, I turned to
+[Codex Security](https://openai.com/index/codex-security-now-in-research-preview/)
+to check my code, as I grew more concerned about what capable AI models mean for
+security.
 
-[Claude Design](https://www.anthropic.com/news/claude-design-anthropic-labs)
-lets you develop visual work through conversation, comments, direct edits and
-controls. [Codex Security](https://openai.com/index/codex-security-now-in-research-preview/)
-investigates a codebase, validates possible findings and proposes fixes for
-review.
+They do very different jobs. Both give you a place built around the work, with
+an agent helping you do it. You can see what's happening and shape the result.
+Codex and Claude Code had already taught me that in development.
 
-They serve different purposes. What I see in both is a place built around the
-work, with an agent helping me do it. I can inspect what is happening and shape
-the result. Codex and Claude Code had already taught me the value of that in
-development.
-
-Google's [The New SDLC With Vibe Coding](https://www.kaggle.com/whitepaper-the-new-SDLC-with-vibe-coding)
-has a name for everything around the model: the harness. That means the
-agent's instructions, its tools, where it runs, how the work is coordinated,
-its safety limits and ways to watch what it does. The model is only one part.
-
-I was also exploring [Open Design](https://github.com/nexu-io/open-design)
-and [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness).
-They reinforced a lesson I had already learned in development and failed to
-apply to marketing.
-
-In development, I had moved beyond expecting a good prompt to produce the
-finished result. Yet when I tackled marketing, I went straight back to that
-expectation. Write enough specification. Provide enough context. Add agents.
-Somehow make the whole thing run.
+In development, I'd long since stopped expecting one good prompt to produce the
+finished result. Yet with marketing, I went straight back to it. Write enough
+specification. Add enough agents. Somehow make the whole thing run.
 
 > I was treating AI like a conventional program: input, process, output. I needed an assistant that could share the work.
 
-But creative work often changes as you do it. You hear a script and realise it
-drags. You see a scene and want to take it somewhere else. You publish something
-and learn which questions the audience actually cares about.
+Creative work changes as you do it. You hear a script and realise it drags. You
+see a scene and want to take it somewhere else. You publish something and learn
+what your audience really cares about.
 
 The work needed a place where those decisions could happen as it took shape.
 
-That is what I mean by a **workbench**: a place to keep the developing work,
-inspect it and direct the next change. Its **harness** gives the agent the
-instructions, context, tools and controls to help.
+That's what I mean by a **workbench**: a place to keep the work, see it take
+shape and direct the next change. Behind it, a **harness** gives the agent the
+instructions, context, tools and controls it needs to help.
 
 <figure>
 <a href="/media/a-place-to-do-the-work/12-operator-annual-plan.jpg"><img src="/media/a-place-to-do-the-work/12-operator-annual-plan.jpg" width="1229" height="768" loading="lazy" alt="The Laifu and Nini Operator workbench shows an accepted annual plan, story cards with separate script, image and narration stages, and the Codex conversation below." /></a>
-<figcaption>My story-production workbench in a local staging build: the plan, individual stories and conversation share one working surface. This is not a finished Drawloom product or a tested replacement for the treatment-video system.</figcaption>
+<figcaption>My story-production workbench: the plan, the stories and the conversation, side by side.</figcaption>
 </figure>
 
 ## A better place to make an episode
 
-Imagine having the sources, script, scenes and narration together. I could ask
-the assistant to shorten a section, try another image or compare two versions.
-I could see what changed and decide what to keep.
+Imagine having the sources, script, scenes and narration in one place. I could
+ask the assistant to shorten a section, try another image or compare two
+versions. I could see what changed and decide what to keep.
 
-The difference would not just be adding a screen or an approval button. I
-already had those. It would be making exploration and revision the normal way
-to work, without having to encode every variation in the production process.
+The useful parts would still run on their own. Research could be prepared,
+approved scenes generated and edits assembled. Medical review would still
+matter. And I'd decide whether another attempt was worth paying for.
 
-Useful parts would still run automatically. Research could be prepared. An
-approved scene could be generated. An edit could be assembled. Medical review
-would still matter.
+It would have been less to build. More importantly, I could have learned from
+each episode and made the next one better for the audience.
 
-I could decide whether another attempt was worth paying for. The system would
-still need to avoid duplicate charges and respect limits; it would not need
-to make every creative spending decision on my behalf.
-
-I believe it would have taken less effort to build. It could also have reduced
-those two hours of work. More importantly, I could have learned from each
-episode and changed the next one to suit the audience.
-
-That is the workbench I now wish I had built. It is not an alternative I have
-already tested.
+That's the workbench I wish I'd built.
 
 <figure>
 <a href="/media/a-place-to-do-the-work/13-operator-story-workspace.jpg"><img src="/media/a-place-to-do-the-work/13-operator-story-workspace.jpg" width="1229" height="768" loading="lazy" alt="The Coco Comes to Visit working draft in Operator: a three-part story arc, a storyboard with a separate cover and twelve pages, and the Codex conversation below." /></a>
-<figcaption>Inside an individual story: the arc and storyboard stay alongside the conversation. This local staging view contains a working draft and test conversation, not finished illustrations or a published book.</figcaption>
+<figcaption>Inside a story: the outline and storyboard sit alongside the conversation.</figcaption>
 </figure>
 
 ## Why Drawloom?
 
-I now believe purpose-built workbenches, powered by agent harnesses, are the
-right starting point for complex, creative business work.
+I now believe purpose-built workbenches are the best way to do complex, creative
+business work with AI.
 
-Marketing is one example. The same question applies to the other jobs around
-Souphi's practice: where would a capable assistant, with the right tools and
+Marketing is one example. The same question applies to every other job around
+Souphi's practice: where could a capable assistant, with the right tools and
 controls, give her time back?
 
-We do not need to build every part from scratch.
+We don't have to build every part from scratch.
+[Codex](https://developers.openai.com/codex/app-server) and
+[Claude](https://code.claude.com/docs/en/agent-sdk/overview) already give us a
+lot to build on. But every workbench still needs the same things around the
+agent: context, memory, knowledge, tools, approvals and more.
 
-[Codex App Server](https://developers.openai.com/codex/app-server) lets other
-apps work with Codex: its conversations, approvals and live updates.
-[Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview) offers
-the engine behind Claude Code as a library that developers can build on. The
-two work differently, and one cannot simply replace the other.
-
-Both are a solid place to start. Neither provides the workbench itself, or
-decides how a business's knowledge, tools and controls should fit together.
-
-That is why I am building Drawloom: the shared parts every workbench needs,
-so each one does not have to build them again. Each workbench keeps its own
-screens, business rules and way of working.
-
-Some lines matter a great deal. The AI provider can keep its own record of the
-conversation, but the business's memory stays with the business. An agent
-asking to use a tool does not mean it may. And saying yes is still different
-from limiting what that tool can do on your computer. Drawloom keeps each of
-these jobs separate, so any one of them can be swapped out.
+That's why I'm building Drawloom. It provides the shared parts every workbench
+needs, so each one doesn't have to build them again. You keep your own screens,
+your own rules and your own way of working, and you stay in control of what the
+agent does.
 
 <figure class="architecture-figure architecture-wide" id="drawloom-capabilities" aria-describedby="drawloom-map-caption">
 <p class="diagram-kicker">Drawloom · Ten shared capabilities</p>
 <a href="/artwork/why-drawloom/drawloom.svg" aria-label="Enlarge the Drawloom capability diagram"><img src="/artwork/why-drawloom/drawloom.svg" width="2136" height="1128" loading="lazy" alt="Your workbench sits outside Drawloom. Orchestration coordinates the work. Memory, knowledge and orchestration feed the context the agent needs, which goes to the agent integration. When the agent asks to use a tool, policy and approval decide, tools run it and the sandbox limits it. Observability records what happened, and evaluation checks the results." /></a>
-<figcaption id="drawloom-map-caption">Ten capabilities, not ten separate services. Arrows show the main relationships, not every connection. <a href="/artwork/why-drawloom/drawloom.svg">Enlarge diagram ↗</a></figcaption>
-<details class="diagram-description">
-<summary>Read the diagram</summary>
-<p>The workbench owns its screens and business rules. It chooses which implementation of each Drawloom capability to use, and can replace any of them.</p>
-<ul>
-<li data-capability="orchestration">Orchestration organises the work into tasks and steps, and picks up again after an interruption.</li>
-<li data-capability="memory">Memory records past work so it can help with future work.</li>
-<li data-capability="knowledge">Knowledge keeps sources and what they show, with where each claim came from.</li>
-<li data-capability="context">Context gathers the instructions and information the agent needs for the task.</li>
-<li data-capability="agent-integration">Agent integration connects to your agent. The provider keeps its own conversation history, separate from Drawloom's memory.</li>
-<li data-capability="policy-and-approval">Policy and approval decide whether an action is allowed.</li>
-<li data-capability="tools">Tools run the actions that have been allowed.</li>
-<li data-capability="sandbox">Sandbox limits where the agent can act and what it can reach.</li>
-<li data-capability="observability">Observability records what happened, across every capability.</li>
-<li data-capability="evaluation">Evaluation checks results against agreed criteria.</li>
-</ul>
-<p>Many connections are left out to keep the picture readable. The capabilities are described in <a href="https://github.com/mafifi/drawloom/blob/main/ARCHITECTURE.md#core-capabilities">ARCHITECTURE.md</a>. The original map in <a href="https://github.com/mafifi/drawloom/blob/main/docs/adr/0005-partition-agent-platform-capabilities.md">ADR 0005</a> listed eleven; calls to the model now belong to agent integration. See also <a href="https://github.com/mafifi/drawloom/blob/main/docs/adr/0007-provider-neutral-agent-execution.md">ADR 0007</a> and <a href="https://github.com/mafifi/drawloom/blob/main/docs/adr/0008-tool-execution-and-exposure.md">ADR 0008</a>.</p>
-</details>
+<figcaption id="drawloom-map-caption">The 10 capabilities Drawloom provides for every workbench. <a href="/artwork/why-drawloom/drawloom.svg">Enlarge diagram ↗</a></figcaption>
 </figure>
 
-Drawloom is early. The boundaries are taking shape, and the work still needs
-to prove itself in real use. I want it to be approachable for a small business,
-with useful local or free-tier options wherever possible.
-
+Drawloom is early, and I want it to be easy for a small business to start with.
 I have no wish to build a fourth elaborate system that misses the point.
 
-The reason for all of this is still the same as it was in 2024: give Souphi
-more time to be a doctor.
+The reason for all of this is the same as it was in 2024: give Souphi more time
+to be a doctor.
+
+Drawloom is free and open source. [Try the preview for Mac](https://github.com/mafifi/drawloom/releases/tag/v0.0.0-preview.1),
+or [see how we built it](/principles/).

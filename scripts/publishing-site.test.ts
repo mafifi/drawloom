@@ -322,25 +322,8 @@ test("production excludes draft routes and media; explicit preview renders acces
           expect(files).toContain(`artwork/why-drawloom/${name}.svg`);
           expect(draft).toContain(`/artwork/why-drawloom/${name}.svg`);
         }
-        expect(draft).toContain("Read the diagram");
         expect(draft).toContain('id="drawloom-map-caption"');
-        const capabilityNames = [
-          "memory",
-          "knowledge",
-          "context",
-          "orchestration",
-          "agent-integration",
-          "policy-and-approval",
-          "tools",
-          "sandbox",
-          "observability",
-          "evaluation",
-        ];
-        for (const capability of capabilityNames) {
-          expect(draft.match(new RegExp(`data-capability="${capability}"`, "g"))).toHaveLength(1);
-        }
-        expect(draft.match(/data-capability=/g)).toHaveLength(10);
-        expect(draft).toContain("The provider keeps its own conversation history");
+        expect(draft).toContain("The 10 capabilities Drawloom provides");
         expect(draft).not.toContain("11-current-public-homepage.png");
         expect(draft.match(/<video\b/g)).toHaveLength(1);
         expect(draft.indexOf("<video")).toBeLessThan(draft.indexOf('id="the-light-bulb-moment"'));
