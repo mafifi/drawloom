@@ -9,6 +9,14 @@ plugin contract, alongside `/oauth/client.json`. Loading plugins uses local
 validation, not network schema retrieval. GitHub Actions owns deployment; no
 `CNAME` file is needed in the artifact.
 
+GitHub Pages hosts the site, and Cloudflare proxies `drawloom.org` and
+`www.drawloom.org` in front of it. Cloudflare's encryption mode is **Full**,
+with **Always Use HTTPS** on. Keep it at Full: Flexible loops with GitHub's own
+HTTPS redirect, and Full (strict) fails once GitHub can no longer renew its
+certificate behind the proxy. Cloudflare Web Analytics measures visits. It is
+cookieless, and Cloudflare adds its script at the edge, so the site's source
+loads no scripts itself.
+
 The site root is the Synaptic Shuttle product landing page. It is composed from
 Svelte components that Astro renders into static HTML. The journal index is
 `src/pages/journal/index.astro`. No component uses a
