@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { isUserFacing, scanText } from "./voice-policy.ts";
+import { isChecked, scanText } from "./voice-policy.ts";
 
 const rules = (path: string, text: string) => scanText(path, text).map(({ rule }) => rule);
 
@@ -51,20 +51,20 @@ test("the writing guide may quote the habits", () => {
   expect(rules("WRITING.md", "Honestly, delve into robust tapestry.")).toEqual([]);
 });
 
-test("only documents people read are checked", () => {
+test("publishing and developer documents are checked; agent documents are not", () => {
   for (const path of [
     "README.md",
+    "ARCHITECTURE.md",
+    "CONTRIBUTING.md",
+    "docs/reference/plugin-packages.md",
     "packages/ui/ui/README.md",
     "apps/desktop/README.md",
     "publishing/explore/decisions/page.md",
     "publishing/a-place-to-do-the-work/article.md",
   ])
-    expect(isUserFacing(path), path).toBe(true);
+    expect(isChecked(path), path).toBe(true);
   for (const path of [
     "AGENTS.md",
-    "ARCHITECTURE.md",
-    "CONTRIBUTING.md",
-    "docs/reference/plugin-packages.md",
     "docs/plans/pre-publication-audit.md",
     "docs/reference/harness-workbench-survey/README.md",
     "spikes/adr-0022-memory/README.md",
@@ -76,5 +76,5 @@ test("only documents people read are checked", () => {
     ".agents/skills/plain-writing/SKILL.md",
     "DESIGN.md",
   ])
-    expect(isUserFacing(path), path).toBe(false);
+    expect(isChecked(path), path).toBe(false);
 });

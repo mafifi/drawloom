@@ -9,17 +9,17 @@ area you change.
 2. `ARCHITECTURE.md`
 3. The applicable ADRs in `docs/adr/`
 4. `DESIGN.md` when changing visual or user-interface design
-5. `WRITING.md` before writing or revising anything users read
+5. `WRITING.md` before writing for the website, the journal or developers
 6. The nearest nested `AGENTS.md`
 
 ## Non-negotiable rules
 
-- Write user-facing documents (the website, journal and every README) in the
-  voice in `WRITING.md`: clear, simple and written for a person. Website pages
-  say what Drawloom is and why, with no test results, limits or caveats. Run
-  `pnpm run check:voice`. Developer and agent documents, such as ARCHITECTURE.md,
-  CONTRIBUTING.md, reference guides, plans, decision records and evidence, keep
-  their detail.
+- Write in the right voice from `WRITING.md`. The website and journal use the
+  publishing voice: clear, simple, and free of test results, limits and
+  caveats. READMEs, ARCHITECTURE.md, CONTRIBUTING.md and developer guides use
+  the developer voice: condensed and purposeful, without caveats. Agent
+  documents, such as `AGENTS.md` files, plans, records and working notes, can
+  hold whatever context agents need. Run `pnpm run check:voice`.
 - Apply the permissive product-dependency principle in `ARCHITECTURE.md` and
   licensing requirements in `CONTRIBUTING.md`. Audit exact versions, transitive
   and bundled code, runtimes and weights separately. Downloads are not exemptions.

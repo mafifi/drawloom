@@ -1,6 +1,6 @@
 ---
 name: plain-writing
-description: Use when writing or revising anything users read about Drawloom (website pages, journal essays and READMEs), and when briefing another agent to write them. Not for developer or agent documents such as ARCHITECTURE.md, CONTRIBUTING.md, reference guides, AGENTS.md, plans, decision records or evidence.
+description: Use when writing or revising Drawloom's website, journal essays, READMEs, ARCHITECTURE.md, CONTRIBUTING.md or developer guides, and when briefing another agent to write them. Not for agent documents such as AGENTS.md, plans, records or working notes.
 ---
 
 # Plain writing
@@ -10,7 +10,8 @@ The voice, the habits to avoid and the rules for each kind of document live in
 
 ## Before you write
 
-1. Name the reader: a business leader, a developer, or both.
+1. Name the voice from WRITING.md: publishing (website and journal) or
+   developer (READMEs, ARCHITECTURE.md, CONTRIBUTING.md and guides).
 2. Name the kind of document. It decides what belongs in it. A website page says
    what Drawloom is and why. A guide tells the reader what to do.
 3. Write one sentence saying what the reader should know or do afterwards.

@@ -2,8 +2,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { scanVoice } from "./voice-policy.ts";
 
-// Errors: reader-facing pages break the voice in WRITING.md.
-// Warnings: everything else. `--report` lists them, grouped by area.
+// Errors: the website and journal break the publishing voice in WRITING.md.
+// Warnings: developer documents. `--report` lists them, grouped by area.
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const { files, issues } = scanVoice(root);
 const errors = issues.filter(({ severity }) => severity === "error");
@@ -38,7 +38,7 @@ if (process.argv.includes("--report")) {
 if (errors.length > 0) process.exitCode = 1;
 else
   console.log(
-    `Voice: OK (${files} files; ${warnings.length} warnings outside reader-facing pages${
+    `Voice: OK (${files} files; ${warnings.length} warnings in developer documents${
       process.argv.includes("--report") ? "" : ", run with --report to list them"
     })`,
   );

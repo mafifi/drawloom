@@ -130,13 +130,16 @@ export function scanText(path: string, text: string): VoiceIssue[] {
 }
 
 /**
- * Documents users read: the website, the journal and every README. Developer and
- * agent documents (ARCHITECTURE.md, CONTRIBUTING.md, reference guides, AGENTS.md
- * files, plans, decision records, evidence, research) keep their detail and are
- * not checked.
+ * Publishing documents (the website and journal) fail on any habit. Developer
+ * documents (READMEs, ARCHITECTURE.md, CONTRIBUTING.md and developer guides)
+ * warn. Agent documents (AGENTS.md files, plans, records, evidence, research,
+ * skills) are the agents' own working space and are not checked.
  */
-export function isUserFacing(path: string) {
+export function isChecked(path: string) {
   if (isPublic(path)) return true;
+  if (["ARCHITECTURE.md", "CONTRIBUTING.md", "SECURITY.md"].includes(path)) return true;
+  if (/^docs\/reference\/[^/]+\.md$/.test(path))
+    return !/evidence|readiness|^docs\/reference\/adr-/.test(path);
   // READMEs, except in research, records and licence folders.
   if (/(^|\/)README\.md$/.test(path)) return !/^(docs|knowledge|spikes|LICENSES)\//.test(path);
   return /^publishing\/[^/]+\/transcript\.md$/.test(path);
@@ -149,7 +152,7 @@ export function trackedProse(root: string) {
   })
     .split("\0")
     .filter((path) => path && (path.endsWith(".md") || /\.(astro|svelte|ts)$/.test(path)))
-    .filter((path) => !path.includes("node_modules/") && isUserFacing(path));
+    .filter((path) => !path.includes("node_modules/") && isChecked(path));
 }
 
 export function scanVoice(root: string) {

@@ -16,5 +16,5 @@ Current skills:
   behaviour before implementation.
 - `svelte-presentation-mvvm`: place Svelte presentation, state and commands at
   the correct boundary.
-- `plain-writing`: write and review user-facing prose in the voice set out in
-  `WRITING.md`, including briefs for other agents.
+- `plain-writing`: write and review website, journal and developer documents in
+  the voices set out in `WRITING.md`, including briefs for other agents.
