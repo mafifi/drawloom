@@ -2,67 +2,62 @@
 step: 4
 title: Decisions
 question: What we chose and why
-summary: The decisions that shape Drawloom, and why we made them.
+summary: What we set out to achieve with Drawloom, and why it's built the way it is.
 draft: false
 ---
 
-Every important choice in Drawloom is written down: the problem, the options,
-what we chose and what it costs. We've made 34 so far. These are the ones that
-shape Drawloom most.
+Every decision in Drawloom comes back to four goals.
 
-## How Drawloom is built
+## Ready for the enterprise
 
-- **[Each part has one job.](https://github.com/mafifi/drawloom/blob/main/docs/adr/0005-partition-agent-platform-capabilities.md)**
-  Drawloom is split into 10 capabilities, such as memory, tools and approval.
-  Each can be improved or replaced without touching the rest.
-- **[Every version of a part passes the same tests.](https://github.com/mafifi/drawloom/blob/main/docs/adr/0004-standardise-capability-contracts.md)**
-  If you replace a part with your own, you run the same tests we do, so you know
-  it behaves the same way.
-- **[Open source under Apache 2.0.](https://github.com/mafifi/drawloom/blob/main/docs/adr/0002-open-core-licensing.md)**
-  The core is free to use, change and share, including in commercial products.
+We want businesses to adopt Drawloom with confidence, and to make it their own.
 
-## Working with the agent
+- **Open licences.** Drawloom is free and open source under Apache 2.0. Everything
+  it ships has been checked against the same open licence policy, so there are
+  no surprises for your legal team.
+- **Built to extend.** Drawloom is made of 10 capabilities, each with a clear
+  job. You can swap in your own implementations to fit your environment, such
+  as your own access rules or knowledge store.
+- **Your rules.** Drawloom enforces who can see what. Your organisation decides
+  the rules.
 
-- **[One way to talk to any agent.](https://github.com/mafifi/drawloom/blob/main/docs/adr/0007-provider-neutral-agent-execution.md)**
-  Drawloom talks to agents through one shared interface. Codex is the first
-  agent behind it.
-- **[You stay in control of actions.](https://github.com/mafifi/drawloom/blob/main/docs/adr/0015-working-material-ownership-and-edit-approval.md)**
-  Drawloom uses the agent's own approval controls, so you approve actions the
-  way you already do in Codex.
-- **[Work stays with its project.](https://github.com/mafifi/drawloom/blob/main/docs/adr/0020-directory-backed-projects-and-file-delivery.md)**
-  Every conversation belongs to one project folder, and its files always come
-  from that folder.
+## Part of the ecosystem
 
-## Plugins
+Drawloom should fit in with the tools you already use, not ask you to start
+again.
 
-- **[Plugins use open standards.](https://github.com/mafifi/drawloom/blob/main/docs/adr/0018-plugin-standards-and-runtime-extensions.md)**
-  Drawloom loads plugins in the open Agent Plugins format, and plugin screens
-  use MCP Apps. A plugin in the standard format needs no Drawloom-specific
-  changes.
-- **[Installing isn't permission.](https://github.com/mafifi/drawloom/blob/main/docs/adr/0013-plugin-boundaries-and-host-integration.md)**
-  Adding a plugin doesn't let it do anything. You decide what it can use.
+- **Open standards.** Drawloom uses MCP for tools, MCP Apps for plugin screens,
+  the Agent Plugins format for plugins and OpenTelemetry for monitoring, so it
+  fits alongside the tools built on them.
+- **A familiar interface.** Drawloom looks and works like the AI tools you
+  already know. It uses your agent's own approval controls, so there's nothing
+  new to learn.
 
-## Knowledge and memory
+## Open to everyone
 
-- **[Your knowledge stays on your computer.](https://github.com/mafifi/drawloom/blob/main/docs/adr/0024-local-knowledge-memory-and-retrieval.md)**
-  Drawloom stores what it learns locally, with a note of where each fact came
-  from.
-- **[Your organisation sets the rules.](https://github.com/mafifi/drawloom/blob/main/docs/adr/0023-knowledge-memory-authorization-boundaries.md)**
-  Drawloom enforces who can see what. Your organisation decides the rules.
+Solo developers should get as much from Drawloom as large teams.
 
-## Reliability and release
+- **Every capability runs locally.** Some advanced features are best served by
+  cloud services, but every capability has a local version, so you can start
+  on your own computer with nothing else to set up.
+- **The lowest barrier to entry.** Install the app, sign in to Codex, and start
+  working. We tell you about any cost or download before you commit to it.
 
-- **[Long-running work survives a restart.](https://github.com/mafifi/drawloom/blob/main/docs/adr/0021-local-temporal-orchestration.md)**
-  Drawloom runs long jobs on Temporal, so they pick up where they left off after
-  a crash or restart.
-- **[Only permissive licences.](https://github.com/mafifi/drawloom/blob/main/docs/adr/0026-permissive-dependencies-and-local-gguf-embeddings.md)**
-  Everything Drawloom ships must be free to use and share. We check every
-  dependency, including the ones inside other dependencies.
-- **[Run and ship on Node.js.](https://github.com/mafifi/drawloom/blob/main/docs/adr/0034-node-toolchain.md)**
-  We moved from Bun to Node.js when we found that Bun didn't fit our licence
-  policy.
+## Something you can build on
+
+Drawloom is actively developed, and we can't promise its interfaces will never
+change. But we designed them to last from the start.
+
+- **We studied first.** Before designing each interface, we studied how leading
+  open-source projects solve the same problem, and published what we learned.
+- **We tested the alternatives.** We deliberately built extra implementations
+  on different technologies, such as two different policy engines, to prove each
+  interface isn't tied to one way of doing things.
+- **Every implementation passes the same tests.** When you build your own, you
+  test it against the same standard as ours.
 
 ## Learn more
 
-- [All 34 decisions](https://github.com/mafifi/drawloom/tree/main/docs/adr)
-- [How Drawloom fits together](https://github.com/mafifi/drawloom/blob/main/ARCHITECTURE.md)
+- [Our principles](/principles/)
+- [How we looked into it](/research/)
+- [Every decision, in detail](https://github.com/mafifi/drawloom/tree/main/docs/adr)
