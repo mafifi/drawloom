@@ -55,7 +55,7 @@ test("article metadata defaults to private and validates publication and media b
   );
 });
 
-test("Archify source keeps the workbench outside all eleven Drawloom capabilities", () => {
+test("Archify source keeps the workbench outside all ten Drawloom capabilities", () => {
   const diagram = JSON.parse(
     readFileSync("publishing/a-place-to-do-the-work/diagrams/drawloom.architecture.json", "utf8"),
   ) as {
@@ -63,7 +63,7 @@ test("Archify source keeps the workbench outside all eleven Drawloom capabilitie
     boundaries: { wraps: string[] }[];
     connections: { from: string; to: string }[];
   };
-  expect(diagram.components).toHaveLength(12);
+  expect(diagram.components).toHaveLength(11);
   expect([...diagram.boundaries[0]!.wraps].sort()).toEqual(
     [
       "orchestration",
@@ -71,7 +71,6 @@ test("Archify source keeps the workbench outside all eleven Drawloom capabilitie
       "knowledge",
       "context",
       "agent",
-      "inference",
       "policy",
       "tools",
       "sandbox",
@@ -83,7 +82,7 @@ test("Archify source keeps the workbench outside all eleven Drawloom capabilitie
   const connections = diagram.connections.map(({ from, to }) => `${from}:${to}`);
   for (const edge of ["context:agent", "agent:policy", "policy:tools", "tools:sandbox"])
     expect(connections).toContain(edge);
-  expect(connections).not.toContain("agent:inference");
+  expect(diagram.components.map(({ id }) => id)).not.toContain("inference");
   const theme = readFileSync(
     "publishing/a-place-to-do-the-work/diagrams/journal-theme.css",
     "utf8",
@@ -227,21 +226,28 @@ test("production excludes draft routes and media; explicit preview renders acces
       expect(schema).toEqual(DrawloomPackageExtensionJsonSchema);
       if (!preview) {
         expect(home).toContain('href="https://drawloom.org/"');
-        expect(home).toContain("Build AI systems<br");
-        expect(home).toContain("people can understand<br");
+        // Svelte marks {#each} blocks with comments; compare the text itself.
+        const homeText = home.replace(/<!--[\s\S]*?-->/g, "");
+        expect(homeText).toContain("Build AI helpers<br");
+        expect(homeText).toContain("you can see, steer<br");
+        // The design's code name is not reader-facing copy.
+        expect(home.toLowerCase()).not.toContain("synaptic shuttle");
+        expect(home).toContain("https://github.com/mafifi/drawloom/releases/tag/v0.0.0-preview.1");
+        expect(home).toContain('href="/journal/"');
         expect(home).toContain('id="decision-map"');
         expect(home).toContain("/artwork/synaptic-shuttle/hero.png");
         expect(home).toContain("/artwork/drawloom/mark.png");
         expect(home).not.toContain("/artwork/synaptic-shuttle/logo.png");
         expect(home).toContain('<svg class="decision-map"');
-        expect(home).toContain('viewBox="0 0 1672 941"');
+        // Cropped to the artwork's drawn area, in its native 1672×941 coordinates.
+        expect(home).toContain('<svg class="decision-map" viewBox="0 50 1672 650"');
         expect(home).toContain('role="group"');
         expect(home).not.toContain(
           'role="img" aria-labelledby="decision-map-title decision-map-description"',
         );
         expect(home).toContain("/artwork/synaptic-shuttle/decision-map-transparent.png");
         expect(home.match(/class="decision-map-link"/g)).toHaveLength(6);
-        expect(home).toContain('aria-label="Explore Principles"');
+        expect(home).toContain('aria-label="Principles: what we care about"');
         expect(home).toContain(">Principles</text>");
         expect(home).toContain(">What we care about</text>");
         expect(home).toContain("/articles/a-place-to-do-the-work/");
@@ -257,6 +263,11 @@ test("production excludes draft routes and media; explicit preview renders acces
         expect(published).not.toContain("noindex");
         expect(published).not.toContain("Draft · local preview");
         expect(published).toContain("2026-09-05");
+        expect(published).toContain('href="/journal/"');
+        expect(files).toContain("journal/index.html");
+        const journal = readFileSync(join(output, "journal/index.html"), "utf8");
+        expect(journal).toContain("/articles/a-place-to-do-the-work/");
+        expect(journal).not.toContain("workbench-example");
         expect(files).toContain("media/a-place-to-do-the-work/episode-steps.mp4");
         expect(files).toContain("media/a-place-to-do-the-work/03-programme-raw.png");
         expect(
@@ -288,10 +299,9 @@ test("production excludes draft routes and media; explicit preview renders acces
         const capabilityNames = [
           "memory",
           "knowledge",
-          "context-compilation",
+          "context",
           "orchestration",
-          "agent-execution",
-          "model-inference",
+          "agent-integration",
           "policy-and-approval",
           "tools",
           "sandbox",
@@ -301,7 +311,8 @@ test("production excludes draft routes and media; explicit preview renders acces
         for (const capability of capabilityNames) {
           expect(draft.match(new RegExp(`data-capability="${capability}"`, "g"))).toHaveLength(1);
         }
-        expect(draft).toContain("the provider keeps its inner agent loop");
+        expect(draft.match(/data-capability=/g)).toHaveLength(10);
+        expect(draft).toContain("The provider keeps its own conversation history");
         expect(draft).not.toContain("11-current-public-homepage.png");
         expect(draft.match(/<video\b/g)).toHaveLength(1);
         expect(draft.indexOf("<video")).toBeLessThan(draft.indexOf('id="the-light-bulb-moment"'));

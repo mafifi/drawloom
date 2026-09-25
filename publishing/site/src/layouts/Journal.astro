@@ -1,8 +1,10 @@
 ---
 import '../styles/journal.css';
-interface Props {title: string; description: string; article?: boolean; draft?: boolean}
-const {title, description, article = false, draft = false} = Astro.props;
+interface Props {title: string; description: string; section: 'journal' | 'article'; draft?: boolean}
+const {title, description, section, draft = false} = Astro.props;
+const article = section === 'article';
 const home = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/`;
+const journal = `${home}journal/`;
 ---
 <!doctype html>
 <html lang="en">
@@ -20,8 +22,8 @@ const home = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/`;
   <body>
     <a class="skip" href="#main">Skip to content</a>
     <header class="masthead shell">
-      <a class="wordmark" href={home}>Drawloom</a>
-      <nav aria-label="Main"><a href={home} aria-current={!article ? 'page' : undefined}>{article && <img class="arrow" src={`${home}icons/arrow-left.svg`} width="14" height="14" alt="" />}{article ? 'Back to journal' : 'Journal'}</a></nav>
+      <a class="wordmark" href={home}><img src={`${home}artwork/drawloom/mark.png`} width="36" height="36" alt="" />Drawloom</a>
+      <nav aria-label="Main"><a href={journal} aria-current={!article ? 'page' : undefined}>{article && <img class="arrow" src={`${home}icons/arrow-left.svg`} width="14" height="14" alt="" />}{article ? 'Back to journal' : 'Journal'}</a></nav>
     </header>
     <main id="main" class="shell"><slot /></main>
     <footer class="shell"><span>Drawloom journal</span><a href="https://github.com/mafifi/drawloom">GitHub</a></footer>

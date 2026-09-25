@@ -22,15 +22,26 @@ export interface HeaderPresentation {
   navigation: ReadonlyArray<{ id: NavigationId; label: string; emphasis?: boolean }>;
 }
 
+/** A decorative word placed on the hero artwork, in its 1672×941 coordinates. */
+export interface ArtworkLabel {
+  text: string;
+  x: number;
+  y: number;
+  tone: "shuttle" | "thread";
+}
+
 export interface HeroPresentation {
   artwork: ImagePresentation;
+  artworkLabels: readonly ArtworkLabel[];
   eyebrow: string;
   titleLines: readonly string[];
   deck: string;
   primaryActionLabel: string;
   secondaryActionLabel: string;
-  principleNotesLabel: string;
-  principleNotes: readonly string[];
+  cornerNote: readonly string[];
+  notesLabel: string;
+  leftNotes: readonly string[];
+  rightNotes: readonly string[];
   arrowIcon: ImagePresentation;
 }
 
@@ -48,13 +59,15 @@ export interface DecisionStagePresentation {
 
 export interface DecisionMapPresentation {
   sectionLabel: string;
-  heading: string;
+  headingLines: readonly string[];
   body: string;
+  hint: string;
   interactionLabel: string;
   artwork: ImagePresentation;
   title: string;
   description: string;
-  caption: string;
+  footerNote: string;
+  footerActionLabel: string;
   stages: readonly DecisionStagePresentation[];
 }
 
@@ -62,7 +75,7 @@ export interface OpenByDesignPresentation {
   artwork: ImagePresentation;
   sectionLabel: string;
   headingLines: readonly string[];
-  body: string;
+  paragraphs: readonly string[];
   actionLabel: string;
   journalLabel: string;
   articleTitle: string;
@@ -93,6 +106,7 @@ export interface LandingPageActions {
   navigation: Readonly<Record<NavigationId, string>>;
   hero: Readonly<{ primaryHref: string; secondaryHref: string }>;
   decisionStages: Readonly<Record<DecisionStageId, string>>;
+  decisionsHref: string;
   openRepositoryHref: string;
   articleHref: string;
   footerRepositoryHref: string;

@@ -60,12 +60,20 @@ footer::before {
   bottom: 0;
 }
 .wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   color: var(--ink);
   font-family: var(--display);
   font-size: 30px;
   line-height: 1;
   text-decoration: none;
   letter-spacing: -0.025em;
+}
+.wordmark img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
 }
 nav,
 .metadata,

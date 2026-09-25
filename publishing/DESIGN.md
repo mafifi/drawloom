@@ -105,6 +105,29 @@ The hero artwork is decorative. The decision map is meaningful and requires a
 text alternative. Svelte components are server-rendered by Astro without client
 hydration, so the final page remains usable as ordinary static HTML.
 
+On 2026-09-25 the landing page was brought back to the selected mock's
+composition, with plainer copy in its slots:
+
+- "Synaptic Shuttle" names this design direction. It is not reader-facing copy
+  and must not appear on the page.
+- Header: a large mark and wordmark, the navigation centred, GitHub at the right.
+  No rule under the header.
+- Hero: a copper eyebrow, the headline, a serif reading line, a rounded violet
+  primary action and a plain secondary link. A short ruled note sits at the top
+  right, and ruled notes stack at the bottom left and right. Decorative words
+  label the shuttles and threads in a hidden SVG that shares the artwork's
+  1672×941 coordinates and cropping. They yield below 900px, where the artwork
+  crops too far to keep them on their subjects.
+- Sections: a small copper label above, the heading on the left and the reading
+  copy on the right. They stack below 900px.
+- The decision map runs edge to edge, with left-aligned serif labels and no
+  numbers. Its view box crops the artwork's empty margins. A ruled footer row
+  follows. Numbers remain only in the narrow-screen list.
+- The primary action points to the current GitHub preview release.
+
+The journal index lives at `/journal/`. Journal pages carry the mark beside the
+wordmark, and articles return to the index rather than to the product landing.
+
 The primary Drawloom mark is [Drawloom](site/public/artwork/drawloom/README.md),
 selected on 2026-09-20: substantial pearlescent lobes crossed by copper and violet
 ribbons. Use its transparent `mark.png` for the website and repository identity;

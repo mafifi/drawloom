@@ -10,7 +10,8 @@ validation, not network schema retrieval. GitHub Actions owns deployment; no
 `CNAME` file is needed in the artifact.
 
 The site root is the Synaptic Shuttle product landing page. It is composed from
-Svelte components that Astro renders into static HTML; no component uses a
+Svelte components that Astro renders into static HTML. The journal index is
+`src/pages/journal/index.astro`. No component uses a
 `client:*` hydration directive, so the landing and its navigation need no client
 JavaScript. Article pages remain Astro editorial templates and retain the journal
 design system.
@@ -22,8 +23,10 @@ replaceable without a stateful ViewModel class. Use the repository
 `svelte-presentation-mvvm` skill when extending this boundary.
 
 The decision map is a transparent raster artwork inside a semantic SVG. SVG text
-anchors share its 1672×941 coordinate system, scale with the artwork, and expose
-real links with CSS hover, focus and active states. A compact HTML list replaces
+anchors share its 1672×941 coordinate system (the view box crops its empty
+margins), scale with the artwork, and expose
+real links with CSS hover, focus and active states. The download link in
+`src/pages/index.astro` names the current release; update it with each release. A compact HTML list replaces
 the overlaid labels on narrow screens.
 
 Maintained article templates consume `publishing/<slug>/article.md` and an

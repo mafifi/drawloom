@@ -12,6 +12,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const articleHref = featured ? `${base}/articles/${featured.id}/` : `${base}/`;
 const artwork = `${base}/artwork/synaptic-shuttle`;
 const repository = 'https://github.com/mafifi/drawloom';
+// The current Mac preview. Update this with each release.
+const release = `${repository}/releases/tag/v0.0.0-preview.1`;
 const logo = {src: `${base}/artwork/drawloom/mark.png`, width: 48, height: 48, alt: ''};
 const arrowIcon = {src: `${base}/icons/arrow-right.svg`, width: 18, height: 18, alt: ''};
 
@@ -32,48 +34,64 @@ const presentation = {
   },
   hero: {
     artwork: {src: `${artwork}/hero.png`, width: 1672, height: 941, alt: ''},
-    eyebrow: 'Synaptic shuttle',
-    titleLines: ['Build AI systems', 'people can understand', 'and direct.'],
-    deck: 'A contract-first harness for controlled, portable and inspectable agent work.',
-    primaryActionLabel: 'Explore the decisions',
+    // Words for the loom in the artwork: two incoming threads, then the four shuttles.
+    artworkLabels: [
+      {text: 'Questions', x: 876, y: 642, tone: 'thread'},
+      {text: 'Ideas', x: 812, y: 756, tone: 'thread'},
+      {text: 'Think', x: 990, y: 306, tone: 'shuttle'},
+      {text: 'Plan', x: 1085, y: 298, tone: 'shuttle'},
+      {text: 'Decide', x: 1197, y: 291, tone: 'shuttle'},
+      {text: 'Build', x: 1305, y: 284, tone: 'shuttle'},
+    ],
+    eyebrow: 'Early preview',
+    titleLines: ['Build AI helpers', 'you can see, steer', 'and trust.'],
+    deck: 'Drawloom is a free, open-source toolkit for building AI workbenches: apps where you and an AI agent work on something together.',
+    primaryActionLabel: 'Download for Mac',
     secondaryActionLabel: 'View on GitHub',
-    principleNotesLabel: 'Drawloom principles',
-    principleNotes: ['Clarity · constraint · composability', 'Open source for a more capable tomorrow'],
+    cornerNote: ['Works with', 'Codex'],
+    notesLabel: 'What Drawloom offers',
+    leftNotes: ['See what the agent does', 'Approve what matters', 'Replace any part', 'Free and open source'],
+    rightNotes: ['Apple silicon Macs', 'macOS 14 or later'],
     arrowIcon,
   },
   decisionMap: {
-    sectionLabel: 'A visible line of reasoning',
-    heading: 'From questions to working systems.',
-    body: 'Drawloom keeps the reasoning behind an agent system close to the code: principles shape investigations, decisions carry evidence, and implementations stay accountable to both.',
-    interactionLabel: 'Decision process',
+    sectionLabel: 'How we decide',
+    headingLines: ['From questions', 'to working code.'],
+    body: 'Drawloom is built in the open. You can follow every step, from the principles we started with to the code that runs, and check the evidence along the way.',
+    hint: 'Choose a step to read the real documents.',
+    interactionLabel: 'Steps from principles to working code',
     artwork: {src: `${artwork}/decision-map-transparent.png`, width: 1672, height: 941, alt: ''},
-    title: 'Drawloom decision process',
-    description: 'A luminous network links principles, questions, investigations, decisions, evidence and implementation. Each label opens the corresponding public material.',
-    caption: 'Trace the architecture through public decisions and their supporting evidence.',
+    title: 'How Drawloom decisions are made',
+    description: 'Six linked steps: principles, questions, investigations, decisions, evidence and the working code. Each label opens the matching public documents.',
+    footerNote: 'Every step links to real documents',
+    footerActionLabel: 'Read the decisions',
     stages: [
-      {id: 'principles', number: '01', name: 'Principles', ariaLabel: 'Explore Principles', summaryLines: ['What we care about'], x: 78, hitX: 28, hitWidth: 170, textAnchor: 'start'},
-      {id: 'questions', number: '02', name: 'Questions', ariaLabel: 'Explore Questions', summaryLines: ['What do we need', 'to figure out?'], x: 470, hitX: 376, hitWidth: 188, textAnchor: 'middle'},
-      {id: 'investigations', number: '03', name: 'Investigations', ariaLabel: 'Explore Investigations', summaryLines: ['How do we explore', 'options?'], x: 713, hitX: 603, hitWidth: 220, textAnchor: 'middle'},
-      {id: 'decisions', number: '04', name: 'Decisions', ariaLabel: 'Explore Decisions', summaryLines: ['What will we do', 'and why?'], x: 962, hitX: 870, hitWidth: 184, textAnchor: 'middle'},
-      {id: 'evidence', number: '05', name: 'Evidence', ariaLabel: 'Explore Evidence', summaryLines: ['What supports', 'this choice?'], x: 1205, hitX: 1118, hitWidth: 174, textAnchor: 'middle'},
-      {id: 'implementation', number: '06', name: 'Implementation', ariaLabel: 'Explore Implementation', summaryLines: ['How does it', 'come to life?'], x: 1594, hitX: 1438, hitWidth: 206, textAnchor: 'end'},
+      {id: 'principles', number: '01', name: 'Principles', ariaLabel: 'Principles: what we care about', summaryLines: ['What we care about'], x: 78, hitX: 58, hitWidth: 230, textAnchor: 'start'},
+      {id: 'questions', number: '02', name: 'Questions', ariaLabel: 'Questions: what we still need to find out', summaryLines: ['What we still need', 'to find out'], x: 405, hitX: 385, hitWidth: 210, textAnchor: 'start'},
+      {id: 'investigations', number: '03', name: 'Investigations', ariaLabel: 'Investigations: how we looked into it', summaryLines: ['How we looked', 'into it'], x: 640, hitX: 620, hitWidth: 220, textAnchor: 'start'},
+      {id: 'decisions', number: '04', name: 'Decisions', ariaLabel: 'Decisions: what we chose and why', summaryLines: ['What we chose', 'and why'], x: 900, hitX: 880, hitWidth: 200, textAnchor: 'start'},
+      {id: 'evidence', number: '05', name: 'Evidence', ariaLabel: 'Evidence: how we checked it', summaryLines: ['How we', 'checked it'], x: 1140, hitX: 1120, hitWidth: 190, textAnchor: 'start'},
+      {id: 'implementation', number: '06', name: 'Working code', ariaLabel: 'Working code: the result', summaryLines: ['The result'], x: 1390, hitX: 1370, hitWidth: 220, textAnchor: 'start'},
     ],
   },
   openByDesign: {
     artwork: {src: `${artwork}/decision-map-transparent.png`, width: 1672, height: 941, alt: ''},
-    sectionLabel: 'The operating belief',
-    headingLines: ['Open by design.', 'Serious by default.'],
-    body: 'Powerful agent systems need more than capability. They need explicit boundaries, inspectable decisions and implementations that can move between hosts without hiding what matters.',
-    actionLabel: 'Explore the open-source repository',
+    sectionLabel: 'For people who build',
+    headingLines: ['Open by design.', 'Built for real work.'],
+    paragraphs: [
+      'Drawloom is for businesses and for individuals. Use it on your own machine, at no cost.',
+      'Developers can replace any built-in part with their own. Every design decision is public, with the evidence behind it.',
+    ],
+    actionLabel: 'Explore the code on GitHub',
     journalLabel: 'From the journal',
-    articleTitle: featured?.data.title ?? 'A place to do the work',
-    articleDescription: featured?.data.description ?? 'Notes on making AI useful.',
+    articleTitle: featured?.data.title ?? 'Why Drawloom?',
+    articleDescription: featured?.data.description ?? 'Why this project exists.',
     articleActionLabel: 'Read the essay',
     arrowIcon,
   },
   footer: {
     brandName: 'Drawloom',
-    statement: 'Understandable systems. Deliberate work.',
+    statement: 'Free and open source. Early preview.',
     repositoryLabel: 'GitHub',
     logo,
   },
@@ -83,29 +101,30 @@ const actions = {
   skipHref: '#main',
   homeHref: `${base}/`,
   navigation: {
-    why: '#why',
+    why: articleHref,
     process: '#decision-map',
     decisions: `${repository}/tree/main/docs/adr`,
-    journal: `${base}/articles/a-place-to-do-the-work/`,
+    journal: `${base}/journal/`,
     github: repository,
   },
-  hero: {primaryHref: '#decision-map', secondaryHref: repository},
+  hero: {primaryHref: release, secondaryHref: repository},
   decisionStages: {
     principles: `${repository}/blob/main/ARCHITECTURE.md#decision-principles`,
-    questions: '#why',
+    questions: `${repository}/issues`,
     investigations: `${repository}/tree/main/docs/reference`,
     decisions: `${repository}/tree/main/docs/adr`,
     evidence: `${repository}/tree/main/knowledge/evidence`,
     implementation: repository,
   },
+  decisionsHref: `${repository}/tree/main/docs/adr`,
   openRepositoryHref: repository,
   articleHref,
   footerRepositoryHref: repository,
 } satisfies LandingPageActions;
 ---
 <Landing
-  title="Build understandable AI systems"
-  description="Drawloom is a contract-first harness for controlled, portable and inspectable agent work."
+  title="Build AI helpers you can see, steer and trust"
+  description="Drawloom is a free, open-source toolkit for building AI workbenches: apps where you and an AI agent work on something together."
   draft={preview}
 >
   <LandingPageView {presentation} {actions} />

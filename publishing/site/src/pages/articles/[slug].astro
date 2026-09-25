@@ -22,7 +22,7 @@ if ((parts?.length ?? 0) > 2 || (inlineAnimation && !entry.data.media)) {
   throw new Error(`Use one animation marker with media metadata: ${entry.id}`);
 }
 ---
-<Journal title={entry.data.title} description={entry.data.description} article draft={entry.data.draft}>
+<Journal title={entry.data.title} description={entry.data.description} section="article" draft={entry.data.draft}>
   <article class="essay">
     <header class="article-heading prose">
       <h1>{entry.data.title}</h1>

@@ -16,7 +16,7 @@
   <SiteHeaderView presentation={presentation.header} actions={{homeHref: actions.homeHref, navigation: actions.navigation}} />
   <main id="main">
     <LandingHeroView presentation={presentation.hero} actions={actions.hero} />
-    <DecisionMapView presentation={presentation.decisionMap} actions={actions.decisionStages} />
+    <DecisionMapView presentation={presentation.decisionMap} actions={{stages: actions.decisionStages, decisionsHref: actions.decisionsHref}} />
     <OpenByDesignView presentation={presentation.openByDesign} actions={{openRepositoryHref: actions.openRepositoryHref, articleHref: actions.articleHref}} />
   </main>
 </div>
