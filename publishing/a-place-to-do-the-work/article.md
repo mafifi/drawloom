@@ -1,6 +1,6 @@
 ---
 title: Why Drawloom?
-description: Three attempts to give a doctor more time for medicine, and the lesson I nearly missed.
+description: Three years, three attempts, one lesson.
 draft: false
 published: '2026-09-05'
 media:
