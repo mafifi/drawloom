@@ -1,29 +1,28 @@
 ---
-name: Capability or workflow outcome
-about: Track a substantial outcome through a set of reviewable changes
+name: Larger piece of work
+about: Describe what needs to change and track the pull requests that deliver it
 title: "Epic: "
 labels: enhancement
 ---
 
-## Outcome
+## What will change
 
-What should a user, workbench author or contributor be able to do when this is complete?
+What should someone be able to do when this is complete?
 
-## Why this matters
+## Why it matters
 
-What current problem or opportunity makes the outcome worth pursuing?
+What problem does this solve?
 
-## Boundaries
+## What must stay the same
 
-What must remain true while pursuing it? Name relevant ownership, permissions,
-data, cost or compatibility constraints. Leave implementation choices open.
+What behaviour, data, permissions or compatibility must this work preserve?
 
-## Success looks like
+## How we'll know it's done
 
-How will we recognise and verify the completed outcome? Include the consumer
-journey and failure or recovery behaviour where relevant.
+What should we check to know it works? Include what happens when something fails
+or needs to recover, where relevant.
 
 ## Related work
 
-Link decisions, evidence, dependencies and related epics. Add pull requests as
-the work progresses; each should cover one reviewable part of this outcome.
+Link relevant decisions, dependencies and related issues. Add pull requests as
+the work progresses; each should cover one focused part of the work.

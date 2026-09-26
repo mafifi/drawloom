@@ -1,22 +1,22 @@
-## Outcome
+## What this PR delivers
 
-Which issue does this advance, and what part of its outcome does this PR deliver?
+Which issue does this advance? What part does this PR complete?
 
 ## Change
 
-What changed, and why is this a coherent review unit?
+What changed, and why does it belong in one PR?
 
-## Verification
+## How to check it
 
-Record checks run and their results. Distinguish automated checks from live or
-manual review, and name any checks still needed.
+List the checks you ran and their results. Separate automated checks from manual
+review, and say what still needs checking.
 
-## Stack and review order
+## Review order
 
-State the base PR or branch if this depends on another layer. Link the next PR
-if one is already open. Leave this section as "Standalone" otherwise.
+If this PR is part of a stack, link the PR below it and the next PR above it.
+Say which one to review first. Otherwise, write "Standalone".
 
 ## Remaining work
 
-What must still happen before the issue's outcome is complete? Only the final PR
-should close the issue.
+What still needs to happen before the issue can close? Only the final PR in a
+stack should close it.
